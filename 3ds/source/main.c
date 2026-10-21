@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "net.h"
+#include "config.h"
 
 #ifndef BLOCKSY_VERSION
 #define BLOCKSY_VERSION "dev"
@@ -114,7 +115,7 @@ static bool solid(int x, int y, int z, const Block *bl, int n) {
 static void get_text(char *dst, size_t n, const char *hint, bool password) {
 	SwkbdState kb; swkbdInit(&kb, SWKBD_TYPE_NORMAL, 2, (int)n - 1);
 	swkbdSetHintText(&kb, hint);
-	swkbdSetFeatures(&kb, password ? SWKBD_PASSWORD_HIDE_DELAY : 0);
+	if (password) swkbdSetPasswordMode(&kb, SWKBD_PASSWORD_HIDE_DELAY);
 	swkbdSetValidation(&kb, SWKBD_NOTEMPTY, 0, 0);
 	swkbdInputText(&kb, dst, n);
 }
@@ -124,6 +125,7 @@ int main(void) {
 	consoleInit(GFX_BOTTOM, NULL);
 	C3D_RenderTarget *top = C2D_CreateScreenTarget(GFX_TOP, GFX_LEFT);
 	printf("Blocksy 3DS %s\n\n", BLOCKSY_VERSION);
+	if (sizeof(AUTH_URL) <= 1 || sizeof(GAME_URL) <= 1) printf("AVISO: este build no tiene config de Supabase\n(faltan los secrets en GitHub)\n\n");
 	if (!net_init()) {
 		printf("Error de red. START para salir\n");
 		while (aptMainLoop()) { hidScanInput(); if (hidKeysDown() & KEY_START) break; gspWaitForVBlank(); }
@@ -143,7 +145,8 @@ int main(void) {
 
 	LightLock_Init(&lock);
 	s32 prio = 0; svcGetThreadPriority(&prio, CUR_THREAD_HANDLE);
-	Thread th = threadCreate(net_thread, NULL, 32 * 1024, prio - 1, -2, false);
+	Thread th = threadCreate(net_thread, NULL, 128 * 1024, prio - 1, 0, false);
+	if (!th) printf("No se pudo crear el hilo de red\n");
 
 	int kind = 1; Block local[MAX_BLOCKS]; int nl = 0;
 	Remote rem[MAX_PLAYERS]; int nr = 0;
@@ -233,7 +236,7 @@ int main(void) {
 		C2D_TargetClear(top, C2D_Color32(0x87, 0xC8, 0xFF, 255));
 		C2D_SceneBegin(top);
 		// Suelo: cuadrícula alrededor del jugador
-		for (int gx = -12; gx < 12; gx++) for (int gz = -12; gz < 12; gz++) {
+		for (int gx = -8; gx < 8; gx++) for (int gz = -8; gz < 8; gz++) {
 			int ax = (int)floorf(px) + gx, az = (int)floorf(pz) + gz;
 			float p[4][2], dd; bool ok = true;
 			float cs[4][2] = {{0,0},{1,0},{1,1},{0,1}};
@@ -243,12 +246,15 @@ int main(void) {
 			C2D_DrawTriangle(p[0][0], p[0][1], c, p[1][0], p[1][1], c, p[2][0], p[2][1], c, 0);
 			C2D_DrawTriangle(p[0][0], p[0][1], c, p[2][0], p[2][1], c, p[3][0], p[3][1], c, 0);
 		}
-		for (int i = 0; i < nd; i++) draw_box(draw_list[i].x, draw_list[i].y, draw_list[i].z, draw_list[i].w, draw_list[i].h, draw_list[i].color);
+		// citro2d tiene un límite de objetos por frame: se descartan los más lejanos
+		int first = nd > 350 ? nd - 350 : 0;
+		for (int i = first; i < nd; i++) draw_box(draw_list[i].x, draw_list[i].y, draw_list[i].z, draw_list[i].w, draw_list[i].h, draw_list[i].color);
 		C2D_DrawRectSolid(8, 8, 0, 20, 20, PALETTE[kind]); // color seleccionado
 		C3D_FrameEnd(0);
 	}
 
-	running = false; threadJoin(th, U64_MAX); threadFree(th);
+	running = false;
+	if (th) { threadJoin(th, U64_MAX); threadFree(th); }
 	net_leave(&sess); net_offline(&sess);
 	C2D_Fini(); C3D_Fini(); net_exit(); gfxExit();
 	return 0;
