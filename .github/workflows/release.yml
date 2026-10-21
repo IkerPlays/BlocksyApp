@@ -100,9 +100,19 @@ jobs:
             echo '#define GAME_ID "00000000-0000-0000-0000-000000000001"'
           } > 3ds/source/config.h
 
+      # Versión del título del .cia = nº de commits: sube en cada build (si no, el instalador de la 3DS rechaza el .cia con 0xC8E083FC)
+      - name: Title version
+        id: tv
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          n=$(git rev-list --count HEAD)
+          [ -n "$n" ] && [ "$n" -gt 0 ] || { echo "::error::no se pudo contar los commits"; exit 1; }
+          echo "Title version: $n"
+          echo "n=$n" >> "$GITHUB_OUTPUT"
+
       - name: Build .3dsx and .cia
         working-directory: 3ds
-        run: make cia MAKEROM=makerom BANNERTOOL=bannertool BLOCKSY_VERSION=${{ needs.check.outputs.version }} APP_VER=$(git rev-list --count HEAD)
+        run: make cia MAKEROM=makerom BANNERTOOL=bannertool BLOCKSY_VERSION=${{ needs.check.outputs.version }} APP_VER=${{ steps.tv.outputs.n }}
 
       - name: Collect files
         run: |
