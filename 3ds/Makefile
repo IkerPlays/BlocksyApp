@@ -20,8 +20,15 @@ BANNER_IMAGE := assets/banner.png
 BANNER_AUDIO := assets/audio.wav
 RSF         := blocksy.rsf
 
+# Versión: la pone el workflow (BLOCKSY_VERSION=0.1.0 o 0.1.0-dev.N); por defecto sale del fichero VERSION de la raíz
+BLOCKSY_VERSION ?= $(shell tr -d '[:space:]' < ../VERSION 2>/dev/null || echo 0.0.0)
+# makerom -ver = major<<10 | minor<<4 | micro
+APP_VER := $(shell echo '$(BLOCKSY_VERSION)' | sed 's/-.*//' | awk -F. '{print ($$1*1024)+($$2*16)+$$3}')
+MAKEROM    ?= makerom
+BANNERTOOL ?= bannertool
+
 ARCH   := -march=armv6k -mtune=mpcore -mfloat-abi=hard -mtp=soft
-CFLAGS := -g -Wall -O2 -mword-relocations -ffunction-sections $(ARCH) $(INCLUDE) -D__3DS__ -std=gnu11
+CFLAGS := -g -Wall -O2 -mword-relocations -ffunction-sections $(ARCH) $(INCLUDE) -D__3DS__ -DBLOCKSY_VERSION=\"$(BLOCKSY_VERSION)\" -std=gnu11
 LDFLAGS = -specs=3dsx.specs -g $(ARCH) -Wl,-Map,$(notdir $*.map)
 LIBS   := -lcitro2d -lcitro3d -lctru -lm
 LIBDIRS := $(PORTLIBS) $(CTRULIB)
@@ -47,9 +54,9 @@ source/config.h:
 	$(error "Falta source/config.h: copia source/config.h.example y rellénalo")
 
 cia: all
-	@bannertool makebanner -i $(BANNER_IMAGE) -a $(BANNER_AUDIO) -o $(BUILD)/banner.bnr
-	@bannertool makesmdh -s "$(APP_TITLE)" -l "$(APP_DESCRIPTION)" -p "$(APP_AUTHOR)" -i $(ICON) -o $(BUILD)/icon.icn
-	@makerom -f cia -o $(TARGET).cia -elf $(TARGET).elf -rsf $(RSF) -icon $(BUILD)/icon.icn -banner $(BUILD)/banner.bnr -exefslogo -target t
+	@$(BANNERTOOL) makebanner -i $(BANNER_IMAGE) -a $(BANNER_AUDIO) -o $(BUILD)/banner.bnr
+	@$(BANNERTOOL) makesmdh -s "$(APP_TITLE)" -l "$(APP_DESCRIPTION)" -p "$(APP_AUTHOR)" -i $(ICON) -o $(BUILD)/icon.icn
+	@$(MAKEROM) -f cia -o $(TARGET).cia -elf $(TARGET).elf -rsf $(RSF) -icon $(BUILD)/icon.icn -banner $(BUILD)/banner.bnr -exefslogo -target t -ver $(APP_VER)
 	@echo "-> $(TARGET).cia"
 
 clean:

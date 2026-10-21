@@ -7,6 +7,9 @@
 #include <string.h>
 #include "net.h"
 
+#ifndef BLOCKSY_VERSION
+#define BLOCKSY_VERSION "dev"
+#endif
 #define TOP_W 400
 #define TOP_H 240
 #define FOV   220.0f
@@ -120,7 +123,7 @@ int main(void) {
 	gfxInitDefault(); C3D_Init(C3D_DEFAULT_CMDBUF_SIZE); C2D_Init(C2D_DEFAULT_MAX_OBJECTS); C2D_Prepare();
 	consoleInit(GFX_BOTTOM, NULL);
 	C3D_RenderTarget *top = C2D_CreateScreenTarget(GFX_TOP, GFX_LEFT);
-	printf("Blocksy 3DS\n\n");
+	printf("Blocksy 3DS %s\n\n", BLOCKSY_VERSION);
 	if (!net_init()) {
 		printf("Error de red. START para salir\n");
 		while (aptMainLoop()) { hidScanInput(); if (hidKeysDown() & KEY_START) break; gspWaitForVBlank(); }
@@ -180,7 +183,7 @@ int main(void) {
 		{ int k = 0; for (int j = 0; j < ndisp; j++) { int keep = 0; for (int i = 0; i < nr; i++) if (!strcmp(disp[j].id, rem[i].id)) keep = 1; if (keep) disp[k++] = disp[j]; } ndisp = k; }
 		if (++frame_n % 60 == 0) {
 			consoleClear();
-			printf("Blocksy 3DS - %s\n\nJugadores (%d):\n", sess.username, nr + 1);
+			printf("Blocksy %s - %s\n\nJugadores (%d):\n", BLOCKSY_VERSION, sess.username, nr + 1);
 			for (int i = 0; i < nr && i < 10; i++) printf(" %s%s\n", rem[i].name, rem[i].is3ds ? " [3DS]" : "");
 			printf("\nA saltar  X poner  Y romper\nB color  SELECT chat\nL/R camara  Arriba/Abajo zoom\nSTART salir\n");
 		}
