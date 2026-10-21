@@ -1,4 +1,2 @@
-Nintendo 3DS: sign in from another device. Choose With QR, scan the code with a phone or tablet, log in there and tap Authorize; the 3DS signs in by itself and remembers the session (the Account button in game forgets it). Needs the new link-login.sql in the Game project.
-Nintendo 3DS: network requests now use libcurl with mbedtls, which fixes the login error with the account server. Login errors now show the real reason.
-Nintendo 3DS: the login no longer freezes the screen while connecting.
-Web: new Link 3DS page to authorize a 3DS by QR link or by typing its 6 character code.
+Nintendo 3DS: fixed the QR sign-in code request (the server function used a missing database helper); errors now show the server message instead of a generic one.
+Needs the updated link-login.sql in the Game project (run it again, it is safe to repeat).

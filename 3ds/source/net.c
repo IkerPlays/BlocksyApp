@@ -33,6 +33,7 @@ typedef enum { M_GET, M_POST, M_DELETE } Method;
 static int last_status;        // código HTTP de la última petición (0 = no hubo respuesta)
 static char last_err[96];      // texto de curl cuando no hubo respuesta
 
+static bool jstr(const char *obj, const char *end, const char *key, char *dst, size_t n);
 typedef struct { char *p; size_t n, cap; } Buf;
 static size_t write_cb(char *d, size_t sz, size_t nm, void *ud) {
 	Buf *b = ud; size_t add = sz * nm;
@@ -81,7 +82,10 @@ static char *http(Method m, const char *url, const char *apikey, const char *bea
 		snprintf(last_err, sizeof last_err, "%s", errbuf[0] ? errbuf : curl_easy_strerror(rc));
 		free(b.p); return NULL;
 	}
-	if (code >= 300) { free(b.p); return NULL; }
+	if (code >= 300) {   // guarda el "message" del error de PostgREST/GoTrue para poder enseñarlo
+		if (b.p) { const char *e = b.p + b.n; jstr(b.p, e, "message", last_err, sizeof last_err); if (!last_err[0]) jstr(b.p, e, "msg", last_err, sizeof last_err); }
+		free(b.p); return NULL;
+	}
 	if (!b.p) b.p = strdup("");
 	return b.p;
 }
@@ -127,6 +131,7 @@ static char login_err[96] = "";
 const char *net_login_error(void) { return login_err; }
 static void set_err(const char *what) {
 	if (last_status == 0) snprintf(login_err, sizeof login_err, "Sin conexion: %.70s", last_err);
+	else if (last_err[0]) snprintf(login_err, sizeof login_err, "%s (%d): %.50s", what, last_status, last_err);
 	else snprintf(login_err, sizeof login_err, "%s (%d)", what, last_status);
 }
 
@@ -180,7 +185,7 @@ bool net_link_start(char *code, size_t cn, char *poll, size_t pn) {
 	if (sizeof(GAME_URL) <= 1) { snprintf(login_err, sizeof login_err, "Este build no tiene config de Supabase"); return false; }
 	char *r = http(M_POST, GAME_URL "/rest/v1/rpc/link_start", GAME_ANON_KEY, NULL, "{}", NULL);
 	if (!r) {
-		if (last_status == 404) snprintf(login_err, sizeof login_err, "Falta link-login.sql en Game (404)");
+		if (last_status == 404 && strstr(last_err, "Could not find")) snprintf(login_err, sizeof login_err, "Falta link-login.sql en Game (404)");
 		else set_err("No se pudo crear el codigo");
 		return false;
 	}

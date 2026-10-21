@@ -202,15 +202,15 @@ alter table public.link_codes enable row level security;   -- sin políticas: so
 -- La 3DS pide un código (anónimo) y recibe también un token privado para consultar el estado
 create or replace function public.link_start() returns jsonb
 language plpgsql security definer set search_path = public as $$
-declare c text; i int; p uuid;
+declare c text; i int; p uuid; h text;
         alphabet constant text := 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 begin
   delete from link_codes where expires_at < now();
   delete from sessions where expires_at < now();
   if (select count(*) from link_codes) > 500 then raise exception 'too many pending codes'; end if;
   loop
-    c := '';
-    for i in 1..6 loop c := c || substr(alphabet, 1 + (get_byte(gen_random_bytes(1), 0) % 32), 1); end loop;
+    c := ''; h := replace(gen_random_uuid()::text, '-', '');   -- gen_random_uuid() es del núcleo (gen_random_bytes vive en el schema "extensions")
+    for i in 1..6 loop c := c || substr(alphabet, 1 + (('x' || substr(h, i * 2 - 1, 2))::bit(8)::int % 32), 1); end loop;
     begin
       insert into link_codes (code) values (c) returning poll_token into p;
       exit;
