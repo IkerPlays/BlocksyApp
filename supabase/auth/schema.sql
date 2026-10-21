@@ -58,3 +58,16 @@ create policy "users update own profile" on public.profiles
 
 grant select on public.profiles_public to authenticated;
 grant execute on function public.touch_presence(uuid), public.go_offline() to authenticated;
+
+-- ---------- Amigos ----------
+create table if not exists public.friendships (
+  user_id    uuid not null references auth.users(id) on delete cascade,
+  friend_id  uuid not null references auth.users(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  primary key (user_id, friend_id),
+  check (user_id <> friend_id)
+);
+alter table public.friendships enable row level security;
+drop policy if exists "own friendships" on public.friendships;
+create policy "own friendships" on public.friendships for all to authenticated
+  using (user_id = auth.uid()) with check (user_id = auth.uid());

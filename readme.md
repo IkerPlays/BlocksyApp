@@ -9,9 +9,16 @@ supabase/  SQL de las 2 bases de datos
 ```
 
 ## Arquitectura de datos
-- **Supabase AUTH** (`supabase/auth/schema.sql`): cuentas, `profiles`, presencia (`is_online`).
-- **Supabase GAME** (`supabase/game/schema.sql`): `games`, `player_state` (x,y,z,ry en vivo, ~10 Hz),
-  `blocks`, `interactions`. Realtime activado. Ver `supabase/README.md` (los tokens de AUTH deben ser válidos en GAME).
+- **Supabase AUTH** (`supabase/auth/schema.sql`): cuentas, `profiles`, amigos, presencia (`is_online`).
+- **Supabase GAME** (`supabase/game/schema.sql` + Edge Function `game-session`): `games`, `player_state`
+  (x,y,z,ry en vivo, ~10 Hz), `blocks`, `interactions` (chat incluido). Lectura pública + Realtime; escritura por RPC
+  con un secret de sesión que emite la Edge Function tras validar el token de AUTH (funciona en el plan gratis).
+  **Guía paso a paso en `supabase/README.md`.**
+
+## Sincronización web ↔ 3DS
+Ambos usan las mismas tablas y los mismos ejes (x,z suelo, y arriba) y las mismas RPC: la web recibe por Realtime, la 3DS
+consulta cada 100 ms (jugadores) y 1 s (bloques). Los jugadores 3DS se ven en la web con la etiqueta «3DS»; el chat funciona en ambos
+(3DS: SELECT).
 
 ## Web
 ```
@@ -29,9 +36,9 @@ make cia    # blocksy.cia (necesita makerom y bannertool)
 ```
 Requiere devkitPro (`dkp-pacman -S 3ds-dev`). El workflow `.github/workflows/3ds.yml` compila ambos
 (secrets: `AUTH_SUPABASE_URL`, `AUTH_SUPABASE_ANON_KEY`, `GAME_SUPABASE_URL`, `GAME_SUPABASE_ANON_KEY`).
-Controles: círculo mover · A saltar · X poner · Y romper · B color · L/R cámara · START salir.
+Controles: círculo mover · A saltar · X poner · Y romper · B color · SELECT chat · L/R cámara · START salir.
 
 ## Estado
-Primer esqueleto. La web compila (`vite build`). **El código de 3DS no se ha compilado aún** (no hay
+La web tiene interfaz estilo Roblox (Inicio, Descubrir, Avatar, Amigos, Crear, Ajustes) y menú en el juego (Esc). La web compila (`vite build`). **El código de 3DS no se ha compilado aún** (no hay
 devkitARM en este entorno); es probable que haga falta algún ajuste al primer `make`. La 3DS desactiva la
 verificación TLS (`net.c`) hasta instalar un certificado raíz.
