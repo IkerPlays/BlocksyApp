@@ -100,7 +100,7 @@ bool net_login(Session *s, const char *email, const char *password) {
 
 	// Sesión del proyecto GAME: la Edge Function valida el token de AUTH
 	static char sbody[1800]; snprintf(sbody, sizeof sbody, "{\"token\":\"%s\"}", s->token);
-	r = http(M_POST, GAME_URL "/functions/v1/game-session", GAME_ANON_KEY, NULL, sbody, NULL);
+	r = http(M_POST, GAME_URL "/functions/v1/game-session", GAME_ANON_KEY, GAME_ANON_KEY, sbody, NULL); // Authorization: Bearer anon (pasa Verify JWT)
 	if (!r) return false;
 	end = r + strlen(r);
 	char col[12] = "";

@@ -8,11 +8,12 @@ export async function openGameSession() {
   if (!s) throw new Error('No hay sesión')
   const r = await fetch(`${GAME_URL}/functions/v1/game-session`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', apikey: GAME_KEY },
+    // Authorization con la clave anon: el gateway de Supabase la acepta aunque "Verify JWT" esté activado
+    headers: { 'Content-Type': 'application/json', apikey: GAME_KEY, Authorization: `Bearer ${GAME_KEY}` },
     body: JSON.stringify({ token: s.access_token }),
   })
-  const j = await r.json()
-  if (!r.ok) throw new Error(j.error || 'No se pudo abrir la sesión de juego')
+  const j = await r.json().catch(() => ({}))
+  if (!r.ok) throw new Error(`No se pudo abrir la sesión de juego (${r.status}): ${j.error || j.message || j.msg || 'sin detalle'}`)
   session = j
   return session
 }
