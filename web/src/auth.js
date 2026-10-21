@@ -30,24 +30,13 @@ export async function saveColor(id, avatar_color) {
 }
 
 let beat, getGame = () => null
+// Presencia: aviso cada 20 s, y al volver a la pestaña / recuperar la conexión (el estado online dura 75 s)
+const tick = () => authDb.rpc('touch_presence', { p_game: getGame() ?? null }).then(() => {}, () => {})
 export function startPresence(fn) {
   getGame = fn ?? getGame
-  const tick = () => authDb.rpc('touch_presence', { p_game: getGame() ?? null })
-  tick(); clearInterval(beat); beat = setInterval(tick, 30_000)
+  tick(); clearInterval(beat); beat = setInterval(tick, 20_000)
 }
 export function stopPresence() { clearInterval(beat) }
-
-export async function searchPeople(q) {
-  let req = authDb.from('profiles_public').select('*').order('is_online', { ascending: false }).order('username').limit(30)
-  if (q) req = req.ilike('username', `%${q}%`)
-  return (await req).data ?? []
-}
-export async function listFriends(myId) {
-  const { data: rows } = await authDb.from('friendships').select('friend_id').eq('user_id', myId)
-  const ids = (rows ?? []).map(r => r.friend_id)
-  if (!ids.length) return []
-  const { data } = await authDb.from('profiles_public').select('*').in('id', ids).order('is_online', { ascending: false })
-  return data ?? []
-}
-export const addFriend = (myId, friendId) => authDb.from('friendships').upsert({ user_id: myId, friend_id: friendId })
-export const removeFriend = (myId, friendId) => authDb.from('friendships').delete().match({ user_id: myId, friend_id: friendId })
+document.addEventListener('visibilitychange', () => { if (!document.hidden && beat) tick() })
+window.addEventListener('online', () => { if (beat) tick() })
+window.addEventListener('pagehide', () => { if (beat) authDb.rpc('go_offline').then(() => {}, () => {}) })

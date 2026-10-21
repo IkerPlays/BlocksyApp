@@ -35,7 +35,18 @@ export const breakBlock = (game, x, y, z) => rpc('break_block', { p_game: game, 
 export const say = (game, text) => rpc('say', { p_game: game, p_text: text })
 export const leave = () => rpc('leave', {})
 export const linkApprove = code => rpc('link_approve', { p_code: code })
-export const createGameRow = (name, desc, hue) => rpc('create_game', { p_name: name, p_desc: desc, p_hue: hue })
+export const createGameRow = async (name, desc, hue, mode = 'build') => {
+  if (!session) await openGameSession()
+  const { data, error } = await gameDb.rpc('create_game', { p_secret: session.secret, p_name: name, p_desc: desc, p_hue: hue, p_mode: mode })
+  if (error && /p_mode|could not find|does not exist/i.test(error.message)) {         // GAME sin v2.sql: crear sin modo
+    const r = await gameDb.rpc('create_game', { p_secret: session.secret, p_name: name, p_desc: desc, p_hue: hue })
+    if (r.error) throw r.error
+    return r.data
+  }
+  if (error) throw error
+  return data
+}
+export const updateGameRow = g => rpc('update_game', { p_game: g.id, p_name: g.name, p_desc: g.description, p_hue: g.hue, p_max: g.max_players, p_mode: g.mode, p_config: g.config ?? {}, p_script: g.script ?? '' })
 export const deleteGameRow = id => rpc('delete_game', { p_game: id })
 
 // Al cerrar la pestaña: petición que sobrevive al unload
@@ -49,6 +60,10 @@ export function leaveBeacon() {
 }
 
 // ---------- Lecturas ----------
+export async function getGame(id) {
+  const { data } = await gameDb.from('games').select('*').eq('id', id).maybeSingle()
+  return data
+}
 export async function listGames() {
   const { data } = await gameDb.from('games').select('*').order('created_at')
   return data ?? []

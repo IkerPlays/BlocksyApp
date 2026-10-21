@@ -14,3 +14,6 @@ dist/
 3ds/preview/ops.txt
 3ds/preview/out/
 web/preview/out/
+
+# generado por vite (lista de la carpeta playlist)
+web/public/playlist/playlist.json

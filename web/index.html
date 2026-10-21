@@ -2,76 +2,113 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#232527" />
+  <meta name="description" content="Construye, explora y juega con amigos en la web y en tu Nintendo 3DS." />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="Blocksy" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png" />
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
   <title>Blocksy</title>
 </head>
 <body>
   <main id="auth" class="hidden">
     <div class="auth-card">
       <div class="logo big"><span class="logo-mark"></span>Blocksy</div>
-      <p class="tagline">Construye, explora y juega con amigos en la web y en tu 3DS.</p>
-      <div class="tabs" id="auth-tabs"><button class="tab active" data-mode="login">Entrar</button><button class="tab" data-mode="signup">Crear cuenta</button></div>
+      <p class="tagline" data-i18n="tagline"></p>
+      <div class="tabs" id="auth-tabs"><button class="tab active" data-mode="login" data-i18n="login"></button><button class="tab" data-mode="signup" data-i18n="signup"></button></div>
       <form id="auth-form">
-        <input id="username" placeholder="Nombre de usuario" autocomplete="username" pattern="[A-Za-z0-9_]{3,20}" title="3-20 letras, números o _" class="hidden" />
-        <input id="email" type="email" placeholder="Email" required autocomplete="email" />
-        <input id="password" type="password" placeholder="Contraseña" required minlength="6" autocomplete="current-password" />
-        <button class="btn primary wide" id="auth-submit">Entrar</button>
+        <input id="username" data-i18n-ph="username" pattern="[A-Za-z0-9_]{3,20}" data-i18n-title="username_hint" autocomplete="username" class="hidden" />
+        <input id="email" type="email" data-i18n-ph="email" required autocomplete="email" />
+        <input id="password" type="password" data-i18n-ph="password" required minlength="6" autocomplete="current-password" />
+        <button class="btn primary wide" id="auth-submit" data-i18n="login"></button>
         <p id="auth-msg" class="msg"></p>
       </form>
+      <select id="auth-lang" aria-label="Language"></select>
     </div>
   </main>
 
   <div id="app" class="hidden">
     <header id="topbar">
-      <button id="burger" class="icon-btn" aria-label="Menú"><i data-icon="menu" data-size="24"></i></button>
+      <button id="burger" class="icon-btn" aria-label="Menu"><i data-icon="menu" data-size="24"></i></button>
       <div class="logo"><span class="logo-mark"></span><span class="logo-text">Blocksy</span></div>
-      <nav id="topnav"><a href="#home">Inicio</a><a href="#discover">Descubrir</a><a href="#create" id="topnav-create" class="hidden">Crear</a></nav>
-      <form id="search" autocomplete="off"><input id="search-input" placeholder="Buscar juegos" /></form>
+      <nav id="topnav"><a href="#home" data-i18n="nav_home"></a><a href="#discover" data-i18n="nav_discover"></a><a href="#create" id="topnav-create" class="hidden" data-i18n="nav_create"></a></nav>
+      <form id="search" autocomplete="off"><input id="search-input" data-i18n-ph="search_games" /></form>
+      <button id="bell" class="bell-btn" data-i18n-title="notifications"><i data-icon="bell" data-size="22"></i><span id="bell-count" class="badge hidden"></span></button>
       <div id="userchip"><span id="chip-avatar" class="avatar sm"></span><span id="chip-name"></span></div>
+      <div id="notif-panel" class="hidden"></div>
     </header>
     <aside id="sidebar">
-      <a href="#home" data-page="home"><i data-icon="home"></i>Inicio</a>
-      <a href="#discover" data-page="discover"><i data-icon="compass"></i>Descubrir</a>
-      <a href="#avatar" data-page="avatar"><i data-icon="user"></i>Avatar</a>
-      <a href="#friends" data-page="friends"><i data-icon="users"></i>Amigos</a>
-      <a href="#link" data-page="link"><i data-icon="device"></i>Vincular 3DS</a>
-      <a href="#create" data-page="create" id="nav-create" class="hidden"><i data-icon="plus"></i>Crear</a>
-      <a href="#settings" data-page="settings"><i data-icon="sliders"></i>Ajustes</a>
+      <a href="#home" data-page="home"><i data-icon="home"></i><span data-i18n="nav_home"></span></a>
+      <a href="#discover" data-page="discover"><i data-icon="compass"></i><span data-i18n="nav_discover"></span></a>
+      <a href="#avatar" data-page="avatar"><i data-icon="user"></i><span data-i18n="nav_avatar"></span></a>
+      <a href="#friends" data-page="friends"><i data-icon="users"></i><span data-i18n="nav_friends"></span><b id="friends-badge" class="badge inline hidden"></b></a>
+      <a href="#link" data-page="link"><i data-icon="device"></i><span data-i18n="nav_link"></span></a>
+      <a href="#create" data-page="create" id="nav-create" class="hidden"><i data-icon="plus"></i><span data-i18n="nav_create"></span></a>
+      <a href="#settings" data-page="settings"><i data-icon="sliders"></i><span data-i18n="nav_settings"></span></a>
       <div class="spacer"></div>
-      <button id="logout" class="side-btn"><i data-icon="logout"></i>Salir</button>
+      <button id="logout" class="side-btn"><i data-icon="logout"></i><span data-i18n="nav_logout"></span></button>
     </aside>
     <main id="page"></main>
   </div>
 
   <div id="modal" class="hidden"><div id="modal-card"></div></div>
   <div id="toast" class="hidden"></div>
+  <div id="popups"></div>
+  <div id="update-bar" class="hidden"><span data-i18n="update_available"></span><button class="btn blue" id="update-reload" data-i18n="reload"></button></div>
 
   <div id="game" class="hidden">
     <canvas id="view"></canvas>
     <div id="crosshair"></div>
+    <div id="big-title" class="hidden"></div>
+    <canvas id="minimap" width="128" height="128"></canvas>
     <div id="hud-top">
-      <button id="menu-btn" class="hud-btn" aria-label="Menú"><i data-icon="menu"></i></button>
+      <button id="menu-btn" class="hud-btn" aria-label="Menu"><i data-icon="menu"></i></button>
       <span id="stats"></span>
+      <button id="music-btn" class="hud-btn hidden" aria-label="Music"></button>
+      <button id="shot-btn" class="hud-btn" data-i18n-title="screenshot"><i data-icon="camera"></i></button>
+      <button id="chat-btn" class="hud-btn" aria-label="Chat"><i data-icon="chat"></i></button>
       <button id="emote-btn" class="hud-btn" aria-label="Emotes"><i data-icon="emote"></i></button>
-      <button id="players-btn" class="hud-btn" aria-label="Jugadores"><i data-icon="users"></i></button>
+      <button id="players-btn" class="hud-btn" aria-label="Players"><i data-icon="users"></i></button>
+    </div>
+    <div id="music-panel" class="hidden">
+      <div id="music-title"></div>
+      <div class="music-ctl"><button id="music-prev" class="hud-btn"></button><button id="music-toggle" class="hud-btn"></button><button id="music-next" class="hud-btn"></button></div>
     </div>
     <div id="emote-panel" class="hidden"></div>
     <ul id="roster" class="hidden"></ul>
     <div id="chat">
       <ul id="chat-log"></ul>
-      <form id="chat-form"><input id="chat-input" maxlength="200" placeholder="Pulsa / para chatear" autocomplete="off" /></form>
+      <form id="chat-form"><input id="chat-input" maxlength="200" autocomplete="off" enterkeyhint="send" /></form>
     </div>
     <div id="hotbar"></div>
     <div id="pause" class="hidden">
       <div class="pause-card">
         <h2 id="pause-title"></h2>
-        <button class="btn primary wide" id="resume">Continuar</button>
-        <label class="field">Sensibilidad de cámara <input id="set-sens" type="range" min="0.3" max="2.5" step="0.1" /></label>
-        <label class="field">Distancia de visión <input id="set-dist" type="range" min="30" max="200" step="10" /></label>
-        <label class="field check"><input id="set-names" type="checkbox" /> Mostrar nombres</label>
-        <button class="btn danger wide" id="leave">Salir del juego</button>
-        <p class="hint">WASD mover, Mayús correr, Espacio saltar. Arrastra para girar la cámara. Clic poner, clic derecho romper. 1-6 elige bloque. G emotes, / chat, Tab jugadores, Esc menú.</p>
+        <button class="btn primary wide" id="resume" data-i18n="resume"></button>
+        <div class="pause-grid">
+          <button class="btn" id="invite-btn"><span data-i18n="invite_friends"></span></button>
+          <button class="btn" id="copy-link"><span data-i18n="copy_link"></span></button>
+        </div>
+        <label class="field"><span data-i18n="set_sens"></span> <input id="set-sens" type="range" min="0.3" max="2.5" step="0.1" /></label>
+        <label class="field"><span data-i18n="set_dist"></span> <input id="set-dist" type="range" min="30" max="250" step="10" /></label>
+        <label class="field"><span data-i18n="set_fov"></span> <input id="set-fov" type="range" min="50" max="100" step="1" /></label>
+        <label class="field"><span data-i18n="set_quality"></span>
+          <select id="set-quality"><option value="low" data-i18n="q_low"></option><option value="med" data-i18n="q_med"></option><option value="high" data-i18n="q_high"></option><option value="ultra" data-i18n="q_ultra"></option></select></label>
+        <label class="field"><span data-i18n="set_music_vol"></span> <input id="set-music-vol" type="range" min="0" max="1" step="0.05" /></label>
+        <div class="pause-checks">
+          <label class="field check"><input id="set-music" type="checkbox" /> <span data-i18n="set_music"></span></label>
+          <label class="field check"><input id="set-names" type="checkbox" /> <span data-i18n="set_names"></span></label>
+          <label class="field check"><input id="set-bubbles" type="checkbox" /> <span data-i18n="set_bubbles"></span></label>
+          <label class="field check"><input id="set-minimap" type="checkbox" /> <span data-i18n="set_minimap"></span></label>
+          <label class="field check"><input id="set-clouds" type="checkbox" /> <span data-i18n="set_clouds"></span></label>
+          <label class="field check"><input id="set-shadows" type="checkbox" /> <span data-i18n="set_shadows"></span></label>
+        </div>
+        <button class="btn danger wide" id="leave" data-i18n="leave_game"></button>
+        <p class="hint" data-i18n="controls_help"></p>
       </div>
     </div>
   </div>

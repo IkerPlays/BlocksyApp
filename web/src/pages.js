@@ -1,8 +1,12 @@
 import * as auth from './auth.js'
 import * as api from './api.js'
-import { settings, saveSettings, lastPlayed } from './settings.js'
+import * as social from './social.js'
+import { settings, saveSettings, resetSettings, lastPlayed, getStats, applyTheme } from './settings.js'
 import { icon } from './icons.js'
 import { headshot, styleFor, EMOTES, createPreview } from './avatar.js'
+import { t, LANGS, langName, getLang, setLang, onLang } from './i18n.js'
+import { checkSyntax, EXAMPLES } from './script.js'
+import { installApp, canInstall, isInstalled, askNotifications } from './pwa.js'
 
 const $ = id => document.getElementById(id)
 export function el(tag, props = {}, ...kids) {
@@ -13,91 +17,105 @@ export function el(tag, props = {}, ...kids) {
     else if (k.startsWith('on')) e.addEventListener(k.slice(2), v)
     else if (k === 'text') e.textContent = v
     else if (k === 'html') e.innerHTML = v
-    else e.setAttribute(k, v)
+    else if (v === false || v == null) continue
+    else e.setAttribute(k, v === true ? '' : v)
   }
-  for (const k of kids.flat()) if (k != null) e.append(k)
+  for (const k of kids.flat(Infinity)) if (k != null && k !== false) e.append(k)
   return e
 }
 // Como replaceChildren pero acepta arrays anidados y descarta null/false
 export function setKids(node, ...kids) { node.replaceChildren(...kids.flat(Infinity).filter(k => k != null && k !== false)) }
 export function toast(msg) {
-  const t = $('toast'); t.textContent = msg; t.classList.remove('hidden')
-  clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.add('hidden'), 2800)
+  const tt = $('toast'); tt.textContent = msg; tt.classList.remove('hidden')
+  clearTimeout(toast.t); toast.t = setTimeout(() => tt.classList.add('hidden'), 2800)
 }
 const hueOf = id => { let h = 0; for (const c of id) h = (h * 31 + c.charCodeAt(0)) % 360; return h }
 // Foto de perfil = la cabeza del avatar (mismo aspecto que el modelo 3D)
-const avatar = (name, color, online) => {
+export const avatarEl = (name, color, online) => {
   const a = el('span', { class: 'avatar', style: `--c:${color};--img:url(${headshot(name, color)})` })
   if (online != null) a.append(el('span', { class: `dot ${online ? 'on' : ''}` }))
   return a
 }
+const avatar = avatarEl
+const statusText = f => (f.is_online ? (f.current_game ? t('status_game') : t('status_online')) : t('status_offline'))
+const MODES = ['build', 'social', 'obby', 'arena']
+const modeLabel = m => t('mode_' + (m || 'build'))
 
 // ---------- tarjetas de juego ----------
 function gameCard(g, counts, onOpen) {
   const n = counts[g.id] ?? 0
   const thumb = el('div', { class: 'thumb', style: `--h:${g.hue ?? hueOf(g.id)}` }, el('div', { class: 'cube' }),
-    n ? el('span', { class: 'live', text: `${n} jugando` }) : null)
+    n ? el('span', { class: 'live', text: t('playing_n', { n }) }) : null, el('span', { class: 'mode-tag', text: modeLabel(g.mode) }))
   return el('div', { class: 'gcard', onclick: () => onOpen(g) }, thumb,
-    el('div', { class: 'gname', text: g.name }), el('div', { class: 'gmeta', text: `por ${g.owner_name || 'Blocksy'}` }))
+    el('div', { class: 'gname', text: g.name }), el('div', { class: 'gmeta', text: t('by', { name: g.owner_name || 'Blocksy' }) }))
 }
 const grid = (games, counts, onOpen) => games.length
   ? el('div', { class: 'grid' }, games.map(g => gameCard(g, counts, onOpen)))
-  : el('div', { class: 'empty', text: 'No hay juegos todavía.' })
+  : el('div', { class: 'empty', text: t('no_games') })
 
 export function openGameModal(g, counts, onPlay) {
   const m = $('modal'), card = $('modal-card'), n = counts[g.id] ?? 0
   setKids(card, el('div', { class: 'detail' },
     el('div', { class: 'thumb', style: `--h:${g.hue ?? hueOf(g.id)}` }, el('div', { class: 'cube' })),
     el('div', {}, el('h2', { text: g.name }),
-      el('small', { style: 'color:var(--muted)', text: `por ${g.owner_name || 'Blocksy'}` }),
+      el('small', { style: 'color:var(--muted)', text: `${t('by', { name: g.owner_name || 'Blocksy' })} · ${modeLabel(g.mode)}` }),
       el('div', { class: 'stats' },
-        el('div', {}, el('b', { text: String(n) }), el('small', { text: 'jugando' })),
-        el('div', {}, el('b', { text: String(g.max_players) }), el('small', { text: 'máx. jugadores' })),
-        el('div', {}, el('b', { text: 'Web + 3DS' }), el('small', { text: 'plataformas' }))),
-      el('p', { text: g.description || 'Sin descripción.' }),
-      el('button', { class: 'btn primary wide', text: 'Jugar', onclick: () => { closeModal(); onPlay(g) } }),
-      el('button', { class: 'btn wide', text: 'Cerrar', onclick: closeModal }))))
+        el('div', {}, el('b', { text: String(n) }), el('small', { text: t('playing_n', { n: '' }).trim() })),
+        el('div', {}, el('b', { text: String(g.max_players) }), el('small', { text: t('max_players') })),
+        el('div', {}, el('b', { text: 'Web + 3DS' }), el('small', { text: t('platforms') }))),
+      el('p', { text: g.description || t('no_desc') }),
+      el('button', { class: 'btn primary wide', text: t('play'), onclick: () => { closeModal(); onPlay(g) } }),
+      el('button', { class: 'btn wide', text: t('close'), onclick: closeModal }))))
   m.classList.remove('hidden')
 }
 const skeletons = n => el('div', { class: 'grid' }, Array.from({ length: n }, () => el('div', {}, el('div', { class: 'skel card' }), el('div', { class: 'skel line' }))))
 export const closeModal = () => $('modal').classList.add('hidden')
 
+// Las páginas se repintan al cambiar de idioma; guardamos la última para repintarla
+let refreshTimer = null
+const every = (fn, ms) => { clearInterval(refreshTimer); refreshTimer = setInterval(() => { if (!document.hidden) fn() }, ms) }
+export const stopPageTimers = () => clearInterval(refreshTimer)
+
 // ---------- páginas ----------
 // ctx = { profile, play(game), go(hash), refreshProfile() }
 export const pages = {
   async home(root, ctx) {
-    setKids(root, el('div', { class: 'section' }, el('h2', { text: 'Cargando...' })), skeletons(4))
-    const [games, counts, friends] = await Promise.all([api.listGames(), api.playerCounts(), auth.listFriends(ctx.profile.id)])
+    setKids(root, el('div', { class: 'section' }, el('h2', { text: t('loading') })), skeletons(4))
+    const [games, counts, friends] = await Promise.all([api.listGames(), api.playerCounts(), social.listFriends(ctx.profile.id)])
     const open = g => openGameModal(g, counts, ctx.play)
     const popular = [...games].sort((a, b) => (counts[b.id] ?? 0) - (counts[a.id] ?? 0))
     const last = games.find(g => g.id === lastPlayed())
-
-    setKids(root, 
-      el('div', { class: 'hero' }, avatar(ctx.profile.username, ctx.profile.avatar_color), el('h1', { text: `¡Hola, ${ctx.profile.username}!` })),
-      el('div', { class: 'section' }, el('h2', { text: `Amigos (${friends.length})` }), el('a', { href: '#friends', text: 'Ver todo' })),
-      friends.length
-        ? el('div', { class: 'row-scroll' }, friends.map(f => el('div', { class: 'friend', onclick: () => ctx.go('friends') },
-            avatar(f.username, f.avatar_color, f.is_online), el('b', { text: f.username }),
-            el('small', { text: f.is_online ? (f.current_game ? 'En un juego' : 'Online') : 'Desconectado' }))))
-        : el('div', { class: 'empty', text: 'Añade amigos desde la sección Amigos para verlos aquí.' }),
-      last ? [el('div', { class: 'section' }, el('h2', { text: 'Continuar' })), grid([last], counts, open)] : null,
-      el('div', { class: 'section' }, el('h2', { text: 'Populares ahora' }), el('a', { href: '#discover', text: 'Ver todo' })),
+    const friendsRow = el('div')
+    const paintFriends = list => setKids(friendsRow, list.length
+      ? el('div', { class: 'row-scroll' }, list.map(f => el('div', { class: 'friend', onclick: () => ctx.go('friends') },
+          avatar(f.username, f.avatar_color, f.is_online), el('b', { text: f.username }), el('small', { text: statusText(f) }))))
+      : el('div', { class: 'empty', text: t('home_no_friends') }))
+    paintFriends(friends)
+    setKids(root,
+      el('div', { class: 'hero' }, avatar(ctx.profile.username, ctx.profile.avatar_color), el('h1', { text: t('hello', { name: ctx.profile.username }) })),
+      el('div', { class: 'section' }, el('h2', { text: t('friends_n', { n: friends.length }) }), el('a', { href: '#friends', text: t('see_all') })), friendsRow,
+      last ? [el('div', { class: 'section' }, el('h2', { text: t('continue') })), grid([last], counts, open)] : null,
+      el('div', { class: 'section' }, el('h2', { text: t('popular') }), el('a', { href: '#discover', text: t('see_all') })),
       grid(popular.slice(0, 12), counts, open),
-      el('div', { class: 'section' }, el('h2', { text: 'Nuevos' })),
+      el('div', { class: 'section' }, el('h2', { text: t('newest') })),
       grid([...games].reverse().slice(0, 12), counts, open))
+    every(async () => { paintFriends(await social.listFriends(ctx.profile.id)) }, 10_000)
   },
 
   async discover(root, ctx, query = '') {
-    setKids(root, el('h1', { class: 'page-title', text: 'Descubrir' }), skeletons(8))
+    setKids(root, el('h1', { class: 'page-title', text: t('discover') }), skeletons(8))
     const [games, counts] = await Promise.all([api.listGames(), api.playerCounts()])
-    const input = el('input', { placeholder: 'Buscar juegos...', value: query })
+    const input = el('input', { placeholder: t('search_ph'), value: query })
+    let modeSel = ''
+    const chips = el('div', { class: 'chips' })
     const out = el('div')
     const draw = () => {
       const q = input.value.trim().toLowerCase()
-      setKids(out, grid(games.filter(g => !q || g.name.toLowerCase().includes(q) || (g.description || '').toLowerCase().includes(q)), counts, g => openGameModal(g, counts, ctx.play)))
+      setKids(chips, el('button', { class: `chip ${modeSel === '' ? 'on' : ''}`, text: t('see_all'), onclick: () => { modeSel = ''; draw() } }), MODES.map(m => el('button', { class: `chip ${modeSel === m ? 'on' : ''}`, text: modeLabel(m), onclick: () => { modeSel = m; draw() } })))
+      setKids(out, grid(games.filter(g => (!modeSel || (g.mode ?? 'build') === modeSel) && (!q || g.name.toLowerCase().includes(q) || (g.description || '').toLowerCase().includes(q))), counts, g => openGameModal(g, counts, ctx.play)))
     }
     input.oninput = draw; draw()
-    setKids(root, el('h1', { class: 'page-title', text: 'Descubrir' }), el('div', { style: 'margin-bottom:18px' }, input), out)
+    setKids(root, el('h1', { class: 'page-title', text: t('discover') }), el('div', { style: 'margin-bottom:12px' }, input), chips, out)
   },
 
   async avatar(root, ctx) {
@@ -113,109 +131,222 @@ export const pages = {
       setKids(sw, ...colors.map(c => el('div', { class: `swatch ${c === sel ? 'sel' : ''}`, style: `--c:${c}`, onclick: () => { sel = c; paint() } })), custom)
     }
     custom.oninput = () => { sel = custom.value; pv?.setStyle(style()) }
-    const emotes = el('div', { class: 'emote-row' }, EMOTES.map(e => el('button', { class: 'btn', text: e.label, onclick: () => pv?.setAnim(e.id) })), el('button', { class: 'btn secondary', text: 'Quieto', onclick: () => pv?.setAnim('idle') }))
-    setKids(root, el('h1', { class: 'page-title', text: 'Avatar' }),
+    const emotes = el('div', { class: 'emote-row' }, EMOTES.map(e => el('button', { class: 'btn', text: t('emote_' + e.id), onclick: () => pv?.setAnim(e.id) })), el('button', { class: 'btn secondary', text: t('still'), onclick: () => pv?.setAnim('idle') }))
+    setKids(root, el('h1', { class: 'page-title', text: t('avatar') }),
       el('div', { class: 'panel avatar-edit' }, el('div', { class: 'preview' }, canvas), el('div', {},
-        el('h3', { text: ctx.profile.username }), el('p', { style: 'color:var(--muted)', text: 'Elige el color de tu camiseta. Tu avatar se ve igual en la web y en la 3DS. Arrastra el modelo para girarlo.' }),
-        sw, el('div', { class: 'section-s', text: 'Probar emotes' }), emotes,
-        el('button', { class: 'btn primary', style: 'margin-top:16px', text: 'Guardar', onclick: async () => {
-          try { await auth.saveColor(ctx.profile.id, sel); await ctx.refreshProfile(); toast('Avatar guardado') } catch (e) { toast(e.message) } } }))))
+        el('h3', { text: ctx.profile.username }), el('p', { style: 'color:var(--muted)', text: t('avatar_help') }),
+        sw, el('div', { class: 'section-s', text: t('try_emotes') }), emotes,
+        el('button', { class: 'btn primary', style: 'margin-top:16px', text: t('save'), onclick: async () => {
+          try { await auth.saveColor(ctx.profile.id, sel); await ctx.refreshProfile(); toast(t('avatar_saved')) } catch (e) { toast(e.message) } } }))))
     pv = createPreview(canvas, style()); paint()
   },
 
+  // Amigos: se añaden por nombre exacto + solicitud que el otro debe aceptar. Chat, invitar y unirse.
   async friends(root, ctx) {
-    const input = el('input', { placeholder: 'Buscar jugadores por nombre...' })
-    const results = el('div'), mine = el('div', { class: 'panel' })
-    let friendIds = new Set()
-    const personRow = (p, isFriend) => el('div', { class: 'person' }, avatar(p.username, p.avatar_color, p.is_online),
-      el('div', { class: 'grow' }, el('b', { text: p.username }), el('small', { text: p.is_online ? (p.current_game ? 'En un juego' : 'Online') : 'Desconectado' })),
-      p.id === ctx.profile.id ? null : isFriend
-        ? el('button', { class: 'btn', text: 'Quitar', onclick: async () => { await auth.removeFriend(ctx.profile.id, p.id); load() } })
-        : el('button', { class: 'btn blue', text: 'Añadir', onclick: async () => { await auth.addFriend(ctx.profile.id, p.id); toast(`${p.username} añadido`); load() } }))
-    async function load() {
-      const friends = await auth.listFriends(ctx.profile.id); friendIds = new Set(friends.map(f => f.id))
-      setKids(mine, el('h3', { text: `Mis amigos (${friends.length})`, style: 'margin-bottom:6px' }),
-        friends.length ? friends.map(f => personRow(f, true)) : el('div', { class: 'empty', text: 'Aún no tienes amigos.' }))
-      const people = await auth.searchPeople(input.value.trim())
-      setKids(results, el('h3', { text: input.value ? 'Resultados' : 'Jugadores', style: 'margin:22px 0 6px' }),
-        el('div', { class: 'panel' }, people.filter(p => !friendIds.has(p.id)).map(p => personRow(p, false))))
+    const input = el('input', { placeholder: t('friend_ph'), maxlength: 20, autocapitalize: 'off', autocomplete: 'off', spellcheck: 'false' })
+    const msg = el('p', { class: 'msg', style: 'text-align:left' })
+    const reqBox = el('div'), mine = el('div', { class: 'panel' })
+    let games = {}
+    const add = async e => {
+      e?.preventDefault(); const name = input.value.trim(); if (!name) return
+      msg.className = 'msg'; msg.textContent = '...'
+      try {
+        const r = await social.sendRequest(name)
+        msg.className = 'msg ok'; msg.textContent = t(r === 'sent' ? 'req_sent' : r === 'accepted' ? 'req_accepted' : r === 'already_sent' ? 'req_already' : 'req_friends', { name })
+        if (r === 'sent' || r === 'accepted') input.value = ''
+        load()
+      } catch (er) { msg.className = 'msg err'; msg.textContent = social.errKey(er) ? t(social.errKey(er)) : er.message }
     }
-    let t; input.oninput = () => { clearTimeout(t); t = setTimeout(load, 250) }
-    setKids(root, el('h1', { class: 'page-title', text: 'Amigos' }), el('div', { style: 'margin-bottom:16px' }, input), mine, results)
-    load()
+    const row = (f, unread) => {
+      const gname = f.is_online && f.current_game ? games[f.current_game]?.name : null
+      return el('div', { class: 'person' }, avatar(f.username, f.avatar_color, f.is_online),
+        el('div', { class: 'grow' }, el('b', { text: f.username }), el('small', { text: gname ? `${statusText(f)} · ${gname}` : statusText(f) })),
+        f.is_online && f.current_game && games[f.current_game] ? el('button', { class: 'btn primary', text: t('join'), onclick: () => ctx.play(games[f.current_game]) }) : null,
+        el('button', { class: 'btn blue', html: icon('chat', 16) + (unread ? `<span class="count">${unread}</span>` : ''), title: t('chat'), onclick: async () => { const { openChat } = await import('./social-ui.js'); openChat(ctx, f) } }),
+        el('button', { class: 'btn', html: icon('trash', 16), title: t('remove'), onclick: async () => { if (confirm(t('confirm_remove', { name: f.username }))) { await social.removeFriend(f.id); load() } } }))
+    }
+    async function load() {
+      const [friends, reqs, uc, gl] = await Promise.all([social.listFriends(ctx.profile.id), social.myRequests().catch(() => []), social.unreadCounts().catch(() => ({})), api.listGames()])
+      games = Object.fromEntries(gl.map(g => [g.id, g]))
+      const inc = reqs.filter(r => r.dir === 'in'), out = reqs.filter(r => r.dir === 'out')
+      setKids(reqBox,
+        inc.length ? [el('h3', { text: `${t('requests_in')} (${inc.length})`, style: 'margin:0 0 6px' }), el('div', { class: 'panel', style: 'margin-bottom:18px' }, inc.map(r => el('div', { class: 'person' }, avatar(r.username, r.avatar_color),
+          el('div', { class: 'grow' }, el('b', { text: r.username })),
+          el('button', { class: 'btn primary', text: t('accept'), onclick: async () => { await social.respondRequest(r.id, true); load(); ctx.refreshBadges?.() } }),
+          el('button', { class: 'btn', text: t('decline'), onclick: async () => { await social.respondRequest(r.id, false); load(); ctx.refreshBadges?.() } }))))] : null,
+        out.length ? [el('h3', { text: `${t('requests_out')} (${out.length})`, style: 'margin:0 0 6px' }), el('div', { class: 'panel', style: 'margin-bottom:18px' }, out.map(r => el('div', { class: 'person' }, avatar(r.username, r.avatar_color),
+          el('div', { class: 'grow' }, el('b', { text: r.username })),
+          el('button', { class: 'btn', text: t('cancel_req'), onclick: async () => { await social.cancelRequest(r.id); load() } }))))] : null)
+      setKids(mine, el('h3', { text: t('my_friends', { n: friends.length }), style: 'margin-bottom:6px' }),
+        friends.length ? friends.map(f => row(f, uc[f.id])) : el('div', { class: 'empty', text: t('no_friends') }))
+    }
+    setKids(root, el('h1', { class: 'page-title', text: t('friends') }),
+      el('form', { class: 'panel add-friend', onsubmit: add }, el('h3', { text: t('add_friend'), style: 'margin-bottom:6px' }), el('p', { style: 'color:var(--muted);margin:0 0 10px;font-size:14px', text: t('friend_help') }),
+        el('div', { class: 'form-row' }, input, el('button', { class: 'btn blue', style: 'white-space:nowrap', text: t('friend_add_btn') })), msg),
+      reqBox, mine)
+    load(); every(load, 8000)
   },
 
-  async create(root, ctx) {
-    const name = el('input', { placeholder: 'Nombre del juego', minlength: 3, maxlength: 40 })
-    const desc = el('input', { placeholder: 'Descripción (opcional)', maxlength: 200 })
+  // ---------- Crear: lista de mis juegos + editor avanzado ----------
+  async create(root, ctx, arg) {
+    if (arg) return editor(root, ctx, arg)
+    const name = el('input', { placeholder: t('game_name'), minlength: 3, maxlength: 40 })
+    const desc = el('input', { placeholder: t('game_desc'), maxlength: 200 })
+    let mode = 'build'
+    const modeBox = el('div', { class: 'mode-pick' })
+    const drawModes = () => setKids(modeBox, MODES.map(m => el('button', { type: 'button', class: `mode-card ${mode === m ? 'on' : ''}`, onclick: () => { mode = m; drawModes() } },
+      el('b', { text: modeLabel(m) }), el('small', { text: t(`mode_${m}_d`) }))))
+    drawModes()
     const hue = el('input', { type: 'range', min: 0, max: 359, value: Math.floor(Math.random() * 360) })
-    const prev = el('div', { class: 'thumb', style: 'width:120px;--h:0' }, el('div', { class: 'cube' }))
+    const prev = el('div', { class: 'thumb', style: 'width:120px;flex:none;--h:0' }, el('div', { class: 'cube' }))
     const setHue = () => prev.style.setProperty('--h', hue.value); hue.oninput = setHue; setHue()
-    const mine = el('div')
+    const mineBox = el('div')
     async function load() {
       const games = (await api.listGames()).filter(g => g.owner_id === ctx.profile.id)
-      setKids(mine, games.length ? games.map(g => el('div', { class: 'person' },
+      setKids(mineBox, games.length ? games.map(g => el('div', { class: 'person' },
         el('div', { class: 'thumb', style: `width:56px;--h:${g.hue}` }, el('div', { class: 'cube' })),
-        el('div', { class: 'grow' }, el('b', { text: g.name }), el('small', { text: g.description })),
-        el('button', { class: 'btn', text: 'Jugar', onclick: () => ctx.play(g) }),
-        el('button', { class: 'btn danger', text: 'Borrar', onclick: async () => { if (confirm(`¿Borrar "${g.name}"?`)) { await api.deleteGameRow(g.id); load() } } })))
-        : el('div', { class: 'empty', text: 'Todavía no has creado ningún juego.' }))
+        el('div', { class: 'grow' }, el('b', { text: g.name }), el('small', { text: `${modeLabel(g.mode)} · ${g.description || ''}` })),
+        el('button', { class: 'btn', text: t('play'), onclick: () => ctx.play(g) }),
+        el('button', { class: 'btn blue', html: icon('edit', 16), title: t('edit'), onclick: () => ctx.go(`create/${g.id}`) }),
+        el('button', { class: 'btn danger', html: icon('trash', 16), title: t('delete'), onclick: async () => { if (confirm(t('confirm_delete', { name: g.name }))) { await api.deleteGameRow(g.id); load() } } })))
+        : el('div', { class: 'empty', text: t('no_my_games') }))
     }
-    setKids(root, el('h1', { class: 'page-title', text: 'Crear' }),
+    setKids(root, el('h1', { class: 'page-title', text: t('create') }),
       el('form', { class: 'panel', onsubmit: async e => {
         e.preventDefault()
-        try { await api.createGameRow(name.value.trim(), desc.value.trim(), Number(hue.value)); name.value = desc.value = ''; toast('Juego creado'); load() } catch (er) { toast(er.message) }
-      } }, el('h3', { text: 'Nuevo mundo', style: 'margin-bottom:12px' }),
-        el('div', { class: 'form-row' }, name, desc),
-        el('div', { class: 'form-row', style: 'align-items:center' }, prev, el('label', { class: 'field' }, 'Color de portada', hue)),
-        el('button', { class: 'btn primary', text: 'Crear juego' })),
-      el('div', { class: 'section' }, el('h2', { text: 'Mis juegos' })), el('div', { class: 'panel' }, mine))
+        try { const id = await api.createGameRow(name.value.trim(), desc.value.trim(), Number(hue.value), mode); toast(t('game_created')); ctx.go(`create/${id}`) } catch (er) { toast(er.message) }
+      } }, el('h3', { text: t('create_new'), style: 'margin-bottom:12px' }),
+        el('div', { class: 'form-row' }, name, desc), el('div', { class: 'section-s', text: t('mode') }), modeBox,
+        el('div', { class: 'form-row', style: 'align-items:center;margin-top:12px' }, prev, el('label', { class: 'field' }, t('cover_color'), hue)),
+        el('button', { class: 'btn primary', text: t('create_btn') })),
+      el('div', { class: 'section' }, el('h2', { text: t('my_games') })), el('div', { class: 'panel' }, mineBox))
     load()
   },
 
   // Autoriza el inicio de sesión de otro dispositivo (la 3DS muestra un QR con este enlace: #link/CODIGO)
   async link(root, ctx, code = '') {
-    const input = el('input', { placeholder: 'Código de la pantalla de tu 3DS (6 letras)', maxlength: 6, value: code.toUpperCase(), style: 'text-transform:uppercase;letter-spacing:4px;font-size:22px;text-align:center' })
+    const input = el('input', { placeholder: t('link_code_ph'), maxlength: 6, value: code.toUpperCase(), style: 'text-transform:uppercase;letter-spacing:4px;font-size:22px;text-align:center' })
     const msg = el('p', { class: 'msg' })
-    const btn = el('button', { class: 'btn primary wide', text: 'Autorizar este dispositivo' })
+    const btn = el('button', { class: 'btn primary wide', text: t('link_auth') })
     const go = async () => {
       const c = input.value.trim().toUpperCase()
-      if (c.length !== 6) { msg.className = 'msg err'; msg.textContent = 'El código tiene 6 caracteres'; return }
-      btn.disabled = true; msg.className = 'msg'; msg.textContent = 'Autorizando...'
+      if (c.length !== 6) { msg.className = 'msg err'; msg.textContent = t('link_6'); return }
+      btn.disabled = true; msg.className = 'msg'; msg.textContent = t('link_busy')
       try {
         await api.linkApprove(c)
         msg.textContent = ''
-        setKids(root, el('h1', { class: 'page-title', text: 'Vincular 3DS' }),
+        setKids(root, el('h1', { class: 'page-title', text: t('link_title') }),
           el('div', { class: 'panel', style: 'max-width:520px;text-align:center' },
-            el('div', { class: 'big-ico', html: icon('check', 44) }),
-            el('h2', { text: '¡Listo!' }),
-            el('p', { style: 'color:var(--muted)', text: `Tu 3DS ya ha iniciado sesión como ${ctx.profile.username}. Puedes volver a la consola.` }),
-            el('a', { class: 'btn blue', href: '#home', text: 'Ir al inicio' })))
+            el('div', { class: 'big-ico', html: icon('check', 44) }), el('h2', { text: t('link_done') }),
+            el('p', { style: 'color:var(--muted)', text: t('link_done_p', { name: ctx.profile.username }) }),
+            el('a', { class: 'btn blue', href: '#home', text: t('link_go_home') })))
       } catch (e) {
         btn.disabled = false; msg.className = 'msg err'
-        msg.textContent = /invalid code/i.test(e.message) ? 'Código no válido o caducado. Pide uno nuevo en la 3DS.' : e.message
+        msg.textContent = /invalid code/i.test(e.message) ? t('link_bad') : e.message
       }
     }
     btn.onclick = go
     input.onkeydown = e => { if (e.key === 'Enter') go() }
-    setKids(root, el('h1', { class: 'page-title', text: 'Vincular 3DS' }),
+    setKids(root, el('h1', { class: 'page-title', text: t('link_title') }),
       el('div', { class: 'panel', style: 'max-width:520px' },
-        el('p', { style: 'color:var(--muted);margin-top:0', text: code
-          ? `Una 3DS quiere iniciar sesión como ${ctx.profile.username}. Si has sido tú, autorízala.`
-          : 'En la 3DS elige «Con QR», escanea el código con la cámara del móvil o escribe aquí el código de 6 caracteres que aparece en la consola.' }),
+        el('p', { style: 'color:var(--muted);margin-top:0', text: code ? t('link_ask', { name: ctx.profile.username }) : t('link_help') }),
         el('div', { style: 'margin:16px 0' }, input), btn, msg))
     if (code.length === 6) btn.focus()
   },
 
-  settings(root) {
-    const row = (label, input) => el('label', { class: 'field' }, label, input)
-    const sens = el('input', { type: 'range', min: 0.3, max: 2.5, step: 0.1, value: settings.sensitivity })
-    const dist = el('input', { type: 'range', min: 30, max: 200, step: 10, value: settings.viewDistance })
-    const names = el('input', { type: 'checkbox' }); names.checked = settings.names
-    const save = () => { settings.sensitivity = +sens.value; settings.viewDistance = +dist.value; settings.names = names.checked; saveSettings(); toast('Guardado') }
-    sens.onchange = dist.onchange = names.onchange = save
-    setKids(root, el('h1', { class: 'page-title', text: 'Ajustes' }),
-      el('div', { class: 'panel', style: 'max-width:520px' }, row('Sensibilidad de cámara', sens), row('Distancia de visión', dist),
-        el('label', { class: 'field check' }, names, 'Mostrar nombres sobre los jugadores')))
+  settings(root, ctx) {
+    const sw = (key, label, after) => { const i = el('input', { type: 'checkbox' }); i.checked = !!settings[key]; i.onchange = () => { settings[key] = i.checked; saveSettings(); after?.() }; return el('label', { class: 'field check' }, i, label) }
+    const rg = (key, label, min, max, step, fmt = v => v) => { const o = el('output', { text: fmt(settings[key]) }); const i = el('input', { type: 'range', min, max, step, value: settings[key] }); i.oninput = () => { settings[key] = +i.value; o.textContent = fmt(settings[key]); saveSettings() }; return el('label', { class: 'field' }, el('span', {}, label, ' ', o), i) }
+    const sel = (key, label, opts, after) => { const s = el('select', {}, opts.map(([v, l]) => el('option', { value: v, text: l, selected: settings[key] === v }))); s.onchange = () => { settings[key] = s.value; saveSettings(); after?.() }; return el('label', { class: 'field' }, label, s) }
+    const accent = el('input', { type: 'color', value: settings.accent }); accent.oninput = () => { settings.accent = accent.value; saveSettings(); applyTheme() }
+    const langSel = el('select', {}, LANGS.map(l => el('option', { value: l, text: langName(l), selected: l === getLang() }))); langSel.onchange = () => { setLang(langSel.value) }
+    const st = getStats(), hrs = Math.floor(st.time / 3600), mins = Math.floor((st.time % 3600) / 60)
+    const stat = (k, v) => el('div', { class: 'stat' }, el('b', { text: String(v) }), el('small', { text: t(k) }))
+    const installRow = el('div')
+    const paintInstall = () => setKids(installRow, isInstalled() ? el('p', { style: 'color:var(--muted)', text: t('set_installed') })
+      : canInstall() ? el('button', { class: 'btn blue', html: icon('device', 16) + ' ' + t('set_install'), onclick: async () => { await installApp(); paintInstall() } }) : null,
+      'Notification' in window && Notification.permission !== 'granted' ? el('button', { class: 'btn', style: 'margin-left:8px', html: icon('bell', 16) + ' ' + t('set_notif_perm'), onclick: async () => { await askNotifications(); paintInstall() } }) : null)
+    paintInstall()
+    setKids(root, el('h1', { class: 'page-title', text: t('settings') }),
+      el('div', { class: 'settings-grid' },
+        el('div', { class: 'panel' }, el('h3', { text: t('set_language') }), el('label', { class: 'field' }, t('set_language'), langSel), el('p', { class: 'msg', style: 'text-align:left', text: t('lang_hint') }),
+          sel('theme', t('set_theme'), [['dark', t('theme_dark')], ['light', t('theme_light')]], applyTheme), el('label', { class: 'field' }, t('set_accent'), accent), sw('reduceMotion', t('set_motion'), applyTheme), installRow),
+        el('div', { class: 'panel' }, el('h3', { text: t('set_quality') }),
+          sel('quality', t('set_quality'), [['low', t('q_low')], ['med', t('q_med')], ['high', t('q_high')], ['ultra', t('q_ultra')]]),
+          rg('viewDistance', t('set_dist'), 30, 250, 10), rg('fov', t('set_fov'), 50, 100, 1), sw('shadows', t('set_shadows')), sw('bloom', t('set_bloom')), sw('clouds', t('set_clouds'))),
+        el('div', { class: 'panel' }, el('h3', { text: t('set_music') }),
+          sw('music', t('set_music')), rg('musicVol', t('set_music_vol'), 0, 1, 0.05, v => Math.round(v * 100) + '%'), sw('shuffle', t('set_shuffle')),
+          sw('sfx', t('set_sfx')), rg('sfxVol', t('set_sfx_vol'), 0, 1, 0.05, v => Math.round(v * 100) + '%')),
+        el('div', { class: 'panel' }, el('h3', { text: t('controls') ?? 'Controles' }),
+          rg('sensitivity', t('set_sens'), 0.3, 2.5, 0.1), sw('invertY', t('set_invert')), sw('names', t('set_names')), sw('bubbles', t('set_bubbles')),
+          sw('minimap', t('set_minimap')), sw('showFps', t('set_fps')), sw('notifPopups', t('set_notif')),
+          rg('touchSize', t('set_touch_size'), 0.7, 1.5, 0.1), sw('leftHanded', t('set_left'))),
+        el('div', { class: 'panel' }, el('h3', { text: t('set_stats') }),
+          el('div', { class: 'stats-row' }, stat('stat_time', `${hrs}h ${mins}m`), stat('stat_placed', st.placed), stat('stat_broken', st.broken), stat('stat_games', st.games.length), stat('stat_msgs', st.msgs)),
+          el('button', { class: 'btn danger', style: 'margin-top:14px', text: t('set_reset'), onclick: () => { resetSettings(); applyTheme(); pages.settings(root, ctx) } }))))
   },
+}
+
+// ---------- editor avanzado ----------
+const TERRAINS = ['flat', 'hills', 'islands', 'plaza', 'checker', 'void', 'obby']
+const SKIES = ['day', 'sunset', 'night', 'space']
+async function editor(root, ctx, id) {
+  setKids(root, el('h1', { class: 'page-title', text: t('loading') }))
+  const g = await api.getGame(id)
+  if (!g || g.owner_id !== ctx.profile.id) return ctx.go('create')
+  g.config = { allow_chat: true, allow_emotes: true, ...(g.config ?? {}) }
+  if (g.config.allow_build == null) g.config.allow_build = g.mode === 'build'
+  let tab = 'general'
+  const body = el('div'), tabs = el('div', { class: 'tabs ed-tabs' })
+  const num = (k, label, min, max, step, def) => { const o = el('output', { text: g.config[k] ?? def }); const i = el('input', { type: 'range', min, max, step, value: g.config[k] ?? def }); i.oninput = () => { g.config[k] = +i.value; o.textContent = i.value }; return el('label', { class: 'field' }, el('span', {}, label, ' ', o), i) }
+  const chk = (k, label) => { const i = el('input', { type: 'checkbox' }); i.checked = !!g.config[k]; i.onchange = () => (g.config[k] = i.checked); return el('label', { class: 'field check' }, i, label) }
+  const pane = {
+    general: () => {
+      const name = el('input', { value: g.name, maxlength: 40 }); name.oninput = () => (g.name = name.value)
+      const desc = el('input', { value: g.description, maxlength: 200 }); desc.oninput = () => (g.description = desc.value)
+      const hue = el('input', { type: 'range', min: 0, max: 359, value: g.hue }); hue.oninput = () => { g.hue = +hue.value; prev.style.setProperty('--h', g.hue) }
+      const prev = el('div', { class: 'thumb', style: `width:120px;flex:none;--h:${g.hue}` }, el('div', { class: 'cube' }))
+      const max = el('input', { type: 'number', min: 1, max: 50, value: g.max_players }); max.oninput = () => (g.max_players = +max.value || 20)
+      const mp = el('div', { class: 'mode-pick' }, MODES.map(m => el('button', { type: 'button', class: `mode-card ${g.mode === m ? 'on' : ''}`, onclick: () => { g.mode = m; if (g.config.allow_build_touched !== true) g.config.allow_build = m === 'build'; draw() } }, el('b', { text: modeLabel(m) }), el('small', { text: t(`mode_${m}_d`) }))))
+      const welcome = el('input', { value: g.config.welcome ?? '', maxlength: 120, placeholder: t('ed_welcome') }); welcome.oninput = () => (g.config.welcome = welcome.value)
+      return [el('div', { class: 'form-row' }, name, desc), el('div', { class: 'section-s', text: t('mode') }), mp,
+        el('div', { class: 'form-row', style: 'align-items:center;margin-top:12px' }, prev, el('label', { class: 'field' }, t('cover_color'), hue), el('label', { class: 'field' }, t('ed_players'), max)),
+        el('label', { class: 'field' }, t('ed_welcome'), welcome)]
+    },
+    rules: () => [
+      el('label', { class: 'field check' }, (() => { const i = el('input', { type: 'checkbox' }); i.checked = !!g.config.allow_build; i.onchange = () => { g.config.allow_build = i.checked; g.config.allow_build_touched = true }; return i })(), t('ed_allow_build')),
+      chk('allow_chat', t('ed_allow_chat')), chk('allow_emotes', t('ed_allow_emotes')), chk('allow_fly', 'Vuelo (F)'),
+      num('speed', t('ed_speed'), 2, 16, 0.5, 6), num('jump', t('ed_jump'), 4, 18, 0.5, 8.6), num('gravity', t('ed_gravity'), 4, 60, 1, 24)],
+    world: () => {
+      const spawn = ['x', 'y', 'z'].map((a, i) => { const inp = el('input', { type: 'number', step: 0.5, value: g.config.spawn?.[i] ?? '', placeholder: a.toUpperCase(), style: 'width:90px' }); inp.oninput = () => { const v = ['x', 'y', 'z'].map((_, k) => Number(spawn[k].value)); g.config.spawn = spawn.every(s => s.value !== '') ? v : undefined }; return inp })
+      const tp = el('div', { class: 'mode-pick' }, TERRAINS.map(w => el('button', { type: 'button', class: `mode-card ${(g.config.world ?? 'flat') === w ? 'on' : ''}`, onclick: () => { g.config.world = w; draw() } }, el('b', { text: t('ter_' + w) }))))
+      const sk = el('div', { class: 'chips' }, SKIES.map(s => el('button', { type: 'button', class: `chip ${(g.config.sky ?? 'day') === s ? 'on' : ''}`, text: t('sky_' + s), onclick: () => { g.config.sky = s; if (s !== 'day') delete g.config.time; draw() } })),
+        el('button', { type: 'button', class: `chip ${g.config.time === 0 ? 'on' : ''}`, text: t('ed_time').split(' (')[0] + ' ⟳', onclick: () => { g.config.time = 0; delete g.config.sky; draw() } }))
+      const music = chk('music', t('ed_music'))
+      return [el('div', { class: 'section-s', text: t('ed_terrain') }), tp, el('div', { class: 'section-s', text: t('ed_sky') }), sk, el('div', { class: 'section-s', text: t('ed_spawn') }), el('div', { class: 'form-row' }, spawn)]
+    },
+    code: () => {
+      const ta = el('textarea', { class: 'code', spellcheck: 'false', autocapitalize: 'off', autocorrect: 'off', wrap: 'off' }); ta.value = g.script ?? ''
+      const gut = el('div', { class: 'gutter' }), info = el('small', { style: 'color:var(--muted)' }), res = el('p', { class: 'msg', style: 'text-align:left' })
+      const lines = () => { const n = ta.value.split('\n').length; gut.textContent = Array.from({ length: n }, (_, i) => i + 1).join('\n'); info.textContent = `${t('ed_lines', { n })} · ${ta.value.length}/20000` }
+      ta.oninput = () => { g.script = ta.value; lines() }
+      ta.onscroll = () => (gut.scrollTop = ta.scrollTop)
+      ta.onkeydown = e => { if (e.key === 'Tab') { e.preventDefault(); const s = ta.selectionStart; ta.setRangeText('  ', s, ta.selectionEnd, 'end'); ta.oninput() } }
+      lines()
+      const ex = el('select', { onchange: e => { if (e.target.value) { ta.value = (ta.value ? ta.value + '\n\n' : '') + EXAMPLES[e.target.value]; ta.oninput(); e.target.value = '' } } }, el('option', { value: '', text: t('ed_examples') }), Object.keys(EXAMPLES).map(k => el('option', { value: k, text: k })))
+      return [el('p', { style: 'color:var(--muted);margin-top:0;font-size:14px', text: t('ed_script_help') }),
+        el('div', { class: 'code-wrap' }, gut, ta), el('div', { class: 'form-row', style: 'align-items:center;margin-top:8px' }, info, ex, el('button', { type: 'button', class: 'btn', html: icon('check', 16) + ' ' + t('ed_check'), onclick: () => { const er = checkSyntax(ta.value); res.className = 'msg ' + (er ? 'err' : 'ok'); res.textContent = er || t('ed_ok') } })), res]
+    },
+  }
+  function draw() {
+    setKids(tabs, ['general', 'rules', 'world', 'code'].map(k => el('button', { class: `tab ${tab === k ? 'active' : ''}`, text: t('ed_' + k), onclick: () => { tab = k; draw() } })))
+    setKids(body, pane[tab]())
+  }
+  const save = async () => { await api.updateGameRow({ ...g, config: Object.fromEntries(Object.entries(g.config).filter(([, v]) => v !== undefined)) }); toast(t('ed_saved')) }
+  setKids(root, el('div', { class: 'section' }, el('h1', { class: 'page-title', text: `${t('editor')}: ${g.name}` }), el('a', { href: '#create', text: t('back') })),
+    el('div', { class: 'panel' }, tabs, body),
+    el('div', { class: 'form-row', style: 'margin-top:14px' },
+      el('button', { class: 'btn primary', text: t('save'), onclick: () => save().catch(e => toast(e.message)) }),
+      el('button', { class: 'btn blue', html: icon('play', 16) + ' ' + t('play'), onclick: async () => { try { await save(); ctx.play(await api.getGame(g.id)) } catch (e) { toast(e.message) } } })))
+  draw()
 }

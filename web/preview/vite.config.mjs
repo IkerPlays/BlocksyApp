@@ -6,7 +6,7 @@ const here = path.dirname(fileURLToPath(import.meta.url))
 export default defineConfig({
   root: path.resolve(here, '..'),
   server: { port: 5188, strictPort: true },
-  optimizeDeps: { entries: ['preview/game.html'] },
+  optimizeDeps: { entries: ['preview/game.html', 'preview/pages.html'] },
   resolve: { alias: [
     { find: /^\.\/supabase\.js$/, replacement: path.resolve(here, 'mock-supabase.js') },
     { find: /^\.\/api\.js$/, replacement: path.resolve(here, 'mock-api.js') },

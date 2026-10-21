@@ -1,7 +1,38 @@
-const DEFAULTS = { sensitivity: 1, viewDistance: 120, names: true }
+export const DEFAULTS = {
+  sensitivity: 1, viewDistance: 120, names: true, fov: 68, quality: 'high', shadows: true, bloom: false, clouds: true,
+  music: true, musicVol: 0.4, sfx: true, sfxVol: 0.6, shuffle: true,
+  bubbles: true, minimap: true, showFps: true, notifPopups: true, invertY: false, reduceMotion: false, touchSize: 1, leftHanded: false,
+  theme: 'dark', accent: '#3b6bff',
+}
 let cur
 try { cur = { ...DEFAULTS, ...JSON.parse(localStorage.getItem('blocksy.settings') ?? '{}') } } catch { cur = { ...DEFAULTS } }
 export const settings = cur
-export function saveSettings() { try { localStorage.setItem('blocksy.settings', JSON.stringify(settings)) } catch {} }
+const subs = new Set()
+export const onSettings = f => { subs.add(f); return () => subs.delete(f) }
+export function saveSettings() { try { localStorage.setItem('blocksy.settings', JSON.stringify(settings)) } catch {} ; subs.forEach(f => f()) }
+export function resetSettings() { Object.assign(settings, DEFAULTS); saveSettings() }
 export function lastPlayed() { try { return localStorage.getItem('blocksy.last') } catch { return null } }
 export function setLastPlayed(id) { try { localStorage.setItem('blocksy.last', id) } catch {} }
+
+// Tema y color de acento
+export function applyTheme() {
+  const r = document.documentElement
+  r.dataset.theme = settings.theme
+  r.style.setProperty('--accent', settings.accent); r.style.setProperty('--accent2', settings.accent)
+  r.classList.toggle('reduce-motion', !!settings.reduceMotion)
+  document.querySelector('meta[name=theme-color]')?.setAttribute('content', settings.theme === 'light' ? '#f2f4f7' : '#232527')
+}
+
+// Estadísticas locales
+const SK = 'blocksy.stats'
+let stats = { time: 0, placed: 0, broken: 0, msgs: 0, games: [] }
+try { stats = { ...stats, ...JSON.parse(localStorage.getItem(SK) ?? '{}') } } catch {}
+export const getStats = () => stats
+export function bump(k, n = 1) { stats[k] = (stats[k] || 0) + n; try { localStorage.setItem(SK, JSON.stringify(stats)) } catch {} }
+export function visited(id) { if (!stats.games.includes(id)) { stats.games.push(id); bump('games', 0) } }
+
+// Mejores tiempos de carreras (por juego)
+export function bestTime(gameId, t) {
+  const k = `blocksy.best.${gameId}`
+  try { const old = Number(localStorage.getItem(k)); if (t != null && (!old || t < old)) { localStorage.setItem(k, String(t)); return t } return old || null } catch { return null }
+}

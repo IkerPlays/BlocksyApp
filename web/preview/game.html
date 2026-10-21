@@ -1,15 +1,56 @@
 <!doctype html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>preview</title></head><body>
+  <div id="popups"></div>
   <div id="game" class="hidden">
     <canvas id="view"></canvas>
     <div id="crosshair"></div>
-    <div id="hud-top"><button id="menu-btn" class="hud-btn"><i data-icon="menu"></i></button><span id="stats"></span><button id="emote-btn" class="hud-btn"><i data-icon="emote"></i></button><button id="players-btn" class="hud-btn"><i data-icon="users"></i></button></div>
-    <div id="emote-panel" class="hidden"></div><ul id="roster" class="hidden"></ul>
-    <div id="chat"><ul id="chat-log"></ul><form id="chat-form"><input id="chat-input" maxlength="200" placeholder="Pulsa / para chatear" autocomplete="off" /></form></div>
+    <div id="big-title" class="hidden"></div>
+    <canvas id="minimap" width="128" height="128"></canvas>
+    <div id="hud-top">
+      <button id="menu-btn" class="hud-btn" aria-label="Menu"><i data-icon="menu"></i></button>
+      <span id="stats"></span>
+      <button id="music-btn" class="hud-btn hidden" aria-label="Music"></button>
+      <button id="shot-btn" class="hud-btn" data-i18n-title="screenshot"><i data-icon="camera"></i></button>
+      <button id="chat-btn" class="hud-btn" aria-label="Chat"><i data-icon="chat"></i></button>
+      <button id="emote-btn" class="hud-btn" aria-label="Emotes"><i data-icon="emote"></i></button>
+      <button id="players-btn" class="hud-btn" aria-label="Players"><i data-icon="users"></i></button>
+    </div>
+    <div id="music-panel" class="hidden">
+      <div id="music-title"></div>
+      <div class="music-ctl"><button id="music-prev" class="hud-btn"></button><button id="music-toggle" class="hud-btn"></button><button id="music-next" class="hud-btn"></button></div>
+    </div>
+    <div id="emote-panel" class="hidden"></div>
+    <ul id="roster" class="hidden"></ul>
+    <div id="chat">
+      <ul id="chat-log"></ul>
+      <form id="chat-form"><input id="chat-input" maxlength="200" autocomplete="off" enterkeyhint="send" /></form>
+    </div>
     <div id="hotbar"></div>
-    <div id="help">WASD mover, Mayús correr, Espacio saltar. Arrastra para girar la cámara. Clic poner, clic derecho romper. 1-6 elige bloque.</div>
-    <div id="pause" class="hidden"><div class="pause-card"><h2 id="pause-title"></h2><button class="btn primary wide" id="resume">Continuar</button>
-      <label class="field">Sensibilidad <input id="set-sens" type="range" min="0.3" max="2.5" step="0.1" /></label><label class="field">Distancia <input id="set-dist" type="range" min="30" max="200" step="10" /></label>
-      <label class="field check"><input id="set-names" type="checkbox" /> Mostrar nombres</label><button class="btn danger wide" id="leave">Salir del juego</button></div></div>
+    <div id="pause" class="hidden">
+      <div class="pause-card">
+        <h2 id="pause-title"></h2>
+        <button class="btn primary wide" id="resume" data-i18n="resume"></button>
+        <div class="pause-grid">
+          <button class="btn" id="invite-btn"><span data-i18n="invite_friends"></span></button>
+          <button class="btn" id="copy-link"><span data-i18n="copy_link"></span></button>
+        </div>
+        <label class="field"><span data-i18n="set_sens"></span> <input id="set-sens" type="range" min="0.3" max="2.5" step="0.1" /></label>
+        <label class="field"><span data-i18n="set_dist"></span> <input id="set-dist" type="range" min="30" max="250" step="10" /></label>
+        <label class="field"><span data-i18n="set_fov"></span> <input id="set-fov" type="range" min="50" max="100" step="1" /></label>
+        <label class="field"><span data-i18n="set_quality"></span>
+          <select id="set-quality"><option value="low" data-i18n="q_low"></option><option value="med" data-i18n="q_med"></option><option value="high" data-i18n="q_high"></option><option value="ultra" data-i18n="q_ultra"></option></select></label>
+        <label class="field"><span data-i18n="set_music_vol"></span> <input id="set-music-vol" type="range" min="0" max="1" step="0.05" /></label>
+        <div class="pause-checks">
+          <label class="field check"><input id="set-music" type="checkbox" /> <span data-i18n="set_music"></span></label>
+          <label class="field check"><input id="set-names" type="checkbox" /> <span data-i18n="set_names"></span></label>
+          <label class="field check"><input id="set-bubbles" type="checkbox" /> <span data-i18n="set_bubbles"></span></label>
+          <label class="field check"><input id="set-minimap" type="checkbox" /> <span data-i18n="set_minimap"></span></label>
+          <label class="field check"><input id="set-clouds" type="checkbox" /> <span data-i18n="set_clouds"></span></label>
+          <label class="field check"><input id="set-shadows" type="checkbox" /> <span data-i18n="set_shadows"></span></label>
+        </div>
+        <button class="btn danger wide" id="leave" data-i18n="leave_game"></button>
+        <p class="hint" data-i18n="controls_help"></p>
+      </div>
+    </div>
   </div>
-  <script type="module" src="/preview/game-main.js"></script>
+    <script type="module" src="/preview/game-main.js"></script>
 </body></html>
