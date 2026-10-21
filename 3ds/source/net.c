@@ -97,12 +97,12 @@ char *net_get_text(const char *url, char *err, size_t en) {
 	if (!tl_curl) tl_curl = curl_easy_init();
 	CURL *c = tl_curl; if (!c) return NULL;
 	curl_easy_reset(c);
-	struct curl_slist *h = curl_slist_append(NULL, "Accept: application/vnd.github+json");
+	struct curl_slist *h = curl_slist_append(NULL, strstr(url, "api.github.com") ? "Accept: application/vnd.github+json" : "Accept: */*");
 	Buf b = {0}; char errbuf[CURL_ERROR_SIZE]; errbuf[0] = 0;
 	curl_easy_setopt(c, CURLOPT_URL, url); curl_easy_setopt(c, CURLOPT_HTTPHEADER, h);
 	curl_easy_setopt(c, CURLOPT_SSL_VERIFYPEER, 0L); curl_easy_setopt(c, CURLOPT_SSL_VERIFYHOST, 0L);
 	curl_easy_setopt(c, CURLOPT_FOLLOWLOCATION, 1L); curl_easy_setopt(c, CURLOPT_MAXREDIRS, 5L);
-	curl_easy_setopt(c, CURLOPT_CONNECTTIMEOUT, 20L); curl_easy_setopt(c, CURLOPT_TIMEOUT, 40L); curl_easy_setopt(c, CURLOPT_NOSIGNAL, 1L);
+	curl_easy_setopt(c, CURLOPT_CONNECTTIMEOUT, 20L); curl_easy_setopt(c, CURLOPT_TIMEOUT, 45L); curl_easy_setopt(c, CURLOPT_ACCEPT_ENCODING, ""); curl_easy_setopt(c, CURLOPT_NOSIGNAL, 1L);
 	curl_easy_setopt(c, CURLOPT_USERAGENT, "blocksy-3ds/" BLOCKSY_VERSION);
 	curl_easy_setopt(c, CURLOPT_WRITEFUNCTION, write_cb); curl_easy_setopt(c, CURLOPT_WRITEDATA, &b); curl_easy_setopt(c, CURLOPT_ERRORBUFFER, errbuf);
 	CURLcode rc = curl_easy_perform(c);

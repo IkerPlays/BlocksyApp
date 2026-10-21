@@ -80,7 +80,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite }) {
   floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; floor.visible = world.floor; scene.add(floor)
 
   const geo = new THREE.BoxGeometry(1, 1, 1)
-  const tex = blockTexture()
+  const tex = blockTexture(); tex.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy())
   // bloques fijos del mundo: una sola malla con color por instancia
   const statics = new Map()
   const staticMesh = new THREE.InstancedMesh(geo, new THREE.MeshLambertMaterial({ color: '#ffffff', map: tex }), Math.max(1, world.cells.length))
@@ -95,7 +95,8 @@ export function startGame({ game, profile, canvas, onExit, onInvite }) {
   })
   const cells = PALETTE.map(() => [])
   const index = new Map()
-  const tmp = new THREE.Matrix4()
+  const tmp = new THREE.Matrix4(), tmpC = new THREE.Color()
+  const jit = (x, y, z) => { const h = Math.imul(x * 73856093 ^ y * 19349663 ^ z * 83492791, 2654435761) >>> 0; const v = 0.9 + (h % 1000) / 1000 * 0.1; return tmpC.setRGB(v, v, v) }
   const solid = (x, y, z) => index.has(key(x, y, z)) || statics.has(key(x, y, z))
   function setBlock(x, y, z, kind) {
     kind = ((kind % PALETTE.length) + PALETTE.length) % PALETTE.length
@@ -104,14 +105,14 @@ export function startGame({ game, profile, canvas, onExit, onInvite }) {
     if (statics.has(k)) return
     const m = meshes[kind]; if (m.count >= CAP) return
     const i = m.count++
-    tmp.makeTranslation(x + 0.5, y + 0.5, z + 0.5); m.setMatrixAt(i, tmp); m.instanceMatrix.needsUpdate = true
+    tmp.makeTranslation(x + 0.5, y + 0.5, z + 0.5); m.setMatrixAt(i, tmp); m.setColorAt(i, jit(x, y, z)); m.instanceMatrix.needsUpdate = true; m.instanceColor.needsUpdate = true
     cells[kind][i] = k; index.set(k, { kind, i })
   }
   function removeBlock(x, y, z) {
     const k = key(x, y, z), e = index.get(k); if (!e) return
     const m = meshes[e.kind], last = m.count - 1
     if (e.i !== last) {
-      m.getMatrixAt(last, tmp); m.setMatrixAt(e.i, tmp)
+      m.getMatrixAt(last, tmp); m.setMatrixAt(e.i, tmp); m.getColorAt(last, tmpC); m.setColorAt(e.i, tmpC); if (m.instanceColor) m.instanceColor.needsUpdate = true
       const lk = cells[e.kind][last]; cells[e.kind][e.i] = lk; index.get(lk).i = e.i
     }
     cells[e.kind].length = last; m.count = last; m.instanceMatrix.needsUpdate = true
@@ -300,10 +301,12 @@ export function startGame({ game, profile, canvas, onExit, onInvite }) {
   for (const [id, k] of checks) { const e = $(id); e.checked = settings[k]; e.onchange = () => { settings[k] = e.checked; saveSettings(); if (k === 'music') (e.checked ? music.start() : music.stop()) } }
 
   let composer = null, bloomPass = null, lastShadowSize = 0, lastShadows = null
+  const MAXPR = { low: 1, med: 1.25, high: 1.5, ultra: 2 }
+  let resScale = 1
   function size() {
     const w = canvas.clientWidth, h = canvas.clientHeight; if (!w || !h) return
     const q = settings.quality, dpr = devicePixelRatio || 1
-    const pr = q === 'low' ? 1 : Math.min(dpr, q === 'med' ? 1.5 : 2)
+    const pr = Math.max(0.5, Math.min(dpr, MAXPR[q] ?? 1.5) * (settings.dynRes ? resScale : 1))
     renderer.setPixelRatio(pr); renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix()
     composer?.setPixelRatio(pr); composer?.setSize(w, h)
   }
@@ -314,15 +317,16 @@ export function startGame({ game, profile, canvas, onExit, onInvite }) {
     tagSprites.forEach(tg => (tg.visible = settings.names))
     const shadowsOn = settings.shadows && q !== 'low'
     renderer.shadowMap.enabled = shadowsOn; sun.castShadow = shadowsOn
-    const ss = q === 'ultra' ? 4096 : q === 'high' ? 2048 : 1024
+    staticMesh.castShadow = q === 'high' || q === 'ultra'          // miles de bloques fijos en el mapa de sombras pesan mucho en tablets
+    const ss = q === 'ultra' ? 3072 : q === 'high' ? 2048 : 1024
     if (ss !== lastShadowSize) { lastShadowSize = ss; sun.shadow.mapSize.set(ss, ss); sun.shadow.map?.dispose(); sun.shadow.map = null }
     if (shadowsOn !== lastShadows) { lastShadows = shadowsOn; scene.traverse(o => { if (o.material) [].concat(o.material).forEach(m => (m.needsUpdate = true)) }) }
     sky.state.clouds = settings.clouds && q !== 'low'
-    const wantBloom = settings.bloom || q === 'ultra'
+    const wantBloom = settings.bloom && q !== 'low'
     if (wantBloom && !composer) {
-      composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType, samples: 4 }))
+      composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType, samples: IS_TOUCH ? 0 : 2 }))
       composer.addPass(new RenderPass(scene, camera))
-      bloomPass = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.32, 0.65, 0.88); composer.addPass(bloomPass); composer.addPass(new OutputPass())
+      bloomPass = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.28, 0.6, 0.9); composer.addPass(bloomPass); composer.addPass(new OutputPass())
     } else if (!wantBloom && composer) { composer.dispose(); composer = null }
     $('minimap').classList.toggle('hidden', !settings.minimap)
     $('stats').classList.toggle('hidden', !settings.showFps)
@@ -673,6 +677,11 @@ export function startGame({ game, profile, canvas, onExit, onInvite }) {
     frames++; const now = performance.now()
     if (now - mmAt > 120) { mmAt = now; drawMinimap() }
     if (now - fpsAt > 700) { fps = Math.round(frames * 1000 / (now - fpsAt)); frames = 0; fpsAt = now
+      if (settings.dynRes && !document.hidden) {                                     // resolución dinámica: baja los píxeles si faltan fps y los recupera si sobran
+        const prev = resScale
+        if (fps < 40) resScale = Math.max(0.5, resScale - (fps < 25 ? 0.2 : 0.1)); else if (fps > 56) resScale = Math.min(1, resScale + 0.05)
+        if (resScale !== prev) size()
+      }
       const race$ = race.start && !race.done ? `  ${raceTime(Date.now() - race.start)}` : ''
       $('stats').textContent = `${t('players_n', { n: others.size + 1 })} · ${fps} fps · (${c.x.toFixed(0)}, ${c.y.toFixed(0)}, ${c.z.toFixed(0)})${race$}` }
   }
@@ -692,6 +701,6 @@ export function startGame({ game, profile, canvas, onExit, onInvite }) {
     api.leave().catch(() => {}); gameDb.removeChannel(channel)
     composer?.dispose(); sky.dispose()
     scene.traverse(o => { o.geometry?.dispose?.(); if (o.material) [].concat(o.material).forEach(m => { m.map?.dispose?.(); m.dispose?.() }) })
-    renderer.dispose()
+    renderer.dispose(); renderer.forceContextLoss()
   }
 }

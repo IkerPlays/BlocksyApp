@@ -68,6 +68,19 @@ static void button(float x, float y, float w, float h, u32 c, bool focus, const 
 void ui_rect(float x, float y, float w, float h, u32 c) { rect(x, y, w, h, c); }
 void ui_rrect(float x, float y, float w, float h, float r, u32 c) { rrect(x, y, w, h, r, c); }
 void ui_cube(float cx, float cy, float s, u32 c) { cube(cx, cy, s, c); }
+// Logo de Blocksy (el mismo icono que la PWA y la pestaña de la web): cuadrado redondeado con un cubo isométrico. s = medio lado.
+void ui_logo(float cx, float cy, float s) {
+	float z = g_z + 0.2f, k = s * 0.62f;
+	rrect(cx - s, cy - s, s * 2, s * 2, s * 0.5f, C(0x1E, 0x58, 0x88));
+	u32 t = C(0x78, 0xFF, 0xAA), l = C(0x3C, 0x96, 0xFF), r = C(0x28, 0x64, 0xDC);
+	float cy2 = cy + s * 0.02f;
+	C2D_DrawTriangle(cx, cy2 - k * 1.1f, t, cx + k, cy2 - k * 0.55f, t, cx - k, cy2 - k * 0.55f, t, z);
+	C2D_DrawTriangle(cx + k, cy2 - k * 0.55f, t, cx, cy2, t, cx - k, cy2 - k * 0.55f, t, z);
+	C2D_DrawTriangle(cx - k, cy2 - k * 0.55f, l, cx, cy2, l, cx - k, cy2 + k * 0.55f, l, z);
+	C2D_DrawTriangle(cx, cy2, l, cx, cy2 + k * 1.1f, l, cx - k, cy2 + k * 0.55f, l, z);
+	C2D_DrawTriangle(cx + k, cy2 - k * 0.55f, r, cx + k, cy2 + k * 0.55f, r, cx, cy2, r, z);
+	C2D_DrawTriangle(cx, cy2, r, cx + k, cy2 + k * 0.55f, r, cx, cy2 + k * 1.1f, r, z);
+}
 void ui_button(float x, float y, float w, float h, u32 c, bool focus, const char *label, float scale) { button(x, y, w, h, c, focus, label, scale); }
 float ui_text_width(const char *s, float scale) { return text_w(s, scale); }
 u32 ui_shade(u32 c, float f) { return shade(c, f); }
@@ -144,7 +157,7 @@ void ui_top_background(const char *version, const char *subtitle) {
 	static const float fx[7] = {40, 350, 90, 310, 200, 20, 380}, fy[7] = {190, 60, 40, 200, 215, 110, 150};
 	static const u32 fc[7] = {0xFFFF7B4D, 0xFF57B7F3, 0xFF71CC2E, 0xFFB6599B, 0xFF3C4CE7, 0xFFDB9834, 0xFF71CC2E};
 	for (int i = 0; i < 7; i++) cube(fx[i] + sinf(t * .7f + i) * 6, fy[i] + sinf(t * 1.1f + i * 2) * 8, 16 + (i % 3) * 5, fc[i]);
-	cube(200, 62 + sinf(t * 1.4f) * 3, 34, C(0x4D, 0x7B, 0xFF));
+	ui_logo(200, 62 + sinf(t * 1.4f) * 3, 36);
 	ui_text(200, 100, 1.4f, COL_TEXT, C2D_AlignCenter, "Blocksy");
 	ui_text(200, 152, 0.5f, COL_MUTED, C2D_AlignCenter, subtitle);
 	char v[48]; snprintf(v, sizeof v, "v%s", version);

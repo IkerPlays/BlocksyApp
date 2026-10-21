@@ -32,6 +32,7 @@ float ui_text_width(const char *s, float scale);
 void ui_rect(float x, float y, float w, float h, u32 c);
 void ui_rrect(float x, float y, float w, float h, float r, u32 c);
 void ui_cube(float cx, float cy, float s, u32 c);
+void ui_logo(float cx, float cy, float s);                 // logo de Blocksy
 void ui_button(float x, float y, float w, float h, u32 c, bool focus, const char *label, float scale);
 u32  ui_shade(u32 c, float f);
 u32  ui_alpha(u32 c, int a);

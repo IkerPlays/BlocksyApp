@@ -246,7 +246,7 @@ static const char *status_of(const Person *p) { return p->in_game ? tr2("En un j
 // ================= PANTALLA SUPERIOR =================
 static void top_bar(const Ui *u, const Session *s, bool busy) {
 	ui_rect(0, 0, 400, 28, COL_PANEL); ui_rect(0, 28, 400, 1, COL_LINE);
-	ui_cube(17, 14, 8, COL_ACCENT);
+	ui_logo(15, 14, 10);
 	ui_text(30, 4, 0.58f, COL_TEXT, 0, "Blocksy");
 	static const int navp[2] = {P_HOME, P_DISCOVER};
 	float x = 104;

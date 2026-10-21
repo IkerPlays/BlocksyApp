@@ -259,3 +259,8 @@ textarea.code { flex:1; border:0; outline:none; resize:none; background:transpar
 .bio-edit { width:100%; margin-top:12px; padding:10px 12px; border-radius:8px; border:1px solid var(--line); background:var(--panel2); color:var(--fg); font:inherit; resize:vertical; }
 .profile-actions .btn, .profile-actions a.btn { flex:0 0 auto; } a.friend { color:inherit; }
 .person a { color:inherit; } .person a:hover b { text-decoration:underline; }
+
+/* ---- logo oficial (el mismo icono de la PWA y de la pestaña) ---- */
+.logo-mark { background:url(/icons/icon-192.png) center/cover no-repeat !important; border-radius:22%; transform:none !important; box-shadow:0 2px 8px #0005 !important; }
+/* viñeta suave sobre el juego */
+#game::after { content:""; position:fixed; inset:0; pointer-events:none; background:radial-gradient(ellipse at center, transparent 62%, #0000003a 100%); z-index:1; }

@@ -88,7 +88,13 @@ function play(game) {
   closeModal(); currentGame = game; setLastPlayed(game.id)
   auth.startPresence(() => currentGame?.id)
   showScreen('game')
-  stopGame = startGame({ game, profile, canvas: $('view'), onExit: exitGame, onInvite: g => { $('game').classList.add('hidden-for-modal'); openInvite(ctx, g) } })
+  // lienzo nuevo en cada partida: reutilizar el de otro juego con un contexto WebGL ya usado puede dejar la pantalla en negro
+  const old = $('view'), cv = document.createElement('canvas'); cv.id = 'view'; old.replaceWith(cv)
+  try {
+    stopGame = startGame({ game, profile, canvas: cv, onExit: exitGame, onInvite: g => { $('game').classList.add('hidden-for-modal'); openInvite(ctx, g) } })
+  } catch (e) {
+    console.error(e); toast(`${game.name}: ${e.message}`); exitGame()
+  }
 }
 async function exitGame() {
   stopGame?.(); stopGame = null; currentGame = null

@@ -62,5 +62,18 @@ export function watch(myId, cb) {
   return () => { stop = true; clearInterval(poll); authDb.removeChannel(ch) }
 }
 
-export const getProfile = async name => authDb.rpc('get_profile', { p_username: name })
+// Perfil por nombre exacto. Si get_profile aún no está en la base de datos (falta ejecutar social.sql), se reconstruye con lo que sí hay.
+export async function getProfile(name, me) {
+  const r = await authDb.rpc('get_profile', { p_username: name })
+  if (!r.error) return { data: r.data, error: null }
+  const miss = /get_profile|schema cache|does not exist|Could not find/i.test(r.error.message || '')
+  if (!miss) return { data: null, error: r.error }
+  let row = (await authDb.from('profiles_public').select('*').ilike('username', name).limit(1)).data?.[0]
+  if (!row) { const f = await authDb.rpc('find_user', { p_username: name }); if (f.data) row = { id: f.data.id, username: f.data.username, avatar_color: f.data.avatar_color } }
+  if (!row) return { data: null, error: null }
+  const friends = row.id === me ? [] : (await authDb.from('friendships').select('friend_id').eq('user_id', me).eq('friend_id', row.id)).data ?? []
+  const rel = row.id === me ? 'self' : friends.length ? 'friends' : 'none'
+  return { data: { id: row.id, username: row.username, avatar_color: row.avatar_color, bio: '', created_at: row.created_at ?? new Date().toISOString(), relation: rel, request_id: null, friend_count: 0,
+    is_online: row.is_online ?? null, current_game: row.current_game ?? null, legacy: true }, error: null }
+}
 export const setBio = (myId, bio) => authDb.from('profiles').update({ bio }).eq('id', myId)

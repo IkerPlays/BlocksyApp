@@ -5,3 +5,6 @@ New: game types (Build, Social, Obby, Arena), terrains (hills, islands, plaza, v
 Nintendo 3DS: friend requests and private chat, 12 block colors, language setting (Spanish or English), sun, clouds and player shadows, faster presence.
 Run the new SQL files: supabase/auth/social.sql (AUTH) and supabase/game/v2.sql (GAME). See supabase/README.md.
 Web: real URLs (/home, /friends, /u/name) instead of /#..., and Roblox-style profile pages (/profile for yours, /u/username for anyone): 3D avatar, bio, friends count, created games, and friend actions. Old # links and the 3DS QR still work. Run supabase/auth/social.sql again (adds get_profile and the bio column).
+Updater: much more robust. Retries, a no-limit fallback (releases feed) when the GitHub API refuses, checks that the file is a real .cia/.3dsx before writing, checks free SD space and explains common errors.
+New Blocksy logo everywhere (PWA, tab, web, 3DS icon, banner and menus) and a new soft musical chime on the 3DS HOME Menu.
+Web: dynamic resolution keeps the fps up on tablets, ultra no longer forces heavy effects, per-block color variation, vignette. Fixed profiles showing 'does not exist' and other games not loading.

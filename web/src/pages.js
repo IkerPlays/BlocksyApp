@@ -121,8 +121,8 @@ export const pages = {
   // Perfil: /profile (el tuyo) o /u/<usuario>
   async profile(root, ctx, name) {
     setKids(root, el('h1', { class: 'page-title', text: t('loading') }))
-    const { data: p, error } = await social.getProfile(name)
-    if (error || !p) return setKids(root, el('h1', { class: 'page-title', text: t('nav_profile') }), el('div', { class: 'empty', text: t('p_not_found') }))
+    const { data: p, error } = await social.getProfile(name, ctx.profile.id)
+    if (error || !p) return setKids(root, el('h1', { class: 'page-title', text: t('nav_profile') }), el('div', { class: 'empty', text: error ? `${t('err_generic')}: ${error.message}` : t('p_not_found') }))
     const self = p.relation === 'self', canvas = el('canvas', { class: 'avatar-3d' })
     const stat = (v, k) => el('div', { class: 'stat' }, el('b', { text: String(v) }), el('small', { text: k }))
     const actions = el('div', { class: 'form-row profile-actions' }), bioBox = el('div'), games = el('div'), friendsBox = el('div')
@@ -323,7 +323,7 @@ export const pages = {
           sel('theme', t('set_theme'), [['dark', t('theme_dark')], ['light', t('theme_light')]], applyTheme), el('label', { class: 'field' }, t('set_accent'), accent), sw('reduceMotion', t('set_motion'), applyTheme), installRow),
         el('div', { class: 'panel' }, el('h3', { text: t('set_quality') }),
           sel('quality', t('set_quality'), [['low', t('q_low')], ['med', t('q_med')], ['high', t('q_high')], ['ultra', t('q_ultra')]]),
-          rg('viewDistance', t('set_dist'), 30, 250, 10), rg('fov', t('set_fov'), 50, 100, 1), sw('shadows', t('set_shadows')), sw('bloom', t('set_bloom')), sw('clouds', t('set_clouds'))),
+          rg('viewDistance', t('set_dist'), 30, 250, 10), rg('fov', t('set_fov'), 50, 100, 1), sw('dynRes', t('set_dynres')), sw('shadows', t('set_shadows')), sw('bloom', t('set_bloom')), sw('clouds', t('set_clouds'))),
         el('div', { class: 'panel' }, el('h3', { text: t('set_music') }),
           sw('music', t('set_music')), rg('musicVol', t('set_music_vol'), 0, 1, 0.05, v => Math.round(v * 100) + '%'), sw('shuffle', t('set_shuffle')),
           sw('sfx', t('set_sfx')), rg('sfxVol', t('set_sfx_vol'), 0, 1, 0.05, v => Math.round(v * 100) + '%')),

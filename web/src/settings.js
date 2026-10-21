@@ -1,5 +1,5 @@
 export const DEFAULTS = {
-  sensitivity: 1, viewDistance: 120, names: true, fov: 68, quality: 'high', shadows: true, bloom: false, clouds: true,
+  sensitivity: 1, viewDistance: 120, names: true, fov: 68, quality: 'high', dynRes: true, shadows: true, bloom: false, clouds: true,
   music: true, musicVol: 0.4, sfx: true, sfxVol: 0.6, shuffle: true,
   bubbles: true, minimap: true, showFps: true, notifPopups: true, invertY: false, reduceMotion: false, touchSize: 1, leftHanded: false,
   theme: 'dark', accent: '#3b6bff',
