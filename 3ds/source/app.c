@@ -2,14 +2,16 @@
 // Pantalla superior = la "página" de la web. Pantalla inferior (táctil) = menú lateral + lista/acciones de la página.
 #include "app.h"
 #include "ui.h"
+#include "update.h"
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
 
-enum { P_HOME, P_DISCOVER, P_AVATAR, P_FRIENDS, P_CREATE, P_SETTINGS, NPAGES };
-static const char *const PAGE_NAME[NPAGES] = {"Inicio", "Descubrir", "Avatar", "Amigos", "Crear", "Ajustes"};
+enum { P_HOME, P_DISCOVER, P_AVATAR, P_FRIENDS, P_CREATE, P_UPDATE, P_SETTINGS, NPAGES };
+static const char *const PAGE_NAME[NPAGES] = {"Inicio", "Descubrir", "Avatar", "Amigos", "Crear", "Actualizar", "Ajustes"};
+static const int PAGE_ICON[NPAGES] = {0, 1, 2, 3, 4, 7, 5};
 static const char *const AVATAR_COLORS[10] = {"#4da6ff", "#ff9f43", "#2ecc71", "#e74c3c", "#9b59b6", "#f1c40f", "#1abc9c", "#ff6b9d", "#ecf0f1", "#95a5a6"};
 
 // ---------- datos compartidos con el hilo de red ----------
@@ -19,7 +21,18 @@ static Person g_friends[MAX_PEOPLE]; static int g_nfriends;
 static Person g_people[MAX_PEOPLE]; static int g_npeople;
 static volatile int g_account = 1;   // 0 = sesión por QR (sin token de Auth): no hay amigos ni avatar
 
-typedef enum { RQ_NONE, RQ_REFRESH, RQ_ADD, RQ_REMOVE, RQ_COLOR, RQ_CREATE, RQ_DELETE } Req;
+// ---------- actualizaciones (hilo de red) ----------
+static UpdateInfo g_upd; static volatile int g_upd_have;      // g_upd_have: ya se consultó GitHub
+static volatile int g_upd_state;                              // 0 reposo, 1 buscando, 2 descargando, 3 instalada, 4 error
+static volatile int g_upd_pct; static char g_upd_msg[100];
+static volatile int g_upd_announce;                           // 1 = avisar con un toast de que hay versión nueva
+static int s_auto = 1;                                        // buscar al abrir (ajuste)
+
+static bool cur_is_dev(void) { return strstr(g_upd.cur, "-dev") != NULL || !strcmp(g_upd.cur, "dev"); }
+// ¿Hay algo nuevo? Una estable nueva siempre; una devbuild nueva solo si se usa una devbuild
+static bool upd_available(void) { return g_upd_have && (g_upd.stable.newer || (g_upd.dev.newer && cur_is_dev())); }
+
+typedef enum { RQ_NONE, RQ_REFRESH, RQ_ADD, RQ_REMOVE, RQ_COLOR, RQ_CREATE, RQ_DELETE, RQ_UPD_CHECK, RQ_UPD_INSTALL } Req;
 typedef struct {
 	volatile int req, busy, quit, offline, seq, done_ok;
 	char arg[48], arg2[104]; int n;
@@ -48,13 +61,32 @@ static void refresh_all(void) {
 	W.seq++;
 }
 
+static void upd_check_job(bool announce) {
+	static UpdateInfo tmp; char err[100] = "";
+	g_upd_state = 1; g_upd_msg[0] = 0;
+	bool ok = update_check(&tmp, err, sizeof err);
+	if (ok) { LightLock_Lock(&lk); g_upd = tmp; g_upd_have = 1; LightLock_Unlock(&lk); g_upd_state = 0; if (announce && upd_available()) g_upd_announce = 1; }
+	else { snprintf(g_upd_msg, sizeof g_upd_msg, "%s", err); g_upd_state = 4; }
+	W.seq++;
+}
+static void upd_install_job(int which) {
+	Rel r; LightLock_Lock(&lk); r = which ? g_upd.dev : g_upd.stable; LightLock_Unlock(&lk);
+	if (!r.valid) { snprintf(g_upd_msg, sizeof g_upd_msg, "No hay version publicada de ese tipo"); g_upd_state = 4; return; }
+	char err[100] = ""; g_upd_state = 2; g_upd_pct = 0; g_upd_msg[0] = 0;
+	bool ok = update_install(&r, &g_upd_pct, err, sizeof err);
+	if (ok) snprintf(g_upd_msg, sizeof g_upd_msg, update_is_cia() ? "Instalada. Cierra Blocksy y abrela de nuevo desde HOME" : "Actualizada. Vuelve a abrirla desde el Homebrew Launcher");
+	else snprintf(g_upd_msg, sizeof g_upd_msg, "%s", err);
+	g_upd_state = ok ? 3 : 4;
+}
+
 static void worker_thread(void *arg) {
 	(void)arg;
-	u64 last_refresh = 0, last_presence = 0;
+	u64 last_refresh = 0, last_presence = 0, last_upd = 0; bool first_upd = true;
 	while (!W.quit) {
 		u64 now = osGetTime();
 		int r = W.req;
 		if (!r && now - last_refresh > 20000) r = RQ_REFRESH;     // refresco automático
+		if (!r && s_auto && W.seq > 0 && (first_upd || now - last_upd > 1800000) && g_upd_state != 2) { r = RQ_UPD_CHECK; W.n = 2; }   // al abrir y cada 30 min (n=2: automático)
 		if (r) {
 			W.busy = 1; W.done_ok = 1;
 			switch (r) {
@@ -65,6 +97,8 @@ static void worker_thread(void *arg) {
 				if (W.done_ok) W.s->color = parse_hex(W.arg);
 				break;
 			case RQ_CREATE: W.done_ok = net_create_game(W.s, W.arg, W.arg2, W.n); snprintf(W.msg, sizeof W.msg, W.done_ok ? "Juego creado" : "No se pudo crear el juego"); refresh_all(); break;
+			case RQ_UPD_CHECK: upd_check_job(W.n == 2); first_upd = false; last_upd = osGetTime(); W.msg[0] = 0; break;
+			case RQ_UPD_INSTALL: upd_install_job(W.n); W.msg[0] = 0; break;
 			case RQ_DELETE: W.done_ok = net_delete_game(W.s, W.arg);   snprintf(W.msg, sizeof W.msg, W.done_ok ? "Juego borrado" : "No se pudo borrar"); refresh_all(); break;
 			}
 			last_refresh = osGetTime();
@@ -87,13 +121,14 @@ static void load_settings(void) {
 		line[strcspn(line, "\r\n")] = 0;
 		if (!strncmp(line, "last_game=", 10)) snprintf(s_last_game, sizeof s_last_game, "%s", line + 10);
 		else if (!strncmp(line, "dist=", 5)) s_dist = atoi(line + 5) % 3;
+		else if (!strncmp(line, "auto=", 5)) s_auto = atoi(line + 5) != 0;
 	}
 	fclose(f);
 }
 static void save_settings(void) {
 	mkdir("sdmc:/3ds", 0777); mkdir("sdmc:/3ds/blocksy", 0777);
 	FILE *f = fopen(SETTINGS_FILE, "w"); if (!f) return;
-	fprintf(f, "last_game=%s\ndist=%d\n", s_last_game, s_dist); fclose(f);
+	fprintf(f, "last_game=%s\ndist=%d\nauto=%d\n", s_last_game, s_dist, s_auto); fclose(f);
 }
 
 // ---------- estado de la interfaz ----------
@@ -154,7 +189,7 @@ static int build_people(const Session *s, PRow *rows) {
 	return n;
 }
 
-static int row_h(int page) { return page == P_FRIENDS || page == P_SETTINGS ? 36 : 42; }
+static int row_h(int page) { return page == P_FRIENDS || page == P_SETTINGS ? 36 : page == P_UPDATE ? 40 : 42; }
 enum { PANE_X = 108, PANE_W = 208, LIST_Y = 30, LIST_BOTTOM = 232 };
 static int rows_visible(int page) { return (LIST_BOTTOM - LIST_Y) / row_h(page); }
 
@@ -164,7 +199,8 @@ static int count_rows(const Ui *u, const Session *s) {
 	case P_HOME: case P_DISCOVER: return build_view(u, s, view);
 	case P_CREATE: return 1 + build_view(u, s, view);       // fila 0 = "Nuevo mundo"
 	case P_FRIENDS: return build_people(s, pr);
-	case P_SETTINGS: return 3;
+	case P_SETTINGS: return 4;
+	case P_UPDATE: return 3;
 	}
 	return 0;
 }
@@ -304,15 +340,41 @@ static void page_top(const Ui *u, const Session *s) {
 		}
 		if (!n) ui_text(14, 128, 0.45f, COL_MUTED, 0, "Todavia no has creado ningun juego.");
 		break; }
-	case P_SETTINGS: {
-		ui_text(14, 33, 0.8f, COL_TEXT, 0, "Ajustes");
-		ui_rrect(14, 66, 372, 96, 12, COL_PANEL);
-		static const char *const dn[3] = {"Corta", "Media", "Larga"};
-		ui_text(30, 76, 0.48f, COL_TEXT, 0, "Distancia de dibujo"); ui_text(370, 76, 0.48f, COL_ACCENT, C2D_AlignRight, dn[s_dist]);
+	case P_UPDATE: {
+		ui_text(14, 33, 0.8f, COL_TEXT, 0, "Actualizar");
+		ui_rrect(14, 66, 372, 160, 12, COL_PANEL);
+		ui_text(30, 76, 0.48f, COL_TEXT, 0, "Version instalada"); ui_text(370, 76, 0.48f, COL_MUTED, C2D_AlignRight, g_upd.cur[0] ? g_upd.cur : "?");
 		ui_rect(26, 100, 348, 1, COL_LINE);
-		ui_text(30, 108, 0.48f, COL_TEXT, 0, "Cuenta"); ui_text(370, 108, 0.46f, COL_MUTED, C2D_AlignRight, s->username);
-		ui_rect(26, 132, 348, 1, COL_LINE);
-		ui_text(30, 138, 0.48f, COL_TEXT, 0, "Version"); ui_text(370, 138, 0.46f, COL_MUTED, C2D_AlignRight, "Blocksy 3DS");
+		for (int i = 0; i < 2; i++) {
+			const Rel *r = i ? &g_upd.dev : &g_upd.stable; float y = 108 + i * 32;
+			ui_text(30, y, 0.48f, COL_TEXT, 0, i ? "Devbuild" : "Estable");
+			char t[56]; snprintf(t, sizeof t, "%s", !g_upd_have ? (g_upd_state == 1 ? "buscando..." : "-") : r->valid ? r->tag : "sin publicar");
+			ui_text(150, y + 1, 0.46f, COL_MUTED, 0, t);
+			if (g_upd_have && r->valid) {
+				const char *lab = r->newer ? "Nueva" : "Al dia"; u32 c = r->newer ? COL_GREEN : COL_PANEL2;
+				float w = ui_text_width(lab, 0.38f) + 16; ui_rrect(370 - w, y + 1, w, 18, 9, c); ui_text(370 - w / 2, y + 2, 0.38f, COL_TEXT, C2D_AlignCenter, lab);
+			}
+			if (i == 0) ui_rect(26, y + 26, 348, 1, COL_LINE);
+		}
+		ui_rect(26, 172, 348, 1, COL_LINE);
+		if (g_upd_state == 2) {
+			char p[40]; snprintf(p, sizeof p, "Descargando... %d%%", g_upd_pct); ui_text(30, 180, 0.44f, COL_TEXT, 0, p);
+			ui_rrect(30, 204, 340, 10, 5, COL_PANEL2); if (g_upd_pct > 0) ui_rrect(30, 204, 340.0f * g_upd_pct / 100, 10, 5, COL_GREEN);
+		} else if (g_upd_state == 1) ui_text(30, 184, 0.44f, COL_MUTED, 0, "Buscando actualizaciones...");
+		else if (g_upd_msg[0]) { char m[100]; fit(m, sizeof m, g_upd_msg, 0.42f, 330); ui_text(30, 184, 0.42f, g_upd_state == 3 ? COL_GREEN : COL_RED, 0, m); }
+		else { ui_text(30, 180, 0.4f, COL_MUTED, 0, update_is_cia() ? "Se instalara como .cia (se reemplaza esta app)." : "Se instalara como .3dsx (se reemplaza este fichero)."); ui_text(30, 196, 0.38f, COL_MUTED, 0, "Tus datos y tu sesion se conservan."); }
+		break; }
+	case P_SETTINGS: {
+		static const char *const dn[3] = {"Corta", "Media", "Larga"};
+		ui_text(14, 33, 0.8f, COL_TEXT, 0, "Ajustes");
+		ui_rrect(14, 66, 372, 130, 12, COL_PANEL);
+		ui_text(30, 74, 0.48f, COL_TEXT, 0, "Distancia de dibujo"); ui_text(370, 74, 0.48f, COL_ACCENT, C2D_AlignRight, dn[s_dist]);
+		ui_rect(26, 98, 348, 1, COL_LINE);
+		ui_text(30, 104, 0.48f, COL_TEXT, 0, "Buscar actualizaciones al abrir"); ui_text(370, 104, 0.48f, s_auto ? COL_GREEN : COL_MUTED, C2D_AlignRight, s_auto ? "Si" : "No");
+		ui_rect(26, 128, 348, 1, COL_LINE);
+		ui_text(30, 134, 0.48f, COL_TEXT, 0, "Cuenta"); ui_text(370, 134, 0.46f, COL_MUTED, C2D_AlignRight, s->username);
+		ui_rect(26, 158, 348, 1, COL_LINE);
+		ui_text(30, 164, 0.48f, COL_TEXT, 0, "Version"); ui_text(370, 164, 0.46f, COL_MUTED, C2D_AlignRight, g_upd.cur[0] ? g_upd.cur : "Blocksy 3DS");
 		break; }
 	}
 }
@@ -335,18 +397,19 @@ static void modal_top(const Ui *u) {
 }
 
 // ================= PANTALLA INFERIOR =================
-enum { SB_W = 102, SB_ITEM_H = 30, SB_Y = 8, SB_EXIT_Y = 202 };
+enum { SB_W = 102, SB_ITEM_H = 27, SB_Y = 6, SB_EXIT_Y = 207 };
 
 static void sidebar(const Ui *u) {
 	ui_rect(0, 0, SB_W, 240, COL_PANEL); ui_rect(SB_W, 0, 1, 240, COL_LINE);
 	for (int i = 0; i < NPAGES; i++) {
 		float y = SB_Y + i * SB_ITEM_H; bool act = u->page == i;
-		if (act) { ui_rrect(4, y, SB_W - 8, SB_ITEM_H - 3, 7, COL_PANEL2); ui_rect(4, y + 5, 3, SB_ITEM_H - 13, COL_ACCENT); }
-		ui_icon(i, 14, y + 6, act ? COL_TEXT : COL_MUTED);
-		ui_text(36, y + 5, 0.47f, act ? COL_TEXT : COL_MUTED, 0, PAGE_NAME[i]);
+		if (act) { ui_rrect(4, y, SB_W - 8, SB_ITEM_H - 3, 7, COL_PANEL2); ui_rect(4, y + 5, 3, SB_ITEM_H - 11, COL_ACCENT); }
+		ui_icon(PAGE_ICON[i], 14, y + 5, act ? COL_TEXT : COL_MUTED);
+		ui_text(36, y + 3, 0.45f, act ? COL_TEXT : COL_MUTED, 0, PAGE_NAME[i]);
+		if (i == P_UPDATE && upd_available()) C2D_DrawCircleSolid(SB_W - 8, y + 12, 0.3f, 3.5f, COL_DANGER);   // punto rojo: hay versión nueva
 	}
 	ui_rect(8, SB_EXIT_Y - 6, SB_W - 16, 1, COL_LINE);
-	ui_icon(6, 14, SB_EXIT_Y + 6, COL_MUTED); ui_text(36, SB_EXIT_Y + 5, 0.47f, COL_MUTED, 0, "Salir");
+	ui_icon(6, 14, SB_EXIT_Y + 5, COL_MUTED); ui_text(36, SB_EXIT_Y + 3, 0.45f, COL_MUTED, 0, "Salir");
 }
 
 static void list_game_row(float y, const GameInfo *g, bool sel, const char *btn) {
@@ -414,15 +477,29 @@ static void pane(const Ui *u, const Session *s) {
 		ui_button(PANE_X + 2, 150, PANE_W - 6, 40, g_account ? COL_GREEN : COL_PANEL2, false, "Guardar", 0.55f);
 		if (!g_account) ui_text(PANE_X, 200, 0.34f, COL_RED, 0, "Requiere entrar con email y contrasena.");
 		break; }
+	case P_UPDATE: {
+		char l1[64], l2[64], l3[64];
+		snprintf(l1, sizeof l1, "Buscar actualizaciones");
+		snprintf(l2, sizeof l2, g_upd.stable.valid ? "Estable %s%s" : "Estable (sin publicar)", g_upd.stable.tag, g_upd.stable.newer ? " - nueva" : "");
+		snprintf(l3, sizeof l3, g_upd.dev.valid ? "Devbuild %s%s" : "Devbuild (sin publicar)", g_upd.dev.tag, g_upd.dev.newer ? " - nueva" : "");
+		char f2[64], f3[64]; fit(f2, sizeof f2, l2, 0.44f, PANE_W - 24); fit(f3, sizeof f3, l3, 0.44f, PANE_W - 24);
+		bool busy = g_upd_state == 2 || g_upd_state == 1;
+		ui_button(PANE_X, LIST_Y + 2, PANE_W - 4, rh - 6, COL_PANEL2, u->cur == 0, l1, 0.46f);
+		ui_button(PANE_X, LIST_Y + 2 + rh, PANE_W - 4, rh - 6, g_upd.stable.valid && !busy ? (g_upd.stable.newer ? COL_GREEN : COL_ACCENT_D) : COL_PANEL2, u->cur == 1, f2, 0.44f);
+		ui_button(PANE_X, LIST_Y + 2 + 2 * rh, PANE_W - 4, rh - 6, g_upd.dev.valid && !busy ? (g_upd.dev.newer ? COL_GREEN : COL_ACCENT_D) : COL_PANEL2, u->cur == 2, f3, 0.44f);
+		ui_text(PANE_X, LIST_Y + 2 + 3 * rh + 4, 0.34f, COL_MUTED, 0, "Toca para instalar la version elegida.");
+		if (g_upd_state == 2) { ui_rrect(PANE_X, 200, PANE_W - 4, 12, 6, COL_PANEL2); if (g_upd_pct > 0) ui_rrect(PANE_X, 200, (PANE_W - 4) * g_upd_pct / 100.0f, 12, 6, COL_GREEN); }
+		break; }
 	case P_SETTINGS: {
 		static const char *const dn[3] = {"Corta", "Media", "Larga"};
-		char l1[40]; snprintf(l1, sizeof l1, "Distancia: %s", dn[s_dist]);
-		ui_button(PANE_X, LIST_Y + 2, PANE_W - 4, rh - 6, COL_PANEL2, u->cur == 0, l1, 0.5f);
-		ui_button(PANE_X, LIST_Y + 2 + rh, PANE_W - 4, rh - 6, COL_PANEL2, u->cur == 1, "Olvidar mi email", 0.5f);
-		ui_button(PANE_X, LIST_Y + 2 + 2 * rh, PANE_W - 4, rh - 6, COL_DANGER, u->cur == 2, "Cerrar sesion", 0.5f);
+		char l1[40], l2[48]; snprintf(l1, sizeof l1, "Distancia: %s", dn[s_dist]); snprintf(l2, sizeof l2, "Buscar updates al abrir: %s", s_auto ? "Si" : "No");
+		ui_button(PANE_X, LIST_Y + 2, PANE_W - 4, rh - 6, COL_PANEL2, u->cur == 0, l1, 0.46f);
+		ui_button(PANE_X, LIST_Y + 2 + rh, PANE_W - 4, rh - 6, COL_PANEL2, u->cur == 1, l2, 0.4f);
+		ui_button(PANE_X, LIST_Y + 2 + 2 * rh, PANE_W - 4, rh - 6, COL_PANEL2, u->cur == 2, "Olvidar mi email", 0.46f);
+		ui_button(PANE_X, LIST_Y + 2 + 3 * rh, PANE_W - 4, rh - 6, COL_DANGER, u->cur == 3, "Cerrar sesion", 0.46f);
 		break; }
 	}
-	if (total > vis && u->page != P_SETTINGS && u->page != P_AVATAR) {        // barra de desplazamiento
+	if (total > vis && u->page != P_SETTINGS && u->page != P_AVATAR && u->page != P_UPDATE) {        // barra de desplazamiento
 		float th = (LIST_BOTTOM - LIST_Y) * (float)vis / total, ty = LIST_Y + (LIST_BOTTOM - LIST_Y - th) * ((float)u->scroll / (total - vis));
 		ui_rrect(314, ty, 3, th, 1.5f, COL_LINE);
 	}
@@ -452,6 +529,9 @@ void app_preview(C3D_RenderTarget *top, C3D_RenderTarget *bot, int page, int mod
 	ngames = 6; static const char *fn[] = {"Marta", "Dani", "Lucia", "Pablo", "Nora"};
 	for (int i = 0; i < 5; i++) { Person *p = &friends[i]; memset(p, 0, sizeof *p); snprintf(p->name, 24, "%s", fn[i]); p->color = parse_hex(AVATAR_COLORS[i + 1]); p->online = i < 3; p->in_game = i == 1; snprintf(p->id, 40, "f%d", i); }
 	nfriends = 5; npeople = 0; g_account = 1;
+	snprintf(g_upd.cur, sizeof g_upd.cur, "0.1.0-dev.9"); g_upd_have = 1;
+	snprintf(g_upd.dev.tag, sizeof g_upd.dev.tag, "v0.1.0-dev.12"); g_upd.dev.valid = 1; g_upd.dev.is_dev = 1; g_upd.dev.newer = 1;
+	if (page == P_UPDATE) { g_upd_state = modal == -3 ? 2 : modal == -4 ? 3 : modal == -5 ? 4 : 0; g_upd_pct = 45; snprintf(g_upd_msg, sizeof g_upd_msg, modal == -5 ? "Descarga fallida: Couldn't resolve host" : "Instalada. Cierra Blocksy y abrela de nuevo desde HOME"); if (modal <= -3) modal = -1; }
 	Ui u = {.page = page, .cur = cursor, .modal = modal, .swatch = 1}; strcpy(u.search, page == P_DISCOVER ? "" : "");
 	draw_all(top, bot, &u, &s, version);
 }
@@ -482,6 +562,7 @@ AppResult app_lobby(C3D_RenderTarget *top, C3D_RenderTarget *bot, Session *s, Ga
 	Ui u = {.page = P_HOME, .modal = -1};
 	// color actual del avatar -> swatch
 	for (int i = 0; i < 10; i++) if (parse_hex(AVATAR_COLORS[i]) == s->color) u.swatch = i;
+	if (!g_upd.cur[0]) snprintf(g_upd.cur, sizeof g_upd.cur, "%s", version);
 	W.req = RQ_REFRESH;
 	Thread th = spawn_worker();
 	AppResult res = APP_QUIT;
@@ -491,7 +572,8 @@ AppResult app_lobby(C3D_RenderTarget *top, C3D_RenderTarget *bot, Session *s, Ga
 		hidScanInput();
 		u32 down = hidKeysDown(), held = hidKeysHeld(), up = hidKeysUp();
 		if (u.seen_seq != W.seq) { u.seen_seq = W.seq; sync_data(); }
-		if (W.msg[0] && !W.busy) { toast(&u, W.msg); W.msg[0] = 0; if (u.page == P_AVATAR) {} }
+		if (W.msg[0] && !W.busy) { toast(&u, W.msg); W.msg[0] = 0; }
+		if (g_upd_announce) { g_upd_announce = 0; char m[64]; snprintf(m, sizeof m, "Hay una version nueva: %s", g_upd.stable.newer ? g_upd.stable.tag : g_upd.dev.tag); toast(&u, m); }
 		if (down & KEY_START) { res = APP_QUIT; break; }
 
 		int vis = rows_visible(u.page), total = count_rows(&u, s), act_row = -1; bool tap_btn = false, do_back = false;
@@ -584,10 +666,17 @@ AppResult app_lobby(C3D_RenderTarget *top, C3D_RenderTarget *bot, Session *s, Ga
 				if (act_row < n && (tap_btn || (down & KEY_A))) request(pr[act_row].friend ? RQ_REMOVE : RQ_ADD, pr[act_row].p->id, NULL, 0);
 				break;
 			case P_AVATAR: if (act_row == 100 || (down & KEY_A)) { if (g_account) request(RQ_COLOR, AVATAR_COLORS[u.swatch], NULL, 0); else toast(&u, "Entra con email para guardar"); } break;
+			case P_UPDATE:
+				if (act_row == 0) request(RQ_UPD_CHECK, NULL, NULL, 0);
+				else if (g_upd_state == 2) toast(&u, "Ya se esta descargando");
+				else if (act_row == 1) { if (g_upd.stable.valid) request(RQ_UPD_INSTALL, NULL, NULL, 0); else toast(&u, "No hay version estable publicada"); }
+				else if (act_row == 2) { if (g_upd.dev.valid) request(RQ_UPD_INSTALL, NULL, NULL, 1); else toast(&u, "No hay devbuild publicada"); }
+				break;
 			case P_SETTINGS:
 				if (act_row == 0) { s_dist = (s_dist + 1) % 3; save_settings(); }
-				else if (act_row == 1) { remove("sdmc:/3ds/blocksy/login.txt"); toast(&u, "Email olvidado"); }
-				else if (act_row == 2) { res = APP_LOGOUT; goto out; }
+				else if (act_row == 1) { s_auto = !s_auto; save_settings(); }
+				else if (act_row == 2) { remove("sdmc:/3ds/blocksy/login.txt"); toast(&u, "Email olvidado"); }
+				else if (act_row == 3) { res = APP_LOGOUT; goto out; }
 				break;
 			}
 		}

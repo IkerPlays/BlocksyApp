@@ -108,6 +108,7 @@ void ui_icon(int kind, float x, float y, u32 c) {
 	case 3: C2D_DrawCircleSolid(x + 5, y + 5, 0.2f, 3, c); rrect(x + 1, y + 9, 8, 6, 3, c); C2D_DrawCircleSolid(x + 11, y + 6, 0.2f, 2.6f, shade(c, .8f)); rrect(x + 8, y + 10, 7, 5, 2.5f, shade(c, .8f)); break; // amigos
 	case 4: rrect(x + 1, y + 1, 14, 14, 3, c); rect(x + 7, y + 4, 2, 8, COL_PANEL); rect(x + 4, y + 7, 8, 2, COL_PANEL); break;                                   // crear
 	case 5: C2D_DrawCircleSolid(x + 8, y + 8, 0.2f, 7, c); C2D_DrawCircleSolid(x + 8, y + 8, 0.2f, 3, COL_PANEL); break;                                           // ajustes
+	case 7: C2D_DrawCircleSolid(x + 8, y + 8, 0.2f, 7.5f, c); rect(x + 6.5f, y + 3.5f, 3, 5, COL_PANEL); quad(x + 4, y + 8, x + 12, y + 8, x + 8, y + 12.5f, x + 8, y + 12.5f, COL_PANEL); break;  // actualizar (flecha abajo)
 	default: rrect(x + 2, y + 2, 12, 12, 3, c); rect(x + 7, y + 5, 2, 6, COL_PANEL); break;                                                                       // salir
 	}
 }

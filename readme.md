@@ -53,6 +53,7 @@ make cia    # blocksy.cia (necesita makerom y bannertool)
 Requiere devkitPro (`dkp-pacman -S 3ds-dev`). El workflow `.github/workflows/3ds.yml` compila ambos
 (secrets: `AUTH_SUPABASE_URL`, `AUTH_SUPABASE_ANON_KEY`, `GAME_SUPABASE_URL`, `GAME_SUPABASE_ANON_KEY`).
 La app de 3DS replica la web: **Inicio, Descubrir, Avatar, Amigos, Crear y Ajustes**, ficha de cada juego, amigos con su estado online, creación de mundos y cambio de color del avatar. Recuerda tu email, tu último juego y los ajustes.
+**Actualizaciones:** la sección *Actualizar* de la app busca en las releases de GitHub la última versión estable y la última devbuild y las instala con un toque.
 Inicio de sesión en la 3DS: con email y contraseña (pantalla táctil) o **«Con QR»**: la consola muestra un QR, lo escaneas con el móvil/tablet, inicias sesión allí y pulsas *Autorizar*. Requiere `supabase/game/link-login.sql`.
 Controles: círculo mover · A saltar · X poner · Y romper · B color · SELECT chat · L/R cámara · START salir.
 

@@ -19,3 +19,4 @@ Same release system as Iker's Tube.
 - GitHub secrets for the 3DS build: `AUTH_SUPABASE_URL`, `AUTH_SUPABASE_ANON_KEY`, `GAME_SUPABASE_URL`, `GAME_SUPABASE_ANON_KEY`.
 - Compile the 3DS locally before pushing: `docker run --rm -v $PWD/3ds:/src -w /src devkitpro/devkitarm make` (needs `3ds/source/config.h`).
 - 3DS UI preview without a console: see `3ds/preview/README.md` (renders every screen to PNG on the PC). Use it after any UI change in `3ds/source/ui.c` or `app.c`.
+- 3DS auto update (`3ds/source/update.c`): reads https://api.github.com/repos/IkerPlays/BlocksyApp/releases, so every release must keep the assets named `Blocksy.cia` and `Blocksy.3dsx` and tags like `v0.1.0` (stable) / `v0.1.1-dev.N` (pre-release).

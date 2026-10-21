@@ -1,3 +1,2 @@
-Nintendo 3DS: redesigned to match the website. New Home with greeting, friends row and Popular games, plus Discover (search), Avatar, Friends, Create and Settings pages, a side menu on the touch screen and the same dark theme, game thumbnails and avatars.
-Nintendo 3DS: pick any game (game page with Play), go back to the lobby from the game, create and delete your own worlds, add and remove friends, change your avatar color and create an account from the login screen.
-Nintendo 3DS: the app remembers your email, your last game and the draw distance.
+Nintendo 3DS: new Update page in the side menu. It checks GitHub for the latest stable release and the latest devbuild, shows which one is newer, and installs it with one tap (as .cia when running from HOME, or replacing the .3dsx when run from the Homebrew Launcher). A red dot shows when a new version is available, and the app checks on start (can be turned off in Settings).
+Fix: the Stable release workflow failed when collecting the .cia (wrong file name); it now publishes Blocksy.cia and Blocksy.3dsx.

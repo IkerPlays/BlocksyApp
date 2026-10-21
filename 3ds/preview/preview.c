@@ -16,8 +16,11 @@ int main(void) {
 	fprintf(g_out, "SCENE login\n");        ui_preview_login(&top, &bot, 0, 0, v);
 	fprintf(g_out, "SCENE signup\n");       ui_preview_login(&top, &bot, 1, 0, v);
 	fprintf(g_out, "SCENE login_busy\n");   ui_preview_login(&top, &bot, 0, 1, v);
-	static const char *names[] = {"home", "discover", "avatar", "friends", "create", "settings"};
-	for (int p = 0; p < 6; p++) { fprintf(g_out, "SCENE %s\n", names[p]); app_preview(&top, &bot, p, -1, p == 0 ? 1 : 0, v); }
+	static const char *names[] = {"home", "discover", "avatar", "friends", "create", "update_", "settings"};
+	for (int p = 0; p < 7; p++) { fprintf(g_out, "SCENE %s\n", names[p]); app_preview(&top, &bot, p, -1, p == 0 ? 1 : 0, v); }
+	fprintf(g_out, "SCENE update\n"); app_preview(&top, &bot, 5, -1, 0, v);
+	fprintf(g_out, "SCENE update_downloading\n"); app_preview(&top, &bot, 5, -3, 2, v);
+	fprintf(g_out, "SCENE update_error\n"); app_preview(&top, &bot, 5, -5, 1, v);
 	fprintf(g_out, "SCENE modal\n"); app_preview(&top, &bot, 0, 0, 0, v);
 	fprintf(g_out, "SCENE game_bottom\n");
 	static Session s; snprintf(s.username, sizeof s.username, "Iker"); s.color = 0xFF439FFF;

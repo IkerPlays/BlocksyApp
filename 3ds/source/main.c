@@ -8,6 +8,7 @@
 #include "net.h"
 #include "ui.h"
 #include "app.h"
+#include "update.h"
 #include "config.h"
 
 #ifndef BLOCKSY_VERSION
@@ -252,11 +253,12 @@ static bool play_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 	return back;
 }
 
-int main(void) {
+int main(int argc, char **argv) {
 	gfxInitDefault(); C3D_Init(C3D_DEFAULT_CMDBUF_SIZE); C2D_Init(C2D_DEFAULT_MAX_OBJECTS); C2D_Prepare();
 	C3D_RenderTarget *top = C2D_CreateScreenTarget(GFX_TOP, GFX_LEFT);
 	C3D_RenderTarget *bot = C2D_CreateScreenTarget(GFX_BOTTOM, GFX_LEFT);
 	ui_init();
+	update_init(BLOCKSY_VERSION, argc > 0 && argv ? argv[0] : NULL);   // versión instalada y ruta del .3dsx
 	if (!net_init()) {
 		ui_message(top, bot, "Sin red", "No se pudo iniciar la red.\nComprueba que el WiFi esta activado.");
 		ui_exit(); C2D_Fini(); C3D_Fini(); gfxExit(); return 1;

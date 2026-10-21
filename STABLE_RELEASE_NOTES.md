@@ -10,6 +10,7 @@ Blocksy is a multiplayer block-building game for the web and the Nintendo 3DS (h
 - **Choose your game.** Pick any game from the lobby, return to it from the game, create and delete worlds.
 - **Friends and avatar.** Add or remove friends and change your avatar color from the 3DS (needs an email login, not the QR).
 - **Create account.** The login screen has Sign in and Create account tabs, like the web. The app remembers your email, last game and draw distance.
+- **Auto update.** The 3DS app checks GitHub for new versions on start and installs the latest stable release or devbuild from the Update page.
 - **Touch login.** The 3DS login screen has Email and Password fields, show/hide password, Remember my email and an Enter button.
 - **Bottom screen panel.** Players online, block color picker, Chat and Exit buttons.
 - **Softer HOME Menu sound.** A gentle chime plays when the app is highlighted.

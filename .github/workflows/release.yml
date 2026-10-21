@@ -105,7 +105,7 @@ jobs:
       - name: Collect files
         run: |
           mkdir dist
-          cp Blocksy_dev.cia dist/Blocksy.cia
+          cp 3ds/blocksy.cia dist/Blocksy.cia
           cp 3ds/blocksy.3dsx dist/Blocksy.3dsx
 
       - uses: actions/upload-artifact@v4

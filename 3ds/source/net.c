@@ -2,6 +2,7 @@
 // httpc de libctru falla con el TLS de Cloudflare/Supabase; libcurl con mbedtls sí funciona.
 #include "net.h"
 #include "config.h"
+#include "json.h"
 #include <3ds.h>
 #include <curl/curl.h>
 #include <malloc.h>
@@ -33,7 +34,6 @@ typedef enum { M_GET, M_POST, M_DELETE, M_PATCH } Method;
 static int last_status;        // código HTTP de la última petición (0 = no hubo respuesta)
 static char last_err[96];      // texto de curl cuando no hubo respuesta
 
-static bool jstr(const char *obj, const char *end, const char *key, char *dst, size_t n);
 typedef struct { char *p; size_t n, cap; } Buf;
 static size_t write_cb(char *d, size_t sz, size_t nm, void *ud) {
 	Buf *b = ud; size_t add = sz * nm;
@@ -90,37 +90,63 @@ static char *http(Method m, const char *url, const char *apikey, const char *bea
 	return b.p;
 }
 
-// ---------- JSON diminuto (tolera espacios: jsonb de Postgres escribe "key": "valor") ----------
-static const char *find_val(const char *obj, const char *end, const char *key) {
-	char pat[48]; snprintf(pat, sizeof pat, "\"%s\"", key);
-	for (const char *p = obj; (p = strstr(p, pat)) && p < end; p++) {
-		const char *q = p + strlen(pat);
-		while (*q == ' ' || *q == '\t' || *q == '\n') q++;
-		if (*q != ':') continue;
-		q++; while (*q == ' ' || *q == '\t' || *q == '\n') q++;
-		return q;
-	}
-	return NULL;
+// ---------- Descargas genéricas (GitHub API / assets de releases) ----------
+// GET sin cabeceras de Supabase. Devuelve el cuerpo (malloc) o NULL.
+char *net_get_text(const char *url, char *err, size_t en) {
+	last_status = 0; last_err[0] = 0;
+	if (!tl_curl) tl_curl = curl_easy_init();
+	CURL *c = tl_curl; if (!c) return NULL;
+	curl_easy_reset(c);
+	struct curl_slist *h = curl_slist_append(NULL, "Accept: application/vnd.github+json");
+	Buf b = {0}; char errbuf[CURL_ERROR_SIZE]; errbuf[0] = 0;
+	curl_easy_setopt(c, CURLOPT_URL, url); curl_easy_setopt(c, CURLOPT_HTTPHEADER, h);
+	curl_easy_setopt(c, CURLOPT_SSL_VERIFYPEER, 0L); curl_easy_setopt(c, CURLOPT_SSL_VERIFYHOST, 0L);
+	curl_easy_setopt(c, CURLOPT_FOLLOWLOCATION, 1L); curl_easy_setopt(c, CURLOPT_MAXREDIRS, 5L);
+	curl_easy_setopt(c, CURLOPT_CONNECTTIMEOUT, 20L); curl_easy_setopt(c, CURLOPT_TIMEOUT, 40L); curl_easy_setopt(c, CURLOPT_NOSIGNAL, 1L);
+	curl_easy_setopt(c, CURLOPT_USERAGENT, "blocksy-3ds/" BLOCKSY_VERSION);
+	curl_easy_setopt(c, CURLOPT_WRITEFUNCTION, write_cb); curl_easy_setopt(c, CURLOPT_WRITEDATA, &b); curl_easy_setopt(c, CURLOPT_ERRORBUFFER, errbuf);
+	CURLcode rc = curl_easy_perform(c);
+	long code = 0; curl_easy_getinfo(c, CURLINFO_RESPONSE_CODE, &code);
+	curl_slist_free_all(h);
+	if (rc != CURLE_OK) { snprintf(err, en, "Sin conexion: %.60s", errbuf[0] ? errbuf : curl_easy_strerror(rc)); free(b.p); return NULL; }
+	if (code != 200) { snprintf(err, en, "GitHub respondio %ld", code); free(b.p); return NULL; }
+	if (!b.p) b.p = strdup("");
+	return b.p;
 }
-static bool jstr(const char *obj, const char *end, const char *key, char *dst, size_t n) {
-	const char *p = find_val(obj, end, key); if (!p || *p != '"') return false;
-	p++; size_t i = 0;
-	while (*p && *p != '"' && p < end && i + 1 < n) { if (*p == '\\' && p[1]) p++; dst[i++] = *p++; }
-	dst[i] = 0; return true;
+
+typedef struct { NetSink sink; void *ud; volatile int *pct; size_t got; bool sink_failed; } DlCtx;
+static size_t dl_write(char *d, size_t sz, size_t nm, void *u) {
+	DlCtx *c = u; size_t n = sz * nm;
+	if (!c->sink(d, n, c->ud)) { c->sink_failed = true; return 0; }
+	c->got += n; return n;
 }
-static float jnum(const char *obj, const char *end, const char *key) {
-	const char *p = find_val(obj, end, key); return p ? strtof(p, NULL) : 0;
+static int dl_progress(void *u, curl_off_t dltotal, curl_off_t dlnow, curl_off_t ultotal, curl_off_t ulnow) {
+	(void)ultotal; (void)ulnow; DlCtx *c = u;
+	if (c->pct && dltotal > 0) *c->pct = (int)(dlnow * 100 / dltotal);
+	return 0;
 }
-static int jbool(const char *obj, const char *end, const char *key) {
-	const char *p = find_val(obj, end, key); return p && *p == 't';
-}
-// Avanza al siguiente objeto {...} de un array plano
-static const char *next_obj(const char *p, const char **end) {
-	p = strchr(p, '{'); if (!p) return NULL;
-	int depth = 0; const char *q = p;
-	for (; *q; q++) { if (*q == '{') depth++; else if (*q == '}' && --depth == 0) break; }
-	if (!*q) return NULL;
-	*end = q; return p;
+// Descarga `url` (sigue redirecciones) y entrega los datos a `sink` a medida que llegan, sin guardarlos enteros en memoria.
+bool net_download(const char *url, NetSink sink, void *ud, volatile int *pct, char *err, size_t en) {
+	if (!tl_curl) tl_curl = curl_easy_init();
+	CURL *c = tl_curl; if (!c) { snprintf(err, en, "curl_easy_init"); return false; }
+	curl_easy_reset(c);
+	DlCtx ctx = {sink, ud, pct, 0, false}; char errbuf[CURL_ERROR_SIZE]; errbuf[0] = 0;
+	curl_easy_setopt(c, CURLOPT_URL, url);
+	curl_easy_setopt(c, CURLOPT_SSL_VERIFYPEER, 0L); curl_easy_setopt(c, CURLOPT_SSL_VERIFYHOST, 0L);
+	curl_easy_setopt(c, CURLOPT_FOLLOWLOCATION, 1L); curl_easy_setopt(c, CURLOPT_MAXREDIRS, 6L);
+	curl_easy_setopt(c, CURLOPT_FAILONERROR, 1L);
+	curl_easy_setopt(c, CURLOPT_CONNECTTIMEOUT, 20L); curl_easy_setopt(c, CURLOPT_LOW_SPEED_LIMIT, 1024L); curl_easy_setopt(c, CURLOPT_LOW_SPEED_TIME, 30L);
+	curl_easy_setopt(c, CURLOPT_NOSIGNAL, 1L);
+	curl_easy_setopt(c, CURLOPT_USERAGENT, "blocksy-3ds/" BLOCKSY_VERSION);
+	curl_easy_setopt(c, CURLOPT_WRITEFUNCTION, dl_write); curl_easy_setopt(c, CURLOPT_WRITEDATA, &ctx);
+	curl_easy_setopt(c, CURLOPT_NOPROGRESS, 0L); curl_easy_setopt(c, CURLOPT_XFERINFOFUNCTION, dl_progress); curl_easy_setopt(c, CURLOPT_XFERINFODATA, &ctx);
+	curl_easy_setopt(c, CURLOPT_ERRORBUFFER, errbuf);
+	CURLcode rc = curl_easy_perform(c);
+	long code = 0; curl_easy_getinfo(c, CURLINFO_RESPONSE_CODE, &code);
+	if (ctx.sink_failed) { snprintf(err, en, "No se pudo escribir la descarga"); return false; }
+	if (rc != CURLE_OK) { snprintf(err, en, "Descarga fallida: %.50s", errbuf[0] ? errbuf : curl_easy_strerror(rc)); return false; }
+	if (code != 200) { snprintf(err, en, "El servidor respondio %ld", code); return false; }
+	return true;
 }
 
 // ---------- Auth ----------

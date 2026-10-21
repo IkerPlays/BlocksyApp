@@ -16,6 +16,10 @@ typedef struct {
 	unsigned int color; // ABGR
 } Session;
 
+typedef bool (*NetSink)(const void *data, size_t n, void *ud);   // recibe los datos descargados; false = abortar
+char *net_get_text(const char *url, char *err, size_t en);        // GET genérico (GitHub API); NULL si falla
+bool net_download(const char *url, NetSink sink, void *ud, volatile int *pct, char *err, size_t en);
+
 bool net_init(void);
 void net_exit(void);
 
