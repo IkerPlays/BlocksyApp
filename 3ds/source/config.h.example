@@ -1,0 +1,7 @@
+// Copia este archivo a config.h y rellénalo (config.h está en .gitignore).
+#pragma once
+#define AUTH_URL      "https://xxxx.supabase.co"   // proyecto AUTH
+#define AUTH_ANON_KEY "eyJ..."
+#define GAME_URL      "https://yyyy.supabase.co"   // proyecto GAME
+#define GAME_ANON_KEY "eyJ..."
+#define GAME_ID       "00000000-0000-0000-0000-000000000001"  // Spawn Plaza

@@ -1,0 +1,36 @@
+name: Build 3DS
+on:
+  push:
+    paths: ['3ds/**', '.github/workflows/3ds.yml']
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: devkitpro/devkitarm
+    steps:
+      - uses: actions/checkout@v4
+      - name: Config (secrets del repo)
+        working-directory: 3ds
+        run: |
+          cat > source/config.h <<CFG
+          #pragma once
+          #define AUTH_URL "${{ secrets.AUTH_SUPABASE_URL }}"
+          #define AUTH_ANON_KEY "${{ secrets.AUTH_SUPABASE_ANON_KEY }}"
+          #define GAME_URL "${{ secrets.GAME_SUPABASE_URL }}"
+          #define GAME_ANON_KEY "${{ secrets.GAME_SUPABASE_ANON_KEY }}"
+          #define GAME_ID "00000000-0000-0000-0000-000000000001"
+          CFG
+      - name: Herramientas CIA
+        run: |
+          apt-get update -qq && apt-get install -y -qq git cmake g++ >/dev/null
+          git clone --depth 1 --recursive https://github.com/3DSGuy/Project_CTR /tmp/ctr && make -C /tmp/ctr/makerom -j4 && cp /tmp/ctr/makerom/bin/makerom /usr/local/bin/
+          git clone --depth 1 --recursive https://github.com/carstene1ns/3ds-bannertool /tmp/bt && cd /tmp/bt && cmake -B b . && cmake --build b -j4 && cp b/bannertool /usr/local/bin/
+      - name: Compilar
+        working-directory: 3ds
+        run: make cia
+      - uses: actions/upload-artifact@v4
+        with:
+          name: blocksy-3ds
+          path: |
+            3ds/blocksy.3dsx
+            3ds/blocksy.cia

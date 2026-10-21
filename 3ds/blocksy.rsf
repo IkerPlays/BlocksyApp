@@ -1,0 +1,63 @@
+BasicInfo:
+  Title: Blocksy
+  CompanyCode: "00"
+  ProductCode: CTR-P-BLKS
+  ContentType: Application
+  Logo: Nintendo
+
+TitleInfo:
+  UniqueId: 0xB10C5
+  Category: Application
+
+Option:
+  UseOnSD: true
+  FreeProductCode: true
+  MediaFootPrint: SDCard
+  EnableCrypt: false
+  EnableCompress: true
+
+AccessControlInfo:
+  CoreVersion: 2
+  DescVersion: 2
+  ReleaseKernelMajor: "02"
+  ReleaseKernelMinor: "33"
+  UseExtSaveData: false
+  FileSystemAccess:
+    - DirectSdmc
+  IdealProcessor: 0
+  AffinityMask: 1
+  Priority: 16
+  MaxCpu: 0x9E
+  MemoryType: Application
+  SystemMode: 64MB
+  CpuSpeed: 268MHz
+  EnableL2Cache: false
+  CanAccessCore2: true
+  DisableDebug: false
+  EnableForceDebug: false
+  CanWriteSharedPage: true
+  CanUsePrivilegedPriority: false
+  CanUseNonAlphabetAndNumber: true
+  PermitMainFunctionArgument: true
+  CanShareDeviceMemory: true
+  RunnableOnSleep: false
+  SpecialMemoryArrange: true
+  CoreVersion: 2
+  DescVersion: 2
+  ServiceAccessControl:
+    - APT:U
+    - ac:u
+    - cfg:u
+    - fs:USER
+    - gsp::Gpu
+    - hid:USER
+    - http:C
+    - ndm:u
+    - ps:ps
+    - soc:U
+    - ssl:C
+
+SystemControlInfo:
+  SaveDataSize: 0K
+  RemasterVersion: 0
+  StackSize: 0x40000
