@@ -23,5 +23,15 @@ Blocksy is a multiplayer block-building game for the web and the Nintendo 3DS (h
 - **Sign in with a QR.** The 3DS shows a QR; scan it with a phone or tablet, log in there and authorize. The 3DS remembers the session.
 - **Same world everywhere.** Web and 3DS read and write the same Supabase tables.
 
+- **Reliable sync.** Players, emotes and chat reach everyone on web and 3DS, with a polling fallback when Realtime is blocked. Online/offline status fixed.
+- **Friends 2.0.** Add by exact username with a request the other person accepts, private chat, notifications, game invitations and joining a friend's game (web; requests and chat also on the 3DS).
+- **Languages.** Spanish, English, Portuguese, French and German on the web; Spanish and English on the 3DS.
+- **PWA.** Install Blocksy from the browser; the app shell works offline.
+- **Music.** Drop audio files (.mp3, .ogg, .wav...) in `web/public/playlist` and they play in games, with next/previous, mute and volume in Settings.
+- **More settings.** Quality, field of view, shadows, bloom, clouds, theme and accent color, minimap, chat bubbles, touch size, left-handed mode, sound effects and stats.
+- **Better 3D.** Day and night cycle with stars, clouds, soft sky, richer block textures, break particles, chat bubbles, optional bloom. 3DS: sun, clouds, shadows.
+- **Game types and advanced editor.** Build, Social, Obby (checkpoints and timer) and Arena; terrains; rules; sky; scripts in a sandboxed worker (owner only).
+- **Extra ideas.** Minimap, screenshots (P), fly mode (F), sound effects, join links (#join/ID), best times, stats, themes, 12 block colors.
+
 ## Installing
 - Install `Blocksy.cia` with FBI, or copy `Blocksy.3dsx` to the `3ds` folder of the SD card and run it from the Homebrew Launcher.

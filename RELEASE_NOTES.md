@@ -1,3 +1,6 @@
-Avatars are now 3D models on web and 3DS: every player gets their own skin tone, hair color, hairstyle and pants (taken from the username, the same on both platforms) plus the shirt color you choose. The profile picture is now the head of your avatar. The web has a 3D avatar editor you can rotate.
-New emotes: Wave, Dance, Cheer, Clap and Sit. On the web press G or use the emote button; on the 3DS tap Emotes on the touch screen. Other players see them, on both platforms. Moving or jumping stops the emote.
-Nintendo 3DS updater: fixed the install error 0xC8E083FC. Every build now has a higher title version (the number of commits) and the install retries in overwrite mode if the title already exists.
+Big update. Web: other players, emotes and chat now sync reliably (a polling fallback covers networks where Realtime fails), chat works on tablets and phones, and online/offline status is fixed (a heartbeat every 20 s, plus on return to the tab).
+Friends: add people by their exact username; they must accept your request. Private chat between friends, notifications (requests, invitations, messages) and game invitations. Join a friend's game from the friends list.
+New: languages (Spanish, English, Portuguese, French, German), installable PWA, music from the playlist folder, many more settings, light and dark themes, minimap, chat bubbles, screenshots, fly mode, sound effects and break particles.
+New: game types (Build, Social, Obby, Arena), terrains (hills, islands, plaza, void, obby), day and night cycle, clouds, optional bloom, and an advanced editor with rules, world options and scripting (owner only).
+Nintendo 3DS: friend requests and private chat, 12 block colors, language setting (Spanish or English), sun, clouds and player shadows, faster presence.
+Run the new SQL files: supabase/auth/social.sql (AUTH) and supabase/game/v2.sql (GAME). See supabase/README.md.

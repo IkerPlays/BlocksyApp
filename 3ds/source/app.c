@@ -10,9 +10,13 @@
 #include <string.h>
 #include <sys/stat.h>
 
+static int s_lang;   // 0 español, 1 English (ajuste guardado)
+static const char *tr2(const char *es, const char *en) { return s_lang ? en : es; }
 // (Crear juegos es solo de la web y de la cuenta autorizada: no está en la 3DS)
 enum { P_HOME, P_DISCOVER, P_AVATAR, P_FRIENDS, P_UPDATE, P_SETTINGS, NPAGES };
-static const char *const PAGE_NAME[NPAGES] = {"Inicio", "Descubrir", "Avatar", "Amigos", "Actualizar", "Ajustes"};
+static const char *const PAGE_NAME_ES[NPAGES] = {"Inicio", "Descubrir", "Avatar", "Amigos", "Actualizar", "Ajustes"};
+static const char *const PAGE_NAME_EN[NPAGES] = {"Home", "Discover", "Avatar", "Friends", "Update", "Settings"};
+#define PAGE_NAME (s_lang ? PAGE_NAME_EN : PAGE_NAME_ES)
 static const int PAGE_ICON[NPAGES] = {0, 1, 2, 3, 7, 5};
 static const char *const AVATAR_COLORS[10] = {"#4da6ff", "#ff9f43", "#2ecc71", "#e74c3c", "#9b59b6", "#f1c40f", "#1abc9c", "#ff6b9d", "#ecf0f1", "#95a5a6"};
 
@@ -20,7 +24,8 @@ static const char *const AVATAR_COLORS[10] = {"#4da6ff", "#ff9f43", "#2ecc71", "
 static LightLock lk;
 static GameInfo g_games[MAX_GAMES]; static int g_ngames;
 static Person g_friends[MAX_PEOPLE]; static int g_nfriends;
-static Person g_people[MAX_PEOPLE]; static int g_npeople;
+static FriendReq g_reqs[MAX_PEOPLE]; static int g_nreqs; static volatile int g_unread;
+static DmMsg g_dm[12]; static int g_ndm; static char g_dm_friend[40]; static volatile int g_dm_open; static volatile int g_dm_seq;
 static volatile int g_account = 1;   // 0 = sesión por QR (sin token de Auth): no hay amigos ni avatar
 
 // ---------- actualizaciones (hilo de red) ----------
@@ -34,7 +39,7 @@ static bool cur_is_dev(void) { return strstr(g_upd.cur, "-dev") != NULL || !strc
 // ¿Hay algo nuevo? Una estable nueva siempre; una devbuild nueva solo si se usa una devbuild
 static bool upd_available(void) { return g_upd_have && (g_upd.stable.newer || (g_upd.dev.newer && cur_is_dev())); }
 
-typedef enum { RQ_NONE, RQ_REFRESH, RQ_ADD, RQ_REMOVE, RQ_COLOR, RQ_UPD_CHECK, RQ_UPD_INSTALL } Req;
+typedef enum { RQ_NONE, RQ_REFRESH, RQ_ADD, RQ_REMOVE, RQ_COLOR, RQ_UPD_CHECK, RQ_UPD_INSTALL, RQ_ACCEPT, RQ_DM_SEND, RQ_DM_FETCH } Req;
 typedef struct {
 	volatile int req, busy, quit, offline, seq, done_ok;
 	char arg[48], arg2[104]; int n;
@@ -50,15 +55,16 @@ static u32 parse_hex(const char *hex) {
 }
 
 static void refresh_all(void) {
-	static GameInfo tg[MAX_GAMES]; static Person tf[MAX_PEOPLE], tp[MAX_PEOPLE];
+	static GameInfo tg[MAX_GAMES]; static Person tf[MAX_PEOPLE]; static FriendReq tr[MAX_PEOPLE];
 	int ng = net_list_games(tg, MAX_GAMES);
 	if (ng >= 0) { net_player_counts(tg, ng); LightLock_Lock(&lk); memcpy(g_games, tg, sizeof(GameInfo) * ng); g_ngames = ng; LightLock_Unlock(&lk); }
 	else snprintf(W.msg, sizeof W.msg, "%s", net_login_error());
-	int nf = net_list_friends(W.s, tf, MAX_PEOPLE), np = net_list_people(W.s, tp, MAX_PEOPLE);
+	int nf = net_list_friends(W.s, tf, MAX_PEOPLE), nr = net_list_requests(W.s, tr, MAX_PEOPLE);
+	int un = net_unread_total(W.s); if (un >= 0) g_unread = un;
 	g_account = nf != -2;
 	LightLock_Lock(&lk);
 	if (nf >= 0) { memcpy(g_friends, tf, sizeof(Person) * nf); g_nfriends = nf; } else if (nf == -2) g_nfriends = 0;
-	if (np >= 0) { memcpy(g_people, tp, sizeof(Person) * np); g_npeople = np; } else if (np == -2) g_npeople = 0;
+	if (nr >= 0) { memcpy(g_reqs, tr, sizeof(FriendReq) * nr); g_nreqs = nr; } else if (nr == -2) g_nreqs = 0;
 	LightLock_Unlock(&lk);
 	W.seq++;
 }
@@ -87,14 +93,21 @@ static void worker_thread(void *arg) {
 	while (!W.quit) {
 		u64 now = osGetTime();
 		int r = W.req;
-		if (!r && now - last_refresh > 20000) r = RQ_REFRESH;     // refresco automático
+		static u64 last_dm = 0;
+		if (!r && g_dm_open && now - last_dm > 3500) { last_dm = now; r = RQ_DM_FETCH; }
+		if (!r && now - last_refresh > 12000) r = RQ_REFRESH;     // refresco automático
 		if (!r && s_auto && W.seq > 0 && (first_upd || now - last_upd > 1800000) && g_upd_state != 2) { r = RQ_UPD_CHECK; W.n = 2; }   // al abrir y cada 30 min (n=2: automático)
 		if (r) {
 			W.busy = 1; W.done_ok = 1;
 			switch (r) {
 			case RQ_REFRESH: refresh_all(); break;
-			case RQ_ADD:    W.done_ok = net_add_friend(W.s, W.arg);    snprintf(W.msg, sizeof W.msg, W.done_ok ? "Amigo anadido" : "No se pudo anadir"); refresh_all(); break;
-			case RQ_REMOVE: W.done_ok = net_remove_friend(W.s, W.arg); snprintf(W.msg, sizeof W.msg, W.done_ok ? "Amigo eliminado" : "No se pudo quitar"); refresh_all(); break;
+			case RQ_ADD: { int fr = net_friend_request(W.s, W.arg); W.done_ok = fr >= 0;
+				snprintf(W.msg, sizeof W.msg, "%s", fr == 0 ? tr2("Solicitud enviada", "Request sent") : fr == 1 ? tr2("Ahora sois amigos", "You are now friends") : fr == 2 ? tr2("Ya sois amigos", "Already friends") : fr == 3 ? tr2("Ya la enviaste", "Already sent") : tr2("No existe ese usuario", "No such user"));
+				refresh_all(); break; }
+			case RQ_ACCEPT: W.done_ok = net_respond_request(W.s, atol(W.arg), W.n); snprintf(W.msg, sizeof W.msg, "%s", W.done_ok ? (W.n ? tr2("Amigo anadido", "Friend added") : tr2("Rechazada", "Declined")) : tr2("Error", "Error")); refresh_all(); break;
+			case RQ_DM_SEND: W.done_ok = net_send_dm(W.s, g_dm_friend, W.arg2); if (!W.done_ok) snprintf(W.msg, sizeof W.msg, "%s", tr2("No se envio el mensaje", "Message not sent")); /* fallthrough */
+			case RQ_DM_FETCH: { static DmMsg tm[12]; int nm = net_fetch_dm(W.s, g_dm_friend, tm, 12); if (nm >= 0) { LightLock_Lock(&lk); memcpy(g_dm, tm, sizeof(DmMsg) * nm); g_ndm = nm; LightLock_Unlock(&lk); g_dm_seq++; } break; }
+			case RQ_REMOVE: W.done_ok = net_remove_friend(W.s, W.arg); snprintf(W.msg, sizeof W.msg, "%s", W.done_ok ? tr2("Amigo eliminado", "Friend removed") : tr2("No se pudo quitar", "Could not remove")); refresh_all(); break;
 			case RQ_COLOR:  W.done_ok = net_set_color(W.s, W.arg);     snprintf(W.msg, sizeof W.msg, W.done_ok ? "Avatar guardado" : "No se pudo guardar el avatar");
 				if (W.done_ok) W.s->color = parse_hex(W.arg);
 				break;
@@ -108,7 +121,7 @@ static void worker_thread(void *arg) {
 			if (net_refresh(W.s, true)) ui_save_session(W.s);
 			last_token = now;
 		}
-		if (now - last_presence > 30000) { net_presence(W.s, NULL); last_presence = now; }
+		if (now - last_presence > 20000) { net_presence(W.s, NULL); last_presence = now; }
 	}
 	if (W.offline) net_offline(W.s);
 	net_thread_cleanup();
@@ -126,13 +139,14 @@ static void load_settings(void) {
 		if (!strncmp(line, "last_game=", 10)) snprintf(s_last_game, sizeof s_last_game, "%s", line + 10);
 		else if (!strncmp(line, "dist=", 5)) s_dist = atoi(line + 5) % 3;
 		else if (!strncmp(line, "auto=", 5)) s_auto = atoi(line + 5) != 0;
+		else if (!strncmp(line, "lang=", 5)) s_lang = atoi(line + 5) ? 1 : 0;
 	}
 	fclose(f);
 }
 static void save_settings(void) {
 	mkdir("sdmc:/3ds", 0777); mkdir("sdmc:/3ds/blocksy", 0777);
 	FILE *f = fopen(SETTINGS_FILE, "w"); if (!f) return;
-	fprintf(f, "last_game=%s\ndist=%d\nauto=%d\n", s_last_game, s_dist, s_auto); fclose(f);
+	fprintf(f, "last_game=%s\ndist=%d\nauto=%d\nlang=%d\n", s_last_game, s_dist, s_auto, s_lang); fclose(f);
 }
 
 // ---------- estado de la interfaz ----------
@@ -142,18 +156,22 @@ typedef struct {
 	int swatch;                          // color elegido en Avatar
 	u64 toast_until; char toast[96];
 	int seen_seq;
+	int dm;                              // índice del amigo con el chat abierto (-1 ninguno)
+	int rm_confirm;                      // fila de amigo pendiente de confirmar el borrado (-1 ninguna)
+	int seen_dm;
 } Ui;
 
 // copias locales (para dibujar sin bloquear al hilo de red)
 static GameInfo games[MAX_GAMES]; static int ngames;
 static Person friends[MAX_PEOPLE]; static int nfriends;
-static Person people[MAX_PEOPLE]; static int npeople;
+static FriendReq reqs[MAX_PEOPLE]; static int nreqs; static DmMsg dm[12]; static int ndm; static int unread;
 
 static void sync_data(void) {
 	LightLock_Lock(&lk);
 	memcpy(games, g_games, sizeof(GameInfo) * g_ngames); ngames = g_ngames;
 	memcpy(friends, g_friends, sizeof(Person) * g_nfriends); nfriends = g_nfriends;
-	memcpy(people, g_people, sizeof(Person) * g_npeople); npeople = g_npeople;
+	memcpy(reqs, g_reqs, sizeof(FriendReq) * g_nreqs); nreqs = g_nreqs; unread = g_unread;
+	memcpy(dm, g_dm, sizeof(DmMsg) * g_ndm); ndm = g_ndm;
 	LightLock_Unlock(&lk);
 }
 
@@ -178,16 +196,13 @@ static int build_view(const Ui *u, const Session *s, int *view) {
 	}
 	return n;
 }
-// Personas de la página Amigos: primero los amigos y luego el resto de jugadores
-typedef struct { const Person *p; int friend; } PRow;
+// Filas de la página Amigos: [anadir por nombre] + solicitudes recibidas + amigos
+typedef struct { const Person *p; const FriendReq *r; int kind; } PRow;      // kind: 0 anadir, 1 solicitud, 2 amigo
 static int build_people(const Session *s, PRow *rows) {
-	int n = 0;
-	for (int i = 0; i < nfriends; i++) rows[n++] = (PRow){&friends[i], 1};
-	for (int i = 0; i < npeople; i++) {
-		if (!strcmp(people[i].id, s->user_id)) continue;
-		int isf = 0; for (int j = 0; j < nfriends; j++) if (!strcmp(friends[j].id, people[i].id)) isf = 1;
-		if (!isf) rows[n++] = (PRow){&people[i], 0};
-	}
+	(void)s; int n = 0;
+	rows[n++] = (PRow){NULL, NULL, 0};
+	for (int i = 0; i < nreqs; i++) rows[n++] = (PRow){NULL, &reqs[i], 1};
+	for (int i = 0; i < nfriends; i++) rows[n++] = (PRow){&friends[i], NULL, 2};
 	return n;
 }
 
@@ -196,11 +211,11 @@ enum { PANE_X = 108, PANE_W = 208, LIST_Y = 30, LIST_BOTTOM = 232 };
 static int rows_visible(int page) { return (LIST_BOTTOM - LIST_Y) / row_h(page); }
 
 static int count_rows(const Ui *u, const Session *s) {
-	int view[MAX_GAMES]; PRow pr[MAX_PEOPLE * 2];
+	int view[MAX_GAMES]; PRow pr[MAX_PEOPLE * 2 + 2];
 	switch (u->page) {
 	case P_HOME: case P_DISCOVER: return build_view(u, s, view);
 	case P_FRIENDS: return build_people(s, pr);
-	case P_SETTINGS: return 4;
+	case P_SETTINGS: return 5;
 	case P_UPDATE: return 3;
 	}
 	return 0;
@@ -226,7 +241,7 @@ static int wrap(const char *src, float scale, float maxw, char lines[][96], int 
 	if (cur[0] && nl < maxlines) snprintf(lines[nl++], 96, "%s", cur);
 	return nl;
 }
-static const char *status_of(const Person *p) { return p->in_game ? "En un juego" : p->online ? "Online" : "Desconectado"; }
+static const char *status_of(const Person *p) { return p->in_game ? tr2("En un juego", "In a game") : p->online ? "Online" : tr2("Desconectado", "Offline"); }
 
 // ================= PANTALLA SUPERIOR =================
 static void top_bar(const Ui *u, const Session *s, bool busy) {
@@ -316,20 +331,39 @@ static void page_top(const Ui *u, const Session *s) {
 		if (!g_account) ui_text(156, 204, 0.38f, COL_RED, 0, "Entra con email y contrasena para guardar.");
 		break; }
 	case P_FRIENDS: {
-		PRow rows[MAX_PEOPLE * 2]; int n = build_people(s, rows);
-		char t[40]; snprintf(t, sizeof t, "Amigos (%d)", nfriends);
-		ui_text(14, 33, 0.8f, COL_TEXT, 0, "Amigos");
+		PRow rows[MAX_PEOPLE * 2 + 2]; int n = build_people(s, rows);
+		if (u->dm >= 0 && u->dm < nfriends) {                                    // chat privado abierto
+			const Person *f = &friends[u->dm];
+			ui_rrect(14, 34, 372, 190, 12, COL_PANEL);
+			ui_avatar(36, 54, 12, f->color, f->online, f->name);
+			char hn[40]; snprintf(hn, sizeof hn, "%s", f->name); ui_text(56, 40, 0.6f, COL_TEXT, 0, hn); ui_text(56, 58, 0.34f, COL_MUTED, 0, status_of(f));
+			ui_rect(24, 74, 352, 1, COL_LINE);
+			int first = ndm > 8 ? ndm - 8 : 0; float y = 80;
+			for (int i = first; i < ndm; i++, y += 17) {
+				char l[104]; fit(l, sizeof l, dm[i].text, 0.42f, 300);
+				if (dm[i].mine) { float w = ui_text_width(l, 0.42f) + 12; ui_rrect(376 - w, y - 1, w, 16, 7, COL_ACCENT_D); ui_text(370, y, 0.42f, COL_TEXT, C2D_AlignRight, l); }
+				else { float w = ui_text_width(l, 0.42f) + 12; ui_rrect(24, y - 1, w, 16, 7, COL_PANEL2); ui_text(30, y, 0.42f, COL_TEXT, 0, l); }
+			}
+			if (!ndm) ui_text(200, 130, 0.44f, COL_MUTED, C2D_AlignCenter, tr2("Aun no hay mensajes. Saluda!", "No messages yet. Say hi!"));
+			break;
+		}
+		char t[40]; snprintf(t, sizeof t, "%s (%d)", PAGE_NAME[P_FRIENDS], nfriends);
+		ui_text(14, 33, 0.8f, COL_TEXT, 0, PAGE_NAME[P_FRIENDS]);
+		if (unread) { char ub[24]; snprintf(ub, sizeof ub, "%d %s", unread, tr2("sin leer", "unread")); float w = ui_text_width(ub, 0.4f) + 14; ui_rrect(386 - w, 40, w, 18, 9, COL_DANGER); ui_text(386 - w / 2, 42, 0.4f, COL_TEXT, C2D_AlignCenter, ub); }
 		ui_rrect(14, 66, 372, 160, 12, COL_PANEL);
-		if (!g_account) { ui_text(30, 120, 0.46f, COL_MUTED, 0, "Entra con email y contrasena para ver y"); ui_text(30, 138, 0.46f, COL_MUTED, 0, "anadir amigos (no disponible con QR)."); break; }
+		if (!g_account) { ui_text(30, 120, 0.46f, COL_MUTED, 0, tr2("Entra con email y contrasena para ver y", "Log in with email and password to see")); ui_text(30, 138, 0.46f, COL_MUTED, 0, tr2("anadir amigos (no disponible con QR).", "and add friends (not available with QR).")); break; }
 		int y = 74, shown = 0;
-		for (int i = 0; i < n && shown < 5; i++, shown++, y += 30) {
-			ui_avatar(36, y + 13, 11, rows[i].p->color, rows[i].p->online, rows[i].p->name);
-			ui_text(56, y + 1, 0.5f, COL_TEXT, 0, rows[i].p->name);
-			ui_text(56, y + 15, 0.34f, COL_MUTED, 0, status_of(rows[i].p));
-			if (rows[i].friend) ui_text(372, y + 4, 0.4f, COL_ACCENT, C2D_AlignRight, "amigo");
+		for (int i = 1; i < n && shown < 5; i++, shown++, y += 30) {
+			if (rows[i].kind == 1) {
+				ui_avatar(36, y + 13, 11, rows[i].r->color, -1, rows[i].r->name);
+				ui_text(56, y + 1, 0.5f, COL_TEXT, 0, rows[i].r->name); ui_text(56, y + 15, 0.34f, COL_ACCENT, 0, tr2("quiere ser tu amigo", "wants to be your friend"));
+			} else {
+				ui_avatar(36, y + 13, 11, rows[i].p->color, rows[i].p->online, rows[i].p->name);
+				ui_text(56, y + 1, 0.5f, COL_TEXT, 0, rows[i].p->name); ui_text(56, y + 15, 0.34f, COL_MUTED, 0, status_of(rows[i].p));
+			}
 			if (i + 1 < n && shown < 4) ui_rect(26, y + 28, 348, 1, COL_LINE);
 		}
-		if (!n) ui_text(30, 120, 0.46f, COL_MUTED, 0, "Aun no hay jugadores.");
+		if (n == 1) ui_text(30, 120, 0.46f, COL_MUTED, 0, tr2("Toca \"Anadir amigo\" y escribe su usuario.", "Tap \"Add friend\" and type their username."));
 		(void)t; break; }
 	case P_UPDATE: {
 		ui_text(14, 33, 0.8f, COL_TEXT, 0, "Actualizar");
@@ -356,16 +390,18 @@ static void page_top(const Ui *u, const Session *s) {
 		else { ui_text(30, 180, 0.4f, COL_MUTED, 0, update_is_cia() ? "Se instalara como .cia (se reemplaza esta app)." : "Se instalara como .3dsx (se reemplaza este fichero)."); ui_text(30, 196, 0.38f, COL_MUTED, 0, "Tus datos y tu sesion se conservan."); }
 		break; }
 	case P_SETTINGS: {
-		static const char *const dn[3] = {"Corta", "Media", "Larga"};
-		ui_text(14, 33, 0.8f, COL_TEXT, 0, "Ajustes");
-		ui_rrect(14, 66, 372, 130, 12, COL_PANEL);
-		ui_text(30, 74, 0.48f, COL_TEXT, 0, "Distancia de dibujo"); ui_text(370, 74, 0.48f, COL_ACCENT, C2D_AlignRight, dn[s_dist]);
+		const char *dn[3] = {tr2("Corta", "Short"), tr2("Media", "Medium"), tr2("Larga", "Long")};
+		ui_text(14, 33, 0.8f, COL_TEXT, 0, PAGE_NAME[P_SETTINGS]);
+		ui_rrect(14, 66, 372, 160, 12, COL_PANEL);
+		ui_text(30, 74, 0.48f, COL_TEXT, 0, tr2("Distancia de dibujo", "Draw distance")); ui_text(370, 74, 0.48f, COL_ACCENT, C2D_AlignRight, dn[s_dist]);
 		ui_rect(26, 98, 348, 1, COL_LINE);
-		ui_text(30, 104, 0.48f, COL_TEXT, 0, "Buscar actualizaciones al abrir"); ui_text(370, 104, 0.48f, s_auto ? COL_GREEN : COL_MUTED, C2D_AlignRight, s_auto ? "Si" : "No");
+		ui_text(30, 104, 0.48f, COL_TEXT, 0, tr2("Buscar actualizaciones al abrir", "Check for updates on start")); ui_text(370, 104, 0.48f, s_auto ? COL_GREEN : COL_MUTED, C2D_AlignRight, s_auto ? tr2("Si", "Yes") : "No");
 		ui_rect(26, 128, 348, 1, COL_LINE);
-		ui_text(30, 134, 0.48f, COL_TEXT, 0, "Cuenta"); ui_text(370, 134, 0.46f, COL_MUTED, C2D_AlignRight, s->username);
+		ui_text(30, 134, 0.48f, COL_TEXT, 0, tr2("Idioma", "Language")); ui_text(370, 134, 0.48f, COL_ACCENT, C2D_AlignRight, s_lang ? "English" : "Espanol");
 		ui_rect(26, 158, 348, 1, COL_LINE);
-		ui_text(30, 164, 0.48f, COL_TEXT, 0, "Version"); ui_text(370, 164, 0.46f, COL_MUTED, C2D_AlignRight, g_upd.cur[0] ? g_upd.cur : "Blocksy 3DS");
+		ui_text(30, 164, 0.48f, COL_TEXT, 0, tr2("Cuenta", "Account")); ui_text(370, 164, 0.46f, COL_MUTED, C2D_AlignRight, s->username);
+		ui_rect(26, 188, 348, 1, COL_LINE);
+		ui_text(30, 194, 0.48f, COL_TEXT, 0, tr2("Version", "Version")); ui_text(370, 194, 0.46f, COL_MUTED, C2D_AlignRight, g_upd.cur[0] ? g_upd.cur : "Blocksy 3DS");
 		break; }
 	}
 }
@@ -414,7 +450,7 @@ static void list_game_row(float y, const GameInfo *g, bool sel, const char *btn)
 }
 
 static void pane(const Ui *u, const Session *s) {
-	int view[MAX_GAMES]; PRow pr[MAX_PEOPLE * 2];
+	int view[MAX_GAMES]; PRow pr[MAX_PEOPLE * 2 + 2];
 	char title[40];
 	snprintf(title, sizeof title, "%s", PAGE_NAME[u->page]);
 	ui_text(PANE_X, 5, 0.6f, COL_TEXT, 0, title);
@@ -440,14 +476,30 @@ static void pane(const Ui *u, const Session *s) {
 		break; }
 	case P_FRIENDS: {
 		int n = build_people(s, pr);
-		if (!g_account) { ui_text(PANE_X, 40, 0.42f, COL_MUTED, 0, "No disponible con QR."); break; }
+		if (!g_account) { ui_text(PANE_X, 40, 0.42f, COL_MUTED, 0, tr2("No disponible con QR.", "Not available with QR.")); break; }
+		if (u->dm >= 0 && u->dm < nfriends) {
+			char nm[32]; fit(nm, sizeof nm, friends[u->dm].name, 0.5f, PANE_W - 10); ui_text(PANE_X, 34, 0.5f, COL_TEXT, 0, nm);
+			ui_button(PANE_X + 2, 76, PANE_W - 6, 50, COL_GREEN, false, tr2("Escribir", "Write"), 0.6f);
+			ui_button(PANE_X + 2, 134, PANE_W - 6, 36, COL_PANEL2, false, tr2("Actualizar", "Refresh"), 0.46f);
+			ui_button(PANE_X + 2, 182, PANE_W - 6, 36, COL_PANEL2, false, tr2("Cerrar chat", "Close chat"), 0.46f);
+			break;
+		}
 		for (int i = 0; i < vis && u->scroll + i < n; i++) {
-			int r = u->scroll + i; float y = LIST_Y + i * rh; const Person *p = pr[r].p;
+			int r = u->scroll + i; float y = LIST_Y + i * rh;
 			if (r == u->cur) ui_rrect(PANE_X - 2, y, PANE_W + 2, rh - 3, 8, COL_PANEL2);
+			if (pr[r].kind == 0) { ui_button(PANE_X, y + 3, PANE_W - 4, rh - 8, COL_ACCENT_D, false, tr2("+ Anadir amigo (usuario)", "+ Add friend (username)"), 0.42f); continue; }
+			if (pr[r].kind == 1) {
+				ui_avatar(PANE_X + 14, y + 16, 10, pr[r].r->color, -1, pr[r].r->name);
+				char nm[32]; fit(nm, sizeof nm, pr[r].r->name, 0.42f, 70); ui_text(PANE_X + 32, y + 2, 0.42f, COL_TEXT, 0, nm); ui_text(PANE_X + 32, y + 19, 0.3f, COL_ACCENT, 0, tr2("solicitud", "request"));
+				ui_button(PANE_X + PANE_W - 64, y + 5, 30, 24, COL_GREEN, false, "OK", 0.38f); ui_button(PANE_X + PANE_W - 32, y + 5, 30, 24, COL_DANGER, false, "X", 0.38f);
+				continue;
+			}
+			const Person *p = pr[r].p;
 			ui_avatar(PANE_X + 14, y + 16, 10, p->color, p->online, p->name);
 			char nm[32]; fit(nm, sizeof nm, p->name, 0.44f, 76); ui_text(PANE_X + 32, y + 2, 0.44f, COL_TEXT, 0, nm);
 			ui_text(PANE_X + 32, y + 19, 0.32f, COL_MUTED, 0, status_of(p));
-			ui_button(PANE_X + PANE_W - 58, y + 5, 56, 24, pr[r].friend ? COL_PANEL2 : COL_ACCENT_D, false, pr[r].friend ? "Quitar" : "Anadir", 0.38f);
+			ui_button(PANE_X + PANE_W - 74, y + 5, 44, 24, COL_ACCENT_D, false, "Chat", 0.36f);
+			ui_button(PANE_X + PANE_W - 28, y + 5, 26, 24, u->rm_confirm == r ? COL_DANGER : COL_PANEL2, false, "X", 0.38f);
 		}
 		break; }
 	case P_AVATAR: {
@@ -474,12 +526,14 @@ static void pane(const Ui *u, const Session *s) {
 		if (g_upd_state == 2) { ui_rrect(PANE_X, 200, PANE_W - 4, 12, 6, COL_PANEL2); if (g_upd_pct > 0) ui_rrect(PANE_X, 200, (PANE_W - 4) * g_upd_pct / 100.0f, 12, 6, COL_GREEN); }
 		break; }
 	case P_SETTINGS: {
-		static const char *const dn[3] = {"Corta", "Media", "Larga"};
-		char l1[40], l2[48]; snprintf(l1, sizeof l1, "Distancia: %s", dn[s_dist]); snprintf(l2, sizeof l2, "Buscar updates al abrir: %s", s_auto ? "Si" : "No");
+		const char *dn[3] = {tr2("Corta", "Short"), tr2("Media", "Medium"), tr2("Larga", "Long")};
+		char l1[40], l2[48], l3[40]; snprintf(l1, sizeof l1, "%s: %s", tr2("Distancia", "Distance"), dn[s_dist]); snprintf(l2, sizeof l2, "%s: %s", tr2("Updates al abrir", "Updates on start"), s_auto ? tr2("Si", "Yes") : "No");
+		snprintf(l3, sizeof l3, "%s: %s", tr2("Idioma", "Language"), s_lang ? "English" : "Espanol");
 		ui_button(PANE_X, LIST_Y + 2, PANE_W - 4, rh - 6, COL_PANEL2, u->cur == 0, l1, 0.46f);
-		ui_button(PANE_X, LIST_Y + 2 + rh, PANE_W - 4, rh - 6, COL_PANEL2, u->cur == 1, l2, 0.4f);
-		ui_button(PANE_X, LIST_Y + 2 + 2 * rh, PANE_W - 4, rh - 6, COL_PANEL2, u->cur == 2, "Olvidar mi email", 0.46f);
-		ui_button(PANE_X, LIST_Y + 2 + 3 * rh, PANE_W - 4, rh - 6, COL_DANGER, u->cur == 3, "Cerrar sesion", 0.46f);
+		ui_button(PANE_X, LIST_Y + 2 + rh, PANE_W - 4, rh - 6, COL_PANEL2, u->cur == 1, l2, 0.42f);
+		ui_button(PANE_X, LIST_Y + 2 + 2 * rh, PANE_W - 4, rh - 6, COL_PANEL2, u->cur == 2, l3, 0.46f);
+		ui_button(PANE_X, LIST_Y + 2 + 3 * rh, PANE_W - 4, rh - 6, COL_PANEL2, u->cur == 3, tr2("Olvidar mi email", "Forget my email"), 0.46f);
+		ui_button(PANE_X, LIST_Y + 2 + 4 * rh, PANE_W - 4, rh - 6, COL_DANGER, u->cur == 4, tr2("Cerrar sesion", "Log out"), 0.46f);
 		break; }
 	}
 	if (total > vis && u->page != P_SETTINGS && u->page != P_AVATAR && u->page != P_UPDATE) {        // barra de desplazamiento
@@ -515,12 +569,12 @@ void app_preview(C3D_RenderTarget *top, C3D_RenderTarget *bot, int page, int mod
 	for (int i = 0; i < 6; i++) { GameInfo *g = &games[i]; memset(g, 0, sizeof *g); snprintf(g->id, 40, "g%d", i); snprintf(g->name, 44, "%s", nm[i]); snprintf(g->owner, 24, i == 4 ? "Iker" : "Blocksy"); snprintf(g->owner_id, 40, i == 4 ? "me" : "x"); g->hue = hue[i]; g->players = pl[i]; g->max = 20; snprintf(g->desc, 104, "Mundo abierto para construir con tus amigos desde la web o la 3DS. Empieza aqui!"); }
 	ngames = 6; static const char *fn[] = {"Marta", "Dani", "Lucia", "Pablo", "Nora"};
 	for (int i = 0; i < 5; i++) { Person *p = &friends[i]; memset(p, 0, sizeof *p); snprintf(p->name, 24, "%s", fn[i]); p->color = parse_hex(AVATAR_COLORS[i + 1]); p->online = i < 3; p->in_game = i == 1; snprintf(p->id, 40, "f%d", i); }
-	nfriends = 5; npeople = 0; g_account = 1;
+	nfriends = 5; nreqs = 1; snprintf(reqs[0].name, 24, "Carlos"); reqs[0].color = parse_hex("#1abc9c"); unread = 2; g_account = 1;
 	snprintf(g_upd.cur, sizeof g_upd.cur, "0.1.0-dev.9"); g_upd_have = 1;
 	snprintf(g_upd.dev.tag, sizeof g_upd.dev.tag, "v0.1.0-dev.12"); g_upd.dev.valid = 1; g_upd.dev.is_dev = 1; g_upd.dev.newer = 1;
 	prev_demo = modal <= -6 ? -modal - 5 : 0; if (modal <= -6) modal = -1;
 	if (page == P_UPDATE) { g_upd_state = modal == -3 ? 2 : modal == -4 ? 3 : modal == -5 ? 4 : 0; g_upd_pct = 45; snprintf(g_upd_msg, sizeof g_upd_msg, modal == -5 ? "Descarga fallida: Couldn't resolve host" : "Instalada. Cierra Blocksy y abrela de nuevo desde HOME"); if (modal <= -3) modal = -1; }
-	Ui u = {.page = page, .cur = cursor, .modal = modal, .swatch = 1}; strcpy(u.search, page == P_DISCOVER ? "" : "");
+	Ui u = {.page = page, .cur = cursor, .modal = modal, .swatch = 1, .dm = -1, .rm_confirm = -1}; strcpy(u.search, page == P_DISCOVER ? "" : "");
 	draw_all(top, bot, &u, &s, version);
 }
 #endif
@@ -547,14 +601,14 @@ AppResult app_lobby(C3D_RenderTarget *top, C3D_RenderTarget *bot, Session *s, Ga
 	LightLock_Init(&lk);
 	load_settings();
 	memset(&W, 0, sizeof W); W.s = s;
-	Ui u = {.page = P_HOME, .modal = -1};
+	Ui u = {.page = P_HOME, .modal = -1, .dm = -1, .rm_confirm = -1};
 	// color actual del avatar -> swatch
 	for (int i = 0; i < 10; i++) if (parse_hex(AVATAR_COLORS[i]) == s->color) u.swatch = i;
 	if (!g_upd.cur[0]) snprintf(g_upd.cur, sizeof g_upd.cur, "%s", version);
 	W.req = RQ_REFRESH;
 	Thread th = spawn_worker();
 	AppResult res = APP_QUIT;
-	bool dragging = false, touching = false; int t0x = 0, t0y = 0, t0scroll = 0;
+	bool dragging = false, touching = false; int t0x = 0, t0y = 0, t0scroll = 0, tapx = 0;
 
 	while (aptMainLoop()) {
 		hidScanInput();
@@ -563,14 +617,19 @@ AppResult app_lobby(C3D_RenderTarget *top, C3D_RenderTarget *bot, Session *s, Ga
 		if (W.msg[0] && !W.busy) { toast(&u, W.msg); W.msg[0] = 0; }
 		if (g_upd_announce) { g_upd_announce = 0; char m[64]; snprintf(m, sizeof m, "Hay una version nueva: %s", g_upd.stable.newer ? g_upd.stable.tag : g_upd.dev.tag); toast(&u, m); }
 		if (down & KEY_START) { res = APP_QUIT; break; }
+		if (u.dm >= 0 && g_dm_seq != u.seen_dm) { u.seen_dm = g_dm_seq; sync_data(); }
 
 		int vis = rows_visible(u.page), total = count_rows(&u, s), act_row = -1; bool tap_btn = false, do_back = false;
-		int view[MAX_GAMES]; PRow pr[MAX_PEOPLE * 2];
+		int view[MAX_GAMES]; PRow pr[MAX_PEOPLE * 2 + 2];
 		int newpage = -1;
 		if (down & KEY_R) newpage = (u.page + 1) % NPAGES;
 		if (down & KEY_L) newpage = (u.page + NPAGES - 1) % NPAGES;
 
-		if (u.modal >= 0) {                                              // ficha de juego abierta
+		if (u.page == P_FRIENDS && u.dm >= 0) {                           // chat privado abierto: A escribe, B cierra
+			if (down & KEY_A) act_row = 200;
+			if (down & KEY_B) act_row = 202;
+			if (down & KEY_Y) act_row = 201;
+		} else if (u.modal >= 0) {                                       // ficha de juego abierta
 			if (down & KEY_A) act_row = -2;                              // jugar
 			if (down & KEY_B) do_back = true;
 		} else {
@@ -597,6 +656,9 @@ AppResult app_lobby(C3D_RenderTarget *top, C3D_RenderTarget *bot, Session *s, Ga
 				if (t.py >= 130 && t.py < 182) act_row = -2;
 				else if (t.py >= 186) do_back = true;
 				touching = false;
+			} else if (u.page == P_FRIENDS && u.dm >= 0) {
+				if (t.py >= 76 && t.py < 128) act_row = 200; else if (t.py >= 134 && t.py < 172) act_row = 201; else if (t.py >= 182) act_row = 202;
+				touching = false;
 			} else if (u.page == P_AVATAR) {
 				for (int i = 0; i < 10; i++) { int x = PANE_X + 2 + (i % 5) * 40, y = 52 + (i / 5) * 40; if (t.px >= x - 3 && t.px < x + 35 && t.py >= y - 3 && t.py < y + 35) u.swatch = i; }
 				if (t.py >= 150 && t.py < 190) act_row = 100;
@@ -616,11 +678,11 @@ AppResult app_lobby(C3D_RenderTarget *top, C3D_RenderTarget *bot, Session *s, Ga
 			touching = false;
 			if (!dragging && t0x >= PANE_X && t0y >= LIST_Y && t0y < LIST_BOTTOM && newpage < 0 && u.modal < 0) {
 				int row = u.scroll + (t0y - LIST_Y) / row_h(u.page);
-				if (row < total) { u.cur = row; act_row = row; tap_btn = u.page == P_FRIENDS && t0x >= PANE_X + PANE_W - 60; }
+				if (row < total) { u.cur = row; act_row = row; tap_btn = u.page == P_FRIENDS; tapx = t0x; }
 			}
 		}
 
-		if (newpage >= 0 && newpage != u.page) { u.page = newpage; u.cur = 0; u.scroll = 0; u.modal = -1; act_row = -1; do_back = false; }
+		if (newpage >= 0 && newpage != u.page) { u.page = newpage; u.cur = 0; u.scroll = 0; u.modal = -1; act_row = -1; do_back = false; u.dm = -1; g_dm_open = 0; u.rm_confirm = -1; }
 		if (do_back) u.modal = -1;
 
 		total = count_rows(&u, s);
@@ -636,13 +698,35 @@ AppResult app_lobby(C3D_RenderTarget *top, C3D_RenderTarget *bot, Session *s, Ga
 			*chosen = games[u.modal]; snprintf(s_last_game, sizeof s_last_game, "%s", chosen->id); save_settings();
 			res = APP_PLAY; break;
 		}
+		if (act_row >= 200 && u.dm >= 0) {
+			if (act_row == 200) { char tx[100] = ""; if (prompt(tx, sizeof tx, tr2("Escribe un mensaje", "Write a message"))) request(RQ_DM_SEND, NULL, tx, 0); }
+			else if (act_row == 201) request(RQ_DM_FETCH, NULL, NULL, 0);
+			else { u.dm = -1; g_dm_open = 0; }
+			act_row = -1;
+		}
 		if (act_row >= 0 && u.modal < 0) {
 			int n;
 			switch (u.page) {
 			case P_HOME: case P_DISCOVER: n = build_view(&u, s, view); if (act_row < n) u.modal = view[act_row]; break;
 			case P_FRIENDS:
 				n = build_people(s, pr);
-				if (act_row < n && (tap_btn || (down & KEY_A))) request(pr[act_row].friend ? RQ_REMOVE : RQ_ADD, pr[act_row].p->id, NULL, 0);
+				if (act_row >= n) break;
+				if (pr[act_row].kind == 0) {
+					char nm[24] = ""; if (prompt(nm, sizeof nm, tr2("Nombre de usuario exacto", "Exact username"))) request(RQ_ADD, nm, NULL, 0);
+				} else if (pr[act_row].kind == 1) {
+					char ids[24]; snprintf(ids, sizeof ids, "%ld", pr[act_row].r->id);
+					bool decline = tap_btn && tapx >= PANE_X + PANE_W - 32;
+					request(RQ_ACCEPT, ids, NULL, decline ? 0 : 1);
+				} else {
+					int fi = (int)(pr[act_row].p - friends);
+					if (tap_btn && tapx >= PANE_X + PANE_W - 30) {
+						if (u.rm_confirm == act_row) { request(RQ_REMOVE, pr[act_row].p->id, NULL, 0); u.rm_confirm = -1; }
+						else { u.rm_confirm = act_row; toast(&u, tr2("Toca X otra vez para quitarlo", "Tap X again to remove")); }
+					} else {
+						u.dm = fi; snprintf(g_dm_friend, sizeof g_dm_friend, "%s", friends[fi].id); g_ndm = 0; ndm = 0; g_dm_open = 1; u.seen_dm = g_dm_seq; u.rm_confirm = -1;
+						request(RQ_DM_FETCH, NULL, NULL, 0);
+					}
+				}
 				break;
 			case P_AVATAR: if (act_row == 100 || (down & KEY_A)) { if (g_account) request(RQ_COLOR, AVATAR_COLORS[u.swatch], NULL, 0); else toast(&u, "Entra con email para guardar"); } break;
 			case P_UPDATE:
@@ -654,8 +738,9 @@ AppResult app_lobby(C3D_RenderTarget *top, C3D_RenderTarget *bot, Session *s, Ga
 			case P_SETTINGS:
 				if (act_row == 0) { s_dist = (s_dist + 1) % 3; save_settings(); }
 				else if (act_row == 1) { s_auto = !s_auto; save_settings(); }
-				else if (act_row == 2) { remove("sdmc:/3ds/blocksy/login.txt"); toast(&u, "Email olvidado"); }
-				else if (act_row == 3) { res = APP_LOGOUT; goto out; }
+				else if (act_row == 2) { s_lang = !s_lang; save_settings(); }
+				else if (act_row == 3) { remove("sdmc:/3ds/blocksy/login.txt"); toast(&u, tr2("Email olvidado", "Email forgotten")); }
+				else if (act_row == 4) { res = APP_LOGOUT; goto out; }
 				break;
 			}
 		}

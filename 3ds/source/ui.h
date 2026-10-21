@@ -17,7 +17,7 @@
 #define COL_RED       C(0xFF, 0x7A, 0x72)
 #define COL_DANGER    C(0xE6, 0x45, 0x3D)
 
-#define NPALETTE 6
+#define NPALETTE 12
 extern const u32 ui_palette[NPALETTE];   // ABGR, mismos colores que la web
 
 void ui_init(void);
@@ -49,7 +49,7 @@ void ui_forget_session(void);            // borra la sesión guardada (cerrar se
 void ui_message(C3D_RenderTarget *top, C3D_RenderTarget *bot, const char *title, const char *msg);
 
 // Panel de la pantalla inferior durante el juego
-typedef enum { UI_NONE = -1, UI_COLOR0 = 0, UI_CHAT = 10, UI_QUIT = 11, UI_EMOTE_MENU = 13, UI_EMOTE0 = 20 } UiAction;
+typedef enum { UI_NONE = -1, UI_COLOR0 = 0, UI_CHAT = 30, UI_QUIT = 31, UI_EMOTE_MENU = 33, UI_EMOTE0 = 40 } UiAction;
 void ui_game_bottom(const Session *s, const Remote *rem, int nr, int kind, const char *game, const char *version, bool emote_menu);
 int  ui_game_touch(int x, int y, bool emote_menu);        // UI_NONE, UI_COLOR0 + n, UI_CHAT o UI_QUIT (volver al lobby)
 

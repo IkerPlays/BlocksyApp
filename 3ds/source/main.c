@@ -201,7 +201,7 @@ static void render_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 	fog_near = 12 + lvl * 4; fog_far = 26 + lvl * 8;
 	int nd = 0; float sx, sy, d;
 	for (int i = 0; i < nl; i++) if (project(local[i].x + .5f, local[i].y + .5f, local[i].z + .5f, &sx, &sy, &d) && d < fog_far + 6)
-		draw_list[nd++] = (Box){d, local[i].x, local[i].y, local[i].z, 1, 1, fogged(PALETTE[local[i].kind % NPALETTE], d), -1};
+		draw_list[nd++] = (Box){d, local[i].x, local[i].y, local[i].z, 1, 1, fogged(shade(PALETTE[local[i].kind % NPALETTE], ((local[i].x * 7 + local[i].y * 13 + local[i].z * 5) & 3) == 0 ? 0.93f : 1.0f), d), -1};
 	if (project(px, py + .9f, pz, &sx, &sy, &d)) draw_list[nd++] = (Box){d, px, py, pz, 0, 0, 0, 0};
 	for (int i = 0; i < nr; i++) if (project(rem[i].x, rem[i].y + .9f, rem[i].z, &sx, &sy, &d))
 		draw_list[nd++] = (Box){d, rem[i].x, rem[i].y, rem[i].z, 0, 0, 0, 1 + i};
@@ -212,6 +212,18 @@ static void render_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 	C2D_TargetClear(top, C2D_Color32(SKY_R, SKY_G, SKY_B, 255));
 	C2D_SceneBegin(top);
 	C2D_DrawRectangle(0, 0, 0, 400, 150, C2D_Color32(0x4F, 0x9F, 0xE8, 255), C2D_Color32(0x4F, 0x9F, 0xE8, 255), C2D_Color32(SKY_R, SKY_G, SKY_B, 255), C2D_Color32(SKY_R, SKY_G, SKY_B, 255));   // cielo
+	// Sol y nubes que se desplazan con el viento y con el giro de la cámara (parallax)
+	{
+		float t = (now - t_start) / 1000.0f, yawo = cam_yaw * 90.0f;
+		float sxp = fmodf(300 - yawo + 4000.0f, 560.0f) - 80;
+		C2D_DrawEllipseSolid(sxp - 22, 18, 0, 44, 44, C2D_Color32(0xFF, 0xF1, 0xB0, 90)); C2D_DrawEllipseSolid(sxp - 14, 26, 0, 28, 28, C2D_Color32(0xFF, 0xF6, 0xC8, 255));
+		static const float cl[6][3] = {{40, 30, 1.0f}, {160, 62, 0.8f}, {250, 22, 1.2f}, {330, 55, 0.9f}, {90, 80, 0.7f}, {420, 40, 1.1f}};
+		for (int i = 0; i < 6; i++) {
+			float x = fmodf(cl[i][0] + t * (2.0f + i) - yawo * (0.6f + 0.1f * i) + 6000.0f, 560.0f) - 80, w = 70 * cl[i][2], h = 16 * cl[i][2], y = cl[i][1];
+			u32 c = C2D_Color32(255, 255, 255, 215);
+			C2D_DrawEllipseSolid(x, y, 0, w, h, c); C2D_DrawEllipseSolid(x + w * 0.22f, y - h * 0.5f, 0, w * 0.5f, h * 0.9f, c); C2D_DrawEllipseSolid(x + w * 0.5f, y - h * 0.25f, 0, w * 0.4f, h * 0.8f, c);
+		}
+	}
 	// Suelo: cuadrícula alrededor del jugador (con niebla)
 	for (int gx = -R; gx < R; gx++) for (int gz = -R; gz < R; gz++) {
 		int ax = (int)floorf(px) + gx, az = (int)floorf(pz) + gz;
@@ -222,6 +234,11 @@ static void render_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 		u32 c = fogged(((ax + az) & 1) ? C2D_Color32(0x5F, 0xAE, 0x5A, 255) : C2D_Color32(0x52, 0x9E, 0x4E, 255), dm / 4);
 		C2D_DrawTriangle(p[0][0], p[0][1], c, p[1][0], p[1][1], c, p[2][0], p[2][1], c, 0);
 		C2D_DrawTriangle(p[0][0], p[0][1], c, p[2][0], p[2][1], c, p[3][0], p[3][1], c, 0);
+	}
+	// sombras redondas bajo los jugadores
+	for (int i = -1; i < nr; i++) {
+		float ex = i < 0 ? px : rem[i].x, ey = i < 0 ? py : rem[i].y, ez = i < 0 ? pz : rem[i].z; float gx, gy, gd;
+		if (project(ex, floorf(ey) + 0.02f, ez, &gx, &gy, &gd) && gd < fog_far) { float r = 120.0f / (gd + 2.0f); C2D_DrawEllipseSolid(gx - r, gy - r * 0.35f, 0, r * 2, r * 0.7f, C2D_Color32(0, 0, 0, 70)); }
 	}
 	// citro2d tiene un límite de objetos por frame: se descartan los más lejanos
 	int first = nd > cap ? nd - cap : 0;

@@ -44,8 +44,14 @@ void net_offline(const Session *s);
 int  net_list_games(GameInfo *out, int max);
 void net_player_counts(GameInfo *g, int n);
 int  net_list_friends(const Session *s, Person *out, int max);
-int  net_list_people(const Session *s, Person *out, int max);
-bool net_add_friend(const Session *s, const char *id);
+typedef struct { long id; char name[24]; unsigned int color; } FriendReq;
+int  net_list_requests(const Session *s, FriendReq *out, int max);     // solicitudes recibidas
+int  net_friend_request(const Session *s, const char *name);           // 0 enviada, 1 aceptada, 2 ya amigos, 3 ya enviada, -1 error / no existe
+bool net_respond_request(const Session *s, long id, bool accept);
+int  net_unread_total(const Session *s);
+typedef struct { long id; int mine; char text[100]; } DmMsg;
+int  net_fetch_dm(const Session *s, const char *friend_id, DmMsg *out, int max);   // más antiguo primero
+bool net_send_dm(const Session *s, const char *friend_id, const char *text);
 bool net_remove_friend(const Session *s, const char *id);
 bool net_set_color(Session *s, const char *hex);
 

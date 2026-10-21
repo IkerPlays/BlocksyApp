@@ -8,7 +8,8 @@
 #include <string.h>
 #include <sys/stat.h>
 
-const u32 ui_palette[NPALETTE] = {0xFFE8E8E8, 0xFF3C4CE7, 0xFF129CF3, 0xFF71CC2E, 0xFFDB9834, 0xFFB6599B};
+const u32 ui_palette[NPALETTE] = {0xFFE8E8E8, 0xFF3C4CE7, 0xFF129CF3, 0xFF71CC2E, 0xFFDB9834, 0xFFB6599B,
+	0xFF0FC4F1, 0xFF9CBC1A, 0xFF9D6BFF, 0xFF345E8B, 0xFF574F4B, 0xFFFFD67E};   // ABGR; los mismos 12 que la web
 
 // Web donde se autoriza el QR (cámbiala definiendo WEB_URL / WEB_HOST en config.h)
 #ifndef WEB_URL
@@ -451,7 +452,7 @@ void ui_message(C3D_RenderTarget *top, C3D_RenderTarget *bot, const char *title,
 }
 
 // ---------- panel inferior en juego ----------
-enum { SW_Y = 150, SW_W = 40, SW_GAP = 8, BTN2_Y = 192, BTN2_H = 36, BTN2_W = 86, BTN2_GAP = 11, EM_Y = 44, EM_W = 88, EM_H = 44, EM_GAP = 8 };
+enum { SW_Y = 126, SW_W = 40, SW_GAP = 8, BTN2_Y = 192, BTN2_H = 36, BTN2_W = 86, BTN2_GAP = 11, EM_Y = 44, EM_W = 88, EM_H = 44, EM_GAP = 8 };
 
 void ui_game_bottom(const Session *s, const Remote *rem, int nr, int kind, const char *game, const char *version, bool emote_menu) {
 	rect(0, 0, 320, 26, COL_PANEL);
@@ -471,7 +472,7 @@ void ui_game_bottom(const Session *s, const Remote *rem, int nr, int kind, const
 		ui_text(10, 32, 0.45f, COL_MUTED, 0, t);
 		int row = 0;
 		ui_avatar(18, 56, 6, s->color, -1, s->username); ui_text(30, 48, 0.45f, COL_TEXT, 0, s->username); row++;
-		for (int i = 0; i < nr && row < 5; i++, row++) {
+		for (int i = 0; i < nr && row < 4; i++, row++) {
 			float y = 48 + row * 16;
 			ui_avatar(18, y + 8, 6, rem[i].color, -1, rem[i].name);
 			ui_text(30, y, 0.45f, COL_TEXT, 0, rem[i].name);
@@ -480,11 +481,10 @@ void ui_game_bottom(const Session *s, const Remote *rem, int nr, int kind, const
 		ui_text(310, 48, 0.36f, COL_MUTED, C2D_AlignRight, "A saltar  B correr");
 		ui_text(310, 62, 0.36f, COL_MUTED, C2D_AlignRight, "X poner  Y romper");
 
-		ui_text(10, SW_Y - 17, 0.4f, COL_MUTED, 0, "Bloque");
 		for (int i = 0; i < NPALETTE; i++) {
-			float x = F_X + i * (SW_W + SW_GAP);
-			if (i == kind) rrect(x - 3, SW_Y - 3, SW_W + 6, 32, 7, COL_TEXT);
-			rrect(x, SW_Y, SW_W, 26, 5, ui_palette[i]);
+			float x = F_X + (i % 6) * (SW_W + SW_GAP), y = SW_Y + (i / 6) * 30;
+			if (i == kind) rrect(x - 3, y - 3, SW_W + 6, 30, 7, COL_TEXT);
+			rrect(x, y, SW_W, 24, 5, ui_palette[i]);
 		}
 	}
 	button(F_X, BTN2_Y, BTN2_W, BTN2_H, COL_ACCENT, false, "Chat", 0.48f);
@@ -495,7 +495,7 @@ void ui_game_bottom(const Session *s, const Remote *rem, int nr, int kind, const
 int ui_game_touch(int x, int y, bool emote_menu) {
 	touchPosition t = {(u16)x, (u16)y};
 	if (emote_menu) for (int i = 0; i < NEMOTES; i++) if (hit(t, F_X + (i % 3) * (EM_W + EM_GAP), EM_Y + 6 + (i / 3) * (EM_H + EM_GAP), EM_W, EM_H)) return UI_EMOTE0 + i;
-	if (!emote_menu) for (int i = 0; i < NPALETTE; i++) if (hit(t, F_X + i * (SW_W + SW_GAP), SW_Y - 4, SW_W, 34)) return UI_COLOR0 + i;
+	if (!emote_menu) for (int i = 0; i < NPALETTE; i++) if (hit(t, F_X + (i % 6) * (SW_W + SW_GAP), SW_Y + (i / 6) * 30 - 4, SW_W, 32)) return UI_COLOR0 + i;
 	if (hit(t, F_X, BTN2_Y, BTN2_W, BTN2_H)) return UI_CHAT;
 	if (hit(t, F_X + BTN2_W + BTN2_GAP, BTN2_Y, BTN2_W, BTN2_H)) return UI_EMOTE_MENU;
 	if (hit(t, F_X + 2 * (BTN2_W + BTN2_GAP), BTN2_Y, BTN2_W, BTN2_H)) return UI_QUIT;

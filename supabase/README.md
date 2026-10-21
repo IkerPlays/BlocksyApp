@@ -43,3 +43,11 @@ y pulsa *Autorizar* (`link_approve`); la 3DS lo detecta (`link_poll`) y recibe u
 2. Game → Edge Functions → `game-session`: pega de nuevo `functions/game-session/index.ts` y despliega.
 3. (Opcional) Game → Edge Functions → Secrets: `CREATOR_EMAILS` = emails separados por comas. Por defecto solo `ikerana35018santanaiker@gmail.com`.
 La web enseña el apartado Crear solo si la respuesta de `game-session` trae `can_create: true`; aunque alguien lo forzara, el servidor lo rechaza.
+
+## Amigos con solicitud, chat, notificaciones e invitaciones (v2)
+1. **AUTH** → SQL Editor: ejecuta `auth/social.sql` (después de `auth/schema.sql`). Quita la lista pública de jugadores (solo ves a tus amigos), crea
+   `friend_requests`, `messages`, `notifications` y las funciones `send_friend_request`, `respond_friend_request`, `send_message`, `invite_friend`...
+2. **GAME** → SQL Editor: ejecuta `game/v2.sql` (tipos de juego, `config`, `script`, `update_game`, reglas de construcción/chat en el servidor y dos juegos de ejemplo).
+3. Para que el chat y los jugadores lleguen en tiempo real, comprueba en Database → Publications → `supabase_realtime` que están las tablas
+   (los scripts ya las añaden). La web usa además consultas de respaldo cada ~1 s, así que sigue funcionando aunque Realtime falle.
+4. Música: pon tus archivos en `web/public/playlist/` y haz push; Netlify genera la lista al compilar.

@@ -8,7 +8,7 @@ Necesita las cabeceras de libctru, citro2d y citro3d (`git clone` de devkitPro) 
 H=/ruta/a/headers   # carpeta con libctru/ citro2d/ citro3d/ y un stub/sys/lock.h
 gcc -w -std=gnu11 -D__3DS__ -DBLOCKSY_PREVIEW -DBLOCKSY_VERSION='"0.1.0"' \
     -I$H/stub -I$H/libctru/libctru/include -I$H/citro2d/include -I$H/citro3d/include -Isource \
-    preview/preview.c preview/stub.c source/ui.c source/app.c source/qrcodegen.c -o preview/preview -lm \
+    preview/preview.c preview/stub.c source/ui.c source/app.c source/avatar3d.c source/qrcodegen.c -o preview/preview -lm \
     -Wl,--unresolved-symbols=ignore-all
 ./preview/preview && python3 preview/render.py preview/out
 ```

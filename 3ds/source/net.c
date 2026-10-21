@@ -446,21 +446,71 @@ int net_list_friends(const Session *s, Person *out, int max) {
 	if (!r) return -1;
 	int n = parse_people(r, out, max); free(r); return n;
 }
-int net_list_people(const Session *s, Person *out, int max) {
-	if (!s->token[0]) return -2;
-	char *r = http(M_GET, AUTH_URL "/rest/v1/profiles_public?select=id,username,avatar_color,current_game,is_online&order=is_online.desc,username.asc&limit=30", AUTH_ANON_KEY, s->token, NULL, NULL);
-	if (!r) return -1;
-	int n = parse_people(r, out, max); free(r); return n;
-}
-bool net_add_friend(const Session *s, const char *id) {
-	char body[160]; snprintf(body, sizeof body, "{\"user_id\":\"%s\",\"friend_id\":\"%s\"}", s->user_id, id);
-	char *r = http(M_POST, AUTH_URL "/rest/v1/friendships", AUTH_ANON_KEY, s->token, body, "resolution=merge-duplicates,return=minimal");
+// ---- solicitudes de amistad y mensajes privados (RPC del proyecto AUTH; necesitan token de cuenta) ----
+static bool auth_rpc_ok(const Session *s, const char *fn, const char *body) {
+	char url[160]; snprintf(url, sizeof url, AUTH_URL "/rest/v1/rpc/%s", fn);
+	char *r = http(M_POST, url, AUTH_ANON_KEY, s->token, body, NULL);
 	bool ok = r != NULL; free(r); return ok;
+}
+int net_list_requests(const Session *s, FriendReq *out, int max) {
+	if (!s->token[0]) return -2;
+	char *r = http(M_POST, AUTH_URL "/rest/v1/rpc/my_requests", AUTH_ANON_KEY, s->token, "{}", NULL);
+	if (!r) return -1;
+	int n = 0; const char *p = r, *end;
+	while (n < max && (p = next_obj(p, &end))) {
+		char dir[8] = "", col[16] = "#4da6ff"; jstr(p, end, "dir", dir, sizeof dir);
+		if (!strcmp(dir, "in")) {
+			FriendReq *q = &out[n]; memset(q, 0, sizeof *q); q->id = (long)jnum(p, end, "id");
+			jstr(p, end, "username", q->name, sizeof q->name); jstr(p, end, "avatar_color", col, sizeof col); q->color = parse_color(col); n++;
+		}
+		p = end + 1;
+	}
+	free(r); return n;
+}
+int net_friend_request(const Session *s, const char *name) {
+	char u[24]; size_t k = 0;
+	for (const char *c = name; *c && k + 1 < sizeof u; c++) if ((*c >= 'a' && *c <= 'z') || (*c >= 'A' && *c <= 'Z') || (*c >= '0' && *c <= '9') || *c == '_') u[k++] = *c;
+	u[k] = 0; if (!k) return -1;
+	char body[64]; snprintf(body, sizeof body, "{\"p_username\":\"%s\"}", u);
+	char *r = http(M_POST, AUTH_URL "/rest/v1/rpc/send_friend_request", AUTH_ANON_KEY, s->token, body, NULL);
+	if (!r) return -1;
+	int out = strstr(r, "accepted") ? 1 : strstr(r, "already_friends") ? 2 : strstr(r, "already_sent") ? 3 : 0;
+	free(r); return out;
+}
+bool net_respond_request(const Session *s, long id, bool accept) {
+	char body[64]; snprintf(body, sizeof body, "{\"p_id\":%ld,\"p_accept\":%s}", id, accept ? "true" : "false");
+	return auth_rpc_ok(s, "respond_friend_request", body);
 }
 bool net_remove_friend(const Session *s, const char *id) {
-	char url[220]; snprintf(url, sizeof url, AUTH_URL "/rest/v1/friendships?user_id=eq.%s&friend_id=eq.%s", s->user_id, id);
-	char *r = http(M_DELETE, url, AUTH_ANON_KEY, s->token, NULL, "return=minimal");
-	bool ok = r != NULL; free(r); return ok;
+	char body[96]; snprintf(body, sizeof body, "{\"p_friend\":\"%s\"}", id);
+	return auth_rpc_ok(s, "remove_friend", body);
+}
+int net_unread_total(const Session *s) {
+	if (!s->token[0]) return 0;
+	char *r = http(M_POST, AUTH_URL "/rest/v1/rpc/unread_counts", AUTH_ANON_KEY, s->token, "{}", NULL);
+	if (!r) return -1;
+	int total = 0; for (const char *p = r; (p = strchr(p, ':')); p++) total += atoi(p + 1);
+	free(r); return total;
+}
+int net_fetch_dm(const Session *s, const char *fid, DmMsg *out, int max) {
+	if (!s->token[0]) return -2;
+	char url[420]; snprintf(url, sizeof url, AUTH_URL "/rest/v1/messages?select=id,from_id,body&or=(and(from_id.eq.%s,to_id.eq.%s),and(from_id.eq.%s,to_id.eq.%s))&order=id.desc&limit=%d", s->user_id, fid, fid, s->user_id, max);
+	char *r = http(M_GET, url, AUTH_ANON_KEY, s->token, NULL, NULL);
+	if (!r) return -1;
+	int n = 0; const char *p = r, *end;
+	while (n < max && (p = next_obj(p, &end))) {
+		char from[40] = ""; DmMsg *m = &out[n]; memset(m, 0, sizeof *m); m->id = (long)jnum(p, end, "id");
+		jstr(p, end, "from_id", from, sizeof from); jstr(p, end, "body", m->text, sizeof m->text); m->mine = !strcmp(from, s->user_id); n++; p = end + 1;
+	}
+	free(r);
+	for (int i = 0; i < n / 2; i++) { DmMsg t = out[i]; out[i] = out[n - 1 - i]; out[n - 1 - i] = t; }   // más antiguo primero
+	auth_rpc_ok(s, "mark_read", (snprintf(url, sizeof url, "{\"p_from\":\"%s\"}", fid), url));
+	return n;
+}
+bool net_send_dm(const Session *s, const char *fid, const char *text) {
+	char t[110]; clean(t, sizeof t, text);
+	char body[260]; snprintf(body, sizeof body, "{\"p_to\":\"%s\",\"p_body\":\"%s\"}", fid, t);
+	return auth_rpc_ok(s, "send_message", body);
 }
 // Guarda el color en el perfil y renueva la sesión de juego (para que los demás lo vean)
 bool net_set_color(Session *s, const char *hex) {
