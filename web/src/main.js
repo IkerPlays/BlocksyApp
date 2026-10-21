@@ -5,6 +5,7 @@ import * as api from './api.js'
 import { pages, toast, closeModal } from './pages.js'
 import { startGame } from './game.js'
 import { setLastPlayed } from './settings.js'
+import { applyIcons } from './icons.js'
 
 const $ = id => document.getElementById(id)
 let profile = null, currentGame = null, stopGame = null, mode = 'login'
@@ -28,7 +29,7 @@ function paintChip() {
 async function route() {
   if (!profile) return
   const [page, arg] = (location.hash.slice(1) || 'home').split('/')
-  const name = pages[page] ? page : 'home'
+  const name = pages[page] && !(page === 'create' && !api.canCreate()) ? page : 'home'
   document.querySelectorAll('#sidebar a').forEach(a => a.classList.toggle('active', a.dataset.page === name))
   $('sidebar').classList.remove('open')
   const root = $('page'); root.replaceChildren()
@@ -36,13 +37,16 @@ async function route() {
 }
 window.addEventListener('hashchange', route)
 
+// Crear juegos: solo web y solo la cuenta autorizada (se comprueba también en el servidor)
+function showCreate(on) { for (const id of ['nav-create', 'topnav-create']) $(id).classList.toggle('hidden', !on) }
+
 async function enterApp() {
   profile = await auth.loadProfile()
   if (!profile) return showScreen('auth')
   paintChip(); showScreen('app')
   auth.startPresence(() => currentGame?.id)
-  api.openGameSession().catch(e => toast('Servidor de juego: ' + e.message))
   route()
+  api.openGameSession().then(() => { showCreate(api.canCreate()); if (location.hash.startsWith('#create')) route() }).catch(e => toast('Servidor de juego: ' + e.message))
 }
 
 // ---------- juego ----------
@@ -76,7 +80,7 @@ $('auth-form').addEventListener('submit', async e => {
     msg.textContent = ''; await enterApp()
   } catch (err) { msg.className = 'msg err'; msg.textContent = err.message }
 })
-$('logout').onclick = async () => { await auth.signOut(); profile = null; showScreen('auth') }
+$('logout').onclick = async () => { await auth.signOut(); profile = null; showCreate(false); showScreen('auth') }
 
 // ---------- shell UI ----------
 $('burger').onclick = () => $('sidebar').classList.toggle('open')
@@ -84,4 +88,5 @@ $('modal').addEventListener('click', e => { if (e.target.id === 'modal') closeMo
 $('search').addEventListener('submit', e => { e.preventDefault(); const q = $('search-input').value.trim(); location.hash = q ? `discover/${encodeURIComponent(q)}` : "discover" })
 window.addEventListener('beforeunload', () => { api.leaveBeacon() })
 
+applyIcons()
 authDb.auth.getSession().then(({ data }) => (data.session ? enterApp() : showScreen('auth')))

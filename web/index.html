@@ -24,22 +24,22 @@
 
   <div id="app" class="hidden">
     <header id="topbar">
-      <button id="burger" class="icon-btn" aria-label="Menú">☰</button>
+      <button id="burger" class="icon-btn" aria-label="Menú"><i data-icon="menu" data-size="24"></i></button>
       <div class="logo"><span class="logo-mark"></span><span class="logo-text">Blocksy</span></div>
-      <nav id="topnav"><a href="#home">Inicio</a><a href="#discover">Descubrir</a><a href="#create">Crear</a></nav>
+      <nav id="topnav"><a href="#home">Inicio</a><a href="#discover">Descubrir</a><a href="#create" id="topnav-create" class="hidden">Crear</a></nav>
       <form id="search" autocomplete="off"><input id="search-input" placeholder="Buscar juegos" /></form>
       <div id="userchip"><span id="chip-avatar" class="avatar sm"></span><span id="chip-name"></span></div>
     </header>
     <aside id="sidebar">
-      <a href="#home" data-page="home"><i>🏠</i>Inicio</a>
-      <a href="#discover" data-page="discover"><i>🧭</i>Descubrir</a>
-      <a href="#avatar" data-page="avatar"><i>🧍</i>Avatar</a>
-      <a href="#friends" data-page="friends"><i>👥</i>Amigos</a>
-      <a href="#link" data-page="link"><i>📱</i>Vincular 3DS</a>
-      <a href="#create" data-page="create"><i>🛠️</i>Crear</a>
-      <a href="#settings" data-page="settings"><i>⚙️</i>Ajustes</a>
+      <a href="#home" data-page="home"><i data-icon="home"></i>Inicio</a>
+      <a href="#discover" data-page="discover"><i data-icon="compass"></i>Descubrir</a>
+      <a href="#avatar" data-page="avatar"><i data-icon="user"></i>Avatar</a>
+      <a href="#friends" data-page="friends"><i data-icon="users"></i>Amigos</a>
+      <a href="#link" data-page="link"><i data-icon="device"></i>Vincular 3DS</a>
+      <a href="#create" data-page="create" id="nav-create" class="hidden"><i data-icon="plus"></i>Crear</a>
+      <a href="#settings" data-page="settings"><i data-icon="sliders"></i>Ajustes</a>
       <div class="spacer"></div>
-      <button id="logout" class="side-btn"><i>🚪</i>Salir</button>
+      <button id="logout" class="side-btn"><i data-icon="logout"></i>Salir</button>
     </aside>
     <main id="page"></main>
   </div>
@@ -51,9 +51,9 @@
     <canvas id="view"></canvas>
     <div id="crosshair"></div>
     <div id="hud-top">
-      <button id="menu-btn" class="hud-btn" aria-label="Menú">☰</button>
+      <button id="menu-btn" class="hud-btn" aria-label="Menú"><i data-icon="menu"></i></button>
       <span id="stats"></span>
-      <button id="players-btn" class="hud-btn" aria-label="Jugadores">👥</button>
+      <button id="players-btn" class="hud-btn" aria-label="Jugadores"><i data-icon="users"></i></button>
     </div>
     <ul id="roster" class="hidden"></ul>
     <div id="chat">
@@ -69,7 +69,7 @@
         <label class="field">Distancia de visión <input id="set-dist" type="range" min="30" max="200" step="10" /></label>
         <label class="field check"><input id="set-names" type="checkbox" /> Mostrar nombres</label>
         <button class="btn danger wide" id="leave">Salir del juego</button>
-        <p class="hint">WASD mover · Espacio saltar · Arrastrar cámara · Clic poner · Clic dcho. romper · 1-6 bloque · / chat · Tab jugadores · Esc menú</p>
+        <p class="hint">WASD mover, Mayús correr, Espacio saltar. Arrastra para girar la cámara. Clic poner, clic derecho romper. 1-6 elige bloque. / chat, Tab jugadores, Esc menú.</p>
       </div>
     </div>
   </div>

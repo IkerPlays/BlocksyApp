@@ -18,6 +18,8 @@ export async function openGameSession() {
   return session
 }
 export const clearGameSession = () => { session = null }
+// El servidor decide quién puede crear juegos (función game-session + tabla sessions): solo cuentas autorizadas
+export const canCreate = () => session?.can_create === true
 
 async function rpc(fn, args, retry = true) {
   if (!session) await openGameSession()

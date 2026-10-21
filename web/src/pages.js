@@ -1,6 +1,7 @@
 import * as auth from './auth.js'
 import * as api from './api.js'
 import { settings, saveSettings, lastPlayed } from './settings.js'
+import { icon } from './icons.js'
 
 const $ = id => document.getElementById(id)
 export function el(tag, props = {}, ...kids) {
@@ -10,11 +11,14 @@ export function el(tag, props = {}, ...kids) {
     else if (k === 'style') e.style.cssText = v
     else if (k.startsWith('on')) e.addEventListener(k.slice(2), v)
     else if (k === 'text') e.textContent = v
+    else if (k === 'html') e.innerHTML = v
     else e.setAttribute(k, v)
   }
   for (const k of kids.flat()) if (k != null) e.append(k)
   return e
 }
+// Como replaceChildren pero acepta arrays anidados y descarta null/false
+export function setKids(node, ...kids) { node.replaceChildren(...kids.flat(Infinity).filter(k => k != null && k !== false)) }
 export function toast(msg) {
   const t = $('toast'); t.textContent = msg; t.classList.remove('hidden')
   clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.add('hidden'), 2800)
@@ -30,7 +34,7 @@ const avatar = (color, online) => {
 function gameCard(g, counts, onOpen) {
   const n = counts[g.id] ?? 0
   const thumb = el('div', { class: 'thumb', style: `--h:${g.hue ?? hueOf(g.id)}` }, el('div', { class: 'cube' }),
-    n ? el('span', { class: 'live', text: `● ${n} jugando` }) : null)
+    n ? el('span', { class: 'live', text: `${n} jugando` }) : null)
   return el('div', { class: 'gcard', onclick: () => onOpen(g) }, thumb,
     el('div', { class: 'gname', text: g.name }), el('div', { class: 'gmeta', text: `por ${g.owner_name || 'Blocksy'}` }))
 }
@@ -40,7 +44,7 @@ const grid = (games, counts, onOpen) => games.length
 
 export function openGameModal(g, counts, onPlay) {
   const m = $('modal'), card = $('modal-card'), n = counts[g.id] ?? 0
-  card.replaceChildren(el('div', { class: 'detail' },
+  setKids(card, el('div', { class: 'detail' },
     el('div', { class: 'thumb', style: `--h:${g.hue ?? hueOf(g.id)}` }, el('div', { class: 'cube' })),
     el('div', {}, el('h2', { text: g.name }),
       el('small', { style: 'color:var(--muted)', text: `por ${g.owner_name || 'Blocksy'}` }),
@@ -49,22 +53,24 @@ export function openGameModal(g, counts, onPlay) {
         el('div', {}, el('b', { text: String(g.max_players) }), el('small', { text: 'máx. jugadores' })),
         el('div', {}, el('b', { text: 'Web + 3DS' }), el('small', { text: 'plataformas' }))),
       el('p', { text: g.description || 'Sin descripción.' }),
-      el('button', { class: 'btn primary wide', text: '▶  Jugar', onclick: () => { closeModal(); onPlay(g) } }),
+      el('button', { class: 'btn primary wide', text: 'Jugar', onclick: () => { closeModal(); onPlay(g) } }),
       el('button', { class: 'btn wide', text: 'Cerrar', onclick: closeModal }))))
   m.classList.remove('hidden')
 }
+const skeletons = n => el('div', { class: 'grid' }, Array.from({ length: n }, () => el('div', {}, el('div', { class: 'skel card' }), el('div', { class: 'skel line' }))))
 export const closeModal = () => $('modal').classList.add('hidden')
 
 // ---------- páginas ----------
 // ctx = { profile, play(game), go(hash), refreshProfile() }
 export const pages = {
   async home(root, ctx) {
+    setKids(root, el('div', { class: 'section' }, el('h2', { text: 'Cargando...' })), skeletons(4))
     const [games, counts, friends] = await Promise.all([api.listGames(), api.playerCounts(), auth.listFriends(ctx.profile.id)])
     const open = g => openGameModal(g, counts, ctx.play)
     const popular = [...games].sort((a, b) => (counts[b.id] ?? 0) - (counts[a.id] ?? 0))
     const last = games.find(g => g.id === lastPlayed())
 
-    root.replaceChildren(
+    setKids(root, 
       el('div', { class: 'hero' }, avatar(ctx.profile.avatar_color), el('h1', { text: `¡Hola, ${ctx.profile.username}!` })),
       el('div', { class: 'section' }, el('h2', { text: `Amigos (${friends.length})` }), el('a', { href: '#friends', text: 'Ver todo' })),
       friends.length
@@ -80,15 +86,16 @@ export const pages = {
   },
 
   async discover(root, ctx, query = '') {
+    setKids(root, el('h1', { class: 'page-title', text: 'Descubrir' }), skeletons(8))
     const [games, counts] = await Promise.all([api.listGames(), api.playerCounts()])
     const input = el('input', { placeholder: 'Buscar juegos...', value: query })
     const out = el('div')
     const draw = () => {
       const q = input.value.trim().toLowerCase()
-      out.replaceChildren(grid(games.filter(g => !q || g.name.toLowerCase().includes(q) || (g.description || '').toLowerCase().includes(q)), counts, g => openGameModal(g, counts, ctx.play)))
+      setKids(out, grid(games.filter(g => !q || g.name.toLowerCase().includes(q) || (g.description || '').toLowerCase().includes(q)), counts, g => openGameModal(g, counts, ctx.play)))
     }
     input.oninput = draw; draw()
-    root.replaceChildren(el('h1', { class: 'page-title', text: 'Descubrir' }), el('div', { style: 'margin-bottom:18px' }, input), out)
+    setKids(root, el('h1', { class: 'page-title', text: 'Descubrir' }), el('div', { style: 'margin-bottom:18px' }, input), out)
   },
 
   async avatar(root, ctx) {
@@ -99,15 +106,15 @@ export const pages = {
     const sw = el('div', { class: 'swatches' })
     const paint = () => {
       preview.firstChild.style.setProperty('--c', sel); custom.value = sel
-      sw.replaceChildren(...colors.map(c => el('div', { class: `swatch ${c === sel ? 'sel' : ''}`, style: `--c:${c}`, onclick: () => { sel = c; paint() } })), custom)
+      setKids(sw, ...colors.map(c => el('div', { class: `swatch ${c === sel ? 'sel' : ''}`, style: `--c:${c}`, onclick: () => { sel = c; paint() } })), custom)
     }
     custom.oninput = () => { sel = custom.value; preview.firstChild.style.setProperty('--c', sel) }
     paint()
-    root.replaceChildren(el('h1', { class: 'page-title', text: 'Avatar' }),
+    setKids(root, el('h1', { class: 'page-title', text: 'Avatar' }),
       el('div', { class: 'panel avatar-edit' }, preview, el('div', {},
         el('h3', { text: ctx.profile.username }), el('p', { style: 'color:var(--muted)', text: 'Elige el color de tu personaje. Se verá igual en la web y en la 3DS.' }),
         sw, el('button', { class: 'btn primary', text: 'Guardar', onclick: async () => {
-          try { await auth.saveColor(ctx.profile.id, sel); await ctx.refreshProfile(); toast('Avatar guardado ✔') } catch (e) { toast(e.message) } } }))))
+          try { await auth.saveColor(ctx.profile.id, sel); await ctx.refreshProfile(); toast('Avatar guardado') } catch (e) { toast(e.message) } } }))))
   },
 
   async friends(root, ctx) {
@@ -121,14 +128,14 @@ export const pages = {
         : el('button', { class: 'btn blue', text: 'Añadir', onclick: async () => { await auth.addFriend(ctx.profile.id, p.id); toast(`${p.username} añadido`); load() } }))
     async function load() {
       const friends = await auth.listFriends(ctx.profile.id); friendIds = new Set(friends.map(f => f.id))
-      mine.replaceChildren(el('h3', { text: `Mis amigos (${friends.length})`, style: 'margin-bottom:6px' }),
+      setKids(mine, el('h3', { text: `Mis amigos (${friends.length})`, style: 'margin-bottom:6px' }),
         friends.length ? friends.map(f => personRow(f, true)) : el('div', { class: 'empty', text: 'Aún no tienes amigos.' }))
       const people = await auth.searchPeople(input.value.trim())
-      results.replaceChildren(el('h3', { text: input.value ? 'Resultados' : 'Jugadores', style: 'margin:22px 0 6px' }),
+      setKids(results, el('h3', { text: input.value ? 'Resultados' : 'Jugadores', style: 'margin:22px 0 6px' }),
         el('div', { class: 'panel' }, people.filter(p => !friendIds.has(p.id)).map(p => personRow(p, false))))
     }
     let t; input.oninput = () => { clearTimeout(t); t = setTimeout(load, 250) }
-    root.replaceChildren(el('h1', { class: 'page-title', text: 'Amigos' }), el('div', { style: 'margin-bottom:16px' }, input), mine, results)
+    setKids(root, el('h1', { class: 'page-title', text: 'Amigos' }), el('div', { style: 'margin-bottom:16px' }, input), mine, results)
     load()
   },
 
@@ -141,17 +148,17 @@ export const pages = {
     const mine = el('div')
     async function load() {
       const games = (await api.listGames()).filter(g => g.owner_id === ctx.profile.id)
-      mine.replaceChildren(games.length ? games.map(g => el('div', { class: 'person' },
+      setKids(mine, games.length ? games.map(g => el('div', { class: 'person' },
         el('div', { class: 'thumb', style: `width:56px;--h:${g.hue}` }, el('div', { class: 'cube' })),
         el('div', { class: 'grow' }, el('b', { text: g.name }), el('small', { text: g.description })),
         el('button', { class: 'btn', text: 'Jugar', onclick: () => ctx.play(g) }),
         el('button', { class: 'btn danger', text: 'Borrar', onclick: async () => { if (confirm(`¿Borrar "${g.name}"?`)) { await api.deleteGameRow(g.id); load() } } })))
         : el('div', { class: 'empty', text: 'Todavía no has creado ningún juego.' }))
     }
-    root.replaceChildren(el('h1', { class: 'page-title', text: 'Crear' }),
+    setKids(root, el('h1', { class: 'page-title', text: 'Crear' }),
       el('form', { class: 'panel', onsubmit: async e => {
         e.preventDefault()
-        try { await api.createGameRow(name.value.trim(), desc.value.trim(), Number(hue.value)); name.value = desc.value = ''; toast('Juego creado ✔'); load() } catch (er) { toast(er.message) }
+        try { await api.createGameRow(name.value.trim(), desc.value.trim(), Number(hue.value)); name.value = desc.value = ''; toast('Juego creado'); load() } catch (er) { toast(er.message) }
       } }, el('h3', { text: 'Nuevo mundo', style: 'margin-bottom:12px' }),
         el('div', { class: 'form-row' }, name, desc),
         el('div', { class: 'form-row', style: 'align-items:center' }, prev, el('label', { class: 'field' }, 'Color de portada', hue)),
@@ -172,9 +179,9 @@ export const pages = {
       try {
         await api.linkApprove(c)
         msg.textContent = ''
-        root.replaceChildren(el('h1', { class: 'page-title', text: 'Vincular 3DS' }),
+        setKids(root, el('h1', { class: 'page-title', text: 'Vincular 3DS' }),
           el('div', { class: 'panel', style: 'max-width:520px;text-align:center' },
-            el('div', { style: 'font-size:56px', text: '✅' }),
+            el('div', { class: 'big-ico', html: icon('check', 44) }),
             el('h2', { text: '¡Listo!' }),
             el('p', { style: 'color:var(--muted)', text: `Tu 3DS ya ha iniciado sesión como ${ctx.profile.username}. Puedes volver a la consola.` }),
             el('a', { class: 'btn blue', href: '#home', text: 'Ir al inicio' })))
@@ -185,7 +192,7 @@ export const pages = {
     }
     btn.onclick = go
     input.onkeydown = e => { if (e.key === 'Enter') go() }
-    root.replaceChildren(el('h1', { class: 'page-title', text: 'Vincular 3DS' }),
+    setKids(root, el('h1', { class: 'page-title', text: 'Vincular 3DS' }),
       el('div', { class: 'panel', style: 'max-width:520px' },
         el('p', { style: 'color:var(--muted);margin-top:0', text: code
           ? `Una 3DS quiere iniciar sesión como ${ctx.profile.username}. Si has sido tú, autorízala.`
@@ -201,7 +208,7 @@ export const pages = {
     const names = el('input', { type: 'checkbox' }); names.checked = settings.names
     const save = () => { settings.sensitivity = +sens.value; settings.viewDistance = +dist.value; settings.names = names.checked; saveSettings(); toast('Guardado') }
     sens.onchange = dist.onchange = names.onchange = save
-    root.replaceChildren(el('h1', { class: 'page-title', text: 'Ajustes' }),
+    setKids(root, el('h1', { class: 'page-title', text: 'Ajustes' }),
       el('div', { class: 'panel', style: 'max-width:520px' }, row('Sensibilidad de cámara', sens), row('Distancia de visión', dist),
         el('label', { class: 'field check' }, names, 'Mostrar nombres sobre los jugadores')))
   },

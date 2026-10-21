@@ -1,0 +1,15 @@
+<!doctype html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>preview</title></head><body>
+  <div id="game" class="hidden">
+    <canvas id="view"></canvas>
+    <div id="crosshair"></div>
+    <div id="hud-top"><button id="menu-btn" class="hud-btn"><i data-icon="menu"></i></button><span id="stats"></span><button id="players-btn" class="hud-btn"><i data-icon="users"></i></button></div>
+    <ul id="roster" class="hidden"></ul>
+    <div id="chat"><ul id="chat-log"></ul><form id="chat-form"><input id="chat-input" maxlength="200" placeholder="Pulsa / para chatear" autocomplete="off" /></form></div>
+    <div id="hotbar"></div>
+    <div id="help">WASD mover, Mayús correr, Espacio saltar. Arrastra para girar la cámara. Clic poner, clic derecho romper. 1-6 elige bloque.</div>
+    <div id="pause" class="hidden"><div class="pause-card"><h2 id="pause-title"></h2><button class="btn primary wide" id="resume">Continuar</button>
+      <label class="field">Sensibilidad <input id="set-sens" type="range" min="0.3" max="2.5" step="0.1" /></label><label class="field">Distancia <input id="set-dist" type="range" min="30" max="200" step="10" /></label>
+      <label class="field check"><input id="set-names" type="checkbox" /> Mostrar nombres</label><button class="btn danger wide" id="leave">Salir del juego</button></div></div>
+  </div>
+  <script type="module" src="/preview/game-main.js"></script>
+</body></html>

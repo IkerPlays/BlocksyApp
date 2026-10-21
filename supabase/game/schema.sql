@@ -60,8 +60,10 @@ create table if not exists public.sessions (
   player_id  uuid not null,
   username   text not null,
   color      text not null default '#4da6ff',
+  can_create boolean not null default false,          -- solo la cuenta autorizada (ver game-session / CREATOR_EMAILS)
   expires_at timestamptz not null default now() + interval '12 hours'
 );
+alter table public.sessions add column if not exists can_create boolean not null default false;
 create index if not exists sessions_player_idx on public.sessions (player_id);
 
 -- ---------- RLS: lectura pública, sin escritura directa ----------
@@ -150,6 +152,7 @@ create or replace function public.create_game(p_secret uuid, p_name text, p_desc
 returns uuid language plpgsql security definer set search_path = public as $$
 declare s public.sessions := public._me(p_secret); gid uuid;
 begin
+  if not s.can_create then raise exception 'not allowed' using errcode = '42501'; end if;
   insert into games (name, description, owner_id, owner_name, hue)
   values (btrim(p_name), left(coalesce(p_desc, ''), 200), s.player_id, s.username, ((p_hue % 360) + 360) % 360)
   returning id into gid;
@@ -159,7 +162,10 @@ end $$;
 create or replace function public.delete_game(p_secret uuid, p_game uuid)
 returns void language plpgsql security definer set search_path = public as $$
 declare s public.sessions := public._me(p_secret);
-begin delete from games where id = p_game and owner_id = s.player_id; end $$;
+begin
+  if not s.can_create then raise exception 'not allowed' using errcode = '42501'; end if;
+  delete from games where id = p_game and owner_id = s.player_id;
+end $$;
 
 grant execute on function
   public.move(uuid, uuid, real, real, real, real, text, text),
