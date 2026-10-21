@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.env
+.env.local
+3ds/build/
+3ds/output/
+3ds/source/config.h
+*.elf
+*.3dsx
+*.cia
+*.smdh
+*.bnr

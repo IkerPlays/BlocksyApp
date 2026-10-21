@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Blocksy</title>
+</head>
+<body>
+  <main id="auth" class="screen">
+    <h1>Blocksy</h1>
+    <form id="auth-form">
+      <input id="username" placeholder="Usuario (solo registro)" autocomplete="username" />
+      <input id="email" type="email" placeholder="Email" required autocomplete="email" />
+      <input id="password" type="password" placeholder="Contraseña" required minlength="6" autocomplete="current-password" />
+      <div class="row">
+        <button type="submit" data-mode="login">Entrar</button>
+        <button type="submit" data-mode="signup" class="secondary">Crear cuenta</button>
+      </div>
+      <p id="auth-msg" class="msg"></p>
+    </form>
+  </main>
+
+  <main id="lobby" class="screen hidden">
+    <header><h1>Blocksy</h1><span id="me"></span><button id="logout" class="secondary">Salir</button></header>
+    <h2>Juegos</h2>
+    <div id="games"></div>
+    <form id="new-game"><input id="game-name" placeholder="Nombre del nuevo juego" minlength="3" maxlength="40" required /><button>Crear</button></form>
+    <h2>Jugadores</h2>
+    <ul id="people"></ul>
+  </main>
+
+  <div id="game" class="hidden">
+    <canvas id="view"></canvas>
+    <div id="hud">
+      <button id="leave" class="secondary">← Lobby</button>
+      <span id="stats"></span>
+    </div>
+    <div id="help">WASD mover · Espacio saltar · Arrastrar = cámara · Clic = poner bloque · Clic derecho = romper · 1-6 color</div>
+  </div>
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
