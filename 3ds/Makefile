@@ -56,7 +56,7 @@ source/config.h:
 cia: all
 	@$(BANNERTOOL) makebanner -i $(BANNER_IMAGE) -a $(BANNER_AUDIO) -o $(BUILD)/banner.bnr
 	@$(BANNERTOOL) makesmdh -s "$(APP_TITLE)" -l "$(APP_DESCRIPTION)" -p "$(APP_AUTHOR)" -i $(ICON) -o $(BUILD)/icon.icn
-	@$(MAKEROM) -f cia -o $(TARGET).cia -elf $(TARGET).elf -rsf $(RSF) -icon $(BUILD)/icon.icn -banner $(BUILD)/banner.bnr -exefslogo -target t -ver $(APP_VER)
+	@$(MAKEROM) -f cia -o $(TARGET).cia -elf $(TARGET).elf -rsf $(RSF) -icon $(BUILD)/icon.icn -banner $(BUILD)/banner.bnr -DAPP_TITLE="$(APP_TITLE)" -DAPP_PRODUCT_CODE="CTR-BLK" -DAPP_UNIQUE_ID="0xB10C5" -exefslogo -target t -ver $(APP_VER)
 	@echo "-> $(TARGET).cia"
 
 clean:
