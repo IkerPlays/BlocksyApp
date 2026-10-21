@@ -70,7 +70,13 @@ jobs:
           apt-get install -y git make cmake g++ gcc
 
       - name: Install 3DS libraries (curl, mbedtls, zlib)
-        run: dkp-pacman -Sy --noconfirm 3ds-curl 3ds-mbedtls 3ds-zlib
+        # pkg.devkitpro.org a veces devuelve 403/timeouts a los runners: se reintenta con espera creciente
+        run: |
+          for i in 1 2 3 4 5 6; do
+            dkp-pacman -Sy --noconfirm 3ds-curl 3ds-mbedtls 3ds-zlib && exit 0
+            echo "intento $i fallido; espero $((i * 30)) s"; sleep $((i * 30))
+          done
+          exit 1
 
       - name: Build makerom and bannertool
         run: |
