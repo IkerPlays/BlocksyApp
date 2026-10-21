@@ -42,3 +42,17 @@ Controles: círculo mover · A saltar · X poner · Y romper · B color · SELEC
 La web tiene interfaz estilo Roblox (Inicio, Descubrir, Avatar, Amigos, Crear, Ajustes) y menú en el juego (Esc). La web compila (`vite build`). **El código de 3DS no se ha compilado aún** (no hay
 devkitARM en este entorno); es probable que haga falta algún ajuste al primer `make`. La 3DS desactiva la
 verificación TLS (`net.c`) hasta instalar un certificado raíz.
+
+## Releases (mismo sistema que Iker's Tube)
+- `.github/workflows/build.yml` — compila web + `.3dsx`/`.cia` en cada PR; con *Run workflow* sobre `main` publica un **devbuild** (`v<versión>-dev.N`, pre-release) y conserva solo los 15 últimos por línea de versión.
+- `.github/workflows/release.yml` — *Stable release*: pide la versión (`0.1.0`), usa `STABLE_RELEASE_NOTES.md` y publica la release normal (opción borrador).
+- `.github/workflows/releases-maintenance.yml` — backup / prune / republish / restructure de releases.
+- `VERSION` fija la versión base; `RELEASE_NOTES.md` = notas del devbuild actual; `STABLE_RELEASE_NOTES.md` = novedades desde la última estable.
+- **Importante:** los workflows con *Run workflow* solo aparecen cuando están en la rama por defecto (`main`): haz merge de esta rama.
+
+## Releases (mismo sistema que Iker's Tube)
+- `.github/workflows/build.yml` — compila web + `.3dsx`/`.cia` en cada PR; con *Run workflow* sobre `main` publica un **devbuild** (`v<versión>-dev.N`, pre-release) y conserva solo los 15 últimos por línea de versión.
+- `.github/workflows/release.yml` — *Stable release*: pide la versión (`0.1.0`), usa `STABLE_RELEASE_NOTES.md` y publica la release normal (opción borrador).
+- `.github/workflows/releases-maintenance.yml` — backup / prune / republish / restructure de releases.
+- `VERSION` fija la versión base; `RELEASE_NOTES.md` = notas del devbuild actual; `STABLE_RELEASE_NOTES.md` = novedades desde la última estable.
+- **Importante:** los workflows con *Run workflow* solo aparecen cuando están en la rama por defecto (`main`): hay que hacer merge de esta rama.

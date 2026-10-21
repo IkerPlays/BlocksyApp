@@ -1,0 +1,150 @@
+name: Build 3DSX + CIA
+
+# Los devbuilds NO se publican solos: ejecútalo a mano (Actions > Build 3DSX + CIA > Run workflow sobre main)
+# cuando se hayan acumulado commits. Los pull requests solo compilan (no se publica nada).
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write # necesario para publicar los devbuilds
+
+# En main un build en marcha nunca se cancela; en otras ramas sí.
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  # Versión de este build: "<core>-dev.<nº de ejecución>".
+  # <core> sale del fichero VERSION, pero nunca menor que la última release ESTABLE publicada:
+  # cuando exista la 1.0.0, los devbuilds serán 1.0.1-dev.N (la 3DS los ve más nuevos que la 1.0.0).
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.ver.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: ver
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          core=$(tr -d '[:space:]' < VERSION)
+          IFS=. read -r a b c <<< "$core"
+          core="${a:-0}.${b:-0}.${c:-0}"
+          stable=$(gh release list --repo "$GITHUB_REPOSITORY" --exclude-pre-releases --limit 100 \
+                     --json tagName --jq '.[].tagName' | sed 's/^v//' \
+                     | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -1 || true)
+          if [ -n "$stable" ] && [ "$(printf '%s\n%s\n' "$core" "$stable" | sort -V | tail -1)" = "$stable" ]; then
+            IFS=. read -r a b c <<< "$stable"
+            core="$a.$b.$((c + 1))"
+          fi
+          echo "version=${core}-dev.${{ github.run_number }}" >> "$GITHUB_OUTPUT"
+
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install && npm run build
+        working-directory: web
+        env:
+          VITE_AUTH_SUPABASE_URL: https://example.supabase.co
+          VITE_AUTH_SUPABASE_ANON_KEY: ci
+          VITE_GAME_SUPABASE_URL: https://example.supabase.co
+          VITE_GAME_SUPABASE_ANON_KEY: ci
+
+  build:
+    needs: version
+    runs-on: ubuntu-latest
+    container: devkitpro/devkitarm:latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: System tools
+        run: |
+          apt-get update
+          apt-get install -y git make cmake g++ gcc
+
+      - name: Build makerom and bannertool
+        run: |
+          git clone --depth 1 https://github.com/3DSGuy/Project_CTR.git /tmp/ctr
+          make -C /tmp/ctr/makerom deps
+          make -C /tmp/ctr/makerom -j"$(nproc)"
+          cp /tmp/ctr/makerom/bin/makerom /usr/local/bin/
+          git clone --depth 1 https://github.com/carstene1ns/3ds-bannertool.git /tmp/bannertool
+          cmake -S /tmp/bannertool -B /tmp/bannertool/b
+          make -C /tmp/bannertool/b -j"$(nproc)"
+          cp /tmp/bannertool/b/bannertool /usr/local/bin/
+
+      # config.h lleva las URLs/claves públicas (anon) de Supabase. Sin secrets compila igual (valores vacíos).
+      - name: Write config.h
+        env:
+          AUTH_URL: ${{ secrets.AUTH_SUPABASE_URL }}
+          AUTH_KEY: ${{ secrets.AUTH_SUPABASE_ANON_KEY }}
+          GAME_URL: ${{ secrets.GAME_SUPABASE_URL }}
+          GAME_KEY: ${{ secrets.GAME_SUPABASE_ANON_KEY }}
+        run: |
+          {
+            echo '#pragma once'
+            echo "#define AUTH_URL \"$AUTH_URL\""
+            echo "#define AUTH_ANON_KEY \"$AUTH_KEY\""
+            echo "#define GAME_URL \"$GAME_URL\""
+            echo "#define GAME_ANON_KEY \"$GAME_KEY\""
+            echo '#define GAME_ID "00000000-0000-0000-0000-000000000001"'
+          } > 3ds/source/config.h
+
+      - name: Build .3dsx and .cia
+        working-directory: 3ds
+        run: make cia MAKEROM=makerom BANNERTOOL=bannertool BLOCKSY_VERSION=${{ needs.version.outputs.version }}
+
+      - name: Collect files
+        run: |
+          mkdir dist
+          cp 3ds/blocksy.cia dist/Blocksy.cia
+          cp 3ds/blocksy.3dsx dist/Blocksy.3dsx
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Blocksy
+          path: dist/
+
+  # Los devbuilds se publican solo desde main y solo al ejecutar el workflow a mano. Cada devbuild es una
+  # pre-release (tag v<versión>); se conservan los 15 más nuevos de cada línea de versión.
+  # Para una versión estable usa el workflow "Stable release".
+  release:
+    needs: [version, build]
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: Blocksy
+          path: dist
+
+      - name: Publish devbuild
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          {
+            echo "# Blocksy ${VERSION} (devbuild)"
+            echo
+            cat RELEASE_NOTES.md
+            echo
+            echo "---"
+            echo "Development build ${VERSION} from commit \`${GITHUB_SHA::7}\`."
+            echo "Development builds are for testing and may be unstable."
+          } > notes.md
+          gh release create "v${VERSION}" dist/Blocksy.cia dist/Blocksy.3dsx \
+            --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --prerelease \
+            --title "Blocksy ${VERSION} (devbuild)" \
+            --notes-file notes.md
+
+      - name: Keep only the newest 15 devbuilds per version line
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: .github/scripts/prune-devbuilds.sh 15

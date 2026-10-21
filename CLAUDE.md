@@ -1,0 +1,20 @@
+# Notes for Claude (repository workflow)
+
+Same release system as Iker's Tube.
+
+- Layout: `web/` (Netlify), `3ds/` (devkitARM, `.3dsx` + `.cia`), `supabase/` (SQL + Edge Function).
+- `VERSION` (repo root) = core version of the next release (MAJOR.MINOR.PATCH).
+- Pushes do NOT publish anything. A devbuild (`v<version>-dev.N`) is created by hand: Actions > Build 3DSX + CIA > Run workflow on `main`
+  (or `actions_run_trigger` with workflow `build.yml`, ref `main`). Do it when several commits have piled up, and before finishing a session.
+  Each devbuild run prunes the list: only the newest 15 devbuilds of each version line are kept (`.github/scripts/prune-devbuilds.sh`).
+  Pull requests only build (web + 3DS), nothing is published.
+- Devbuild version = `max(VERSION, latest stable + 1 patch)-dev.<run number>`.
+- `RELEASE_NOTES.md` = notes of the CURRENT devbuild only (English, plain text, no emojis). Replace its content with what the push adds.
+- `STABLE_RELEASE_NOTES.md` = everything new since the LAST stable release (base = the commit the latest stable tag vX.Y.Z was built from;
+  check it at the start of a session). Add each new feature to the list. When the owner publishes a stable release, rewrite the file for
+  the next one: keep the intro line and the Installing section. English, plain text, no emojis.
+- Stable release: Actions > "Stable release" > Run workflow on `main`, type the version (for example 0.1.0), optional draft. It reads
+  `STABLE_RELEASE_NOTES.md`. Afterwards bump `VERSION` if needed.
+- "Releases maintenance" workflow: `backup` (archive every release), `prune`, `republish`, `restructure` (needs RELEASES_PAT).
+- GitHub secrets for the 3DS build: `AUTH_SUPABASE_URL`, `AUTH_SUPABASE_ANON_KEY`, `GAME_SUPABASE_URL`, `GAME_SUPABASE_ANON_KEY`.
+- Compile the 3DS locally before pushing: `docker run --rm -v $PWD/3ds:/src -w /src devkitpro/devkitarm make` (needs `3ds/source/config.h`).
