@@ -148,8 +148,9 @@ int main(void) {
 	Thread th = threadCreate(net_thread, NULL, 128 * 1024, prio - 1, 0, false);
 	if (!th) printf("No se pudo crear el hilo de red\n");
 
-	int kind = 1; Block local[MAX_BLOCKS]; int nl = 0;
-	Remote rem[MAX_PLAYERS]; int nr = 0;
+	// La pila principal de la app es de solo ~32 KB: los arrays grandes van en memoria estática
+	static Block local[MAX_BLOCKS]; static Remote rem[MAX_PLAYERS];
+	int kind = 1, nl = 0, nr = 0;
 
 	while (aptMainLoop()) {
 		hidScanInput();

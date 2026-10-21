@@ -27,3 +27,7 @@
 6. Rellena `web/.env` y `3ds/source/config.h` con las URLs y claves de los dos proyectos.
 
 Límite conocido: no hay rate limit en las RPC; vale para un prototipo entre amigos.
+
+## Si ya ejecutaste una versión anterior del esquema
+- **GAME**: ejecuta primero `game/reset-v1.sql` (borra las tablas antiguas) y luego `game/schema.sql`.
+- **AUTH**: vuelve a ejecutar `auth/schema.sql` entero (es seguro repetirlo; añade la tabla `friendships`).

@@ -71,13 +71,13 @@ alter table public.player_state enable row level security;
 alter table public.interactions enable row level security;
 alter table public.sessions     enable row level security;   -- sin políticas = nadie salvo service_role
 
-drop policy if exists "read games"    on public.games;
-drop policy if exists "read blocks"   on public.blocks;
-drop policy if exists "read players"  on public.player_state;
-drop policy if exists "read actions"  on public.interactions;
-create policy "read games"   on public.games        for select to anon, authenticated using (true);
-create policy "read blocks"  on public.blocks       for select to anon, authenticated using (true);
+drop policy if exists "read games" on public.games;
+create policy "read games" on public.games        for select to anon, authenticated using (true);
+drop policy if exists "read blocks" on public.blocks;
+create policy "read blocks" on public.blocks       for select to anon, authenticated using (true);
+drop policy if exists "read players" on public.player_state;
 create policy "read players" on public.player_state for select to anon, authenticated using (true);
+drop policy if exists "read actions" on public.interactions;
 create policy "read actions" on public.interactions for select to anon, authenticated using (true);
 
 revoke insert, update, delete on public.games, public.blocks, public.player_state, public.interactions from anon, authenticated;
@@ -172,7 +172,15 @@ grant execute on function
 to anon, authenticated;
 
 -- ---------- Realtime ----------
-alter publication supabase_realtime add table public.player_state, public.blocks, public.interactions;
+do $$
+declare t text;
+begin
+  foreach t in array array['player_state', 'blocks', 'interactions'] loop
+    if not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = t) then
+      execute format('alter publication supabase_realtime add table public.%I', t);
+    end if;
+  end loop;
+end $$;
 alter table public.player_state replica identity full;
 alter table public.blocks       replica identity full;
 
