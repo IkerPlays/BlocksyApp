@@ -3,6 +3,7 @@
 #include <citro2d.h>
 #include <math.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include "net.h"
 
@@ -20,9 +21,10 @@ static Remote remotes[MAX_PLAYERS]; static int nremotes;
 static volatile bool running = true;
 static float px = 0.5f, py = 3, pz = 0.5f, pry = 0; // posición propia (leída por el hilo)
 static bool grounded;
+static volatile int moving;
 static float vy;
 
-typedef struct { enum { PLACE, BREAK } type; int x, y, z, kind; } Action;
+typedef struct { enum { PLACE, BREAK, CHAT } type; int x, y, z, kind; char text[100]; } Action;
 #define QMAX 16
 static Action queue[QMAX]; static int qn;
 static void push_action(Action a) { LightLock_Lock(&lock); if (qn < QMAX) queue[qn++] = a; LightLock_Unlock(&lock); }
@@ -38,19 +40,23 @@ static void net_thread(void *arg) {
 		float x = px, y = py, z = pz, ry = pry;
 		LightLock_Unlock(&lock);
 
-		if (have) { if (a.type == PLACE) net_place_block(&sess, a.x, a.y, a.z, a.kind); else net_break_block(&sess, a.x, a.y, a.z); }
-		net_send_state(&sess, x, y, z, ry, "walk");
+		if (have) {
+			if (a.type == PLACE) net_place_block(&sess, a.x, a.y, a.z, a.kind);
+			else if (a.type == BREAK) net_break_block(&sess, a.x, a.y, a.z);
+			else net_say(&sess, a.text);
+		}
+		net_send_state(&sess, x, y, z, ry, moving ? "walk" : "idle");
 
 		Remote tmp[MAX_PLAYERS]; int n = net_fetch_players(&sess, tmp, MAX_PLAYERS);
 		if (n >= 0) { LightLock_Lock(&lock); memcpy(remotes, tmp, sizeof(Remote) * n); nremotes = n; LightLock_Unlock(&lock); }
 
-		if (now - last_blocks > 2000) {
+		if (now - last_blocks > 1000) {
 			static Block bt[MAX_BLOCKS]; int m = net_fetch_blocks(&sess, bt, MAX_BLOCKS);
 			if (m >= 0) { LightLock_Lock(&lock); memcpy(blocks, bt, sizeof(Block) * m); nblocks = m; LightLock_Unlock(&lock); }
 			last_blocks = now;
 		}
 		if (now - last_presence > 30000) { net_presence(&sess); last_presence = now; }
-		svcSleepThread(100 * 1000000LL); // ~10 Hz
+		svcSleepThread((qn ? 30 : 100) * 1000000LL); // ~10 Hz
 	}
 }
 
@@ -130,7 +136,7 @@ int main(void) {
 		printf("Login incorrecto, reintenta.\n");
 	}
 	consoleClear();
-	printf("Blocksy 3DS - %s\n\nCirculo: mover   A: saltar\nX: poner bloque  Y: romper\nB: cambiar color\nL/R: camara  Arriba/Abajo: zoom\nSTART: salir\n", sess.username);
+	
 
 	LightLock_Init(&lock);
 	s32 prio = 0; svcGetThreadPriority(&prio, CUR_THREAD_HANDLE);
@@ -148,11 +154,36 @@ int main(void) {
 		if (held & KEY_DUP) cam_dist = fmaxf(4, cam_dist - 0.15f);
 		if (held & KEY_DDOWN) cam_dist = fminf(20, cam_dist + 0.15f);
 		if (down & KEY_B) kind = (kind + 1) % 6;
+		if (down & KEY_SELECT) {
+			Action a = {.type = CHAT}; SwkbdState kb; swkbdInit(&kb, SWKBD_TYPE_NORMAL, 2, 90); swkbdSetHintText(&kb, "Mensaje");
+			if (swkbdInputText(&kb, a.text, sizeof a.text) == SWKBD_BUTTON_CONFIRM) {
+				for (char *c = a.text; *c; c++) if (*c == '"' || *c == '\\') *c = ' ';
+				push_action(a);
+			}
+		}
 
+		static Remote disp[MAX_PLAYERS]; static int ndisp; static int frame_n;
 		LightLock_Lock(&lock);
 		memcpy(local, blocks, sizeof(Block) * nblocks); nl = nblocks;
 		memcpy(rem, remotes, sizeof(Remote) * nremotes); nr = nremotes;
 		LightLock_Unlock(&lock);
+		// Interpola la posición de los otros jugadores entre actualizaciones de red (~10 Hz)
+		for (int i = 0; i < nr; i++) {
+			int j = 0; while (j < ndisp && strcmp(disp[j].id, rem[i].id)) j++;
+			if (j == ndisp && ndisp < MAX_PLAYERS) { disp[ndisp++] = rem[i]; continue; }
+			if (j == ndisp) continue;
+			float x = disp[j].x, y = disp[j].y, z = disp[j].z;
+			disp[j] = rem[i];
+			disp[j].x = x + (rem[i].x - x) * 0.3f; disp[j].y = y + (rem[i].y - y) * 0.3f; disp[j].z = z + (rem[i].z - z) * 0.3f;
+			rem[i] = disp[j];
+		}
+		{ int k = 0; for (int j = 0; j < ndisp; j++) { int keep = 0; for (int i = 0; i < nr; i++) if (!strcmp(disp[j].id, rem[i].id)) keep = 1; if (keep) disp[k++] = disp[j]; } ndisp = k; }
+		if (++frame_n % 60 == 0) {
+			consoleClear();
+			printf("Blocksy 3DS - %s\n\nJugadores (%d):\n", sess.username, nr + 1);
+			for (int i = 0; i < nr && i < 10; i++) printf(" %s%s\n", rem[i].name, rem[i].is3ds ? " [3DS]" : "");
+			printf("\nA saltar  X poner  Y romper\nB color  SELECT chat\nL/R camara  Arriba/Abajo zoom\nSTART salir\n");
+		}
 
 		circlePosition cp; hidCircleRead(&cp);
 		float f = (abs(cp.dy) > 15 ? cp.dy : 0) / 156.0f, s = (abs(cp.dx) > 15 ? cp.dx : 0) / 156.0f;
@@ -160,7 +191,8 @@ int main(void) {
 		float mz = -cosf(cam_yaw) * f - sinf(cam_yaw) * s;
 		float dt = 1 / 60.0f, speed = 6;
 		float nx = px + mx * speed * dt, nz = pz + mz * speed * dt;
-		if (fabsf(mx) + fabsf(mz) > 0.01f) pry = atan2f(mx, mz);
+		moving = fabsf(mx) + fabsf(mz) > 0.01f;
+		if (moving) pry = atan2f(mx, mz);
 		#define BLOCKED(X, Y, Z) (solid((int)floorf((X) - 0.3f), (int)floorf(Y), (int)floorf((Z) - 0.3f), local, nl) || solid((int)floorf((X) + 0.3f), (int)floorf(Y), (int)floorf((Z) + 0.3f), local, nl) || solid((int)floorf(X), (int)floorf(Y), (int)floorf(Z), local, nl))
 		if (!BLOCKED(nx, py + 0.1f, pz) && !BLOCKED(nx, py + 1.0f, pz)) px = nx;
 		if (!BLOCKED(px, py + 0.1f, nz) && !BLOCKED(px, py + 1.0f, nz)) pz = nz;
@@ -173,11 +205,11 @@ int main(void) {
 		// Bloque delante del jugador
 		int tx = (int)floorf(px + sinf(pry) * 1.3f), tz = (int)floorf(pz + cosf(pry) * 1.3f), ty = (int)floorf(py);
 		if ((down & KEY_X) && !solid(tx, ty, tz, local, nl) && nl < MAX_BLOCKS) {
-			push_action((Action){PLACE, tx, ty, tz, kind});
+			push_action((Action){.type = PLACE, .x = tx, .y = ty, .z = tz, .kind = kind});
 			LightLock_Lock(&lock); if (nblocks < MAX_BLOCKS) blocks[nblocks++] = (Block){tx, ty, tz, kind}; LightLock_Unlock(&lock);
 		}
 		if ((down & KEY_Y) && solid(tx, ty, tz, local, nl)) {
-			push_action((Action){BREAK, tx, ty, tz, 0});
+			push_action((Action){.type = BREAK, .x = tx, .y = ty, .z = tz});
 			LightLock_Lock(&lock);
 			for (int i = 0; i < nblocks; i++) if (blocks[i].x == tx && blocks[i].y == ty && blocks[i].z == tz) { blocks[i] = blocks[--nblocks]; break; }
 			LightLock_Unlock(&lock);
@@ -189,9 +221,9 @@ int main(void) {
 		int nd = 0; float sx, sy, d;
 		for (int i = 0; i < nl; i++) if (project(local[i].x + .5f, local[i].y + .5f, local[i].z + .5f, &sx, &sy, &d))
 			draw_list[nd++] = (Box){d, local[i].x, local[i].y, local[i].z, 1, 1, PALETTE[local[i].kind % 6]};
-		if (project(px, py + .9f, pz, &sx, &sy, &d)) draw_list[nd++] = (Box){d, px - .3f, py, pz - .3f, .6f, 1.8f, 0xFFFF9F43};
+		if (project(px, py + .9f, pz, &sx, &sy, &d)) draw_list[nd++] = (Box){d, px - .3f, py, pz - .3f, .6f, 1.8f, sess.color};
 		for (int i = 0; i < nr; i++) if (project(rem[i].x, rem[i].y + .9f, rem[i].z, &sx, &sy, &d))
-			draw_list[nd++] = (Box){d, rem[i].x - .3f, rem[i].y, rem[i].z - .3f, .6f, 1.8f, 0xFF4DA6FF};
+			draw_list[nd++] = (Box){d, rem[i].x - .3f, rem[i].y, rem[i].z - .3f, .6f, 1.8f, rem[i].color};
 		qsort(draw_list, nd, sizeof(Box), cmp_box);
 
 		C3D_FrameBegin(C3D_FRAME_SYNCDRAW);

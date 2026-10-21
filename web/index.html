@@ -3,39 +3,74 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#232527" />
   <title>Blocksy</title>
 </head>
 <body>
-  <main id="auth" class="screen">
-    <h1>Blocksy</h1>
-    <form id="auth-form">
-      <input id="username" placeholder="Usuario (solo registro)" autocomplete="username" />
-      <input id="email" type="email" placeholder="Email" required autocomplete="email" />
-      <input id="password" type="password" placeholder="Contraseña" required minlength="6" autocomplete="current-password" />
-      <div class="row">
-        <button type="submit" data-mode="login">Entrar</button>
-        <button type="submit" data-mode="signup" class="secondary">Crear cuenta</button>
-      </div>
-      <p id="auth-msg" class="msg"></p>
-    </form>
+  <main id="auth" class="hidden">
+    <div class="auth-card">
+      <div class="logo big"><span class="logo-mark"></span>Blocksy</div>
+      <p class="tagline">Construye, explora y juega con amigos en la web y en tu 3DS.</p>
+      <div class="tabs" id="auth-tabs"><button class="tab active" data-mode="login">Entrar</button><button class="tab" data-mode="signup">Crear cuenta</button></div>
+      <form id="auth-form">
+        <input id="username" placeholder="Nombre de usuario" autocomplete="username" pattern="[A-Za-z0-9_]{3,20}" title="3-20 letras, números o _" class="hidden" />
+        <input id="email" type="email" placeholder="Email" required autocomplete="email" />
+        <input id="password" type="password" placeholder="Contraseña" required minlength="6" autocomplete="current-password" />
+        <button class="btn primary wide" id="auth-submit">Entrar</button>
+        <p id="auth-msg" class="msg"></p>
+      </form>
+    </div>
   </main>
 
-  <main id="lobby" class="screen hidden">
-    <header><h1>Blocksy</h1><span id="me"></span><button id="logout" class="secondary">Salir</button></header>
-    <h2>Juegos</h2>
-    <div id="games"></div>
-    <form id="new-game"><input id="game-name" placeholder="Nombre del nuevo juego" minlength="3" maxlength="40" required /><button>Crear</button></form>
-    <h2>Jugadores</h2>
-    <ul id="people"></ul>
-  </main>
+  <div id="app" class="hidden">
+    <header id="topbar">
+      <button id="burger" class="icon-btn" aria-label="Menú">☰</button>
+      <div class="logo"><span class="logo-mark"></span><span class="logo-text">Blocksy</span></div>
+      <nav id="topnav"><a href="#home">Inicio</a><a href="#discover">Descubrir</a><a href="#create">Crear</a></nav>
+      <form id="search" autocomplete="off"><input id="search-input" placeholder="Buscar juegos" /></form>
+      <div id="userchip"><span id="chip-avatar" class="avatar sm"></span><span id="chip-name"></span></div>
+    </header>
+    <aside id="sidebar">
+      <a href="#home" data-page="home"><i>🏠</i>Inicio</a>
+      <a href="#discover" data-page="discover"><i>🧭</i>Descubrir</a>
+      <a href="#avatar" data-page="avatar"><i>🧍</i>Avatar</a>
+      <a href="#friends" data-page="friends"><i>👥</i>Amigos</a>
+      <a href="#create" data-page="create"><i>🛠️</i>Crear</a>
+      <a href="#settings" data-page="settings"><i>⚙️</i>Ajustes</a>
+      <div class="spacer"></div>
+      <button id="logout" class="side-btn"><i>🚪</i>Salir</button>
+    </aside>
+    <main id="page"></main>
+  </div>
+
+  <div id="modal" class="hidden"><div id="modal-card"></div></div>
+  <div id="toast" class="hidden"></div>
 
   <div id="game" class="hidden">
     <canvas id="view"></canvas>
-    <div id="hud">
-      <button id="leave" class="secondary">← Lobby</button>
+    <div id="crosshair"></div>
+    <div id="hud-top">
+      <button id="menu-btn" class="hud-btn" aria-label="Menú">☰</button>
       <span id="stats"></span>
+      <button id="players-btn" class="hud-btn" aria-label="Jugadores">👥</button>
     </div>
-    <div id="help">WASD mover · Espacio saltar · Arrastrar = cámara · Clic = poner bloque · Clic derecho = romper · 1-6 color</div>
+    <ul id="roster" class="hidden"></ul>
+    <div id="chat">
+      <ul id="chat-log"></ul>
+      <form id="chat-form"><input id="chat-input" maxlength="200" placeholder="Pulsa / para chatear" autocomplete="off" /></form>
+    </div>
+    <div id="hotbar"></div>
+    <div id="pause" class="hidden">
+      <div class="pause-card">
+        <h2 id="pause-title"></h2>
+        <button class="btn primary wide" id="resume">Continuar</button>
+        <label class="field">Sensibilidad de cámara <input id="set-sens" type="range" min="0.3" max="2.5" step="0.1" /></label>
+        <label class="field">Distancia de visión <input id="set-dist" type="range" min="30" max="200" step="10" /></label>
+        <label class="field check"><input id="set-names" type="checkbox" /> Mostrar nombres</label>
+        <button class="btn danger wide" id="leave">Salir del juego</button>
+        <p class="hint">WASD mover · Espacio saltar · Arrastrar cámara · Clic poner · Clic dcho. romper · 1-6 bloque · / chat · Tab jugadores · Esc menú</p>
+      </div>
+    </div>
   </div>
   <script type="module" src="/src/main.js"></script>
 </body>

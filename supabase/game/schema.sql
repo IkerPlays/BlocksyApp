@@ -1,103 +1,183 @@
 -- ============================================================
--- Proyecto Supabase #2: GAME (movimiento x,y,z, bloques, interacciones)
--- Ejecutar en el SQL Editor del proyecto de Game.
+-- Proyecto Supabase #2: GAME (posiciones x,y,z, bloques, chat, interacciones)
+-- Ejecutar en el SQL Editor del proyecto GAME.
 --
--- IMPORTANTE: los usuarios se autentican contra el proyecto AUTH, no contra
--- este. Para que RLS los reconozca, este proyecto debe aceptar los JWT del
--- proyecto AUTH (ver supabase/README.md). El id del jugador es auth.jwt()->>'sub'.
+-- Modelo de seguridad (no necesita compartir JWT con el proyecto AUTH):
+--  * Lectura: pública (anon) -> Realtime y la 3DS pueden leer.
+--  * Escritura: SOLO mediante funciones RPC que exigen un "secret de sesión".
+--  * El secret lo crea la Edge Function `game-session` tras validar el token de AUTH.
 -- ============================================================
 
-create or replace function public.uid() returns uuid language sql stable as $$
-  select nullif(auth.jwt()->>'sub', '')::uuid
-$$;
+create extension if not exists pgcrypto;
 
 create table if not exists public.games (
   id          uuid primary key default gen_random_uuid(),
   name        text not null check (char_length(name) between 3 and 40),
-  description text not null default '',
-  owner_id    uuid not null default public.uid(),
+  description text not null default '' check (char_length(description) <= 200),
+  owner_id    uuid not null,
+  owner_name  text not null default '',
+  hue         int  not null default 200,
   max_players int  not null default 20,
   created_at  timestamptz not null default now()
 );
 
--- Mundo de bloques (cada bloque ocupa la celda [x,x+1) x [y,y+1) x [z,z+1))
 create table if not exists public.blocks (
   game_id   uuid not null references public.games(id) on delete cascade,
   x int not null, y int not null, z int not null,
-  kind      smallint not null default 1,   -- índice en la paleta de colores
-  placed_by uuid default public.uid(),
+  kind      smallint not null default 1,
+  placed_by uuid,
   primary key (game_id, x, y, z)
 );
 
--- Estado en vivo de cada jugador (una fila por jugador; se hace upsert ~10 Hz)
 create table if not exists public.player_state (
-  player_id  uuid primary key default public.uid(),
+  player_id  uuid primary key,
   game_id    uuid not null references public.games(id) on delete cascade,
   username   text not null,
   color      text not null default '#4da6ff',
   x real not null default 0, y real not null default 0, z real not null default 0,
-  ry real not null default 0,              -- rotación (yaw) en radianes
-  anim       text not null default 'idle', -- idle | walk | jump
-  platform   text not null default 'web',  -- web | 3ds
+  ry real not null default 0,
+  anim       text not null default 'idle',
+  platform   text not null default 'web',
   updated_at timestamptz not null default now()
 );
 create index if not exists player_state_game_idx on public.player_state (game_id, updated_at desc);
 
--- Registro de interacciones (poner/romper bloque, chat, emotes, ...)
 create table if not exists public.interactions (
   id         bigint generated always as identity primary key,
   game_id    uuid not null references public.games(id) on delete cascade,
-  player_id  uuid not null default public.uid(),
-  kind       text not null,                -- place | break | chat | emote | ...
+  player_id  uuid not null,
+  username   text not null default '',
+  kind       text not null,                 -- place | break | chat | join | leave
   x int, y int, z int,
   payload    jsonb not null default '{}',
   created_at timestamptz not null default now()
 );
 create index if not exists interactions_game_idx on public.interactions (game_id, id desc);
 
--- Mantiene updated_at al día
-create or replace function public.touch_updated_at() returns trigger language plpgsql as $$
-begin new.updated_at := now(); return new; end $$;
-drop trigger if exists player_state_touch on public.player_state;
-create trigger player_state_touch before insert or update on public.player_state
-  for each row execute function public.touch_updated_at();
+-- Sesiones emitidas por la Edge Function (solo accesible con service_role)
+create table if not exists public.sessions (
+  secret     uuid primary key default gen_random_uuid(),
+  player_id  uuid not null,
+  username   text not null,
+  color      text not null default '#4da6ff',
+  expires_at timestamptz not null default now() + interval '12 hours'
+);
+create index if not exists sessions_player_idx on public.sessions (player_id);
 
--- Limpieza de jugadores inactivos (llamar con pg_cron o manualmente)
-create or replace function public.prune_stale_players() returns void language sql as $$
-  delete from public.player_state where updated_at < now() - interval '30 seconds';
-$$;
-
--- ---------- RLS ----------
+-- ---------- RLS: lectura pública, sin escritura directa ----------
 alter table public.games        enable row level security;
 alter table public.blocks       enable row level security;
 alter table public.player_state enable row level security;
 alter table public.interactions enable row level security;
+alter table public.sessions     enable row level security;   -- sin políticas = nadie salvo service_role
 
-create policy "games: read"   on public.games for select to authenticated using (true);
-create policy "games: create" on public.games for insert to authenticated with check (owner_id = public.uid());
-create policy "games: owner updates" on public.games for update to authenticated using (owner_id = public.uid());
-create policy "games: owner deletes" on public.games for delete to authenticated using (owner_id = public.uid());
+drop policy if exists "read games"    on public.games;
+drop policy if exists "read blocks"   on public.blocks;
+drop policy if exists "read players"  on public.player_state;
+drop policy if exists "read actions"  on public.interactions;
+create policy "read games"   on public.games        for select to anon, authenticated using (true);
+create policy "read blocks"  on public.blocks       for select to anon, authenticated using (true);
+create policy "read players" on public.player_state for select to anon, authenticated using (true);
+create policy "read actions" on public.interactions for select to anon, authenticated using (true);
 
-create policy "blocks: read"   on public.blocks for select to authenticated using (true);
-create policy "blocks: place"  on public.blocks for insert to authenticated with check (placed_by = public.uid());
-create policy "blocks: break"  on public.blocks for delete to authenticated using (true);
-create policy "blocks: change" on public.blocks for update to authenticated using (true) with check (placed_by = public.uid());
+revoke insert, update, delete on public.games, public.blocks, public.player_state, public.interactions from anon, authenticated;
+revoke all on public.sessions from anon, authenticated;
 
-create policy "players: read"   on public.player_state for select to authenticated using (true);
-create policy "players: insert" on public.player_state for insert to authenticated with check (player_id = public.uid());
-create policy "players: update" on public.player_state for update to authenticated using (player_id = public.uid()) with check (player_id = public.uid());
-create policy "players: delete" on public.player_state for delete to authenticated using (player_id = public.uid());
+-- ---------- Funciones ----------
+create or replace function public._me(p_secret uuid) returns public.sessions
+language plpgsql security definer set search_path = public as $$
+declare s public.sessions;
+begin
+  select * into s from sessions where secret = p_secret and expires_at > now();
+  if not found then raise exception 'invalid session' using errcode = '28000'; end if;
+  return s;
+end $$;
+revoke all on function public._me(uuid) from public, anon, authenticated;
 
-create policy "interactions: read"   on public.interactions for select to authenticated using (true);
-create policy "interactions: insert" on public.interactions for insert to authenticated with check (player_id = public.uid());
+create or replace function public.move(
+  p_secret uuid, p_game uuid, p_x real, p_y real, p_z real, p_ry real,
+  p_anim text default 'idle', p_platform text default 'web')
+returns void language plpgsql security definer set search_path = public as $$
+declare s public.sessions := public._me(p_secret);
+begin
+  if abs(p_x) > 100000 or abs(p_y) > 100000 or abs(p_z) > 100000 then return; end if;
+  insert into player_state (player_id, game_id, username, color, x, y, z, ry, anim, platform, updated_at)
+  values (s.player_id, p_game, s.username, s.color, p_x, p_y, p_z, p_ry,
+          left(p_anim, 12), case when p_platform = '3ds' then '3ds' else 'web' end, now())
+  on conflict (player_id) do update set
+    game_id = excluded.game_id, username = excluded.username, color = excluded.color,
+    x = excluded.x, y = excluded.y, z = excluded.z, ry = excluded.ry,
+    anim = excluded.anim, platform = excluded.platform, updated_at = now();
+  if random() < 0.02 then
+    delete from player_state where updated_at < now() - interval '30 seconds';
+  end if;
+end $$;
+
+create or replace function public.place_block(p_secret uuid, p_game uuid, p_x int, p_y int, p_z int, p_kind int)
+returns void language plpgsql security definer set search_path = public as $$
+declare s public.sessions := public._me(p_secret);
+begin
+  if p_y < 0 or p_y > 255 or abs(p_x) > 5000 or abs(p_z) > 5000 or p_kind not between 0 and 15 then return; end if;
+  insert into blocks (game_id, x, y, z, kind, placed_by) values (p_game, p_x, p_y, p_z, p_kind, s.player_id)
+  on conflict (game_id, x, y, z) do update set kind = excluded.kind, placed_by = excluded.placed_by;
+  insert into interactions (game_id, player_id, username, kind, x, y, z) values (p_game, s.player_id, s.username, 'place', p_x, p_y, p_z);
+end $$;
+
+create or replace function public.break_block(p_secret uuid, p_game uuid, p_x int, p_y int, p_z int)
+returns void language plpgsql security definer set search_path = public as $$
+declare s public.sessions := public._me(p_secret);
+begin
+  delete from blocks where game_id = p_game and x = p_x and y = p_y and z = p_z;
+  insert into interactions (game_id, player_id, username, kind, x, y, z) values (p_game, s.player_id, s.username, 'break', p_x, p_y, p_z);
+end $$;
+
+create or replace function public.say(p_secret uuid, p_game uuid, p_text text)
+returns void language plpgsql security definer set search_path = public as $$
+declare s public.sessions := public._me(p_secret);
+begin
+  p_text := left(btrim(p_text), 200);
+  if p_text = '' then return; end if;
+  insert into interactions (game_id, player_id, username, kind, payload)
+  values (p_game, s.player_id, s.username, 'chat', jsonb_build_object('text', p_text));
+end $$;
+
+create or replace function public.leave(p_secret uuid)
+returns void language plpgsql security definer set search_path = public as $$
+declare s public.sessions := public._me(p_secret);
+begin delete from player_state where player_id = s.player_id; end $$;
+
+create or replace function public.create_game(p_secret uuid, p_name text, p_desc text default '', p_hue int default 200)
+returns uuid language plpgsql security definer set search_path = public as $$
+declare s public.sessions := public._me(p_secret); gid uuid;
+begin
+  insert into games (name, description, owner_id, owner_name, hue)
+  values (btrim(p_name), left(coalesce(p_desc, ''), 200), s.player_id, s.username, ((p_hue % 360) + 360) % 360)
+  returning id into gid;
+  return gid;
+end $$;
+
+create or replace function public.delete_game(p_secret uuid, p_game uuid)
+returns void language plpgsql security definer set search_path = public as $$
+declare s public.sessions := public._me(p_secret);
+begin delete from games where id = p_game and owner_id = s.player_id; end $$;
+
+grant execute on function
+  public.move(uuid, uuid, real, real, real, real, text, text),
+  public.place_block(uuid, uuid, int, int, int, int),
+  public.break_block(uuid, uuid, int, int, int),
+  public.say(uuid, uuid, text),
+  public.leave(uuid),
+  public.create_game(uuid, text, text, int),
+  public.delete_game(uuid, uuid)
+to anon, authenticated;
 
 -- ---------- Realtime ----------
 alter publication supabase_realtime add table public.player_state, public.blocks, public.interactions;
-alter table public.player_state replica identity full;  -- para recibir bien los DELETE
+alter table public.player_state replica identity full;
 alter table public.blocks       replica identity full;
 
 -- ---------- Juego inicial ----------
-insert into public.games (id, name, description, owner_id)
+insert into public.games (id, name, description, owner_id, owner_name, hue)
 values ('00000000-0000-0000-0000-000000000001', 'Spawn Plaza', 'Mundo abierto para construir. ¡Empieza aquí!',
-        '00000000-0000-0000-0000-000000000000')
+        '00000000-0000-0000-0000-000000000000', 'Blocksy', 205)
 on conflict do nothing;

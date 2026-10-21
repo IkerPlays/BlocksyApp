@@ -1,48 +1,87 @@
 import './style.css'
 import { authDb } from './supabase.js'
-import { signIn, signUp, signOut, loadProfile, startPresence, stopPresence } from './auth.js'
-import { renderLobby, createGame } from './lobby.js'
+import * as auth from './auth.js'
+import * as api from './api.js'
+import { pages, toast, closeModal } from './pages.js'
 import { startGame } from './game.js'
+import { setLastPlayed } from './settings.js'
 
 const $ = id => document.getElementById(id)
-const show = name => { for (const s of ['auth', 'lobby', 'game']) $(s).classList.toggle('hidden', s !== name) }
-let profile = null, currentGame = null, stopGame = null
+let profile = null, currentGame = null, stopGame = null, mode = 'login'
 
-async function enterLobby() {
-  profile = await loadProfile()
-  if (!profile) return show('auth')
-  $('me').textContent = profile.username
-  show('lobby')
-  startPresence(() => currentGame?.id)
-  await renderLobby(play)
+function showScreen(name) {
+  $('auth').classList.toggle('hidden', name !== 'auth')
+  $('app').classList.toggle('hidden', name !== 'app')
+  $('game').classList.toggle('hidden', name !== 'game')
 }
 
+// ---------- router ----------
+const ctx = {
+  get profile() { return profile },
+  play, go: h => (location.hash = h),
+  async refreshProfile() { profile = await auth.loadProfile(); paintChip() },
+}
+function paintChip() {
+  $('chip-name').textContent = profile.username
+  $('chip-avatar').style.setProperty('--c', profile.avatar_color)
+}
+async function route() {
+  if (!profile) return
+  const [page, arg] = (location.hash.slice(1) || 'home').split('/')
+  const name = pages[page] ? page : 'home'
+  document.querySelectorAll('#sidebar a').forEach(a => a.classList.toggle('active', a.dataset.page === name))
+  $('sidebar').classList.remove('open')
+  const root = $('page'); root.replaceChildren()
+  try { await pages[name](root, ctx, arg ? decodeURIComponent(arg) : undefined) } catch (e) { console.error(e); toast(e.message) }
+}
+window.addEventListener('hashchange', route)
+
+async function enterApp() {
+  profile = await auth.loadProfile()
+  if (!profile) return showScreen('auth')
+  paintChip(); showScreen('app')
+  auth.startPresence(() => currentGame?.id)
+  api.openGameSession().catch(e => toast('Servidor de juego: ' + e.message))
+  route()
+}
+
+// ---------- juego ----------
 function play(game) {
-  currentGame = game
-  show('game')
-  stopGame = startGame({ game, profile, canvas: $('view'), onStats: t => ($('stats').textContent = t) })
+  closeModal(); currentGame = game; setLastPlayed(game.id)
+  auth.startPresence(() => currentGame?.id)
+  showScreen('game')
+  stopGame = startGame({ game, profile, canvas: $('view'), onExit: exitGame })
+}
+async function exitGame() {
+  stopGame?.(); stopGame = null; currentGame = null
+  auth.startPresence(() => null)
+  showScreen('app'); route()
 }
 
-$('leave').onclick = async () => { stopGame?.(); stopGame = null; currentGame = null; await enterLobby() }
-$('logout').onclick = async () => { stopPresence(); await signOut(); show('auth') }
-
+// ---------- auth UI ----------
+document.querySelectorAll('#auth-tabs .tab').forEach(b => b.onclick = () => {
+  mode = b.dataset.mode
+  document.querySelectorAll('#auth-tabs .tab').forEach(t => t.classList.toggle('active', t === b))
+  $('username').classList.toggle('hidden', mode !== 'signup')
+  $('username').required = mode === 'signup'
+  $('auth-submit').textContent = mode === 'signup' ? 'Crear cuenta' : 'Entrar'
+  $('password').autocomplete = mode === 'signup' ? 'new-password' : 'current-password'
+})
 $('auth-form').addEventListener('submit', async e => {
   e.preventDefault()
-  const mode = e.submitter?.dataset.mode
-  const msg = $('auth-msg'); msg.textContent = '...'
+  const msg = $('auth-msg'); msg.className = 'msg'; msg.textContent = '...'
   try {
     const email = $('email').value, pw = $('password').value
-    if (mode === 'signup') await signUp(email, pw, $('username').value.trim())
-    else await signIn(email, pw)
-    msg.textContent = ''
-    await enterLobby()
-  } catch (err) { msg.textContent = err.message }
+    if (mode === 'signup') await auth.signUp(email, pw, $('username').value.trim()); else await auth.signIn(email, pw)
+    msg.textContent = ''; await enterApp()
+  } catch (err) { msg.className = 'msg err'; msg.textContent = err.message }
 })
+$('logout').onclick = async () => { await auth.signOut(); profile = null; showScreen('auth') }
 
-$('new-game').addEventListener('submit', async e => {
-  e.preventDefault()
-  try { await createGame($('game-name').value.trim()); $('game-name').value = ''; await renderLobby(play) }
-  catch (err) { alert(err.message) }
-})
+// ---------- shell UI ----------
+$('burger').onclick = () => $('sidebar').classList.toggle('open')
+$('modal').addEventListener('click', e => { if (e.target.id === 'modal') closeModal() })
+$('search').addEventListener('submit', e => { e.preventDefault(); const q = $('search-input').value.trim(); location.hash = q ? `discover/${encodeURIComponent(q)}` : "discover" })
+window.addEventListener('beforeunload', () => { api.leaveBeacon() })
 
-authDb.auth.getSession().then(({ data }) => (data.session ? enterLobby() : show('auth')))
+authDb.auth.getSession().then(({ data }) => (data.session ? enterApp() : showScreen('auth')))
