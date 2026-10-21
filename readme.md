@@ -76,13 +76,21 @@ verificación TLS (`net.c`) hasta instalar un certificado raíz.
 - `VERSION` fija la versión base; `RELEASE_NOTES.md` = notas del devbuild actual; `STABLE_RELEASE_NOTES.md` = novedades desde la última estable.
 - **Importante:** los workflows con *Run workflow* solo aparecen cuando están en la rama por defecto (`main`): hay que hacer merge de esta rama.
 
-## Repositorio privado y actualizaciones
-`BlocksyApp` es privado: la 3DS (y el QR de arriba) no pueden leer sus releases sin iniciar sesión en GitHub. Opciones:
-1. **Hacer público el repo** (Settings → Danger Zone → Change visibility). Es lo más simple y no hay que configurar nada más.
-2. **Repo público solo para releases**: crea por ejemplo `IkerPlays/BlocksyApp-releases` (con un README para que tenga rama), y en este repo
-   añade la variable **`RELEASES_REPO`** = `IkerPlays/BlocksyApp-releases` (Settings → Secrets and variables → Actions → Variables) y el secret
-   **`RELEASES_PAT`** (token con permiso *Contents: read and write* sobre ese repo). Los workflows publican allí y la app de 3DS lee de allí.
-   Cambia también la URL del QR de este README a ese repo.
+## Repositorio privado y actualizaciones de la 3DS
+`BlocksyApp` es privado: para que la app de 3DS lea las releases hace falta un **token de GitHub de solo lectura**, guardado como secret del repo
+y metido por el CI en la app (así no hay que hacer público el repo).
+
+1. GitHub → tu foto → **Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token**.
+2. *Token name*: `blocksy-updater`. *Expiration*: la máxima que te deje (cuando caduque, el updater dejará de funcionar hasta que lo renueves y recompiles).
+3. *Resource owner*: `IkerPlays`. *Repository access*: **Only select repositories** → `BlocksyApp`.
+4. *Permissions → Repository permissions*: **Contents: Read-only** (Metadata: Read-only se añade solo). Nada más.
+5. Generar y copiar el token (empieza por `github_pat_`; solo se muestra una vez).
+6. En este repo: **Settings → Secrets and variables → Actions → New repository secret**, nombre exacto **`UPDATE_TOKEN`**, pega el token.
+7. Lanza de nuevo *Build 3DSX + CIA* e instala ese `.cia` (la primera vez, a mano). A partir de ahí la sección *Actualizar* funciona.
+
+Ojo: el token queda dentro del `.cia`/`.3dsx`; quien tenga esos ficheros podría extraerlo y **leer el código del repo privado** (solo lectura).
+Comparte los builds solo con gente de confianza. Si prefieres evitarlo: haz público el repo, o publica las releases en un repo público aparte
+(variable `RELEASES_REPO` + secret `RELEASES_PAT`, ver `CLAUDE.md`). El QR de FBI de arriba no funciona con un repo privado.
 
 ## Quién puede crear juegos
 Solo la cuenta autorizada y solo desde la web. El servidor lo comprueba (`sessions.can_create`, que pone la función `game-session` según el

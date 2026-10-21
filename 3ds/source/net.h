@@ -18,8 +18,8 @@ typedef struct {
 } Session;
 
 typedef bool (*NetSink)(const void *data, size_t n, void *ud);   // recibe los datos descargados; false = abortar
-char *net_get_text(const char *url, char *err, size_t en);        // GET genérico (GitHub API); NULL si falla
-bool net_download(const char *url, NetSink sink, void *ud, volatile int *pct, char *err, size_t en);
+char *net_get_text(const char *url, const char *bearer, char *err, size_t en);   // GET genérico (GitHub API, con token opcional); NULL si falla
+bool net_download(const char *url, const char *bearer, NetSink sink, void *ud, volatile int *pct, char *err, size_t en);   // bearer: repo privado (URL de la API del asset)
 
 bool net_init(void);
 void net_exit(void);

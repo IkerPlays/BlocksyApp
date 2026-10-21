@@ -93,6 +93,7 @@ jobs:
           AUTH_KEY: ${{ secrets.AUTH_SUPABASE_ANON_KEY }}
           GAME_URL: ${{ secrets.GAME_SUPABASE_URL }}
           GAME_KEY: ${{ secrets.GAME_SUPABASE_ANON_KEY }}
+          UPDATE_TOKEN: ${{ secrets.UPDATE_TOKEN }}   # opcional: token de solo lectura para leer las releases de un repo privado
         run: |
           {
             echo '#pragma once'
@@ -102,6 +103,7 @@ jobs:
             echo "#define GAME_ANON_KEY \"$GAME_KEY\""
             echo '#define GAME_ID "00000000-0000-0000-0000-000000000001"'
             echo "#define UPDATE_REPO \"$RELEASES_REPO\""
+            echo "#define UPDATE_TOKEN \"$UPDATE_TOKEN\""
           } > 3ds/source/config.h
 
       - name: Build .3dsx and .cia

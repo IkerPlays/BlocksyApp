@@ -12,6 +12,12 @@
 #ifndef UPDATE_REPO
 #define UPDATE_REPO "IkerPlays/BlocksyApp"
 #endif
+// Token de GitHub de solo lectura (fine-grained, permiso Contents: Read) para leer las releases de un repo PRIVADO.
+// Lo pone el CI desde el secret UPDATE_TOKEN. Vacío = repo público.
+#ifndef UPDATE_TOKEN
+#define UPDATE_TOKEN ""
+#endif
+static const char *tok(void) { return sizeof(UPDATE_TOKEN) > 1 ? UPDATE_TOKEN : NULL; }
 #define RELEASES_URL "https://api.github.com/repos/" UPDATE_REPO "/releases?per_page=20"
 #define MIN_SIZE 50000        // un fichero más pequeño es una página de error, no la app
 
@@ -44,24 +50,27 @@ static int cmp_ver(Ver a, Ver b) {
 	return a.dev == b.dev ? 0 : a.dev > b.dev ? 1 : -1;
 }
 
-// URL del primer asset del release con esa extensión
+// URL de descarga del asset del release que termina en `ext`: la de la API si hay token (repo privado), si no la pública
 static bool asset_url(const char *obj, const char *end, const char *ext, char *dst, size_t n) {
-	const char *p = obj;
-	while ((p = json_find_from(p, end, "browser_download_url"))) {
-		char url[300]; const char *q = p; size_t i = 0;
-		if (*q != '"') break;
-		q++; while (*q && *q != '"' && i + 1 < sizeof url) url[i++] = *q++;
-		url[i] = 0;
-		size_t l = strlen(url), e = strlen(ext);
-		if (l > e && !strcmp(url + l - e, ext)) { snprintf(dst, n, "%s", url); return true; }
-		p = q;
+	const char *arr = json_find_from(obj, end, "assets"), *aend = array_end(arr);
+	if (!aend) return false;
+	const char *p = arr, *e;
+	while ((p = next_obj(p, &e)) && e < aend) {
+		const char *a = p; p = e + 1;
+		char pub[300] = "", api[300] = "";
+		if (!jstr(a, e, "browser_download_url", pub, sizeof pub)) continue;
+		size_t l = strlen(pub), x = strlen(ext);
+		if (l <= x || strcmp(pub + l - x, ext)) continue;
+		jstr(a, e, "url", api, sizeof api);                       // primera clave "url" del asset = URL de la API
+		snprintf(dst, n, "%s", tok() && api[0] ? api : pub);
+		return true;
 	}
 	return false;
 }
 
 bool update_check(UpdateInfo *out, char *err, size_t en) {
 	memset(out, 0, sizeof *out); snprintf(out->cur, sizeof out->cur, "%s", g_cur);
-	char *r = net_get_text(RELEASES_URL, err, en);
+	char *r = net_get_text(RELEASES_URL, tok(), err, en);
 	if (!r) return false;
 	bool okc; Ver cur = parse_ver(g_cur, &okc);
 	Ver best_s = {{0}, 0, false}, best_d = {{0}, 0, true};
@@ -112,7 +121,7 @@ bool update_install(const Rel *r, volatile int *pct, char *err, size_t en) {
 		s.f = fopen(tmp_path, "wb"); if (!s.f) { snprintf(err, en, "No se pudo escribir en la SD"); return false; }
 	}
 	*pct = 0;
-	bool ok = net_download(url, sink_write, &s, pct, err, en);
+	bool ok = net_download(url, tok(), sink_write, &s, pct, err, en);
 	if (ok && s.total < MIN_SIZE) { ok = false; snprintf(err, en, "Descarga demasiado pequena (%u bytes)", (unsigned)s.total); }
 	if (cia) {
 		if (ok) {
