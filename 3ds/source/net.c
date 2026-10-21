@@ -20,12 +20,14 @@ bool net_init(void) {
 void net_exit(void) { httpcExit(); socExit(); free(soc_buf); }
 
 typedef enum { M_GET, M_POST, M_DELETE } Method;
+static int last_status;   // código HTTP de la última petición (0 = no hubo respuesta)
 
 // Devuelve el cuerpo (malloc, terminado en \0) o NULL si falla / status >= 300.
 static char *http(Method m, const char *url, const char *apikey, const char *bearer,
                   const char *body, const char *extra_prefer) {
 	httpcContext ctx;
 	HTTPC_RequestMethod rm = m == M_GET ? HTTPC_METHOD_GET : m == M_POST ? HTTPC_METHOD_POST : HTTPC_METHOD_DELETE;
+	last_status = 0;
 	if (R_FAILED(httpcOpenContext(&ctx, rm, url, 1))) return NULL;
 	httpcSetSSLOpt(&ctx, SSLCOPT_DisableVerify);   // TODO: instalar CA raíz y verificar
 	httpcSetKeepAlive(&ctx, HTTPC_KEEPALIVE_DISABLED);
@@ -43,7 +45,7 @@ static char *http(Method m, const char *url, const char *apikey, const char *bea
 
 	char *out = NULL;
 	if (R_SUCCEEDED(httpcBeginRequest(&ctx))) {
-		u32 status = 0; httpcGetResponseStatusCode(&ctx, &status);
+		u32 status = 0; httpcGetResponseStatusCode(&ctx, &status); last_status = (int)status;
 		size_t cap = 8192, len = 0; out = malloc(cap);
 		Result r;
 		do {
@@ -87,21 +89,39 @@ static unsigned int parse_color(const char *hex) { // "#rrggbb" -> ABGR
 	return 0xFF000000u | (b << 16) | (g << 8) | r;
 }
 
+static char login_err[96] = "";
+const char *net_login_error(void) { return login_err; }
+static void set_err(const char *what) {
+	if (last_status == 0) snprintf(login_err, sizeof login_err, "Sin conexion con el servidor");
+	else snprintf(login_err, sizeof login_err, "%s (%d)", what, last_status);
+}
+
 bool net_login(Session *s, const char *email, const char *password) {
+	login_err[0] = 0;
+	if (sizeof(AUTH_URL) <= 1 || sizeof(GAME_URL) <= 1) { snprintf(login_err, sizeof login_err, "Este build no tiene config de Supabase"); return false; }
 	char body[256]; snprintf(body, sizeof body, "{\"email\":\"%s\",\"password\":\"%s\"}", email, password);
 	char *r = http(M_POST, AUTH_URL "/auth/v1/token?grant_type=password", AUTH_ANON_KEY, NULL, body, NULL);
-	if (!r) return false;
+	if (!r) {
+		if (last_status == 400) snprintf(login_err, sizeof login_err, "Email o contrasena incorrectos");
+		else if (last_status == 401 || last_status == 403) snprintf(login_err, sizeof login_err, "Clave de Supabase invalida (%d)", last_status);
+		else set_err("Error del servidor de cuentas");
+		return false;
+	}
 	const char *end = r + strlen(r);
 	bool ok = jstr(r, end, "access_token", s->token, sizeof s->token);
 	const char *u = strstr(r, "\"user\":{");   // "id" del usuario dentro de "user"
 	ok = ok && u && jstr(u, end, "id", s->user_id, sizeof s->user_id);
 	free(r);
-	if (!ok) return false;
+	if (!ok) { snprintf(login_err, sizeof login_err, "Respuesta de login no valida"); return false; }
 
 	// Sesión del proyecto GAME: la Edge Function valida el token de AUTH
 	static char sbody[1800]; snprintf(sbody, sizeof sbody, "{\"token\":\"%s\"}", s->token);
 	r = http(M_POST, GAME_URL "/functions/v1/game-session", GAME_ANON_KEY, GAME_ANON_KEY, sbody, NULL); // Authorization: Bearer anon (pasa Verify JWT)
-	if (!r) return false;
+	if (!r) {
+		if (last_status == 404) snprintf(login_err, sizeof login_err, "Falta la funcion game-session (404)");
+		else set_err("No se pudo abrir la sesion de juego");
+		return false;
+	}
 	end = r + strlen(r);
 	char col[12] = "";
 	ok = jstr(r, end, "secret", s->secret, sizeof s->secret);
@@ -110,6 +130,7 @@ bool net_login(Session *s, const char *email, const char *password) {
 	jstr(r, end, "color", col, sizeof col);
 	s->color = parse_color(col);
 	free(r);
+	if (!ok) snprintf(login_err, sizeof login_err, "Sesion de juego no valida");
 	return ok;
 }
 void net_presence(const Session *s) {

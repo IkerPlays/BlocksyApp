@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "net.h"
+#include "ui.h"
 #include "config.h"
 
 #ifndef BLOCKSY_VERSION
@@ -15,7 +16,7 @@
 #define TOP_H 240
 #define FOV   220.0f
 
-static const u32 PALETTE[6] = {0xFFE8E8E8, 0xFF3C4CE7, 0xFF129CF3, 0xFF71CC2E, 0xFFDB9834, 0xFFB6599B}; // ABGR
+#define PALETTE ui_palette
 
 // ---------- Estado compartido con el hilo de red ----------
 static LightLock lock;
@@ -112,41 +113,30 @@ static bool solid(int x, int y, int z, const Block *bl, int n) {
 	return false;
 }
 
-static void get_text(char *dst, size_t n, const char *hint, bool password) {
-	SwkbdState kb; swkbdInit(&kb, SWKBD_TYPE_NORMAL, 2, (int)n - 1);
-	swkbdSetHintText(&kb, hint);
-	if (password) swkbdSetPasswordMode(&kb, SWKBD_PASSWORD_HIDE_DELAY);
-	swkbdSetValidation(&kb, SWKBD_NOTEMPTY, 0, 0);
-	swkbdInputText(&kb, dst, n);
+static void do_chat(void) {
+	Action a = {.type = CHAT}; SwkbdState kb; swkbdInit(&kb, SWKBD_TYPE_NORMAL, 2, 90); swkbdSetHintText(&kb, "Mensaje");
+	if (swkbdInputText(&kb, a.text, sizeof a.text) == SWKBD_BUTTON_CONFIRM) {
+		for (char *c = a.text; *c; c++) if (*c == '"' || *c == '\\') *c = ' ';
+		push_action(a);
+	}
 }
 
 int main(void) {
 	gfxInitDefault(); C3D_Init(C3D_DEFAULT_CMDBUF_SIZE); C2D_Init(C2D_DEFAULT_MAX_OBJECTS); C2D_Prepare();
-	consoleInit(GFX_BOTTOM, NULL);
 	C3D_RenderTarget *top = C2D_CreateScreenTarget(GFX_TOP, GFX_LEFT);
-	printf("Blocksy 3DS %s\n\n", BLOCKSY_VERSION);
-	if (sizeof(AUTH_URL) <= 1 || sizeof(GAME_URL) <= 1) printf("AVISO: este build no tiene config de Supabase\n(faltan los secrets en GitHub)\n\n");
+	C3D_RenderTarget *bot = C2D_CreateScreenTarget(GFX_BOTTOM, GFX_LEFT);
+	ui_init();
 	if (!net_init()) {
-		printf("Error de red. START para salir\n");
-		while (aptMainLoop()) { hidScanInput(); if (hidKeysDown() & KEY_START) break; gspWaitForVBlank(); }
-		gfxExit(); return 1;
+		ui_message(top, bot, "Sin red", "No se pudo iniciar la red.\nComprueba que el WiFi esta activado.");
+		ui_exit(); C2D_Fini(); C3D_Fini(); gfxExit(); return 1;
 	}
-
-	char email[96] = "", pass[64] = "";
-	for (;;) {
-		get_text(email, sizeof email, "Email", false);
-		get_text(pass, sizeof pass, "Contrasena", true);
-		printf("Entrando...\n");
-		if (net_login(&sess, email, pass)) break;
-		printf("Login incorrecto, reintenta.\n");
+	if (!ui_login(top, bot, &sess, BLOCKSY_VERSION)) {
+		ui_exit(); net_exit(); C2D_Fini(); C3D_Fini(); gfxExit(); return 0;
 	}
-	consoleClear();
-	
 
 	LightLock_Init(&lock);
 	s32 prio = 0; svcGetThreadPriority(&prio, CUR_THREAD_HANDLE);
 	Thread th = threadCreate(net_thread, NULL, 128 * 1024, prio - 1, 0, false);
-	if (!th) printf("No se pudo crear el hilo de red\n");
 
 	// La pila principal de la app es de solo ~32 KB: los arrays grandes van en memoria estática
 	static Block local[MAX_BLOCKS]; static Remote rem[MAX_PLAYERS];
@@ -161,12 +151,13 @@ int main(void) {
 		if (held & KEY_DUP) cam_dist = fmaxf(4, cam_dist - 0.15f);
 		if (held & KEY_DDOWN) cam_dist = fminf(20, cam_dist + 0.15f);
 		if (down & KEY_B) kind = (kind + 1) % 6;
-		if (down & KEY_SELECT) {
-			Action a = {.type = CHAT}; SwkbdState kb; swkbdInit(&kb, SWKBD_TYPE_NORMAL, 2, 90); swkbdSetHintText(&kb, "Mensaje");
-			if (swkbdInputText(&kb, a.text, sizeof a.text) == SWKBD_BUTTON_CONFIRM) {
-				for (char *c = a.text; *c; c++) if (*c == '"' || *c == '\\') *c = ' ';
-				push_action(a);
-			}
+		if (down & KEY_SELECT) do_chat();
+		if (down & KEY_TOUCH) {
+			touchPosition tp; hidTouchRead(&tp);
+			int act = ui_game_touch(tp.px, tp.py);
+			if (act >= UI_COLOR0 && act < UI_COLOR0 + NPALETTE) kind = act;
+			else if (act == UI_CHAT) do_chat();
+			else if (act == UI_QUIT) break;
 		}
 
 		static Remote disp[MAX_PLAYERS]; static int ndisp; static int frame_n;
@@ -185,12 +176,7 @@ int main(void) {
 			rem[i] = disp[j];
 		}
 		{ int k = 0; for (int j = 0; j < ndisp; j++) { int keep = 0; for (int i = 0; i < nr; i++) if (!strcmp(disp[j].id, rem[i].id)) keep = 1; if (keep) disp[k++] = disp[j]; } ndisp = k; }
-		if (++frame_n % 60 == 0) {
-			consoleClear();
-			printf("Blocksy %s - %s\n\nJugadores (%d):\n", BLOCKSY_VERSION, sess.username, nr + 1);
-			for (int i = 0; i < nr && i < 10; i++) printf(" %s%s\n", rem[i].name, rem[i].is3ds ? " [3DS]" : "");
-			printf("\nA saltar  X poner  Y romper\nB color  SELECT chat\nL/R camara  Arriba/Abajo zoom\nSTART salir\n");
-		}
+		frame_n++;
 
 		circlePosition cp; hidCircleRead(&cp);
 		float f = (abs(cp.dy) > 15 ? cp.dy : 0) / 156.0f, s = (abs(cp.dx) > 15 ? cp.dx : 0) / 156.0f;
@@ -233,6 +219,7 @@ int main(void) {
 			draw_list[nd++] = (Box){d, rem[i].x - .3f, rem[i].y, rem[i].z - .3f, .6f, 1.8f, rem[i].color};
 		qsort(draw_list, nd, sizeof(Box), cmp_box);
 
+		ui_frame_begin();
 		C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
 		C2D_TargetClear(top, C2D_Color32(0x87, 0xC8, 0xFF, 255));
 		C2D_SceneBegin(top);
@@ -251,12 +238,15 @@ int main(void) {
 		int first = nd > 350 ? nd - 350 : 0;
 		for (int i = first; i < nd; i++) draw_box(draw_list[i].x, draw_list[i].y, draw_list[i].z, draw_list[i].w, draw_list[i].h, draw_list[i].color);
 		C2D_DrawRectSolid(8, 8, 0, 20, 20, PALETTE[kind]); // color seleccionado
+		C2D_TargetClear(bot, C2D_Color32(0x23, 0x25, 0x27, 255));
+		C2D_SceneBegin(bot);
+		ui_game_bottom(&sess, rem, nr, kind, BLOCKSY_VERSION);
 		C3D_FrameEnd(0);
 	}
 
 	running = false;
 	if (th) { threadJoin(th, U64_MAX); threadFree(th); }
 	net_leave(&sess); net_offline(&sess);
-	C2D_Fini(); C3D_Fini(); net_exit(); gfxExit();
+	ui_exit(); C2D_Fini(); C3D_Fini(); net_exit(); gfxExit();
 	return 0;
 }

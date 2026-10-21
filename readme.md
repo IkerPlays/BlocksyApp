@@ -8,6 +8,22 @@ web/       Cliente web (Vite + Three.js) → se despliega en Netlify
 supabase/  SQL de las 2 bases de datos
 ```
 
+## Descargar e instalar en la 3DS
+
+<p align="center">
+  <a href="https://github.com/IkerPlays/BlocksyApp/releases/latest/download/Blocksy.cia">
+    <img src="images/qr-latest.png" alt="QR: último Blocksy.cia estable" width="240">
+  </a>
+</p>
+
+Escanea el QR con **FBI** (*Remote Install → Scan QR code*, y luego *Download and install*) o haz clic en él.
+Apunta siempre al `Blocksy.cia` de la **última release estable**, así que no hay que actualizarlo.
+Los builds de prueba (pre-releases) están en [Releases](../../releases). También puedes copiar `Blocksy.cia` a la SD
+e instalarlo con FBI, o usar `Blocksy.3dsx` desde el Homebrew Launcher.
+
+> El QR solo funciona cuando existe al menos una release **estable** (workflow *Stable release*); los devbuilds son
+> pre-releases y `latest` los ignora.
+
 ## Arquitectura de datos
 - **Supabase AUTH** (`supabase/auth/schema.sql`): cuentas, `profiles`, amigos, presencia (`is_online`).
 - **Supabase GAME** (`supabase/game/schema.sql` + Edge Function `game-session`): `games`, `player_state`

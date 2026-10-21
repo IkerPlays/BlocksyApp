@@ -20,7 +20,8 @@ bool net_init(void);
 void net_exit(void);
 
 // Auth (proyecto AUTH)
-bool net_login(Session *s, const char *email, const char *password);
+bool net_login(Session *s, const char *email, const char *password);  // AUTH + sesión GAME
+const char *net_login_error(void);   // motivo del último fallo de net_login
 void net_presence(const Session *s);          // touch_presence()
 void net_offline(const Session *s);
 
