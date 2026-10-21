@@ -52,6 +52,7 @@ make cia    # blocksy.cia (necesita makerom y bannertool)
 ```
 Requiere devkitPro (`dkp-pacman -S 3ds-dev`). El workflow `.github/workflows/3ds.yml` compila ambos
 (secrets: `AUTH_SUPABASE_URL`, `AUTH_SUPABASE_ANON_KEY`, `GAME_SUPABASE_URL`, `GAME_SUPABASE_ANON_KEY`).
+Inicio de sesión en la 3DS: con email y contraseña (pantalla táctil) o **«Con QR»**: la consola muestra un QR, lo escaneas con el móvil/tablet, inicias sesión allí y pulsas *Autorizar*. Requiere `supabase/game/link-login.sql`.
 Controles: círculo mover · A saltar · X poner · Y romper · B color · SELECT chat · L/R cámara · START salir.
 
 ## Estado

@@ -9,6 +9,7 @@ Blocksy is a multiplayer block-building game for the web and the Nintendo 3DS (h
 - **Touch login.** The 3DS login screen has Email and Password fields, show/hide password, Remember my email and an Enter button.
 - **Bottom screen panel.** Players online, block color picker, Chat and Exit buttons.
 - **Softer HOME Menu sound.** A gentle chime plays when the app is highlighted.
+- **Sign in with a QR.** The 3DS shows a QR; scan it with a phone or tablet, log in there and authorize. The 3DS remembers the session.
 - **Same world everywhere.** Web and 3DS read and write the same Supabase tables.
 
 ## Installing

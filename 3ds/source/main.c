@@ -63,6 +63,8 @@ static void net_thread(void *arg) {
 		if (now - last_presence > 30000) { net_presence(&sess); last_presence = now; }
 		svcSleepThread((qn ? 30 : 100) * 1000000LL); // ~10 Hz
 	}
+	// Al salir (en este hilo, que ya tiene la conexión TLS abierta): dejar la partida y marcar offline
+	net_thread_cleanup();
 }
 
 // ---------- Render 3D con proyección manual sobre citro2d ----------
@@ -136,7 +138,7 @@ int main(void) {
 
 	LightLock_Init(&lock);
 	s32 prio = 0; svcGetThreadPriority(&prio, CUR_THREAD_HANDLE);
-	Thread th = threadCreate(net_thread, NULL, 128 * 1024, prio - 1, 0, false);
+	Thread th = threadCreate(net_thread, NULL, 256 * 1024, prio + 1, 0, false);   // prioridad menor que la UI
 
 	// La pila principal de la app es de solo ~32 KB: los arrays grandes van en memoria estática
 	static Block local[MAX_BLOCKS]; static Remote rem[MAX_PLAYERS];
@@ -158,6 +160,7 @@ int main(void) {
 			if (act >= UI_COLOR0 && act < UI_COLOR0 + NPALETTE) kind = act;
 			else if (act == UI_CHAT) do_chat();
 			else if (act == UI_QUIT) break;
+			else if (act == UI_LOGOUT) { ui_forget_session(); break; }
 		}
 
 		static Remote disp[MAX_PLAYERS]; static int ndisp; static int frame_n;
@@ -246,7 +249,6 @@ int main(void) {
 
 	running = false;
 	if (th) { threadJoin(th, U64_MAX); threadFree(th); }
-	net_leave(&sess); net_offline(&sess);
 	ui_exit(); C2D_Fini(); C3D_Fini(); net_exit(); gfxExit();
 	return 0;
 }

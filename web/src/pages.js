@@ -160,6 +160,40 @@ export const pages = {
     load()
   },
 
+  // Autoriza el inicio de sesión de otro dispositivo (la 3DS muestra un QR con este enlace: #link/CODIGO)
+  async link(root, ctx, code = '') {
+    const input = el('input', { placeholder: 'Código de la pantalla de tu 3DS (6 letras)', maxlength: 6, value: code.toUpperCase(), style: 'text-transform:uppercase;letter-spacing:4px;font-size:22px;text-align:center' })
+    const msg = el('p', { class: 'msg' })
+    const btn = el('button', { class: 'btn primary wide', text: 'Autorizar este dispositivo' })
+    const go = async () => {
+      const c = input.value.trim().toUpperCase()
+      if (c.length !== 6) { msg.className = 'msg err'; msg.textContent = 'El código tiene 6 caracteres'; return }
+      btn.disabled = true; msg.className = 'msg'; msg.textContent = 'Autorizando...'
+      try {
+        await api.linkApprove(c)
+        msg.textContent = ''
+        root.replaceChildren(el('h1', { class: 'page-title', text: 'Vincular 3DS' }),
+          el('div', { class: 'panel', style: 'max-width:520px;text-align:center' },
+            el('div', { style: 'font-size:56px', text: '✅' }),
+            el('h2', { text: '¡Listo!' }),
+            el('p', { style: 'color:var(--muted)', text: `Tu 3DS ya ha iniciado sesión como ${ctx.profile.username}. Puedes volver a la consola.` }),
+            el('a', { class: 'btn blue', href: '#home', text: 'Ir al inicio' })))
+      } catch (e) {
+        btn.disabled = false; msg.className = 'msg err'
+        msg.textContent = /invalid code/i.test(e.message) ? 'Código no válido o caducado. Pide uno nuevo en la 3DS.' : e.message
+      }
+    }
+    btn.onclick = go
+    input.onkeydown = e => { if (e.key === 'Enter') go() }
+    root.replaceChildren(el('h1', { class: 'page-title', text: 'Vincular 3DS' }),
+      el('div', { class: 'panel', style: 'max-width:520px' },
+        el('p', { style: 'color:var(--muted);margin-top:0', text: code
+          ? `Una 3DS quiere iniciar sesión como ${ctx.profile.username}. Si has sido tú, autorízala.`
+          : 'En la 3DS elige «Con QR», escanea el código con la cámara del móvil o escribe aquí el código de 6 caracteres que aparece en la consola.' }),
+        el('div', { style: 'margin:16px 0' }, input), btn, msg))
+    if (code.length === 6) btn.focus()
+  },
+
   settings(root) {
     const row = (label, input) => el('label', { class: 'field' }, label, input)
     const sens = el('input', { type: 'range', min: 0.3, max: 2.5, step: 0.1, value: settings.sensitivity })

@@ -22,6 +22,10 @@ void net_exit(void);
 // Auth (proyecto AUTH)
 bool net_login(Session *s, const char *email, const char *password);  // AUTH + sesión GAME
 const char *net_login_error(void);   // motivo del último fallo de net_login
+bool net_link_start(char *code, size_t cn, char *poll, size_t pn);   // pide un código para vincular
+int  net_link_poll(Session *s, const char *code, const char *poll);  // 1 aprobado, 0 pendiente, -1 caducado
+bool net_resume(Session *s);                                         // valida una sesión guardada (s->secret)
+void net_thread_cleanup(void);                                       // cierra el handle curl del hilo actual
 void net_presence(const Session *s);          // touch_presence()
 void net_offline(const Session *s);
 

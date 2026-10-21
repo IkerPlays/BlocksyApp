@@ -28,9 +28,9 @@ MAKEROM    ?= makerom
 BANNERTOOL ?= bannertool
 
 ARCH   := -march=armv6k -mtune=mpcore -mfloat-abi=hard -mtp=soft
-CFLAGS := -g -Wall -O2 -mword-relocations -ffunction-sections $(ARCH) $(INCLUDE) -D__3DS__ -DBLOCKSY_VERSION=\"$(BLOCKSY_VERSION)\" -std=gnu11
+CFLAGS := -g -Wall -O2 -mword-relocations -ffunction-sections $(ARCH) $(INCLUDE) -D__3DS__ -DCURL_STATICLIB -DBLOCKSY_VERSION=\"$(BLOCKSY_VERSION)\" -std=gnu11
 LDFLAGS = -specs=3dsx.specs -g $(ARCH) -Wl,-Map,$(notdir $*.map)
-LIBS   := -lcitro2d -lcitro3d -lctru -lm
+LIBS   := -lcitro2d -lcitro3d -lcurl -lmbedtls -lmbedx509 -lmbedcrypto -lz -lctru -lm
 LIBDIRS := $(PORTLIBS) $(CTRULIB)
 
 ifneq ($(BUILD),$(notdir $(CURDIR)))

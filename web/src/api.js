@@ -32,6 +32,7 @@ export const placeBlock = (game, x, y, z, kind) => rpc('place_block', { p_game: 
 export const breakBlock = (game, x, y, z) => rpc('break_block', { p_game: game, p_x: x, p_y: y, p_z: z })
 export const say = (game, text) => rpc('say', { p_game: game, p_text: text })
 export const leave = () => rpc('leave', {})
+export const linkApprove = code => rpc('link_approve', { p_code: code })
 export const createGameRow = (name, desc, hue) => rpc('create_game', { p_name: name, p_desc: desc, p_hue: hue })
 export const deleteGameRow = id => rpc('delete_game', { p_game: id })
 

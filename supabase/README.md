@@ -31,3 +31,9 @@ Límite conocido: no hay rate limit en las RPC; vale para un prototipo entre ami
 ## Si ya ejecutaste una versión anterior del esquema
 - **GAME**: ejecuta primero `game/reset-v1.sql` (borra las tablas antiguas) y luego `game/schema.sql`.
 - **AUTH**: vuelve a ejecutar `auth/schema.sql` entero (es seguro repetirlo; añade la tabla `friendships`).
+
+## Iniciar sesión en la 3DS escaneando un QR
+Hace falta una vez el parche `game/link-login.sql` (pégalo en el SQL Editor de **GAME**; ya viene incluido en `game/schema.sql`).
+Flujo: la 3DS pide un código (`link_start`) y enseña un QR con `https://TU-WEB/#link/CODIGO`; el móvil/tablet lo abre, inicia sesión
+y pulsa *Autorizar* (`link_approve`); la 3DS lo detecta (`link_poll`) y recibe una sesión de 30 días que guarda en
+`sdmc:/3ds/blocksy/session.txt` para entrar sola la próxima vez («Cuenta» en el juego la borra).
