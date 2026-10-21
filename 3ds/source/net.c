@@ -29,7 +29,7 @@ void net_exit(void) { curl_global_cleanup(); socExit(); free(soc_buf); }
 static __thread CURL *tl_curl;
 void net_thread_cleanup(void) { if (tl_curl) { curl_easy_cleanup(tl_curl); tl_curl = NULL; } }
 
-typedef enum { M_GET, M_POST, M_DELETE } Method;
+typedef enum { M_GET, M_POST, M_DELETE, M_PATCH } Method;
 static int last_status;        // código HTTP de la última petición (0 = no hubo respuesta)
 static char last_err[96];      // texto de curl cuando no hubo respuesta
 
@@ -62,7 +62,7 @@ static char *http(Method m, const char *url, const char *apikey, const char *bea
 	Buf b = {0}; char errbuf[CURL_ERROR_SIZE]; errbuf[0] = 0;
 	curl_easy_setopt(c, CURLOPT_URL, url);
 	curl_easy_setopt(c, CURLOPT_HTTPHEADER, h);
-	if (m == M_POST) { curl_easy_setopt(c, CURLOPT_POST, 1L); curl_easy_setopt(c, CURLOPT_POSTFIELDS, body ? body : ""); curl_easy_setopt(c, CURLOPT_POSTFIELDSIZE, (long)(body ? strlen(body) : 0)); }
+	if (m == M_POST || m == M_PATCH) { curl_easy_setopt(c, CURLOPT_POST, 1L); if (m == M_PATCH) curl_easy_setopt(c, CURLOPT_CUSTOMREQUEST, "PATCH"); curl_easy_setopt(c, CURLOPT_POSTFIELDS, body ? body : ""); curl_easy_setopt(c, CURLOPT_POSTFIELDSIZE, (long)(body ? strlen(body) : 0)); }
 	else if (m == M_DELETE) curl_easy_setopt(c, CURLOPT_CUSTOMREQUEST, "DELETE");
 	curl_easy_setopt(c, CURLOPT_SSL_VERIFYPEER, 0L);   // TODO: instalar la CA raíz y verificar
 	curl_easy_setopt(c, CURLOPT_SSL_VERIFYHOST, 0L);
@@ -111,6 +111,9 @@ static bool jstr(const char *obj, const char *end, const char *key, char *dst, s
 static float jnum(const char *obj, const char *end, const char *key) {
 	const char *p = find_val(obj, end, key); return p ? strtof(p, NULL) : 0;
 }
+static int jbool(const char *obj, const char *end, const char *key) {
+	const char *p = find_val(obj, end, key); return p && *p == 't';
+}
 // Avanza al siguiente objeto {...} de un array plano
 static const char *next_obj(const char *p, const char **end) {
 	p = strchr(p, '{'); if (!p) return NULL;
@@ -135,13 +138,37 @@ static void set_err(const char *what) {
 	else snprintf(login_err, sizeof login_err, "%s (%d)", what, last_status);
 }
 
-bool net_login(Session *s, const char *email, const char *password) {
+// Sesión del proyecto GAME: la Edge Function valida el token de AUTH
+static bool open_game_session(Session *s) {
+	static char sbody[1800]; snprintf(sbody, sizeof sbody, "{\"token\":\"%s\"}", s->token);
+	char *r = http(M_POST, GAME_URL "/functions/v1/game-session", GAME_ANON_KEY, GAME_ANON_KEY, sbody, NULL); // Authorization: Bearer anon (pasa Verify JWT)
+	if (!r) {
+		if (last_status == 404) snprintf(login_err, sizeof login_err, "Falta la funcion game-session (404)");
+		else set_err("No se pudo abrir la sesion de juego");
+		return false;
+	}
+	const char *end = r + strlen(r); char col[12] = "";
+	bool ok = jstr(r, end, "secret", s->secret, sizeof s->secret);
+	strcpy(s->username, "player");
+	jstr(r, end, "username", s->username, sizeof s->username);
+	jstr(r, end, "color", col, sizeof col);
+	s->color = parse_color(col);
+	free(r);
+	if (!ok) snprintf(login_err, sizeof login_err, "Sesion de juego no valida");
+	return ok;
+}
+
+// Inicia sesión (username == NULL) o crea la cuenta (username != NULL) y abre la sesión de juego
+bool net_login(Session *s, const char *email, const char *password, const char *username) {
 	login_err[0] = 0;
 	if (sizeof(AUTH_URL) <= 1 || sizeof(GAME_URL) <= 1) { snprintf(login_err, sizeof login_err, "Este build no tiene config de Supabase"); return false; }
-	char body[256]; snprintf(body, sizeof body, "{\"email\":\"%s\",\"password\":\"%s\"}", email, password);
-	char *r = http(M_POST, AUTH_URL "/auth/v1/token?grant_type=password", AUTH_ANON_KEY, NULL, body, NULL);
+	char body[320];
+	if (username) snprintf(body, sizeof body, "{\"email\":\"%s\",\"password\":\"%s\",\"data\":{\"username\":\"%s\"}}", email, password, username);
+	else snprintf(body, sizeof body, "{\"email\":\"%s\",\"password\":\"%s\"}", email, password);
+	char *r = http(M_POST, username ? AUTH_URL "/auth/v1/signup" : AUTH_URL "/auth/v1/token?grant_type=password", AUTH_ANON_KEY, NULL, body, NULL);
 	if (!r) {
-		if (last_status == 400) snprintf(login_err, sizeof login_err, "Email o contrasena incorrectos");
+		if (username && (last_status == 422 || last_status == 400)) snprintf(login_err, sizeof login_err, "No se pudo crear: email repetido o contrasena corta");
+		else if (last_status == 400) snprintf(login_err, sizeof login_err, "Email o contrasena incorrectos");
 		else if (last_status == 401 || last_status == 403) snprintf(login_err, sizeof login_err, "Clave de Supabase invalida (%d)", last_status);
 		else set_err("Error del servidor de cuentas");
 		return false;
@@ -151,27 +178,13 @@ bool net_login(Session *s, const char *email, const char *password) {
 	const char *u = strstr(r, "\"user\":{");   // "id" del usuario dentro de "user"
 	ok = ok && u && jstr(u, end, "id", s->user_id, sizeof s->user_id);
 	free(r);
-	if (!ok) { snprintf(login_err, sizeof login_err, "Respuesta de login no valida"); return false; }
-
-	// Sesión del proyecto GAME: la Edge Function valida el token de AUTH
-	static char sbody[1800]; snprintf(sbody, sizeof sbody, "{\"token\":\"%s\"}", s->token);
-	r = http(M_POST, GAME_URL "/functions/v1/game-session", GAME_ANON_KEY, GAME_ANON_KEY, sbody, NULL); // Authorization: Bearer anon (pasa Verify JWT)
-	if (!r) {
-		if (last_status == 404) snprintf(login_err, sizeof login_err, "Falta la funcion game-session (404)");
-		else set_err("No se pudo abrir la sesion de juego");
+	if (!ok) {
+		snprintf(login_err, sizeof login_err, username ? "Cuenta creada. Confirma tu email y entra" : "Respuesta de login no valida");
 		return false;
 	}
-	end = r + strlen(r);
-	char col[12] = "";
-	ok = jstr(r, end, "secret", s->secret, sizeof s->secret);
-	strcpy(s->username, "player");
-	jstr(r, end, "username", s->username, sizeof s->username);
-	jstr(r, end, "color", col, sizeof col);
-	s->color = parse_color(col);
-	free(r);
-	if (!ok) snprintf(login_err, sizeof login_err, "Sesion de juego no valida");
-	return ok;
+	return open_game_session(s);
 }
+
 // ---------- Iniciar sesión desde otro dispositivo (QR) ----------
 static void fill_session(Session *s, const char *r, const char *end) {
 	char col[12] = "";
@@ -219,35 +232,45 @@ bool net_resume(Session *s) {
 	s->token[0] = 0; free(r); return ok;
 }
 
-void net_presence(const Session *s) {
+// ---------- Presencia ----------
+static char g_game[40] = GAME_ID;            // juego actual (se elige en la app)
+void net_set_game(const char *id) { snprintf(g_game, sizeof g_game, "%s", id); }
+const char *net_game(void) { return g_game; }
+
+void net_presence(const Session *s, const char *game) {
 	if (!s->token[0]) return;   // sesión vinculada por QR: no hay token de Auth
-	free(http(M_POST, AUTH_URL "/rest/v1/rpc/touch_presence", AUTH_ANON_KEY, s->token, "{\"p_game\":\"" GAME_ID "\"}", NULL));
+	char body[96]; if (game && game[0]) snprintf(body, sizeof body, "{\"p_game\":\"%s\"}", game); else snprintf(body, sizeof body, "{\"p_game\":null}");
+	free(http(M_POST, AUTH_URL "/rest/v1/rpc/touch_presence", AUTH_ANON_KEY, s->token, body, NULL));
 }
 void net_offline(const Session *s) { if (s->token[0]) free(http(M_POST, AUTH_URL "/rest/v1/rpc/go_offline", AUTH_ANON_KEY, s->token, "{}", NULL)); }
 
 // ---------- Juego (RPC con secret de sesión; lecturas públicas) ----------
 static bool rpc(const Session *s, const char *fn, const char *args_json) {
 	char url[96]; snprintf(url, sizeof url, GAME_URL "/rest/v1/rpc/%s", fn);
-	char body[512]; snprintf(body, sizeof body, "{\"p_secret\":\"%s\"%s%s}", s->secret, args_json[0] ? "," : "", args_json);
+	char body[640]; snprintf(body, sizeof body, "{\"p_secret\":\"%s\"%s%s}", s->secret, args_json[0] ? "," : "", args_json);
 	char *r = http(M_POST, url, GAME_ANON_KEY, NULL, body, NULL);
 	bool ok = r != NULL; free(r); return ok;
+}
+static void clean(char *dst, size_t n, const char *src) {   // quita comillas y barras para no romper el JSON
+	size_t i = 0; for (; *src && i + 1 < n; src++) dst[i++] = (*src == '"' || *src == '\\' || *src == '\n') ? ' ' : *src;
+	dst[i] = 0;
 }
 
 bool net_send_state(const Session *s, float x, float y, float z, float ry, const char *anim) {
 	char a[256];
-	snprintf(a, sizeof a, "\"p_game\":\"" GAME_ID "\",\"p_x\":%.3f,\"p_y\":%.3f,\"p_z\":%.3f,\"p_ry\":%.3f,\"p_anim\":\"%s\",\"p_platform\":\"3ds\"", x, y, z, ry, anim);
+	snprintf(a, sizeof a, "\"p_game\":\"%s\",\"p_x\":%.3f,\"p_y\":%.3f,\"p_z\":%.3f,\"p_ry\":%.3f,\"p_anim\":\"%s\",\"p_platform\":\"3ds\"", g_game, x, y, z, ry, anim);
 	return rpc(s, "move", a);
 }
 bool net_say(const Session *s, const char *text) {
-	char a[300]; snprintf(a, sizeof a, "\"p_game\":\"" GAME_ID "\",\"p_text\":\"%s\"", text);
+	char a[300], t[110]; clean(t, sizeof t, text);
+	snprintf(a, sizeof a, "\"p_game\":\"%s\",\"p_text\":\"%s\"", g_game, t);
 	return rpc(s, "say", a);
 }
 
 int net_fetch_players(const Session *s, Remote *out, int max) {
 	time_t t = time(NULL) - 15; struct tm *tm = gmtime(&t);
-	char url[300], ts[32]; strftime(ts, sizeof ts, "%Y-%m-%dT%H:%M:%SZ", tm);
-	snprintf(url, sizeof url, GAME_URL "/rest/v1/player_state?game_id=eq." GAME_ID
-	         "&updated_at=gt.%s&select=player_id,username,color,platform,x,y,z,ry", ts);
+	char url[320], ts[32]; strftime(ts, sizeof ts, "%Y-%m-%dT%H:%M:%SZ", tm);
+	snprintf(url, sizeof url, GAME_URL "/rest/v1/player_state?game_id=eq.%s&updated_at=gt.%s&select=player_id,username,color,platform,x,y,z,ry", g_game, ts);
 	char *r = http(M_GET, url, GAME_ANON_KEY, NULL, NULL, NULL);
 	if (!r) return -1;
 	int n = 0; const char *p = r, *end;
@@ -266,7 +289,8 @@ int net_fetch_players(const Session *s, Remote *out, int max) {
 
 int net_fetch_blocks(const Session *s, Block *out, int max) {
 	(void)s;
-	char *r = http(M_GET, GAME_URL "/rest/v1/blocks?game_id=eq." GAME_ID "&select=x,y,z,kind&limit=2048", GAME_ANON_KEY, NULL, NULL, NULL);
+	char url[256]; snprintf(url, sizeof url, GAME_URL "/rest/v1/blocks?game_id=eq.%s&select=x,y,z,kind&limit=2048", g_game);
+	char *r = http(M_GET, url, GAME_ANON_KEY, NULL, NULL, NULL);
 	if (!r) return -1;
 	int n = 0; const char *p = r, *end;
 	while (n < max && (p = next_obj(p, &end))) {
@@ -278,11 +302,108 @@ int net_fetch_blocks(const Session *s, Block *out, int max) {
 }
 
 bool net_place_block(const Session *s, int x, int y, int z, int kind) {
-	char a[160]; snprintf(a, sizeof a, "\"p_game\":\"" GAME_ID "\",\"p_x\":%d,\"p_y\":%d,\"p_z\":%d,\"p_kind\":%d", x, y, z, kind);
+	char a[200]; snprintf(a, sizeof a, "\"p_game\":\"%s\",\"p_x\":%d,\"p_y\":%d,\"p_z\":%d,\"p_kind\":%d", g_game, x, y, z, kind);
 	return rpc(s, "place_block", a);
 }
 bool net_break_block(const Session *s, int x, int y, int z) {
-	char a[160]; snprintf(a, sizeof a, "\"p_game\":\"" GAME_ID "\",\"p_x\":%d,\"p_y\":%d,\"p_z\":%d", x, y, z);
+	char a[200]; snprintf(a, sizeof a, "\"p_game\":\"%s\",\"p_x\":%d,\"p_y\":%d,\"p_z\":%d", g_game, x, y, z);
 	return rpc(s, "break_block", a);
 }
 void net_leave(const Session *s) { rpc(s, "leave", ""); }
+
+// ---------- Lobby: juegos, amigos, avatar ----------
+int net_list_games(GameInfo *out, int max) {
+	char *r = http(M_GET, GAME_URL "/rest/v1/games?select=id,name,description,owner_id,owner_name,hue,max_players&order=created_at.asc&limit=32", GAME_ANON_KEY, NULL, NULL, NULL);
+	if (!r) { set_err("No se pudo cargar la lista de juegos"); return -1; }
+	int n = 0; const char *p = r, *end;
+	while (n < max && (p = next_obj(p, &end))) {
+		GameInfo *g = &out[n]; memset(g, 0, sizeof *g);
+		const char *st = p; p = end + 1;
+		if (!jstr(st, end, "id", g->id, sizeof g->id)) continue;
+		jstr(st, end, "name", g->name, sizeof g->name); jstr(st, end, "description", g->desc, sizeof g->desc);
+		jstr(st, end, "owner_id", g->owner_id, sizeof g->owner_id); jstr(st, end, "owner_name", g->owner, sizeof g->owner);
+		g->hue = (int)jnum(st, end, "hue"); g->max = (int)jnum(st, end, "max_players"); if (!g->max) g->max = 20;
+		n++;
+	}
+	free(r); return n;
+}
+// Rellena g[i].players con los jugadores activos (visto en los últimos 15 s)
+void net_player_counts(GameInfo *g, int n) {
+	time_t t = time(NULL) - 15; struct tm *tm = gmtime(&t);
+	char url[200], ts[32]; strftime(ts, sizeof ts, "%Y-%m-%dT%H:%M:%SZ", tm);
+	snprintf(url, sizeof url, GAME_URL "/rest/v1/player_state?select=game_id&updated_at=gt.%s&limit=500", ts);
+	char *r = http(M_GET, url, GAME_ANON_KEY, NULL, NULL, NULL);
+	for (int i = 0; i < n; i++) g[i].players = 0;
+	if (!r) return;
+	const char *p = r, *end;
+	while ((p = next_obj(p, &end))) {
+		char gid[40] = ""; jstr(p, end, "game_id", gid, sizeof gid); p = end + 1;
+		for (int i = 0; i < n; i++) if (!strcmp(g[i].id, gid)) { g[i].players++; break; }
+	}
+	free(r);
+}
+static int parse_people(const char *r, Person *out, int max) {
+	int n = 0; const char *p = r, *end;
+	while (n < max && (p = next_obj(p, &end))) {
+		Person *o = &out[n]; memset(o, 0, sizeof *o); char col[12] = "", cg[40] = "";
+		const char *st = p; p = end + 1;
+		if (!jstr(st, end, "id", o->id, sizeof o->id)) continue;
+		jstr(st, end, "username", o->name, sizeof o->name); jstr(st, end, "avatar_color", col, sizeof col); o->color = parse_color(col);
+		o->online = jbool(st, end, "is_online"); o->in_game = jstr(st, end, "current_game", cg, sizeof cg);
+		n++;
+	}
+	return n;
+}
+int net_list_friends(const Session *s, Person *out, int max) {
+	if (!s->token[0]) return -2;   // sin cuenta (QR): no hay token de Auth
+	char url[200]; snprintf(url, sizeof url, AUTH_URL "/rest/v1/friendships?select=friend_id&user_id=eq.%s&limit=60", s->user_id);
+	char *r = http(M_GET, url, AUTH_ANON_KEY, s->token, NULL, NULL);
+	if (!r) return -1;
+	static char in[2400]; size_t len = snprintf(in, sizeof in, AUTH_URL "/rest/v1/profiles_public?select=id,username,avatar_color,current_game,is_online&order=is_online.desc,username.asc&id=in.(");
+	int ids = 0; const char *p = r, *end;
+	while ((p = next_obj(p, &end)) && len < sizeof in - 60) {
+		char id[40] = ""; jstr(p, end, "friend_id", id, sizeof id); p = end + 1;
+		if (id[0]) len += snprintf(in + len, sizeof in - len, "%s%s", ids++ ? "," : "", id);
+	}
+	free(r);
+	if (!ids) return 0;
+	snprintf(in + len, sizeof in - len, ")");
+	r = http(M_GET, in, AUTH_ANON_KEY, s->token, NULL, NULL);
+	if (!r) return -1;
+	int n = parse_people(r, out, max); free(r); return n;
+}
+int net_list_people(const Session *s, Person *out, int max) {
+	if (!s->token[0]) return -2;
+	char *r = http(M_GET, AUTH_URL "/rest/v1/profiles_public?select=id,username,avatar_color,current_game,is_online&order=is_online.desc,username.asc&limit=30", AUTH_ANON_KEY, s->token, NULL, NULL);
+	if (!r) return -1;
+	int n = parse_people(r, out, max); free(r); return n;
+}
+bool net_add_friend(const Session *s, const char *id) {
+	char body[160]; snprintf(body, sizeof body, "{\"user_id\":\"%s\",\"friend_id\":\"%s\"}", s->user_id, id);
+	char *r = http(M_POST, AUTH_URL "/rest/v1/friendships", AUTH_ANON_KEY, s->token, body, "resolution=merge-duplicates,return=minimal");
+	bool ok = r != NULL; free(r); return ok;
+}
+bool net_remove_friend(const Session *s, const char *id) {
+	char url[220]; snprintf(url, sizeof url, AUTH_URL "/rest/v1/friendships?user_id=eq.%s&friend_id=eq.%s", s->user_id, id);
+	char *r = http(M_DELETE, url, AUTH_ANON_KEY, s->token, NULL, "return=minimal");
+	bool ok = r != NULL; free(r); return ok;
+}
+// Guarda el color en el perfil y renueva la sesión de juego (para que los demás lo vean)
+bool net_set_color(Session *s, const char *hex) {
+	if (!s->token[0]) return false;
+	char url[160], body[64]; snprintf(url, sizeof url, AUTH_URL "/rest/v1/profiles?id=eq.%s", s->user_id);
+	snprintf(body, sizeof body, "{\"avatar_color\":\"%s\"}", hex);
+	char *r = http(M_PATCH, url, AUTH_ANON_KEY, s->token, body, "return=minimal");
+	if (!r) return false;
+	free(r);
+	return open_game_session(s);
+}
+bool net_create_game(const Session *s, const char *name, const char *desc, int hue) {
+	char a[320], n1[48], d1[104]; clean(n1, sizeof n1, name); clean(d1, sizeof d1, desc);
+	snprintf(a, sizeof a, "\"p_name\":\"%s\",\"p_desc\":\"%s\",\"p_hue\":%d", n1, d1, hue);
+	return rpc(s, "create_game", a);
+}
+bool net_delete_game(const Session *s, const char *id) {
+	char a[100]; snprintf(a, sizeof a, "\"p_game\":\"%s\"", id);
+	return rpc(s, "delete_game", a);
+}

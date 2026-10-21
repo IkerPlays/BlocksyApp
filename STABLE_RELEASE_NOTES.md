@@ -6,6 +6,10 @@ Blocksy is a multiplayer block-building game for the web and the Nintendo 3DS (h
 - **Web client.** Roblox-style home with friends, popular games, game pages, avatar editor, friends, create and settings.
 - **In game.** Pause menu, chat, player list with a 3DS tag, six block colors.
 - **Nintendo 3DS.** Walk, jump, place and break blocks, chat, and see web players live. Installable as .cia (FBI) or .3dsx (Homebrew Launcher).
+- **Same look as the web.** The 3DS app has Home, Discover, Avatar, Friends, Create and Settings pages, a side menu, game pages, thumbnails and avatars like the website.
+- **Choose your game.** Pick any game from the lobby, return to it from the game, create and delete worlds.
+- **Friends and avatar.** Add or remove friends and change your avatar color from the 3DS (needs an email login, not the QR).
+- **Create account.** The login screen has Sign in and Create account tabs, like the web. The app remembers your email, last game and draw distance.
 - **Touch login.** The 3DS login screen has Email and Password fields, show/hide password, Remember my email and an Enter button.
 - **Bottom screen panel.** Players online, block color picker, Chat and Exit buttons.
 - **Softer HOME Menu sound.** A gentle chime plays when the app is highlighted.

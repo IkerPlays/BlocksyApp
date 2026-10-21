@@ -10,3 +10,6 @@ dist/
 *.cia
 *.smdh
 *.bnr
+3ds/preview/preview
+3ds/preview/ops.txt
+3ds/preview/out/

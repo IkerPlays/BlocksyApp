@@ -7,6 +7,7 @@
 #include <string.h>
 #include "net.h"
 #include "ui.h"
+#include "app.h"
 #include "config.h"
 
 #ifndef BLOCKSY_VERSION
@@ -21,6 +22,8 @@
 // ---------- Estado compartido con el hilo de red ----------
 static LightLock lock;
 static Session sess;
+static GameInfo cur_game;
+static volatile bool want_offline;   // al salir de la app desde el juego: marcar offline en el hilo de red
 static Block blocks[MAX_BLOCKS]; static int nblocks;
 static Remote remotes[MAX_PLAYERS]; static int nremotes;
 static volatile bool running = true;
@@ -60,10 +63,12 @@ static void net_thread(void *arg) {
 			if (m >= 0) { LightLock_Lock(&lock); memcpy(blocks, bt, sizeof(Block) * m); nblocks = m; LightLock_Unlock(&lock); }
 			last_blocks = now;
 		}
-		if (now - last_presence > 30000) { net_presence(&sess); last_presence = now; }
+		if (now - last_presence > 30000) { net_presence(&sess, net_game()); last_presence = now; }
 		svcSleepThread((qn ? 30 : 100) * 1000000LL); // ~10 Hz
 	}
-	// Al salir (en este hilo, que ya tiene la conexión TLS abierta): dejar la partida y marcar offline
+	// Al salir (en este hilo, que ya tiene la conexión TLS abierta): dejar la partida
+	net_leave(&sess);
+	if (want_offline) net_offline(&sess);
 	net_thread_cleanup();
 }
 
@@ -123,31 +128,24 @@ static void do_chat(void) {
 	}
 }
 
-int main(void) {
-	gfxInitDefault(); C3D_Init(C3D_DEFAULT_CMDBUF_SIZE); C2D_Init(C2D_DEFAULT_MAX_OBJECTS); C2D_Prepare();
-	C3D_RenderTarget *top = C2D_CreateScreenTarget(GFX_TOP, GFX_LEFT);
-	C3D_RenderTarget *bot = C2D_CreateScreenTarget(GFX_BOTTOM, GFX_LEFT);
-	ui_init();
-	if (!net_init()) {
-		ui_message(top, bot, "Sin red", "No se pudo iniciar la red.\nComprueba que el WiFi esta activado.");
-		ui_exit(); C2D_Fini(); C3D_Fini(); gfxExit(); return 1;
-	}
-	if (!ui_login(top, bot, &sess, BLOCKSY_VERSION)) {
-		ui_exit(); net_exit(); C2D_Fini(); C3D_Fini(); gfxExit(); return 0;
-	}
-
+// Una partida. Devuelve true para volver al lobby; false si el usuario pulsa START (salir de la app).
+static bool play_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 	LightLock_Init(&lock);
+	nblocks = nremotes = qn = 0; px = 0.5f; py = 3; pz = 0.5f; pry = 0; vy = 0; grounded = false; moving = 0; running = true; want_offline = false;
+	cam_yaw = 0; cam_pitch = 0.5f; cam_dist = 9;
+	net_set_game(cur_game.id);
 	s32 prio = 0; svcGetThreadPriority(&prio, CUR_THREAD_HANDLE);
 	Thread th = threadCreate(net_thread, NULL, 256 * 1024, prio + 1, 0, false);   // prioridad menor que la UI
 
 	// La pila principal de la app es de solo ~32 KB: los arrays grandes van en memoria estática
 	static Block local[MAX_BLOCKS]; static Remote rem[MAX_PLAYERS];
 	int kind = 1, nl = 0, nr = 0;
+	bool back = true;
 
 	while (aptMainLoop()) {
 		hidScanInput();
 		u32 down = hidKeysDown(), held = hidKeysHeld();
-		if (down & KEY_START) break;
+		if (down & KEY_START) { back = false; break; }
 		if (held & KEY_L) cam_yaw -= 0.05f;
 		if (held & KEY_R) cam_yaw += 0.05f;
 		if (held & KEY_DUP) cam_dist = fmaxf(4, cam_dist - 0.15f);
@@ -160,10 +158,10 @@ int main(void) {
 			if (act >= UI_COLOR0 && act < UI_COLOR0 + NPALETTE) kind = act;
 			else if (act == UI_CHAT) do_chat();
 			else if (act == UI_QUIT) break;
-			else if (act == UI_LOGOUT) { ui_forget_session(); break; }
 		}
 
 		static Remote disp[MAX_PLAYERS]; static int ndisp; static int frame_n;
+		if (frame_n == 0) ndisp = 0;
 		LightLock_Lock(&lock);
 		memcpy(local, blocks, sizeof(Block) * nblocks); nl = nblocks;
 		memcpy(rem, remotes, sizeof(Remote) * nremotes); nr = nremotes;
@@ -238,17 +236,41 @@ int main(void) {
 			C2D_DrawTriangle(p[0][0], p[0][1], c, p[2][0], p[2][1], c, p[3][0], p[3][1], c, 0);
 		}
 		// citro2d tiene un límite de objetos por frame: se descartan los más lejanos
-		int first = nd > 350 ? nd - 350 : 0;
+		static const int caps[3] = {150, 250, 350};
+		int cap = caps[app_draw_level()], first = nd > cap ? nd - cap : 0;
 		for (int i = first; i < nd; i++) draw_box(draw_list[i].x, draw_list[i].y, draw_list[i].z, draw_list[i].w, draw_list[i].h, draw_list[i].color);
 		C2D_DrawRectSolid(8, 8, 0, 20, 20, PALETTE[kind]); // color seleccionado
 		C2D_TargetClear(bot, C2D_Color32(0x23, 0x25, 0x27, 255));
 		C2D_SceneBegin(bot);
-		ui_game_bottom(&sess, rem, nr, kind, BLOCKSY_VERSION);
+		ui_game_bottom(&sess, rem, nr, kind, cur_game.name, BLOCKSY_VERSION);
 		C3D_FrameEnd(0);
 	}
 
+	want_offline = !back;
 	running = false;
 	if (th) { threadJoin(th, U64_MAX); threadFree(th); }
-	ui_exit(); C2D_Fini(); C3D_Fini(); net_exit(); gfxExit();
+	return back;
+}
+
+int main(void) {
+	gfxInitDefault(); C3D_Init(C3D_DEFAULT_CMDBUF_SIZE); C2D_Init(C2D_DEFAULT_MAX_OBJECTS); C2D_Prepare();
+	C3D_RenderTarget *top = C2D_CreateScreenTarget(GFX_TOP, GFX_LEFT);
+	C3D_RenderTarget *bot = C2D_CreateScreenTarget(GFX_BOTTOM, GFX_LEFT);
+	ui_init();
+	if (!net_init()) {
+		ui_message(top, bot, "Sin red", "No se pudo iniciar la red.\nComprueba que el WiFi esta activado.");
+		ui_exit(); C2D_Fini(); C3D_Fini(); gfxExit(); return 1;
+	}
+	bool quit = false;
+	while (!quit) {
+		if (!ui_login(top, bot, &sess, BLOCKSY_VERSION)) break;
+		for (;;) {                                           // login -> lobby <-> juego
+			AppResult r = app_lobby(top, bot, &sess, &cur_game, BLOCKSY_VERSION);
+			if (r == APP_PLAY) { if (!play_game(top, bot)) { quit = true; break; } continue; }
+			if (r == APP_LOGOUT) { ui_forget_session(); memset(&sess, 0, sizeof sess); } else quit = true;
+			break;
+		}
+	}
+	ui_exit(); net_exit(); C2D_Fini(); C3D_Fini(); gfxExit();
 	return 0;
 }

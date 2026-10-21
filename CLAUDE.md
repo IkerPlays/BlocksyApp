@@ -18,3 +18,4 @@ Same release system as Iker's Tube.
 - "Releases maintenance" workflow: `backup` (archive every release), `prune`, `republish`, `restructure` (needs RELEASES_PAT).
 - GitHub secrets for the 3DS build: `AUTH_SUPABASE_URL`, `AUTH_SUPABASE_ANON_KEY`, `GAME_SUPABASE_URL`, `GAME_SUPABASE_ANON_KEY`.
 - Compile the 3DS locally before pushing: `docker run --rm -v $PWD/3ds:/src -w /src devkitpro/devkitarm make` (needs `3ds/source/config.h`).
+- 3DS UI preview without a console: see `3ds/preview/README.md` (renders every screen to PNG on the PC). Use it after any UI change in `3ds/source/ui.c` or `app.c`.

@@ -19,17 +19,35 @@ typedef struct {
 bool net_init(void);
 void net_exit(void);
 
+typedef struct { char id[40]; char name[44]; char desc[104]; char owner_id[40]; char owner[24]; int hue, max, players; } GameInfo;
+typedef struct { char id[40]; char name[24]; unsigned int color; int online, in_game; } Person;
+#define MAX_GAMES  32
+#define MAX_PEOPLE 32
+
 // Auth (proyecto AUTH)
-bool net_login(Session *s, const char *email, const char *password);  // AUTH + sesión GAME
+bool net_login(Session *s, const char *email, const char *password, const char *username); // username != NULL: crea la cuenta
 const char *net_login_error(void);   // motivo del último fallo de net_login
 bool net_link_start(char *code, size_t cn, char *poll, size_t pn);   // pide un código para vincular
 int  net_link_poll(Session *s, const char *code, const char *poll);  // 1 aprobado, 0 pendiente, -1 caducado
 bool net_resume(Session *s);                                         // valida una sesión guardada (s->secret)
 void net_thread_cleanup(void);                                       // cierra el handle curl del hilo actual
-void net_presence(const Session *s);          // touch_presence()
+void net_presence(const Session *s, const char *game);   // touch_presence(); game NULL = en el lobby
 void net_offline(const Session *s);
 
-// Juego (proyecto GAME)
+// Lobby (listas, amigos, avatar). Los de amigos devuelven -2 si la sesión no tiene token de Auth (entrada por QR)
+int  net_list_games(GameInfo *out, int max);
+void net_player_counts(GameInfo *g, int n);
+int  net_list_friends(const Session *s, Person *out, int max);
+int  net_list_people(const Session *s, Person *out, int max);
+bool net_add_friend(const Session *s, const char *id);
+bool net_remove_friend(const Session *s, const char *id);
+bool net_set_color(Session *s, const char *hex);
+bool net_create_game(const Session *s, const char *name, const char *desc, int hue);
+bool net_delete_game(const Session *s, const char *id);
+
+// Juego (proyecto GAME): opera sobre el juego elegido con net_set_game()
+void net_set_game(const char *id);
+const char *net_game(void);
 bool net_say(const Session *s, const char *text);
 bool net_send_state(const Session *s, float x, float y, float z, float ry, const char *anim);
 int  net_fetch_players(const Session *s, Remote *out, int max);
