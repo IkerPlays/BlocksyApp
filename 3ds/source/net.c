@@ -37,7 +37,7 @@ static char *http(Method m, const char *url, const char *apikey, const char *bea
 	}
 	if (body) {
 		httpcAddRequestHeaderField(&ctx, "Content-Type", "application/json");
-		httpcSetPostDataRaw(&ctx, body, strlen(body));
+		httpcAddPostDataRaw(&ctx, body, strlen(body));
 	}
 	if (extra_prefer) httpcAddRequestHeaderField(&ctx, "Prefer", extra_prefer);
 
