@@ -9,9 +9,10 @@
 #include <string.h>
 #include <sys/stat.h>
 
-enum { P_HOME, P_DISCOVER, P_AVATAR, P_FRIENDS, P_CREATE, P_UPDATE, P_SETTINGS, NPAGES };
-static const char *const PAGE_NAME[NPAGES] = {"Inicio", "Descubrir", "Avatar", "Amigos", "Crear", "Actualizar", "Ajustes"};
-static const int PAGE_ICON[NPAGES] = {0, 1, 2, 3, 4, 7, 5};
+// (Crear juegos es solo de la web y de la cuenta autorizada: no está en la 3DS)
+enum { P_HOME, P_DISCOVER, P_AVATAR, P_FRIENDS, P_UPDATE, P_SETTINGS, NPAGES };
+static const char *const PAGE_NAME[NPAGES] = {"Inicio", "Descubrir", "Avatar", "Amigos", "Actualizar", "Ajustes"};
+static const int PAGE_ICON[NPAGES] = {0, 1, 2, 3, 7, 5};
 static const char *const AVATAR_COLORS[10] = {"#4da6ff", "#ff9f43", "#2ecc71", "#e74c3c", "#9b59b6", "#f1c40f", "#1abc9c", "#ff6b9d", "#ecf0f1", "#95a5a6"};
 
 // ---------- datos compartidos con el hilo de red ----------
@@ -32,7 +33,7 @@ static bool cur_is_dev(void) { return strstr(g_upd.cur, "-dev") != NULL || !strc
 // ¿Hay algo nuevo? Una estable nueva siempre; una devbuild nueva solo si se usa una devbuild
 static bool upd_available(void) { return g_upd_have && (g_upd.stable.newer || (g_upd.dev.newer && cur_is_dev())); }
 
-typedef enum { RQ_NONE, RQ_REFRESH, RQ_ADD, RQ_REMOVE, RQ_COLOR, RQ_CREATE, RQ_DELETE, RQ_UPD_CHECK, RQ_UPD_INSTALL } Req;
+typedef enum { RQ_NONE, RQ_REFRESH, RQ_ADD, RQ_REMOVE, RQ_COLOR, RQ_UPD_CHECK, RQ_UPD_INSTALL } Req;
 typedef struct {
 	volatile int req, busy, quit, offline, seq, done_ok;
 	char arg[48], arg2[104]; int n;
@@ -81,7 +82,7 @@ static void upd_install_job(int which) {
 
 static void worker_thread(void *arg) {
 	(void)arg;
-	u64 last_refresh = 0, last_presence = 0, last_upd = 0; bool first_upd = true;
+	u64 last_refresh = 0, last_presence = 0, last_upd = 0, last_token = osGetTime(); bool first_upd = true;
 	while (!W.quit) {
 		u64 now = osGetTime();
 		int r = W.req;
@@ -96,14 +97,16 @@ static void worker_thread(void *arg) {
 			case RQ_COLOR:  W.done_ok = net_set_color(W.s, W.arg);     snprintf(W.msg, sizeof W.msg, W.done_ok ? "Avatar guardado" : "No se pudo guardar el avatar");
 				if (W.done_ok) W.s->color = parse_hex(W.arg);
 				break;
-			case RQ_CREATE: W.done_ok = net_create_game(W.s, W.arg, W.arg2, W.n); snprintf(W.msg, sizeof W.msg, W.done_ok ? "Juego creado" : "No se pudo crear el juego"); refresh_all(); break;
 			case RQ_UPD_CHECK: upd_check_job(W.n == 2); first_upd = false; last_upd = osGetTime(); W.msg[0] = 0; break;
 			case RQ_UPD_INSTALL: upd_install_job(W.n); W.msg[0] = 0; break;
-			case RQ_DELETE: W.done_ok = net_delete_game(W.s, W.arg);   snprintf(W.msg, sizeof W.msg, W.done_ok ? "Juego borrado" : "No se pudo borrar"); refresh_all(); break;
 			}
 			last_refresh = osGetTime();
 			W.req = 0; W.busy = 0;
 		} else svcSleepThread(40 * 1000000LL);
+		if (W.s->refresh[0] && now - last_token > 2700000 && !W.req) {          // renueva el token de la cuenta (caduca a la hora) y guarda el nuevo refresh token
+			if (net_refresh(W.s, true)) ui_save_session(W.s);
+			last_token = now;
+		}
 		if (now - last_presence > 30000) { net_presence(W.s, NULL); last_presence = now; }
 	}
 	if (W.offline) net_offline(W.s);
@@ -171,8 +174,6 @@ static int build_view(const Ui *u, const Session *s, int *view) {
 			}
 			view[n++] = i;
 		}
-	} else if (u->page == P_CREATE) {
-		for (int i = 0; i < ngames; i++) if (!strcmp(games[i].owner_id, s->user_id)) view[n++] = i;
 	}
 	return n;
 }
@@ -197,7 +198,6 @@ static int count_rows(const Ui *u, const Session *s) {
 	int view[MAX_GAMES]; PRow pr[MAX_PEOPLE * 2];
 	switch (u->page) {
 	case P_HOME: case P_DISCOVER: return build_view(u, s, view);
-	case P_CREATE: return 1 + build_view(u, s, view);       // fila 0 = "Nuevo mundo"
 	case P_FRIENDS: return build_people(s, pr);
 	case P_SETTINGS: return 4;
 	case P_UPDATE: return 3;
@@ -232,9 +232,9 @@ static void top_bar(const Ui *u, const Session *s, bool busy) {
 	ui_rect(0, 0, 400, 28, COL_PANEL); ui_rect(0, 28, 400, 1, COL_LINE);
 	ui_cube(17, 14, 8, COL_ACCENT);
 	ui_text(30, 4, 0.58f, COL_TEXT, 0, "Blocksy");
-	static const int navp[3] = {P_HOME, P_DISCOVER, P_CREATE};
+	static const int navp[2] = {P_HOME, P_DISCOVER};
 	float x = 104;
-	for (int i = 0; i < 3; i++) {
+	for (int i = 0; i < 2; i++) {
 		bool act = u->page == navp[i]; float w = ui_text_width(PAGE_NAME[navp[i]], 0.44f);
 		if (act) ui_rrect(x - 6, 5, w + 12, 18, 6, COL_PANEL2);
 		ui_text(x, 7, 0.44f, act ? COL_TEXT : COL_MUTED, 0, PAGE_NAME[navp[i]]);
@@ -325,21 +325,6 @@ static void page_top(const Ui *u, const Session *s) {
 		}
 		if (!n) ui_text(30, 120, 0.46f, COL_MUTED, 0, "Aun no hay jugadores.");
 		(void)t; break; }
-	case P_CREATE: {
-		ui_text(14, 33, 0.8f, COL_TEXT, 0, "Crear");
-		ui_rrect(14, 66, 372, 28, 8, COL_PANEL);
-		ui_rrect(22, 71, 92, 18, 6, COL_GREEN); ui_text(68, 72, 0.4f, COL_TEXT, C2D_AlignCenter, "+ Nuevo mundo");
-		ui_text(124, 72, 0.4f, COL_MUTED, 0, "Pulsa X, o el boton verde de la pantalla tactil");
-		section(100, "Mis juegos", NULL);
-		int n = build_view(u, s, view);
-		for (int i = 0; i < n && i < 3; i++) {
-			float y = 124 + i * 36; const GameInfo *g = &games[view[i]];
-			ui_thumb(14, y, 30, g->hue, 0);
-			char nm[48]; fit(nm, sizeof nm, g->name, 0.5f, 300); ui_text(54, y - 1, 0.5f, COL_TEXT, 0, nm);
-			char d[110]; fit(d, sizeof d, g->desc[0] ? g->desc : "Sin descripcion", 0.36f, 300); ui_text(54, y + 15, 0.36f, COL_MUTED, 0, d);
-		}
-		if (!n) ui_text(14, 128, 0.45f, COL_MUTED, 0, "Todavia no has creado ningun juego.");
-		break; }
 	case P_UPDATE: {
 		ui_text(14, 33, 0.8f, COL_TEXT, 0, "Actualizar");
 		ui_rrect(14, 66, 372, 160, 12, COL_PANEL);
@@ -406,7 +391,7 @@ static void sidebar(const Ui *u) {
 		if (act) { ui_rrect(4, y, SB_W - 8, SB_ITEM_H - 3, 7, COL_PANEL2); ui_rect(4, y + 5, 3, SB_ITEM_H - 11, COL_ACCENT); }
 		ui_icon(PAGE_ICON[i], 14, y + 5, act ? COL_TEXT : COL_MUTED);
 		ui_text(36, y + 3, 0.45f, act ? COL_TEXT : COL_MUTED, 0, PAGE_NAME[i]);
-		if (i == P_UPDATE && upd_available()) C2D_DrawCircleSolid(SB_W - 8, y + 12, 0.3f, 3.5f, COL_DANGER);   // punto rojo: hay versión nueva
+		if (i == P_UPDATE && upd_available()) C2D_DrawCircleSolid(SB_W - 8, y + 12, 0.3f + ui_get_depth(), 3.5f, COL_DANGER);   // punto rojo: hay versión nueva
 	}
 	ui_rect(8, SB_EXIT_Y - 6, SB_W - 16, 1, COL_LINE);
 	ui_icon(6, 14, SB_EXIT_Y + 5, COL_MUTED); ui_text(36, SB_EXIT_Y + 3, 0.45f, COL_MUTED, 0, "Salir");
@@ -446,14 +431,6 @@ static void pane(const Ui *u, const Session *s) {
 		if (u->page == P_DISCOVER) { ui_rrect(PANE_X + 78, 4, PANE_W - 78, 20, 10, COL_PANEL2); ui_text(PANE_X + 86, 5, 0.38f, u->search[0] ? COL_TEXT : COL_MUTED, 0, u->search[0] ? u->search : "Buscar (X)"); }
 		for (int i = 0; i < vis && u->scroll + i < n; i++) list_game_row(LIST_Y + i * rh, &games[view[u->scroll + i]], u->scroll + i == u->cur, NULL);
 		if (!n) ui_text(PANE_X, 50, 0.44f, COL_MUTED, 0, u->page == P_DISCOVER && u->search[0] ? "Sin resultados." : "Cargando...");
-		break; }
-	case P_CREATE: {
-		int n = build_view(u, s, view);
-		for (int i = 0; i < vis && u->scroll + i < total; i++) {
-			int r = u->scroll + i; float y = LIST_Y + i * rh;
-			if (r == 0) { ui_button(PANE_X, y + 3, PANE_W - 4, rh - 8, COL_GREEN, u->cur == 0, "+ Nuevo mundo", 0.5f); continue; }
-			if (r - 1 < n) list_game_row(y, &games[view[r - 1]], r == u->cur, "Borrar");
-		}
 		break; }
 	case P_FRIENDS: {
 		int n = build_people(s, pr);
@@ -509,10 +486,14 @@ static void draw_all(C3D_RenderTarget *top, C3D_RenderTarget *bot, const Ui *u, 
 	ui_frame_begin();
 	C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
 	C2D_TargetClear(top, COL_BG); C2D_SceneBegin(top);
-	page_top(u, s); modal_top(u); top_bar(u, s, W.busy);
+	page_top(u, s);
+	ui_set_depth(0.4f); modal_top(u);                         // ficha del juego: por encima de los textos de la página
+	ui_set_depth(0); top_bar(u, s, W.busy);
 	if (u->toast_until > osGetTime()) {
+		ui_set_depth(0.6f);
 		float w = ui_text_width(u->toast, 0.44f) + 28;
 		ui_rrect(200 - w / 2, 204, w, 24, 10, COL_PANEL2); ui_text(200, 208, 0.44f, COL_TEXT, C2D_AlignCenter, u->toast);
+		ui_set_depth(0);
 	}
 	C2D_TargetClear(bot, COL_BG); C2D_SceneBegin(bot);
 	sidebar(u); pane(u, s);
@@ -594,7 +575,7 @@ AppResult app_lobby(C3D_RenderTarget *top, C3D_RenderTarget *bot, Session *s, Ga
 			if (u.page == P_AVATAR) { if (down & KEY_DRIGHT) u.swatch = (u.swatch + 1) % 10; if (down & KEY_DLEFT) u.swatch = (u.swatch + 9) % 10; if (down & KEY_DDOWN) u.swatch = (u.swatch + 5) % 10; if (down & KEY_DUP) u.swatch = (u.swatch + 5) % 10; u.cur = 0; }
 			if (down & KEY_A) act_row = u.cur;
 			if (down & KEY_Y) request(RQ_REFRESH, NULL, NULL, 0);
-			if (down & KEY_X) { if (u.page == P_DISCOVER) { prompt(u.search, sizeof u.search, "Buscar juegos"); u.cur = 0; u.scroll = 0; } else if (u.page == P_CREATE) act_row = 0; }
+			if (down & KEY_X) { if (u.page == P_DISCOVER) { prompt(u.search, sizeof u.search, "Buscar juegos"); u.cur = 0; u.scroll = 0; } }
 		}
 
 		// ---- táctil ----
@@ -615,7 +596,7 @@ AppResult app_lobby(C3D_RenderTarget *top, C3D_RenderTarget *bot, Session *s, Ga
 				touching = false;
 			} else if (u.page == P_DISCOVER && t.py < 26 && t.px > PANE_X + 70) {
 				prompt(u.search, sizeof u.search, "Buscar juegos"); u.cur = 0; u.scroll = 0; touching = false;
-			} else if (u.page == P_SETTINGS || u.page == P_CREATE) {
+			} else if (u.page == P_SETTINGS) {
 				if (t.py >= LIST_Y && t.py < LIST_BOTTOM) { /* se resuelve al soltar */ }
 			}
 		}
@@ -628,7 +609,7 @@ AppResult app_lobby(C3D_RenderTarget *top, C3D_RenderTarget *bot, Session *s, Ga
 			touching = false;
 			if (!dragging && t0x >= PANE_X && t0y >= LIST_Y && t0y < LIST_BOTTOM && newpage < 0 && u.modal < 0) {
 				int row = u.scroll + (t0y - LIST_Y) / row_h(u.page);
-				if (row < total) { u.cur = row; act_row = row; tap_btn = t0x >= PANE_X + PANE_W - 60; }
+				if (row < total) { u.cur = row; act_row = row; tap_btn = u.page == P_FRIENDS && t0x >= PANE_X + PANE_W - 60; }
 			}
 		}
 
@@ -652,15 +633,6 @@ AppResult app_lobby(C3D_RenderTarget *top, C3D_RenderTarget *bot, Session *s, Ga
 			int n;
 			switch (u.page) {
 			case P_HOME: case P_DISCOVER: n = build_view(&u, s, view); if (act_row < n) u.modal = view[act_row]; break;
-			case P_CREATE:
-				n = build_view(&u, s, view);
-				if (act_row == 0) {
-					char name[44] = ""; if (prompt(name, sizeof name, "Nombre del nuevo juego") && strlen(name) >= 3) request(RQ_CREATE, name, "", (int)(osGetTime() % 360));
-					else toast(&u, "El nombre necesita 3 letras o mas");
-				} else if (act_row - 1 < n && (tap_btn || (down & KEY_A))) {
-					request(RQ_DELETE, games[view[act_row - 1]].id, NULL, 0);
-				} else if (act_row - 1 < n) u.modal = view[act_row - 1];
-				break;
 			case P_FRIENDS:
 				n = build_people(s, pr);
 				if (act_row < n && (tap_btn || (down & KEY_A))) request(pr[act_row].friend ? RQ_REMOVE : RQ_ADD, pr[act_row].p->id, NULL, 0);

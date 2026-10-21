@@ -75,3 +75,16 @@ verificación TLS (`net.c`) hasta instalar un certificado raíz.
 - `.github/workflows/releases-maintenance.yml` — backup / prune / republish / restructure de releases.
 - `VERSION` fija la versión base; `RELEASE_NOTES.md` = notas del devbuild actual; `STABLE_RELEASE_NOTES.md` = novedades desde la última estable.
 - **Importante:** los workflows con *Run workflow* solo aparecen cuando están en la rama por defecto (`main`): hay que hacer merge de esta rama.
+
+## Repositorio privado y actualizaciones
+`BlocksyApp` es privado: la 3DS (y el QR de arriba) no pueden leer sus releases sin iniciar sesión en GitHub. Opciones:
+1. **Hacer público el repo** (Settings → Danger Zone → Change visibility). Es lo más simple y no hay que configurar nada más.
+2. **Repo público solo para releases**: crea por ejemplo `IkerPlays/BlocksyApp-releases` (con un README para que tenga rama), y en este repo
+   añade la variable **`RELEASES_REPO`** = `IkerPlays/BlocksyApp-releases` (Settings → Secrets and variables → Actions → Variables) y el secret
+   **`RELEASES_PAT`** (token con permiso *Contents: read and write* sobre ese repo). Los workflows publican allí y la app de 3DS lee de allí.
+   Cambia también la URL del QR de este README a ese repo.
+
+## Quién puede crear juegos
+Solo la cuenta autorizada y solo desde la web. El servidor lo comprueba (`sessions.can_create`, que pone la función `game-session` según el
+secret opcional `CREATOR_EMAILS`; por defecto `ikerana35018santanaiker@gmail.com`). Hay que ejecutar `supabase/game/creators.sql` en Game y
+volver a desplegar `supabase/functions/game-session/index.ts`.

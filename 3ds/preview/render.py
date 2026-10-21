@@ -37,6 +37,9 @@ for ln in lines:
     if k == 'TRI':
         t, x0, y0, x1, y1, x2, y2, c = rest.split(); t = int(t); pts = [float(v)*S for v in (x0, y0, x1, y1, x2, y2)]
         draw_on(t, lambda d, ov: d.polygon(pts, fill=col(c))); continue
+    if k == 'LINE':
+        t, x0, y0, x1, y1, th, c = rest.split(); t = int(t); pts = [float(v)*S for v in (x0, y0, x1, y1)]
+        draw_on(t, lambda d, ov: d.line(pts, fill=col(c), width=max(1, int(float(th)*S)))); continue
     if k == 'CIR':
         t, x, y, r, c = rest.split(); t = int(t); x, y, r = float(x)*S, float(y)*S, float(r)*S
         draw_on(t, lambda d, ov: d.ellipse([x-r, y-r, x+r, y+r], fill=col(c))); continue

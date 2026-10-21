@@ -109,7 +109,10 @@ char *net_get_text(const char *url, char *err, size_t en) {
 	long code = 0; curl_easy_getinfo(c, CURLINFO_RESPONSE_CODE, &code);
 	curl_slist_free_all(h);
 	if (rc != CURLE_OK) { snprintf(err, en, "Sin conexion: %.60s", errbuf[0] ? errbuf : curl_easy_strerror(rc)); free(b.p); return NULL; }
-	if (code != 200) { snprintf(err, en, "GitHub respondio %ld", code); free(b.p); return NULL; }
+	if (code == 404) snprintf(err, en, "Repositorio privado o inexistente (404)");
+	else if (code == 403) snprintf(err, en, "GitHub limito las consultas (403), prueba mas tarde");
+	else if (code != 200) snprintf(err, en, "GitHub respondio %ld", code);
+	if (code != 200) { free(b.p); return NULL; }
 	if (!b.p) b.p = strdup("");
 	return b.p;
 }
@@ -203,12 +206,36 @@ bool net_login(Session *s, const char *email, const char *password, const char *
 	bool ok = jstr(r, end, "access_token", s->token, sizeof s->token);
 	const char *u = strstr(r, "\"user\":{");   // "id" del usuario dentro de "user"
 	ok = ok && u && jstr(u, end, "id", s->user_id, sizeof s->user_id);
+	s->refresh[0] = 0; jstr(r, end, "refresh_token", s->refresh, sizeof s->refresh);
 	free(r);
 	if (!ok) {
 		snprintf(login_err, sizeof login_err, username ? "Cuenta creada. Confirma tu email y entra" : "Respuesta de login no valida");
 		return false;
 	}
 	return open_game_session(s);
+}
+
+// Renueva el token de Auth con el refresh token (sesión guardada o token a punto de caducar). El refresh token rota:
+// quien llame debe guardar el nuevo (s->refresh). new_game_session: también pide una sesión de juego nueva.
+bool net_refresh(Session *s, bool new_game_session) {
+	login_err[0] = 0;
+	if (!s->refresh[0]) return false;
+	char body[240]; snprintf(body, sizeof body, "{\"refresh_token\":\"%s\"}", s->refresh);
+	char *r = http(M_POST, AUTH_URL "/auth/v1/token?grant_type=refresh_token", AUTH_ANON_KEY, NULL, body, NULL);
+	if (!r) {
+		if (last_status == 400 || last_status == 401) snprintf(login_err, sizeof login_err, "La sesion guardada ha caducado");
+		else set_err("No se pudo renovar la sesion");
+		return false;
+	}
+	const char *end = r + strlen(r);
+	static char tok[1600], ref[160], uid[40];
+	bool ok = jstr(r, end, "access_token", tok, sizeof tok) && jstr(r, end, "refresh_token", ref, sizeof ref);
+	const char *u = strstr(r, "\"user\":{");
+	ok = ok && u && jstr(u, end, "id", uid, sizeof uid);
+	free(r);
+	if (!ok) { snprintf(login_err, sizeof login_err, "Respuesta de renovacion no valida"); return false; }
+	snprintf(s->token, sizeof s->token, "%s", tok); snprintf(s->refresh, sizeof s->refresh, "%s", ref); snprintf(s->user_id, sizeof s->user_id, "%s", uid);
+	return new_game_session ? open_game_session(s) : true;
 }
 
 // ---------- Iniciar sesión desde otro dispositivo (QR) ----------
@@ -337,6 +364,26 @@ bool net_break_block(const Session *s, int x, int y, int z) {
 }
 void net_leave(const Session *s) { rpc(s, "leave", ""); }
 
+// Mensajes de chat nuevos (id > since). Devuelve cuántos; *last = id más alto visto. since < 0: solo averigua el último id
+int net_fetch_chat(long since, ChatMsg *out, int max, long *last) {
+	char url[300];
+	if (since < 0) snprintf(url, sizeof url, GAME_URL "/rest/v1/interactions?game_id=eq.%s&kind=eq.chat&select=id&order=id.desc&limit=1", g_game);
+	else snprintf(url, sizeof url, GAME_URL "/rest/v1/interactions?game_id=eq.%s&kind=eq.chat&id=gt.%ld&select=id,username,payload&order=id.asc&limit=%d", g_game, since, max);
+	char *r = http(M_GET, url, GAME_ANON_KEY, NULL, NULL, NULL);
+	if (!r) return -1;
+	int n = 0; const char *p = r, *end;
+	while ((p = next_obj(p, &end))) {
+		const char *st = p; p = end + 1;
+		long id = (long)jnum(st, end, "id"); if (id > *last) *last = id;
+		if (since < 0 || n >= max) continue;
+		ChatMsg *m = &out[n]; m->id = id;
+		if (!jstr(st, end, "username", m->name, sizeof m->name)) strcpy(m->name, "?");
+		if (!jstr(st, end, "text", m->text, sizeof m->text)) continue;
+		n++;
+	}
+	free(r); return n;
+}
+
 // ---------- Lobby: juegos, amigos, avatar ----------
 int net_list_games(GameInfo *out, int max) {
 	char *r = http(M_GET, GAME_URL "/rest/v1/games?select=id,name,description,owner_id,owner_name,hue,max_players&order=created_at.asc&limit=32", GAME_ANON_KEY, NULL, NULL, NULL);
@@ -423,13 +470,4 @@ bool net_set_color(Session *s, const char *hex) {
 	if (!r) return false;
 	free(r);
 	return open_game_session(s);
-}
-bool net_create_game(const Session *s, const char *name, const char *desc, int hue) {
-	char a[320], n1[48], d1[104]; clean(n1, sizeof n1, name); clean(d1, sizeof d1, desc);
-	snprintf(a, sizeof a, "\"p_name\":\"%s\",\"p_desc\":\"%s\",\"p_hue\":%d", n1, d1, hue);
-	return rpc(s, "create_game", a);
-}
-bool net_delete_game(const Session *s, const char *id) {
-	char a[100]; snprintf(a, sizeof a, "\"p_game\":\"%s\"", id);
-	return rpc(s, "delete_game", a);
 }

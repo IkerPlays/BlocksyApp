@@ -20,6 +20,11 @@ on:
 permissions:
   contents: write # needed to publish the release
 
+env:
+  # Repo donde se publican las releases. Por defecto este mismo; si BlocksyApp es privado, crea un repo PUBLICO (solo para
+  # releases), define la variable RELEASES_REPO (usuario/repo) y el secret RELEASES_PAT (token con permiso de escritura en él).
+  RELEASES_REPO: ${{ vars.RELEASES_REPO || github.repository }}
+
 concurrency:
   group: stable-release
   cancel-in-progress: false
@@ -33,7 +38,7 @@ jobs:
       - uses: actions/checkout@v4
       - id: check
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.RELEASES_PAT || github.token }}
           INPUT_VERSION: ${{ inputs.version }}
         run: |
           if [ "$GITHUB_REF" != "refs/heads/main" ]; then
@@ -45,7 +50,7 @@ jobs:
             echo "::error::Version must look like 1.0.0 (got '$INPUT_VERSION')."
             exit 1
           fi
-          if gh release view "v$version" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+          if gh release view "v$version" --repo "$RELEASES_REPO" > /dev/null 2>&1; then
             echo "::error::Release v$version already exists. Delete it first or pick another version."
             exit 1
           fi
@@ -96,6 +101,7 @@ jobs:
             echo "#define GAME_URL \"$GAME_URL\""
             echo "#define GAME_ANON_KEY \"$GAME_KEY\""
             echo '#define GAME_ID "00000000-0000-0000-0000-000000000001"'
+            echo "#define UPDATE_REPO \"$RELEASES_REPO\""
           } > 3ds/source/config.h
 
       - name: Build .3dsx and .cia
@@ -126,7 +132,7 @@ jobs:
 
       - name: Publish release
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.RELEASES_PAT || github.token }}
           VERSION: ${{ needs.check.outputs.version }}
           DRAFT: ${{ inputs.draft }}
         run: |
@@ -140,7 +146,8 @@ jobs:
           } > notes.md
           extra=""
           if [ "$DRAFT" = "true" ]; then extra="--draft"; fi
+          TARGET="--target $GITHUB_SHA"; [ "$RELEASES_REPO" = "$GITHUB_REPOSITORY" ] || TARGET=""
           gh release create "v${VERSION}" dist/Blocksy.cia dist/Blocksy.3dsx \
-            --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --latest $extra \
+            --repo "$RELEASES_REPO" $TARGET --latest $extra \
             --title "Blocksy ${VERSION}" \
             --notes-file notes.md

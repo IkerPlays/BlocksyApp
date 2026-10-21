@@ -37,3 +37,9 @@ Hace falta una vez el parche `game/link-login.sql` (pégalo en el SQL Editor de 
 Flujo: la 3DS pide un código (`link_start`) y enseña un QR con `https://TU-WEB/#link/CODIGO`; el móvil/tablet lo abre, inicia sesión
 y pulsa *Autorizar* (`link_approve`); la 3DS lo detecta (`link_poll`) y recibe una sesión de 30 días que guarda en
 `sdmc:/3ds/blocksy/session.txt` para entrar sola la próxima vez («Cuenta» en el juego la borra).
+
+## Solo una cuenta puede crear juegos
+1. Game → SQL Editor: ejecuta `game/creators.sql` (añade `sessions.can_create` y exige permiso en `create_game` / `delete_game`).
+2. Game → Edge Functions → `game-session`: pega de nuevo `functions/game-session/index.ts` y despliega.
+3. (Opcional) Game → Edge Functions → Secrets: `CREATOR_EMAILS` = emails separados por comas. Por defecto solo `ikerana35018santanaiker@gmail.com`.
+La web enseña el apartado Crear solo si la respuesta de `game-session` trae `can_create: true`; aunque alguien lo forzara, el servidor lo rechaza.

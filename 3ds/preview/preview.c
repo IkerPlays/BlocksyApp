@@ -6,6 +6,7 @@
 #include "app.h"
 
 extern FILE *g_out;
+void game_preview(C3D_RenderTarget *top, C3D_RenderTarget *bot);
 void stub_set_targets(C3D_RenderTarget *t, C3D_RenderTarget *b);
 
 int main(void) {
@@ -16,12 +17,13 @@ int main(void) {
 	fprintf(g_out, "SCENE login\n");        ui_preview_login(&top, &bot, 0, 0, v);
 	fprintf(g_out, "SCENE signup\n");       ui_preview_login(&top, &bot, 1, 0, v);
 	fprintf(g_out, "SCENE login_busy\n");   ui_preview_login(&top, &bot, 0, 1, v);
-	static const char *names[] = {"home", "discover", "avatar", "friends", "create", "update_", "settings"};
-	for (int p = 0; p < 7; p++) { fprintf(g_out, "SCENE %s\n", names[p]); app_preview(&top, &bot, p, -1, p == 0 ? 1 : 0, v); }
-	fprintf(g_out, "SCENE update\n"); app_preview(&top, &bot, 5, -1, 0, v);
-	fprintf(g_out, "SCENE update_downloading\n"); app_preview(&top, &bot, 5, -3, 2, v);
-	fprintf(g_out, "SCENE update_error\n"); app_preview(&top, &bot, 5, -5, 1, v);
+	static const char *names[] = {"home", "discover", "avatar", "friends", "update_", "settings"};
+	for (int p = 0; p < 6; p++) { fprintf(g_out, "SCENE %s\n", names[p]); app_preview(&top, &bot, p, -1, p == 0 ? 1 : 0, v); }
+	fprintf(g_out, "SCENE update\n"); app_preview(&top, &bot, 4, -1, 0, v);
+	fprintf(g_out, "SCENE update_downloading\n"); app_preview(&top, &bot, 4, -3, 2, v);
+	fprintf(g_out, "SCENE update_error\n"); app_preview(&top, &bot, 4, -5, 1, v);
 	fprintf(g_out, "SCENE modal\n"); app_preview(&top, &bot, 0, 0, 0, v);
+	fprintf(g_out, "SCENE game\n"); game_preview(&top, &bot);
 	fprintf(g_out, "SCENE game_bottom\n");
 	static Session s; snprintf(s.username, sizeof s.username, "Iker"); s.color = 0xFF439FFF;
 	static Remote r[3]; snprintf(r[0].name, 24, "Marta"); r[0].color = 0xFF71CC2E; snprintf(r[1].name, 24, "Dani"); r[1].color = 0xFFB6599B; r[1].is3ds = 1; snprintf(r[2].name, 24, "Pablo"); r[2].color = 0xFF129CF3;

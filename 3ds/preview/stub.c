@@ -38,3 +38,4 @@ void C2D_SceneSize(u32 w, u32 h, bool t) { (void)w; (void)h; (void)t; }
 void C2D_ViewReset(void) {}
 bool C3D_FrameBegin(u8 f) { (void)f; return true; }
 void C3D_FrameEnd(u8 f) { (void)f; }
+bool C2D_DrawLine(float x0, float y0, u32 c0, float x1, float y1, u32 c1, float t, float z) { (void)c1; (void)z; fprintf(g_out, "LINE %d %.1f %.1f %.1f %.1f %.1f %u\n", g_target, x0, y0, x1, y1, t, c0); return true; }

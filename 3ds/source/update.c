@@ -6,7 +6,13 @@
 #include <stdio.h>
 #include <string.h>
 
-#define RELEASES_URL "https://api.github.com/repos/IkerPlays/BlocksyApp/releases?per_page=20"
+#include "config.h"
+// Repositorio con las releases. Si BlocksyApp es privado, la 3DS no puede verlo: publica las releases en un repo público
+// y defínelo en config.h (UPDATE_REPO "usuario/repo-publico"); el CI lo hace con la variable RELEASES_REPO.
+#ifndef UPDATE_REPO
+#define UPDATE_REPO "IkerPlays/BlocksyApp"
+#endif
+#define RELEASES_URL "https://api.github.com/repos/" UPDATE_REPO "/releases?per_page=20"
 #define MIN_SIZE 50000        // un fichero más pequeño es una página de error, no la app
 
 static char g_cur[48] = "dev";

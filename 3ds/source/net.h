@@ -10,6 +10,7 @@ typedef struct { int x, y, z, kind; } Block;
 
 typedef struct {
 	char token[1600];   // access_token del proyecto AUTH
+	char refresh[160];  // refresh token de AUTH (sesión guardada; rota en cada uso)
 	char secret[48];    // secret de sesión de GAME (Edge Function game-session)
 	char user_id[40];
 	char username[24];
@@ -33,6 +34,7 @@ bool net_login(Session *s, const char *email, const char *password, const char *
 const char *net_login_error(void);   // motivo del último fallo de net_login
 bool net_link_start(char *code, size_t cn, char *poll, size_t pn);   // pide un código para vincular
 int  net_link_poll(Session *s, const char *code, const char *poll);  // 1 aprobado, 0 pendiente, -1 caducado
+bool net_refresh(Session *s, bool new_game_session);                 // renueva el token con el refresh token
 bool net_resume(Session *s);                                         // valida una sesión guardada (s->secret)
 void net_thread_cleanup(void);                                       // cierra el handle curl del hilo actual
 void net_presence(const Session *s, const char *game);   // touch_presence(); game NULL = en el lobby
@@ -46,8 +48,9 @@ int  net_list_people(const Session *s, Person *out, int max);
 bool net_add_friend(const Session *s, const char *id);
 bool net_remove_friend(const Session *s, const char *id);
 bool net_set_color(Session *s, const char *hex);
-bool net_create_game(const Session *s, const char *name, const char *desc, int hue);
-bool net_delete_game(const Session *s, const char *id);
+
+typedef struct { long id; char name[24]; char text[100]; } ChatMsg;
+int net_fetch_chat(long since, ChatMsg *out, int max, long *last);   // since < 0: solo obtiene el último id
 
 // Juego (proyecto GAME): opera sobre el juego elegido con net_set_game()
 void net_set_game(const char *id);

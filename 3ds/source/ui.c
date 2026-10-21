@@ -15,6 +15,12 @@ const u32 ui_palette[NPALETTE] = {0xFFE8E8E8, 0xFF3C4CE7, 0xFF129CF3, 0xFF71CC2E
 #define WEB_HOST "blocksyweb.netlify.app"
 #endif
 
+// Profundidad base: lo que se dibuja con z mayor queda por encima (citro2d usa test de profundidad, no solo el orden de dibujo).
+// La ficha de un juego y los avisos se dibujan con una base mayor para tapar la página que tienen debajo.
+static float g_z;
+void ui_set_depth(float z) { g_z = z; }
+float ui_get_depth(void) { return g_z; }
+
 static C2D_TextBuf tbuf;
 void ui_init(void) { tbuf = C2D_TextBufNew(4096); }
 void ui_exit(void) { C2D_TextBufDelete(tbuf); }
@@ -22,22 +28,22 @@ void ui_frame_begin(void) { C2D_TextBufClear(tbuf); }
 
 void ui_text(float x, float y, float scale, u32 color, u32 align, const char *s) {
 	C2D_Text t; C2D_TextParse(&t, tbuf, s); C2D_TextOptimize(&t);
-	C2D_DrawText(&t, C2D_WithColor | align, x, y, 0.5f, scale, scale, color);
+	C2D_DrawText(&t, C2D_WithColor | align, x, y, g_z + 0.5f, scale, scale, color);
 }
 static float text_w(const char *s, float scale) {
 	C2D_Text t; float w, h; C2D_TextParse(&t, tbuf, s); C2D_TextGetDimensions(&t, scale, scale, &w, &h); return w;
 }
 
 // ---------- primitivas ----------
-static void rect(float x, float y, float w, float h, u32 c) { C2D_DrawRectSolid(x, y, 0.2f, w, h, c); }
+static void rect(float x, float y, float w, float h, u32 c) { C2D_DrawRectSolid(x, y, (g_z + 0.2f), w, h, c); }
 static void rrect(float x, float y, float w, float h, float r, u32 c) {
 	rect(x + r, y, w - 2 * r, h, c); rect(x, y + r, w, h - 2 * r, c);
-	C2D_DrawCircleSolid(x + r, y + r, 0.2f, r, c); C2D_DrawCircleSolid(x + w - r, y + r, 0.2f, r, c);
-	C2D_DrawCircleSolid(x + r, y + h - r, 0.2f, r, c); C2D_DrawCircleSolid(x + w - r, y + h - r, 0.2f, r, c);
+	C2D_DrawCircleSolid(x + r, y + r, (g_z + 0.2f), r, c); C2D_DrawCircleSolid(x + w - r, y + r, (g_z + 0.2f), r, c);
+	C2D_DrawCircleSolid(x + r, y + h - r, (g_z + 0.2f), r, c); C2D_DrawCircleSolid(x + w - r, y + h - r, (g_z + 0.2f), r, c);
 }
 static void quad(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, u32 c) {
-	C2D_DrawTriangle(x0, y0, c, x1, y1, c, x2, y2, c, 0.2f);
-	C2D_DrawTriangle(x0, y0, c, x2, y2, c, x3, y3, c, 0.2f);
+	C2D_DrawTriangle(x0, y0, c, x1, y1, c, x2, y2, c, (g_z + 0.2f));
+	C2D_DrawTriangle(x0, y0, c, x2, y2, c, x3, y3, c, (g_z + 0.2f));
 }
 static u32 shade(u32 c, float f) {
 	u32 r = (c & 0xFF) * f, g = ((c >> 8) & 0xFF) * f, b = ((c >> 16) & 0xFF) * f;
@@ -76,7 +82,7 @@ u32 ui_hsl(float h, float s, float l) {
 // Miniatura de juego igual que en la web: degradado hsl(h) -> hsl(h+40), rejilla suave y cubo
 void ui_thumb(float x, float y, float s, int hue, int players) {
 	u32 c1 = ui_hsl(hue, 70, 55), c2 = ui_hsl(hue + 40, 65, 28), mid = ui_hsl(hue + 20, 68, 41);
-	C2D_DrawRectangle(x, y, 0.2f, s, s, c1, mid, mid, c2);
+	C2D_DrawRectangle(x, y, (g_z + 0.2f), s, s, c1, mid, mid, c2);
 	u32 g = C2D_Color32(255, 255, 255, 38);
 	for (float o = s / 4; o < s - 1; o += s / 4) { rect(x + o, y, 1, s, g); rect(x, y + o, s, 1, g); }
 	cube(x + s / 2, y + s / 2 - s * .02f, s * .27f, C2D_Color32(235, 240, 255, 255));
@@ -84,37 +90,37 @@ void ui_thumb(float x, float y, float s, int hue, int players) {
 		char b[24]; snprintf(b, sizeof b, "%d jugando", players);
 		float w = text_w(b, 0.36f) + 14;
 		rrect(x + 4, y + s - 17, w, 13, 4, C2D_Color32(0, 0, 0, 170));
-		C2D_DrawCircleSolid(x + 10, y + s - 10.5f, 0.2f, 2.2f, COL_GREEN);
+		C2D_DrawCircleSolid(x + 10, y + s - 10.5f, (g_z + 0.2f), 2.2f, COL_GREEN);
 		ui_text(x + 15, y + s - 17, 0.36f, COL_TEXT, 0, b);
 	}
 }
 // Avatar redondo con "gafas" (como en la web) y punto de estado opcional (online = -1: sin punto)
 void ui_avatar(float cx, float cy, float r, u32 color, int online) {
-	C2D_DrawCircleSolid(cx, cy, 0.2f, r, shade(color, .8f));
-	C2D_DrawCircleSolid(cx, cy - r * .06f, 0.2f, r * .94f, color);
+	C2D_DrawCircleSolid(cx, cy, (g_z + 0.2f), r, shade(color, .8f));
+	C2D_DrawCircleSolid(cx, cy - r * .06f, (g_z + 0.2f), r * .94f, color);
 	rrect(cx - r * .44f, cy - r * .14f, r * .38f, r * .22f, r * .08f, C2D_Color32(20, 20, 24, 255));
 	rrect(cx + r * .06f, cy - r * .14f, r * .38f, r * .22f, r * .08f, C2D_Color32(20, 20, 24, 255));
 	if (online >= 0) {
-		C2D_DrawCircleSolid(cx + r * .72f, cy + r * .72f, 0.25f, r * .34f + 1.5f, COL_BG);
-		C2D_DrawCircleSolid(cx + r * .72f, cy + r * .72f, 0.25f, r * .34f, online ? COL_GREEN : C(0x6B, 0x70, 0x77));
+		C2D_DrawCircleSolid(cx + r * .72f, cy + r * .72f, (g_z + 0.25f), r * .34f + 1.5f, COL_BG);
+		C2D_DrawCircleSolid(cx + r * .72f, cy + r * .72f, (g_z + 0.25f), r * .34f, online ? COL_GREEN : C(0x6B, 0x70, 0x77));
 	}
 }
 // Iconos sencillos del menú lateral (16x16)
 void ui_icon(int kind, float x, float y, u32 c) {
 	switch (kind) {
 	case 0: quad(x + 8, y + 1, x + 15, y + 8, x + 1, y + 8, x + 8, y + 1, c); rect(x + 3, y + 8, 10, 7, c); rect(x + 7, y + 10, 3, 5, COL_PANEL); break;           // inicio
-	case 1: C2D_DrawCircleSolid(x + 8, y + 8, 0.2f, 7.5f, c); C2D_DrawCircleSolid(x + 8, y + 8, 0.2f, 5.5f, COL_PANEL); quad(x + 4, y + 12, x + 7, y + 7, x + 12, y + 4, x + 9, y + 9, c); break; // descubrir
-	case 2: C2D_DrawCircleSolid(x + 8, y + 4.5f, 0.2f, 3.6f, c); rrect(x + 3, y + 9, 10, 7, 3, c); break;                                                         // avatar
-	case 3: C2D_DrawCircleSolid(x + 5, y + 5, 0.2f, 3, c); rrect(x + 1, y + 9, 8, 6, 3, c); C2D_DrawCircleSolid(x + 11, y + 6, 0.2f, 2.6f, shade(c, .8f)); rrect(x + 8, y + 10, 7, 5, 2.5f, shade(c, .8f)); break; // amigos
+	case 1: C2D_DrawCircleSolid(x + 8, y + 8, (g_z + 0.2f), 7.5f, c); C2D_DrawCircleSolid(x + 8, y + 8, (g_z + 0.2f), 5.5f, COL_PANEL); quad(x + 4, y + 12, x + 7, y + 7, x + 12, y + 4, x + 9, y + 9, c); break; // descubrir
+	case 2: C2D_DrawCircleSolid(x + 8, y + 4.5f, (g_z + 0.2f), 3.6f, c); rrect(x + 3, y + 9, 10, 7, 3, c); break;                                                         // avatar
+	case 3: C2D_DrawCircleSolid(x + 5, y + 5, (g_z + 0.2f), 3, c); rrect(x + 1, y + 9, 8, 6, 3, c); C2D_DrawCircleSolid(x + 11, y + 6, (g_z + 0.2f), 2.6f, shade(c, .8f)); rrect(x + 8, y + 10, 7, 5, 2.5f, shade(c, .8f)); break; // amigos
 	case 4: rrect(x + 1, y + 1, 14, 14, 3, c); rect(x + 7, y + 4, 2, 8, COL_PANEL); rect(x + 4, y + 7, 8, 2, COL_PANEL); break;                                   // crear
-	case 5: C2D_DrawCircleSolid(x + 8, y + 8, 0.2f, 7, c); C2D_DrawCircleSolid(x + 8, y + 8, 0.2f, 3, COL_PANEL); break;                                           // ajustes
-	case 7: C2D_DrawCircleSolid(x + 8, y + 8, 0.2f, 7.5f, c); rect(x + 6.5f, y + 3.5f, 3, 5, COL_PANEL); quad(x + 4, y + 8, x + 12, y + 8, x + 8, y + 12.5f, x + 8, y + 12.5f, COL_PANEL); break;  // actualizar (flecha abajo)
+	case 5: C2D_DrawCircleSolid(x + 8, y + 8, (g_z + 0.2f), 7, c); C2D_DrawCircleSolid(x + 8, y + 8, (g_z + 0.2f), 3, COL_PANEL); break;                                           // ajustes
+	case 7: C2D_DrawCircleSolid(x + 8, y + 8, (g_z + 0.2f), 7.5f, c); rect(x + 6.5f, y + 3.5f, 3, 5, COL_PANEL); quad(x + 4, y + 8, x + 12, y + 8, x + 8, y + 12.5f, x + 8, y + 12.5f, COL_PANEL); break;  // actualizar (flecha abajo)
 	default: rrect(x + 2, y + 2, 12, 12, 3, c); rect(x + 7, y + 5, 2, 6, COL_PANEL); break;                                                                       // salir
 	}
 }
 
 void ui_top_background(const char *version, const char *subtitle) {
-	C2D_DrawRectangle(0, 0, 0, 400, 240, C(0x16, 0x1B, 0x33), C(0x1B, 0x2B, 0x5E), C(0x0B, 0x4D, 0x3B), C(0x10, 0x20, 0x2A));
+	C2D_DrawRectangle(0, 0, g_z, 400, 240, C(0x16, 0x1B, 0x33), C(0x1B, 0x2B, 0x5E), C(0x0B, 0x4D, 0x3B), C(0x10, 0x20, 0x2A));
 	float t = osGetTime() / 1000.0f;
 	static const float fx[7] = {40, 350, 90, 310, 200, 20, 380}, fy[7] = {190, 60, 40, 200, 215, 110, 150};
 	static const u32 fc[7] = {0xFFFF7B4D, 0xFF57B7F3, 0xFF71CC2E, 0xFFB6599B, 0xFF3C4CE7, 0xFFDB9834, 0xFF71CC2E};
@@ -158,10 +164,11 @@ static Thread spawn(ThreadFunc f, void *arg) {
 }
 static void join(Thread t) { if (t) { threadJoin(t, U64_MAX); threadFree(t); } }
 
-typedef struct { volatile int state; /* 0 en curso, 1 ok, 2 fallo */ int kind; /* 0 login, 1 reanudar */ Session *sess; char email[96], pass[64], user[24]; bool signup; } AuthJob;
+typedef struct { volatile int state; /* 0 en curso, 1 ok, 2 fallo */ int kind; /* 0 login, 1 reanudar (secret), 2 reanudar (refresh token) */ Session *sess; char email[96], pass[64], user[24]; bool signup; } AuthJob;
 static void auth_thread(void *a) {
 	AuthJob *j = a;
-	bool ok = j->kind == 0 ? net_login(j->sess, j->email, j->pass, j->signup ? j->user : NULL) : net_resume(j->sess);
+	bool ok = j->kind == 0 ? net_login(j->sess, j->email, j->pass, j->signup ? j->user : NULL)
+	        : j->kind == 2 ? net_refresh(j->sess, true) : net_resume(j->sess);
 	net_thread_cleanup();
 	j->state = ok ? 1 : 2;
 }
@@ -180,18 +187,25 @@ static void link_thread(void *a) {
 	net_thread_cleanup();
 }
 
-// ---------- sesión guardada (solo la de vinculación por QR; la contraseña nunca se guarda) ----------
+// ---------- cuenta guardada: refresh token (email y contraseña) o secret de sesión (QR); la contraseña nunca se guarda ----------
 #define SESSION_FILE SAVE_DIR "/session.txt"
-static bool load_session(Session *s) {
-	FILE *f = fopen(SESSION_FILE, "r"); if (!f) return false;
-	bool ok = fgets(s->secret, sizeof s->secret, f) != NULL;
-	s->secret[strcspn(s->secret, "\r\n")] = 0; fclose(f);
-	return ok && strlen(s->secret) > 30;
+// 0 = no hay nada guardado, 1 = secret de sesión (QR), 2 = refresh token (cuenta con email)
+static int load_session(Session *s) {
+	FILE *f = fopen(SESSION_FILE, "r"); if (!f) return 0;
+	char line[200]; int kind = 0;
+	while (fgets(line, sizeof line, f)) {
+		line[strcspn(line, "\r\n")] = 0;
+		if (!strncmp(line, "refresh=", 8) && strlen(line) > 12) { snprintf(s->refresh, sizeof s->refresh, "%s", line + 8); kind = 2; }
+		else if (!strncmp(line, "secret=", 7) && strlen(line) > 30) { if (!kind) { snprintf(s->secret, sizeof s->secret, "%s", line + 7); kind = 1; } }
+		else if (!kind && strlen(line) > 30 && !strchr(line, '=')) { snprintf(s->secret, sizeof s->secret, "%s", line); kind = 1; }   // formato antiguo
+	}
+	fclose(f); return kind;
 }
-static void save_session(const Session *s) {
+void ui_save_session(const Session *s) {
 	mkdir("sdmc:/3ds", 0777); mkdir(SAVE_DIR, 0777);
 	FILE *f = fopen(SESSION_FILE, "w"); if (!f) return;
-	fprintf(f, "%s\n", s->secret); fclose(f);
+	if (s->refresh[0]) fprintf(f, "refresh=%s\n", s->refresh); else fprintf(f, "secret=%s\n", s->secret);
+	fclose(f);
 }
 void ui_forget_session(void) { remove(SESSION_FILE); }
 
@@ -253,7 +267,7 @@ static void login_draw(C3D_RenderTarget *top, C3D_RenderTarget *bot, const Login
 		if (f && s->focus == FLD_CHECK) rrect(F_X - 2, cy - 2, 22, 22, 5, COL_ACCENT);
 		rrect(F_X, cy, 18, 18, 4, s->remember ? COL_GREEN : COL_PANEL2);
 		if (s->remember) ui_text(F_X + 9, cy + 1, 0.45f, COL_TEXT, C2D_AlignCenter, "x");
-		ui_text(F_X + 28, cy + 1, 0.45f, COL_TEXT, 0, "Recordar mi email");
+		ui_text(F_X + 28, cy + 1, 0.45f, COL_TEXT, 0, "Mantener la sesion iniciada");
 		button(F_X, BTN_Y, ENTER_W, BTN_H, COL_GREEN, f && s->focus == FLD_ENTER, "Entrar", 0.65f);
 		button(QR_X, BTN_Y, QR_W, BTN_H, COL_ACCENT, f && s->focus == FLD_QR, "Con QR", 0.5f);
 	} else {
@@ -288,7 +302,7 @@ static bool qr_screen(C3D_RenderTarget *top, C3D_RenderTarget *bot, Session *ses
 		ui_frame_begin();
 		C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
 		C2D_TargetClear(top, C(0xFF, 0xFF, 0xFF)); C2D_SceneBegin(top);
-		C2D_DrawRectangle(0, 0, 0, 400, 240, C(0x16, 0x1B, 0x33), C(0x1B, 0x2B, 0x5E), C(0x0B, 0x4D, 0x3B), C(0x10, 0x20, 0x2A));
+		C2D_DrawRectangle(0, 0, g_z, 400, 240, C(0x16, 0x1B, 0x33), C(0x1B, 0x2B, 0x5E), C(0x0B, 0x4D, 0x3B), C(0x10, 0x20, 0x2A));
 		if (have_qr) {
 			int size = qrcodegen_getSize(qr), scale = 224 / (size + 8); if (scale < 2) scale = 2;
 			int tot = (size + 8) * scale, ox = (400 - tot) / 2, oy = (240 - tot) / 2;
@@ -329,18 +343,19 @@ bool ui_login(C3D_RenderTarget *top, C3D_RenderTarget *bot, Session *sess, const
 	s.msg = "Arriba/Abajo + A, o toca la pantalla";
 	static AuthJob job;
 
-	// ¿Hay una sesión guardada de una vinculación anterior? Se comprueba y se entra directamente.
-	if (load_session(sess)) {
-		memset(&job, 0, sizeof job); job.kind = 1; job.sess = sess;
+	// ¿Hay una cuenta guardada? Se renueva (o se comprueba) y se entra directamente, sin pedir nada.
+	int saved = load_session(sess);
+	if (saved) {
+		memset(&job, 0, sizeof job); job.kind = saved; job.sess = sess;
 		Thread th = spawn(auth_thread, &job);
 		if (th) {
 			while (aptMainLoop() && job.state == 0) {
 				hidScanInput(); if (hidKeysDown() & KEY_START) { join(th); return false; }   // (join espera a que acabe la petición)
-				char b[40]; LoginState tmp = s; tmp.msg = dots("Reanudando sesion", b, sizeof b); tmp.msg_color = COL_TEXT; login_draw(top, bot, &tmp, version, true);
+				char b[40]; LoginState tmp = s; tmp.msg = dots("Entrando", b, sizeof b); tmp.msg_color = COL_TEXT; login_draw(top, bot, &tmp, version, true);
 			}
 			join(th);
-			if (job.state == 1) return true;
-			ui_forget_session(); s.msg = "La sesion guardada ha caducado"; s.msg_color = COL_RED;
+			if (job.state == 1) { ui_save_session(sess); return true; }       // el refresh token rota: se guarda el nuevo
+			ui_forget_session(); memset(sess, 0, sizeof *sess); s.msg = "La sesion guardada ha caducado"; s.msg_color = COL_RED;
 		}
 	}
 
@@ -384,14 +399,14 @@ bool ui_login(C3D_RenderTarget *top, C3D_RenderTarget *bot, Session *sess, const
 						login_draw(top, bot, &tmp, version, true);
 					}
 					join(th);
-					if (job.state == 1) { save_email(s.email, s.remember || s.signup); return true; }
+					if (job.state == 1) { save_email(s.email, s.remember || s.signup); if (s.remember || s.signup) ui_save_session(sess); else ui_forget_session(); return true; }
 					s.msg = net_login_error(); s.msg_color = COL_RED;
 				}
 			}
 		}
 		else if (act == FLD_QR && !s.signup) {
 			const char *why = NULL;
-			if (qr_screen(top, bot, sess, version, &why)) { save_session(sess); return true; }
+			if (qr_screen(top, bot, sess, version, &why)) { ui_save_session(sess); return true; }
 			if (why) { s.msg = why; s.msg_color = COL_RED; } else s.msg = NULL;
 		}
 		login_draw(top, bot, &s, version, false);

@@ -3,7 +3,7 @@
 # Stable releases are never touched. Needs GH_TOKEN and GITHUB_REPOSITORY. DRY_RUN=1 only prints what would go.
 set -euo pipefail
 keep="${1:-15}"
-old=$(gh release list --repo "$GITHUB_REPOSITORY" --limit 1000 --json tagName,isPrerelease \
+old=$(gh release list --repo "${RELEASES_REPO:-$GITHUB_REPOSITORY}" --limit 1000 --json tagName,isPrerelease \
   | jq -r --argjson keep "$keep" '
       [.[] | select(.isPrerelease) | .tagName
        | capture("^v(?<core>[0-9]+\\.[0-9]+\\.[0-9]+)-dev\\.(?<n>[0-9]+)$")
@@ -13,5 +13,5 @@ if [ -z "$old" ]; then echo "Nothing to prune (keeping $keep per version line)."
 for tag in $old; do
   if [ "${DRY_RUN:-0}" = "1" ]; then echo "would delete $tag"; continue; fi
   echo "deleting $tag"
-  gh release delete "$tag" --repo "$GITHUB_REPOSITORY" --cleanup-tag --yes
+  gh release delete "$tag" --repo "${RELEASES_REPO:-$GITHUB_REPOSITORY}" --cleanup-tag --yes
 done

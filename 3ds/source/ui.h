@@ -23,6 +23,8 @@ extern const u32 ui_palette[NPALETTE];   // ABGR, mismos colores que la web
 void ui_init(void);
 void ui_exit(void);
 void ui_frame_begin(void);               // llamar al principio de cada frame (limpia el buffer de texto)
+void ui_set_depth(float z);              // base de profundidad para lo que se dibuje a partir de ahora (0 = normal)
+float ui_get_depth(void);
 void ui_text(float x, float y, float scale, u32 color, u32 align, const char *s);
 float ui_text_width(const char *s, float scale);
 
@@ -41,6 +43,7 @@ void ui_top_background(const char *version, const char *subtitle);
 
 // Pantalla de inicio de sesión (táctil). Devuelve true si ya hay sesión; false si el usuario sale con START.
 bool ui_login(C3D_RenderTarget *top, C3D_RenderTarget *bot, Session *s, const char *version);
+void ui_save_session(const Session *s);  // guarda la cuenta (refresh token o secret) para entrar sin pedir nada
 void ui_forget_session(void);            // borra la sesión guardada (cerrar sesión)
 // Pantalla con un mensaje; espera START.
 void ui_message(C3D_RenderTarget *top, C3D_RenderTarget *bot, const char *title, const char *msg);
