@@ -9,7 +9,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <strings.h>
 #include <time.h>
 
 #ifndef BLOCKSY_VERSION
@@ -93,14 +92,12 @@ static char *http(Method m, const char *url, const char *apikey, const char *bea
 
 // ---------- Descargas genéricas (GitHub API / assets de releases) ----------
 // GET sin cabeceras de Supabase. Devuelve el cuerpo (malloc) o NULL.
-char *net_get_text(const char *url, const char *bearer, char *err, size_t en) {
+char *net_get_text(const char *url, char *err, size_t en) {
 	last_status = 0; last_err[0] = 0;
 	if (!tl_curl) tl_curl = curl_easy_init();
 	CURL *c = tl_curl; if (!c) return NULL;
 	curl_easy_reset(c);
 	struct curl_slist *h = curl_slist_append(NULL, "Accept: application/vnd.github+json");
-	h = curl_slist_append(h, "X-GitHub-Api-Version: 2022-11-28");
-	if (bearer && bearer[0]) { char a[300]; snprintf(a, sizeof a, "Authorization: Bearer %s", bearer); h = curl_slist_append(h, a); }
 	Buf b = {0}; char errbuf[CURL_ERROR_SIZE]; errbuf[0] = 0;
 	curl_easy_setopt(c, CURLOPT_URL, url); curl_easy_setopt(c, CURLOPT_HTTPHEADER, h);
 	curl_easy_setopt(c, CURLOPT_SSL_VERIFYPEER, 0L); curl_easy_setopt(c, CURLOPT_SSL_VERIFYHOST, 0L);
@@ -112,8 +109,7 @@ char *net_get_text(const char *url, const char *bearer, char *err, size_t en) {
 	long code = 0; curl_easy_getinfo(c, CURLINFO_RESPONSE_CODE, &code);
 	curl_slist_free_all(h);
 	if (rc != CURLE_OK) { snprintf(err, en, "Sin conexion: %.60s", errbuf[0] ? errbuf : curl_easy_strerror(rc)); free(b.p); return NULL; }
-	if (code == 404) snprintf(err, en, bearer && bearer[0] ? "El token no tiene acceso a las releases (404)" : "Repo privado: falta UPDATE_TOKEN (404)");
-	else if (code == 401) snprintf(err, en, "UPDATE_TOKEN invalido o caducado (401)");
+	if (code == 404) snprintf(err, en, "Repositorio privado o inexistente (404)");
 	else if (code == 403) snprintf(err, en, "GitHub limito las consultas (403), prueba mas tarde");
 	else if (code != 200) snprintf(err, en, "GitHub respondio %ld", code);
 	if (code != 200) { free(b.p); return NULL; }
@@ -132,41 +128,10 @@ static int dl_progress(void *u, curl_off_t dltotal, curl_off_t dlnow, curl_off_t
 	if (c->pct && dltotal > 0) *c->pct = (int)(dlnow * 100 / dltotal);
 	return 0;
 }
-static size_t discard_cb(char *d, size_t sz, size_t nm, void *u) { (void)d; (void)u; return sz * nm; }
-static size_t loc_cb(char *d, size_t sz, size_t nm, void *u) {            // cabecera Location de la redirección
-	size_t n = sz * nm; char *out = u;
-	if (n > 10 && !strncasecmp(d, "location:", 9)) { const char *p = d + 9; while (*p == ' ') p++; size_t i = 0; while (p < d + n && *p != '\r' && *p != '\n' && i < 1023) out[i++] = *p++; out[i] = 0; }
-	return n;
-}
-// Repo privado: la URL de la API del asset (con token y Accept: octet-stream) responde 302 a una URL temporal firmada.
-static bool resolve_private_asset(const char *api_url, const char *bearer, char *loc, size_t ln, char *err, size_t en) {
-	CURL *c = tl_curl; curl_easy_reset(c);
-	struct curl_slist *h = curl_slist_append(NULL, "Accept: application/octet-stream");
-	h = curl_slist_append(h, "X-GitHub-Api-Version: 2022-11-28");
-	char a[300]; snprintf(a, sizeof a, "Authorization: Bearer %s", bearer); h = curl_slist_append(h, a);
-	static char location[1024]; location[0] = 0;
-	curl_easy_setopt(c, CURLOPT_URL, api_url); curl_easy_setopt(c, CURLOPT_HTTPHEADER, h);
-	curl_easy_setopt(c, CURLOPT_SSL_VERIFYPEER, 0L); curl_easy_setopt(c, CURLOPT_SSL_VERIFYHOST, 0L);
-	curl_easy_setopt(c, CURLOPT_FOLLOWLOCATION, 0L); curl_easy_setopt(c, CURLOPT_CONNECTTIMEOUT, 20L); curl_easy_setopt(c, CURLOPT_TIMEOUT, 40L); curl_easy_setopt(c, CURLOPT_NOSIGNAL, 1L);
-	curl_easy_setopt(c, CURLOPT_USERAGENT, "blocksy-3ds/" BLOCKSY_VERSION);
-	curl_easy_setopt(c, CURLOPT_WRITEFUNCTION, discard_cb); curl_easy_setopt(c, CURLOPT_HEADERFUNCTION, loc_cb); curl_easy_setopt(c, CURLOPT_HEADERDATA, location);
-	CURLcode rc = curl_easy_perform(c);
-	long code = 0; curl_easy_getinfo(c, CURLINFO_RESPONSE_CODE, &code);
-	curl_slist_free_all(h);
-	if (rc != CURLE_OK) { snprintf(err, en, "Sin conexion: %.60s", curl_easy_strerror(rc)); return false; }
-	if (code == 404) { snprintf(err, en, "El token no tiene acceso al fichero (404)"); return false; }
-	if (code == 401) { snprintf(err, en, "UPDATE_TOKEN invalido o caducado (401)"); return false; }
-	if ((code != 302 && code != 301 && code != 307) || !location[0]) { snprintf(err, en, "GitHub respondio %ld sin redireccion", code); return false; }
-	snprintf(loc, ln, "%s", location); return true;
-}
-
 // Descarga `url` (sigue redirecciones) y entrega los datos a `sink` a medida que llegan, sin guardarlos enteros en memoria.
-// bearer != NULL: `url` es la URL de la API de un asset de un repo privado.
-bool net_download(const char *url, const char *bearer, NetSink sink, void *ud, volatile int *pct, char *err, size_t en) {
+bool net_download(const char *url, NetSink sink, void *ud, volatile int *pct, char *err, size_t en) {
 	if (!tl_curl) tl_curl = curl_easy_init();
 	CURL *c = tl_curl; if (!c) { snprintf(err, en, "curl_easy_init"); return false; }
-	static char signed_url[1024];
-	if (bearer && bearer[0]) { if (!resolve_private_asset(url, bearer, signed_url, sizeof signed_url, err, en)) return false; url = signed_url; }
 	curl_easy_reset(c);
 	DlCtx ctx = {sink, ud, pct, 0, false}; char errbuf[CURL_ERROR_SIZE]; errbuf[0] = 0;
 	curl_easy_setopt(c, CURLOPT_URL, url);

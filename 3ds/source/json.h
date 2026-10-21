@@ -43,16 +43,3 @@ static inline const char *next_obj(const char *p, const char **end) {
 	}
 	return NULL;
 }
-
-// p apunta a un '[': devuelve el ']' que lo cierra (ignora corchetes dentro de textos); NULL si no se cierra
-static inline const char *array_end(const char *p) {
-	if (!p || *p != '[') return NULL;
-	int depth = 0; bool in_str = false;
-	for (const char *q = p; *q; q++) {
-		if (in_str) { if (*q == '\\' && q[1]) q++; else if (*q == '"') in_str = false; continue; }
-		if (*q == '"') in_str = true;
-		else if (*q == '[') depth++;
-		else if (*q == ']' && --depth == 0) return q;
-	}
-	return NULL;
-}

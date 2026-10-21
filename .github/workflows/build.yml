@@ -9,11 +9,6 @@ on:
 permissions:
   contents: write # necesario para publicar los devbuilds
 
-env:
-  # Repo donde se publican las releases. Por defecto este mismo; si BlocksyApp es privado, crea un repo PUBLICO (solo para
-  # releases), define la variable RELEASES_REPO (usuario/repo) y el secret RELEASES_PAT (token con permiso de escritura en él).
-  RELEASES_REPO: ${{ vars.RELEASES_REPO || github.repository }}
-
 # En main un build en marcha nunca se cancela; en otras ramas sí.
 concurrency:
   group: build-${{ github.ref }}
@@ -31,12 +26,12 @@ jobs:
       - uses: actions/checkout@v4
       - id: ver
         env:
-          GH_TOKEN: ${{ secrets.RELEASES_PAT || github.token }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           core=$(tr -d '[:space:]' < VERSION)
           IFS=. read -r a b c <<< "$core"
           core="${a:-0}.${b:-0}.${c:-0}"
-          stable=$(gh release list --repo "$RELEASES_REPO" --exclude-pre-releases --limit 100 \
+          stable=$(gh release list --repo "$GITHUB_REPOSITORY" --exclude-pre-releases --limit 100 \
                      --json tagName --jq '.[].tagName' | sed 's/^v//' \
                      | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -1 || true)
           if [ -n "$stable" ] && [ "$(printf '%s\n%s\n' "$core" "$stable" | sort -V | tail -1)" = "$stable" ]; then
@@ -93,7 +88,6 @@ jobs:
           AUTH_KEY: ${{ secrets.AUTH_SUPABASE_ANON_KEY }}
           GAME_URL: ${{ secrets.GAME_SUPABASE_URL }}
           GAME_KEY: ${{ secrets.GAME_SUPABASE_ANON_KEY }}
-          UPDATE_TOKEN: ${{ secrets.UPDATE_TOKEN }}   # opcional: token de solo lectura para leer las releases de un repo privado
         run: |
           {
             echo '#pragma once'
@@ -102,8 +96,6 @@ jobs:
             echo "#define GAME_URL \"$GAME_URL\""
             echo "#define GAME_ANON_KEY \"$GAME_KEY\""
             echo '#define GAME_ID "00000000-0000-0000-0000-000000000001"'
-            echo "#define UPDATE_REPO \"$RELEASES_REPO\""
-            echo "#define UPDATE_TOKEN \"$UPDATE_TOKEN\""
           } > 3ds/source/config.h
 
       - name: Build .3dsx and .cia
@@ -138,7 +130,7 @@ jobs:
 
       - name: Publish devbuild
         env:
-          GH_TOKEN: ${{ secrets.RELEASES_PAT || github.token }}
+          GH_TOKEN: ${{ github.token }}
           VERSION: ${{ needs.version.outputs.version }}
         run: |
           {
@@ -150,14 +142,12 @@ jobs:
             echo "Development build ${VERSION} from commit \`${GITHUB_SHA::7}\`."
             echo "Development builds are for testing and may be unstable."
           } > notes.md
-          # en otro repo el commit no existe: la etiqueta se crea sobre su rama por defecto
-          TARGET="--target $GITHUB_SHA"; [ "$RELEASES_REPO" = "$GITHUB_REPOSITORY" ] || TARGET=""
           gh release create "v${VERSION}" dist/Blocksy.cia dist/Blocksy.3dsx \
-            --repo "$RELEASES_REPO" $TARGET --prerelease \
+            --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --prerelease \
             --title "Blocksy ${VERSION} (devbuild)" \
             --notes-file notes.md
 
       - name: Keep only the newest 15 devbuilds per version line
         env:
-          GH_TOKEN: ${{ secrets.RELEASES_PAT || github.token }}
+          GH_TOKEN: ${{ github.token }}
         run: .github/scripts/prune-devbuilds.sh 15

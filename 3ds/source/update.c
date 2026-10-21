@@ -6,18 +6,8 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "config.h"
-// Repositorio con las releases. Si BlocksyApp es privado, la 3DS no puede verlo: publica las releases en un repo público
-// y defínelo en config.h (UPDATE_REPO "usuario/repo-publico"); el CI lo hace con la variable RELEASES_REPO.
-#ifndef UPDATE_REPO
+// Las releases se leen de este repositorio, que debe ser PUBLICO (la 3DS no inicia sesion en GitHub).
 #define UPDATE_REPO "IkerPlays/BlocksyApp"
-#endif
-// Token de GitHub de solo lectura (fine-grained, permiso Contents: Read) para leer las releases de un repo PRIVADO.
-// Lo pone el CI desde el secret UPDATE_TOKEN. Vacío = repo público.
-#ifndef UPDATE_TOKEN
-#define UPDATE_TOKEN ""
-#endif
-static const char *tok(void) { return sizeof(UPDATE_TOKEN) > 1 ? UPDATE_TOKEN : NULL; }
 #define RELEASES_URL "https://api.github.com/repos/" UPDATE_REPO "/releases?per_page=20"
 #define MIN_SIZE 50000        // un fichero más pequeño es una página de error, no la app
 
@@ -50,27 +40,24 @@ static int cmp_ver(Ver a, Ver b) {
 	return a.dev == b.dev ? 0 : a.dev > b.dev ? 1 : -1;
 }
 
-// URL de descarga del asset del release que termina en `ext`: la de la API si hay token (repo privado), si no la pública
+// URL del primer asset del release con esa extensión
 static bool asset_url(const char *obj, const char *end, const char *ext, char *dst, size_t n) {
-	const char *arr = json_find_from(obj, end, "assets"), *aend = array_end(arr);
-	if (!aend) return false;
-	const char *p = arr, *e;
-	while ((p = next_obj(p, &e)) && e < aend) {
-		const char *a = p; p = e + 1;
-		char pub[300] = "", api[300] = "";
-		if (!jstr(a, e, "browser_download_url", pub, sizeof pub)) continue;
-		size_t l = strlen(pub), x = strlen(ext);
-		if (l <= x || strcmp(pub + l - x, ext)) continue;
-		jstr(a, e, "url", api, sizeof api);                       // primera clave "url" del asset = URL de la API
-		snprintf(dst, n, "%s", tok() && api[0] ? api : pub);
-		return true;
+	const char *p = obj;
+	while ((p = json_find_from(p, end, "browser_download_url"))) {
+		char url[300]; const char *q = p; size_t i = 0;
+		if (*q != '"') break;
+		q++; while (*q && *q != '"' && i + 1 < sizeof url) url[i++] = *q++;
+		url[i] = 0;
+		size_t l = strlen(url), e = strlen(ext);
+		if (l > e && !strcmp(url + l - e, ext)) { snprintf(dst, n, "%s", url); return true; }
+		p = q;
 	}
 	return false;
 }
 
 bool update_check(UpdateInfo *out, char *err, size_t en) {
 	memset(out, 0, sizeof *out); snprintf(out->cur, sizeof out->cur, "%s", g_cur);
-	char *r = net_get_text(RELEASES_URL, tok(), err, en);
+	char *r = net_get_text(RELEASES_URL, err, en);
 	if (!r) return false;
 	bool okc; Ver cur = parse_ver(g_cur, &okc);
 	Ver best_s = {{0}, 0, false}, best_d = {{0}, 0, true};
@@ -95,15 +82,28 @@ bool update_check(UpdateInfo *out, char *err, size_t en) {
 }
 
 // ---------- instalación ----------
-typedef struct { Handle am; u64 off; bool is_cia; FILE *f; size_t total; } Sink;
-static bool sink_write(const void *data, size_t n, void *ud) {
-	Sink *s = ud;
+// Los datos llegan de curl en trozos pequeños; se juntan en bloques grandes antes de escribir (el servicio AM se queja con
+// escrituras pequeñas y es mucho más lento si se vacía cada 16 KB).
+#define BLOCK (128 * 1024)
+typedef struct { Handle am; u64 off; bool is_cia; FILE *f; size_t total; u8 *buf; size_t fill; Result rc; } Sink;
+static bool flush_block(Sink *s) {
+	if (!s->fill) return true;
 	if (s->is_cia) {
 		u32 w = 0;
-		if (R_FAILED(FSFILE_Write(s->am, &w, s->off, data, (u32)n, FS_WRITE_FLUSH)) || w != n) return false;
+		s->rc = FSFILE_Write(s->am, &w, s->off, s->buf, (u32)s->fill, FS_WRITE_FLUSH);
+		if (R_FAILED(s->rc) || w != s->fill) { if (!R_FAILED(s->rc)) s->rc = (Result)0xFFFF0000u | (w & 0xFFFF); return false; }
 		s->off += w;
-	} else if (fwrite(data, 1, n, s->f) != n) return false;
+	} else if (fwrite(s->buf, 1, s->fill, s->f) != s->fill) { s->rc = (Result)0xFFFF0001u; return false; }
+	s->fill = 0; return true;
+}
+static bool sink_write(const void *data, size_t n, void *ud) {
+	Sink *s = ud; const u8 *p = data;
 	s->total += n;
+	while (n) {
+		size_t k = BLOCK - s->fill; if (k > n) k = n;
+		memcpy(s->buf + s->fill, p, k); s->fill += k; p += k; n -= k;
+		if (s->fill == BLOCK && !flush_block(s)) return false;
+	}
 	return true;
 }
 
@@ -111,17 +111,21 @@ bool update_install(const Rel *r, volatile int *pct, char *err, size_t en) {
 	bool cia = update_is_cia();
 	const char *url = cia ? r->cia : r->dsx;
 	Sink s = {0}; s.is_cia = cia;
+	s.buf = malloc(BLOCK); if (!s.buf) { snprintf(err, en, "Sin memoria para la descarga"); return false; }
 	char tmp_path[sizeof g_path + 8] = "";
 	if (cia) {
-		Result rc = amInit(); if (R_FAILED(rc)) { snprintf(err, en, "amInit fallo (%08lX)", (unsigned long)rc); return false; }
+		Result rc = amInit(); if (R_FAILED(rc)) { free(s.buf); snprintf(err, en, "amInit fallo (%08lX)", (unsigned long)rc); return false; }
 		rc = AM_StartCiaInstall(MEDIATYPE_SD, &s.am);
-		if (R_FAILED(rc)) { amExit(); snprintf(err, en, "AM_StartCiaInstall fallo (%08lX)", (unsigned long)rc); return false; }
+		if (R_FAILED(rc)) { amExit(); free(s.buf); snprintf(err, en, "AM_StartCiaInstall fallo (%08lX)", (unsigned long)rc); return false; }
 	} else {
 		snprintf(tmp_path, sizeof tmp_path, "%s.new", g_path);       // se escribe al lado: si falla, el .3dsx actual queda intacto
-		s.f = fopen(tmp_path, "wb"); if (!s.f) { snprintf(err, en, "No se pudo escribir en la SD"); return false; }
+		s.f = fopen(tmp_path, "wb"); if (!s.f) { free(s.buf); snprintf(err, en, "No se pudo escribir en la SD"); return false; }
 	}
 	*pct = 0;
-	bool ok = net_download(url, tok(), sink_write, &s, pct, err, en);
+	bool ok = net_download(url, sink_write, &s, pct, err, en);
+	if (ok && !flush_block(&s)) ok = false;                      // último bloque (el resto ya se escribió)
+	if (!ok && R_FAILED(s.rc)) snprintf(err, en, "No se pudo escribir (%08lX)", (unsigned long)s.rc);   // código real del fallo
+	free(s.buf);
 	if (ok && s.total < MIN_SIZE) { ok = false; snprintf(err, en, "Descarga demasiado pequena (%u bytes)", (unsigned)s.total); }
 	if (cia) {
 		if (ok) {
