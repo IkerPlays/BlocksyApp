@@ -28,7 +28,7 @@ require('node:fs').mkdirSync(out, { recursive: true })
     await p.screenshot({ path: `${out}/${name}.png`, fullPage: true }); await ctx.close()
   }
   await page('page_home', 'home'); await page('page_avatar', 'avatar'); await page('page_friends', 'friends'); await page('page_settings', 'settings')
-  await page('page_create', 'create'); await page('page_editor', 'create&arg=g3'); await page('page_discover', 'discover'); await page('page_home_en', 'home', 1280, 'en')
+  await page('page_profile', 'profile&arg=Marta'); await page('page_create', 'create'); await page('page_editor', 'create&arg=g3'); await page('page_discover', 'discover'); await page('page_home_en', 'home', 1280, 'en')
   await b.close()
   console.log(errors.length ? 'ERRORES:\n' + errors.join('\n') : 'sin errores de consola')
 })()

@@ -312,7 +312,7 @@ static bool qr_screen(C3D_RenderTarget *top, C3D_RenderTarget *bot, Session *ses
 		if (down & KEY_TOUCH) { touchPosition t; hidTouchRead(&t); if (hit(t, 60, 186, 200, 40)) cancel = true; }
 		if (cancel) break;
 		if (job.state == 1 && !have_qr) {
-			snprintf(url, sizeof url, "%s/#link/%s", WEB_URL, job.code);
+			snprintf(url, sizeof url, "%s/link/%s", WEB_URL, job.code);
 			have_qr = qrcodegen_encodeText(url, tmp, qr, qrcodegen_Ecc_MEDIUM, 1, 10, qrcodegen_Mask_AUTO, true);
 		}
 		if (job.state == 2) { *sess = job.sess; ok = true; break; }
@@ -338,7 +338,7 @@ static bool qr_screen(C3D_RenderTarget *top, C3D_RenderTarget *bot, Session *ses
 		if (have_qr) {
 			rrect(70, 90, 180, 46, 8, COL_PANEL);
 			ui_text(160, 96, 0.95f, COL_TEXT, C2D_AlignCenter, job.code);
-			ui_text(160, 142, 0.38f, COL_MUTED, C2D_AlignCenter, "o escribe el codigo en " WEB_HOST "/#link");
+			ui_text(160, 142, 0.38f, COL_MUTED, C2D_AlignCenter, "o escribe el codigo en " WEB_HOST "/link");
 			char b[40]; ui_text(160, 160, 0.42f, COL_ACCENT, C2D_AlignCenter, dots("Esperando", b, sizeof b));
 		}
 		button(60, 186, 200, 40, C(0xC0, 0x39, 0x2B), false, "Cancelar", 0.5f);

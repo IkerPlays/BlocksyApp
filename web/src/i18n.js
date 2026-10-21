@@ -2,6 +2,7 @@
 const D = {
   es: {
     lang_name: 'Español',
+    nav_profile: 'Perfil', p_joined: 'Se unió el {date}', p_friends: 'Amigos', p_games: 'Juegos creados', p_no_bio: 'Sin biografía todavía.', p_bio_ph: 'Escribe algo sobre ti...', p_edit_avatar: 'Editar avatar', p_edit_bio: 'Editar biografía', p_not_found: 'Este usuario no existe', p_no_games: 'Aún no ha creado juegos.', p_you: 'Tu perfil', p_copy: 'Copiar enlace del perfil',
     nav_home: 'Inicio', nav_discover: 'Descubrir', nav_avatar: 'Avatar', nav_friends: 'Amigos', nav_link: 'Vincular 3DS', nav_create: 'Crear', nav_settings: 'Ajustes', nav_logout: 'Salir',
     search_games: 'Buscar juegos', loading: 'Cargando...', see_all: 'Ver todo', close: 'Cerrar', cancel: 'Cancelar', save: 'Guardar', saved: 'Guardado', delete: 'Borrar', play: 'Jugar', back: 'Volver', send: 'Enviar', yes: 'Sí', no: 'No',
     tagline: 'Construye, explora y juega con amigos en la web y en tu 3DS.',
@@ -43,6 +44,7 @@ const D = {
   },
   en: {
     lang_name: 'English',
+    nav_profile: 'Profile', p_joined: 'Joined {date}', p_friends: 'Friends', p_games: 'Created games', p_no_bio: 'No bio yet.', p_bio_ph: 'Write something about yourself...', p_edit_avatar: 'Edit avatar', p_edit_bio: 'Edit bio', p_not_found: 'This user does not exist', p_no_games: 'No games created yet.', p_you: 'Your profile', p_copy: 'Copy profile link',
     nav_home: 'Home', nav_discover: 'Discover', nav_avatar: 'Avatar', nav_friends: 'Friends', nav_link: 'Link 3DS', nav_create: 'Create', nav_settings: 'Settings', nav_logout: 'Log out',
     search_games: 'Search games', loading: 'Loading...', see_all: 'See all', close: 'Close', cancel: 'Cancel', save: 'Save', saved: 'Saved', delete: 'Delete', play: 'Play', back: 'Back', send: 'Send', yes: 'Yes', no: 'No',
     tagline: 'Build, explore and play with friends on the web and on your 3DS.',

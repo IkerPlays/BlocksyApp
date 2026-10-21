@@ -61,3 +61,6 @@ export function watch(myId, cb) {
   }, 6000)
   return () => { stop = true; clearInterval(poll); authDb.removeChannel(ch) }
 }
+
+export const getProfile = async name => authDb.rpc('get_profile', { p_username: name })
+export const setBio = (myId, bio) => authDb.from('profiles').update({ bio }).eq('id', myId)

@@ -4,3 +4,4 @@ New: languages (Spanish, English, Portuguese, French, German), installable PWA, 
 New: game types (Build, Social, Obby, Arena), terrains (hills, islands, plaza, void, obby), day and night cycle, clouds, optional bloom, and an advanced editor with rules, world options and scripting (owner only).
 Nintendo 3DS: friend requests and private chat, 12 block colors, language setting (Spanish or English), sun, clouds and player shadows, faster presence.
 Run the new SQL files: supabase/auth/social.sql (AUTH) and supabase/game/v2.sql (GAME). See supabase/README.md.
+Web: real URLs (/home, /friends, /u/name) instead of /#..., and Roblox-style profile pages (/profile for yours, /u/username for anyone): 3D avatar, bio, friends count, created games, and friend actions. Old # links and the 3DS QR still work. Run supabase/auth/social.sql again (adds get_profile and the bio column).

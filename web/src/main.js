@@ -20,37 +20,53 @@ function showScreen(name) {
   $('game').classList.toggle('hidden', name !== 'game')
 }
 
-// ---------- router ----------
+// ---------- router (rutas reales: /home, /friends, /u/nombre...) ----------
 const ctx = {
   get profile() { return profile },
-  play, go: h => (location.hash = h),
+  play, go: h => navigate('/' + String(h).replace(/^[#/]+/, '')),
   async refreshProfile() { profile = await auth.loadProfile(); paintChip() },
   refreshBadges: null,
+}
+export function navigate(path, replace = false) {
+  if (path === location.pathname + location.search) return route()
+  history[replace ? 'replaceState' : 'pushState'](null, '', path); route()
 }
 function paintChip() {
   $('chip-name').textContent = profile.username
   $('chip-avatar').style.setProperty('--c', profile.avatar_color)
   $('chip-avatar').style.setProperty('--img', `url(${headshot(profile.username, profile.avatar_color)})`)
 }
+// Los enlaces antiguos con # (por ejemplo el QR de la 3DS: /#link/CODIGO) se convierten en rutas
+if (location.hash.length > 1) history.replaceState(null, '', '/' + location.hash.slice(1))
 async function route() {
   if (!profile) return
-  const hash = location.hash.slice(1) || 'home'
-  // enlace directo a un juego: #join/<id>
-  if (hash.startsWith('join/')) {
-    const g = await api.getGame(hash.slice(5))
-    location.hash = 'home'
+  const parts = location.pathname.split('/').filter(Boolean).map(decodeURIComponent)
+  let page = parts[0] || 'home', arg = parts.slice(1).join('/') || undefined
+  if (page === 'join') {                                          // enlace directo a un juego: /join/<id>
+    const g = await api.getGame(arg)
+    history.replaceState(null, '', '/home'); document.title = 'Blocksy'
     if (g) play(g); else toast(t('invite_game_gone'))
     return
   }
-  const i = hash.indexOf('/'), page = i < 0 ? hash : hash.slice(0, i), arg = i < 0 ? undefined : hash.slice(i + 1)
+  if (page === 'u') { page = 'profile'; arg = arg ?? profile.username }
+  if (page === 'profile' && !arg) arg = profile.username
   const name = pages[page] && !(page === 'create' && !api.canCreate()) ? page : 'home'
-  document.querySelectorAll('#sidebar a').forEach(a => a.classList.toggle('active', a.dataset.page === name))
+  if (name !== page) history.replaceState(null, '', '/home')
+  const navName = name === 'profile' && arg?.toLowerCase() !== profile.username.toLowerCase() ? '' : name
+  document.querySelectorAll('#sidebar a').forEach(a => a.classList.toggle('active', a.dataset.page === navName))
   $('sidebar').classList.remove('open')
   stopPageTimers()
   const root = $('page'); root.replaceChildren()
-  try { await pages[name](root, ctx, arg ? decodeURIComponent(arg) : undefined) } catch (e) { console.error(e); toast(e.message) }
+  try { await pages[name](root, ctx, arg) } catch (e) { console.error(e); toast(e.message) }
+  window.scrollTo(0, 0)
 }
-window.addEventListener('hashchange', route)
+window.addEventListener('popstate', route)
+// enlaces internos sin recargar la página
+document.addEventListener('click', e => {
+  const a = e.target.closest?.('a[href^="/"]')
+  if (!a || e.defaultPrevented || e.metaKey || e.ctrlKey || e.shiftKey || a.target === '_blank') return
+  e.preventDefault(); if (profile) navigate(a.getAttribute('href'))
+})
 // al cambiar de idioma se repinta lo estático y la página actual
 onLang(() => { applyStatic(); buildLangSelect(); if (profile && !currentGame) route() })
 
@@ -64,7 +80,7 @@ async function enterApp() {
   auth.startPresence(() => currentGame?.id)
   stopNotif?.(); stopNotif = initNotifications(ctx)
   route()
-  api.openGameSession().then(() => { showCreate(api.canCreate()); if (location.hash.startsWith('#create')) route() }).catch(e => toast(t('err_game_server', { msg: e.message })))
+  api.openGameSession().then(() => { showCreate(api.canCreate()); if (location.pathname.startsWith('/create')) route() }).catch(e => toast(t('err_game_server', { msg: e.message })))
 }
 
 // ---------- juego ----------
@@ -108,10 +124,12 @@ function buildLangSelect() {
 $('burger').onclick = () => $('sidebar').classList.toggle('open')
 $('modal').addEventListener('click', e => { if (e.target.id === 'modal') closeModal() })
 new MutationObserver(() => { if ($('modal').classList.contains('hidden')) $('game').classList.remove('hidden-for-modal') }).observe($('modal'), { attributes: true, attributeFilter: ['class'] })
-$('search').addEventListener('submit', e => { e.preventDefault(); const q = $('search-input').value.trim(); location.hash = q ? `discover/${encodeURIComponent(q)}` : 'discover' })
+$('search').addEventListener('submit', e => { e.preventDefault(); const q = $('search-input').value.trim(); navigate(q ? `/discover/${encodeURIComponent(q)}` : '/discover') })
 window.addEventListener('beforeunload', () => { api.leaveBeacon() })
 registerSW(() => { $('update-bar').classList.remove('hidden') })
 $('update-reload').onclick = () => location.reload()
 
 applyTheme(); applyStatic(); buildLangSelect(); applyIcons()
 authDb.auth.getSession().then(({ data }) => (data.session ? enterApp() : showScreen('auth')))
+
+$('userchip').onclick = () => navigate('/profile')

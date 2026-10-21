@@ -250,3 +250,12 @@ textarea.code { flex:1; border:0; outline:none; resize:none; background:transpar
 }
 .btn { display:inline-flex; align-items:center; justify-content:center; gap:6px; }
 .form-row > .thumb { flex:none; }
+
+/* ---- perfil ---- */
+.profile-card { display:grid; grid-template-columns:240px 1fr; gap:26px; align-items:start; } @media (max-width:640px) { .profile-card { grid-template-columns:1fr; } }
+.profile-info p { color:var(--fg); line-height:1.5; margin:12px 0 0; } .profile-info p.muted { color:var(--muted); }
+.p-status { display:flex; align-items:center; gap:8px; color:var(--muted); font-weight:700; margin-bottom:4px; }
+.dot-i { width:10px; height:10px; border-radius:50%; background:#6b7077; } .dot-i.on { background:var(--green); }
+.bio-edit { width:100%; margin-top:12px; padding:10px 12px; border-radius:8px; border:1px solid var(--line); background:var(--panel2); color:var(--fg); font:inherit; resize:vertical; }
+.profile-actions .btn, .profile-actions a.btn { flex:0 0 auto; } a.friend { color:inherit; }
+.person a { color:inherit; } .person a:hover b { text-decoration:underline; }

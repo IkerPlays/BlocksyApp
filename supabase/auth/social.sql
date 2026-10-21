@@ -209,3 +209,32 @@ create or replace function public.touch_presence(p_game uuid default null)
 returns void language sql security invoker as $$
   update public.profiles set last_seen = now(), current_game = p_game where id = auth.uid();
 $$;
+
+-- ---------- Perfiles (como Roblox): /u/<usuario> ----------
+alter table public.profiles add column if not exists bio text not null default '';
+alter table public.profiles drop constraint if exists profiles_bio_len;
+alter table public.profiles add constraint profiles_bio_len check (char_length(bio) <= 160);
+
+-- Perfil por nombre exacto: público lo básico; online y partida solo si es uno mismo o un amigo
+create or replace function public.get_profile(p_username text) returns jsonb
+language plpgsql stable security definer set search_path = public as $$
+declare me uuid := auth.uid(); t profiles; fr boolean; rel text := 'none'; rid bigint;
+begin
+  select * into t from profiles where lower(username) = lower(btrim(p_username));
+  if not found then return null; end if;
+  fr := exists (select 1 from friendships where user_id = me and friend_id = t.id);
+  if t.id = me then rel := 'self';
+  elsif fr then rel := 'friends';
+  else
+    select id into rid from friend_requests where from_id = me and to_id = t.id;
+    if found then rel := 'pending_out';
+    else select id into rid from friend_requests where from_id = t.id and to_id = me; if found then rel := 'pending_in'; end if;
+    end if;
+  end if;
+  return jsonb_build_object('id', t.id, 'username', t.username, 'avatar_color', t.avatar_color, 'bio', t.bio, 'created_at', t.created_at,
+    'relation', rel, 'request_id', rid,
+    'friend_count', (select count(*) from friendships where user_id = t.id),
+    'is_online', case when fr or t.id = me then t.last_seen > now() - interval '75 seconds' end,
+    'current_game', case when fr or t.id = me then t.current_game end);
+end $$;
+grant execute on function public.get_profile(text) to authenticated;

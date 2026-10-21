@@ -3,7 +3,7 @@
   "short_name": "Blocksy",
   "description": "Construye, explora y juega con amigos en la web y en tu 3DS.",
   "id": "/",
-  "start_url": "/?source=pwa",
+  "start_url": "/home?source=pwa",
   "scope": "/",
   "display": "standalone",
   "orientation": "any",
@@ -16,7 +16,7 @@
     { "src": "/icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ],
   "shortcuts": [
-    { "name": "Amigos", "url": "/#friends", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] },
-    { "name": "Descubrir", "url": "/#discover", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] }
+    { "name": "Amigos", "url": "/friends", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Descubrir", "url": "/discover", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] }
   ]
 }

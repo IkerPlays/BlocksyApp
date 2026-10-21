@@ -347,7 +347,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite }) {
   $('resume').onclick = () => setPaused(false)
   $('leave').onclick = () => onExit()
   $('invite-btn').onclick = () => { setPaused(false); onInvite?.(game) }
-  $('copy-link').onclick = () => { const url = `${location.origin}${location.pathname}#join/${game.id}`; (navigator.clipboard?.writeText(url) ?? Promise.reject()).then(() => sys(t('link_copied')), () => prompt(t('copy_link'), url)); setPaused(false) }
+  $('copy-link').onclick = () => { const url = `${location.origin}/join/${game.id}`; (navigator.clipboard?.writeText(url) ?? Promise.reject()).then(() => sys(t('link_copied')), () => prompt(t('copy_link'), url)); setPaused(false) }
   // ----- emotes -----
   const emotePanel = $('emote-panel')
   emotePanel.replaceChildren(...EMOTES.map(e => { const b = document.createElement('button'); b.className = 'emote'; b.dataset.id = e.id; b.textContent = t('emote_' + e.id); b.onclick = () => { if (!cfg.allow_emotes) return; if (me.grounded || me.fly) { me.fly = false; me.emote = e.id } emotePanel.classList.add('hidden') }; return b }))

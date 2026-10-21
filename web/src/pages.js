@@ -87,15 +87,15 @@ export const pages = {
     const last = games.find(g => g.id === lastPlayed())
     const friendsRow = el('div')
     const paintFriends = list => setKids(friendsRow, list.length
-      ? el('div', { class: 'row-scroll' }, list.map(f => el('div', { class: 'friend', onclick: () => ctx.go('friends') },
+      ? el('div', { class: 'row-scroll' }, list.map(f => el('a', { class: 'friend', href: `/u/${encodeURIComponent(f.username)}` },
           avatar(f.username, f.avatar_color, f.is_online), el('b', { text: f.username }), el('small', { text: statusText(f) }))))
       : el('div', { class: 'empty', text: t('home_no_friends') }))
     paintFriends(friends)
     setKids(root,
       el('div', { class: 'hero' }, avatar(ctx.profile.username, ctx.profile.avatar_color), el('h1', { text: t('hello', { name: ctx.profile.username }) })),
-      el('div', { class: 'section' }, el('h2', { text: t('friends_n', { n: friends.length }) }), el('a', { href: '#friends', text: t('see_all') })), friendsRow,
+      el('div', { class: 'section' }, el('h2', { text: t('friends_n', { n: friends.length }) }), el('a', { href: '/friends', text: t('see_all') })), friendsRow,
       last ? [el('div', { class: 'section' }, el('h2', { text: t('continue') })), grid([last], counts, open)] : null,
-      el('div', { class: 'section' }, el('h2', { text: t('popular') }), el('a', { href: '#discover', text: t('see_all') })),
+      el('div', { class: 'section' }, el('h2', { text: t('popular') }), el('a', { href: '/discover', text: t('see_all') })),
       grid(popular.slice(0, 12), counts, open),
       el('div', { class: 'section' }, el('h2', { text: t('newest') })),
       grid([...games].reverse().slice(0, 12), counts, open))
@@ -116,6 +116,56 @@ export const pages = {
     }
     input.oninput = draw; draw()
     setKids(root, el('h1', { class: 'page-title', text: t('discover') }), el('div', { style: 'margin-bottom:12px' }, input), chips, out)
+  },
+
+  // Perfil: /profile (el tuyo) o /u/<usuario>
+  async profile(root, ctx, name) {
+    setKids(root, el('h1', { class: 'page-title', text: t('loading') }))
+    const { data: p, error } = await social.getProfile(name)
+    if (error || !p) return setKids(root, el('h1', { class: 'page-title', text: t('nav_profile') }), el('div', { class: 'empty', text: t('p_not_found') }))
+    const self = p.relation === 'self', canvas = el('canvas', { class: 'avatar-3d' })
+    const stat = (v, k) => el('div', { class: 'stat' }, el('b', { text: String(v) }), el('small', { text: k }))
+    const actions = el('div', { class: 'form-row profile-actions' }), bioBox = el('div'), games = el('div'), friendsBox = el('div')
+    const reload = () => pages.profile(root, ctx, name)
+    const gameName = {}; let mine0 = []
+    const paintActions = async () => {
+      const btn = (cls, text, fn) => el('button', { class: `btn ${cls}`, text, onclick: async () => { try { await fn(); } catch (e) { toast(e.message) } } })
+      const A = []
+      if (self) A.push(el('a', { class: 'btn blue', href: '/avatar', text: t('p_edit_avatar') }))
+      else if (p.relation === 'friends') {
+        A.push(btn('blue', t('chat'), async () => { const { openChat } = await import('./social-ui.js'); openChat(ctx, { id: p.id, username: p.username, avatar_color: p.avatar_color, is_online: p.is_online, current_game: p.current_game }) }))
+        if (p.is_online && p.current_game) { const g = await api.getGame(p.current_game); if (g) A.push(btn('primary', `${t('join')} · ${g.name}`, async () => ctx.play(g))) }
+        A.push(btn('', t('remove'), async () => { if (confirm(t('confirm_remove', { name: p.username }))) { await social.removeFriend(p.id); reload() } }))
+      } else if (p.relation === 'pending_in') {
+        A.push(btn('primary', t('accept'), async () => { await social.respondRequest(p.request_id, true); reload() }), btn('', t('decline'), async () => { await social.respondRequest(p.request_id, false); reload() }))
+      } else if (p.relation === 'pending_out') A.push(btn('', t('cancel_req'), async () => { await social.cancelRequest(p.request_id); reload() }))
+      else A.push(btn('blue', t('add_friend'), async () => { const r = await social.sendRequest(p.username); toast(t(r === 'sent' ? 'req_sent' : r === 'accepted' ? 'req_accepted' : r === 'already_sent' ? 'req_already' : 'req_friends', { name: p.username })); reload() }))
+      A.push(btn('', t('p_copy'), async () => { const url = `${location.origin}/u/${p.username}`; try { await navigator.clipboard.writeText(url); toast(t('link_copied')) } catch { prompt(t('copy_link'), url) } }))
+      setKids(actions, A)
+    }
+    const paintBio = () => {
+      if (!self) return setKids(bioBox, el('p', { class: p.bio ? '' : 'muted', text: p.bio || t('p_no_bio') }))
+      const ta = el('textarea', { class: 'bio-edit', maxlength: 160, placeholder: t('p_bio_ph'), rows: 3 }); ta.value = p.bio || ''
+      setKids(bioBox, ta, el('button', { class: 'btn', style: 'margin-top:8px', text: t('save'), onclick: async () => { const { error: e } = await social.setBio(ctx.profile.id, ta.value.trim()); if (e) toast(e.message); else { p.bio = ta.value.trim(); toast(t('saved')) } } }))
+    }
+    const status = self || p.relation === 'friends' ? (p.is_online ? (p.current_game ? t('status_game') : t('status_online')) : t('status_offline')) : ''
+    setKids(root, el('div', { class: 'panel profile-card' },
+      el('div', { class: 'preview' }, canvas),
+      el('div', { class: 'profile-info' },
+        el('h1', { class: 'page-title', style: 'margin-bottom:4px', text: p.username }),
+        status ? el('div', { class: 'p-status' }, el('span', { class: `dot-i ${p.is_online ? 'on' : ''}` }), status) : null,
+        el('small', { style: 'color:var(--muted)', text: self ? t('p_you') : t('p_joined', { date: new Date(p.created_at).toLocaleDateString() }) }),
+        bioBox,
+        el('div', { class: 'stats-row', style: 'margin:14px 0' }, stat(p.friend_count, t('p_friends')), stat(mine0.length, t('p_games'))), actions)),
+      el('div', { class: 'section' }, el('h2', { text: t('p_games') })), games,
+      self ? [el('div', { class: 'section' }, el('h2', { text: t('friends_n', { n: '' }).replace('()', '').trim() })), friendsBox] : null)
+    const pv = createPreview(canvas, styleFor(p.username, p.avatar_color)); pv.setAnim('wave')
+    paintBio(); paintActions()
+    const [all, counts] = await Promise.all([api.listGames(), api.playerCounts()])
+    const mine = all.filter(g => g.owner_id === p.id); mine0 = mine
+    setKids(games, mine.length ? grid(mine, counts, g => openGameModal(g, counts, ctx.play)) : el('div', { class: 'empty', text: t('p_no_games') }))
+    if (self) { const fl = await social.listFriends(ctx.profile.id); setKids(friendsBox, fl.length ? el('div', { class: 'row-scroll' }, fl.map(f => el('a', { class: 'friend', href: `/u/${encodeURIComponent(f.username)}` }, avatar(f.username, f.avatar_color, f.is_online), el('b', { text: f.username }), el('small', { text: statusText(f) })))) : el('div', { class: 'empty', text: t('no_friends') })) }
+    every(() => {}, 60_000)
   },
 
   async avatar(root, ctx) {
@@ -160,7 +210,7 @@ export const pages = {
     const row = (f, unread) => {
       const gname = f.is_online && f.current_game ? games[f.current_game]?.name : null
       return el('div', { class: 'person' }, avatar(f.username, f.avatar_color, f.is_online),
-        el('div', { class: 'grow' }, el('b', { text: f.username }), el('small', { text: gname ? `${statusText(f)} · ${gname}` : statusText(f) })),
+        el('div', { class: 'grow' }, el('a', { href: `/u/${encodeURIComponent(f.username)}` }, el('b', { text: f.username })), el('small', { text: gname ? `${statusText(f)} · ${gname}` : statusText(f) })),
         f.is_online && f.current_game && games[f.current_game] ? el('button', { class: 'btn primary', text: t('join'), onclick: () => ctx.play(games[f.current_game]) }) : null,
         el('button', { class: 'btn blue', html: icon('chat', 16) + (unread ? `<span class="count">${unread}</span>` : ''), title: t('chat'), onclick: async () => { const { openChat } = await import('./social-ui.js'); openChat(ctx, f) } }),
         el('button', { class: 'btn', html: icon('trash', 16), title: t('remove'), onclick: async () => { if (confirm(t('confirm_remove', { name: f.username }))) { await social.removeFriend(f.id); load() } } }))
@@ -223,7 +273,7 @@ export const pages = {
     load()
   },
 
-  // Autoriza el inicio de sesión de otro dispositivo (la 3DS muestra un QR con este enlace: #link/CODIGO)
+  // Autoriza el inicio de sesión de otro dispositivo (la 3DS muestra un QR con este enlace: /link/CODIGO)
   async link(root, ctx, code = '') {
     const input = el('input', { placeholder: t('link_code_ph'), maxlength: 6, value: code.toUpperCase(), style: 'text-transform:uppercase;letter-spacing:4px;font-size:22px;text-align:center' })
     const msg = el('p', { class: 'msg' })
@@ -239,7 +289,7 @@ export const pages = {
           el('div', { class: 'panel', style: 'max-width:520px;text-align:center' },
             el('div', { class: 'big-ico', html: icon('check', 44) }), el('h2', { text: t('link_done') }),
             el('p', { style: 'color:var(--muted)', text: t('link_done_p', { name: ctx.profile.username }) }),
-            el('a', { class: 'btn blue', href: '#home', text: t('link_go_home') })))
+            el('a', { class: 'btn blue', href: '/home', text: t('link_go_home') })))
       } catch (e) {
         btn.disabled = false; msg.className = 'msg err'
         msg.textContent = /invalid code/i.test(e.message) ? t('link_bad') : e.message
@@ -343,7 +393,7 @@ async function editor(root, ctx, id) {
     setKids(body, pane[tab]())
   }
   const save = async () => { await api.updateGameRow({ ...g, config: Object.fromEntries(Object.entries(g.config).filter(([, v]) => v !== undefined)) }); toast(t('ed_saved')) }
-  setKids(root, el('div', { class: 'section' }, el('h1', { class: 'page-title', text: `${t('editor')}: ${g.name}` }), el('a', { href: '#create', text: t('back') })),
+  setKids(root, el('div', { class: 'section' }, el('h1', { class: 'page-title', text: `${t('editor')}: ${g.name}` }), el('a', { href: '/create', text: t('back') })),
     el('div', { class: 'panel' }, tabs, body),
     el('div', { class: 'form-row', style: 'margin-top:14px' },
       el('button', { class: 'btn primary', text: t('save'), onclick: () => save().catch(e => toast(e.message)) }),
