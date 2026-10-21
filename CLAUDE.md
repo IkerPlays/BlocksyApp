@@ -22,3 +22,5 @@ Same release system as Iker's Tube.
 - 3DS auto update (`3ds/source/update.c`): reads https://api.github.com/repos/IkerPlays/BlocksyApp/releases, so every release must keep the assets named `Blocksy.cia` and `Blocksy.3dsx` and tags like `v0.1.0` (stable) / `v0.1.1-dev.N` (pre-release).
 - Creating games is web-only and restricted by the server: `sessions.can_create` is set by the `game-session` function from `CREATOR_EMAILS` (default: the owner email). Do not add it to the 3DS.
 - The 3DS updater and the README QR read the releases without logging in, so the repository must be PUBLIC.
+- Avatar look is derived from the username with FNV-1a (web/src/avatar.js and 3ds/source/avatar3d.c MUST stay identical: palettes, hash, hair style). Emotes travel in player_state.anim (wave, dance, cheer, clap, sit; max 12 chars). The 3DS title version (makerom -ver) is the commit count (APP_VER) so every .cia is newer than the installed one; keep fetch-depth: 0 in the build jobs.
+- Web game preview without Supabase: web/preview/README.md.

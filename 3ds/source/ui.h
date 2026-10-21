@@ -37,7 +37,7 @@ u32  ui_shade(u32 c, float f);
 u32  ui_alpha(u32 c, int a);
 u32  ui_hsl(float h, float s, float l);
 void ui_thumb(float x, float y, float s, int hue, int players);   // miniatura de juego (como la web)
-void ui_avatar(float cx, float cy, float r, u32 color, int online); // online: -1 sin punto, 0/1
+void ui_avatar(float cx, float cy, float r, u32 color, int online, const char *name);  // foto de perfil = cabeza del avatar; online: -1 sin punto, 0/1
 void ui_icon(int kind, float x, float y, u32 c);                  // 0 inicio 1 descubrir 2 avatar 3 amigos 4 crear 5 ajustes 6 salir
 void ui_top_background(const char *version, const char *subtitle);
 
@@ -49,9 +49,9 @@ void ui_forget_session(void);            // borra la sesión guardada (cerrar se
 void ui_message(C3D_RenderTarget *top, C3D_RenderTarget *bot, const char *title, const char *msg);
 
 // Panel de la pantalla inferior durante el juego
-typedef enum { UI_NONE = -1, UI_COLOR0 = 0, UI_CHAT = 10, UI_QUIT = 11 } UiAction;
-void ui_game_bottom(const Session *s, const Remote *rem, int nr, int kind, const char *game, const char *version);
-int  ui_game_touch(int x, int y);        // UI_NONE, UI_COLOR0 + n, UI_CHAT o UI_QUIT (volver al lobby)
+typedef enum { UI_NONE = -1, UI_COLOR0 = 0, UI_CHAT = 10, UI_QUIT = 11, UI_EMOTE_MENU = 13, UI_EMOTE0 = 20 } UiAction;
+void ui_game_bottom(const Session *s, const Remote *rem, int nr, int kind, const char *game, const char *version, bool emote_menu);
+int  ui_game_touch(int x, int y, bool emote_menu);        // UI_NONE, UI_COLOR0 + n, UI_CHAT o UI_QUIT (volver al lobby)
 
 #ifdef BLOCKSY_PREVIEW
 void ui_preview_login(C3D_RenderTarget *top, C3D_RenderTarget *bot, int signup, int busy, const char *version);

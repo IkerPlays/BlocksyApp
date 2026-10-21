@@ -15,6 +15,8 @@ Blocksy is a multiplayer block-building game for the web and the Nintendo 3DS (h
 - **Better gameplay on 3DS.** Run, automatic steps, C-stick camera, block outline, name tags, on-screen chat, sky and fog.
 - **Better web rendering.** Textured blocks, shadows, animated avatars, touch controls for tablets and phones, no emojis.
 - **Create is owner-only.** Creating and deleting games is web-only and limited to the authorized account (checked on the server).
+- **3D avatars.** Every player has their own look (skin, hair, hairstyle, pants) plus the shirt color they pick, identical on web and 3DS. Profile pictures show the avatar head. The web has a 3D avatar editor.
+- **Emotes.** Wave, Dance, Cheer, Clap and Sit, visible to everyone on web and 3DS.
 - **Touch login.** The 3DS login screen has Email and Password fields, show/hide password, Remember my email and an Enter button.
 - **Bottom screen panel.** Players online, block color picker, Chat and Exit buttons.
 - **Softer HOME Menu sound.** A gentle chime plays when the app is highlighted.

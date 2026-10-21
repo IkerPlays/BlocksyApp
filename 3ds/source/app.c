@@ -3,6 +3,7 @@
 #include "app.h"
 #include "ui.h"
 #include "update.h"
+#include "avatar3d.h"
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -242,7 +243,7 @@ static void top_bar(const Ui *u, const Session *s, bool busy) {
 	}
 	char nm[32]; fit(nm, sizeof nm, s->username, 0.46f, 100);
 	ui_text(388, 6, 0.46f, COL_TEXT, C2D_AlignRight, nm);
-	ui_avatar(388 - ui_text_width(nm, 0.46f) - 14, 14, 9, s->color, -1);
+	ui_avatar(388 - ui_text_width(nm, 0.46f) - 14, 14, 9, s->color, -1, s->username);
 	if (busy) { char b[8]; snprintf(b, sizeof b, "%.*s", 1 + (int)((osGetTime() / 300) % 3), "..."); ui_text(250, 6, 0.46f, COL_MUTED, 0, b); }
 }
 
@@ -259,24 +260,28 @@ static void game_card(float x, float y, float s, const GameInfo *g, bool sel, bo
 	if (meta) { char o[48], b[56]; snprintf(b, sizeof b, "por %s", g->owner[0] ? g->owner : "Blocksy"); fit(o, sizeof o, b, 0.34f, s + 8); ui_text(x, y + s + 15, 0.34f, COL_MUTED, 0, o); }
 }
 
-static void blocky(float cx, float y, u32 color, float k) {
-	ui_rrect(cx - 14 * k, y, 28 * k, 28 * k, 5 * k, C(0xFF, 0xD9, 0xA8));                       // cabeza
-	ui_rect(cx - 7 * k, y + 10 * k, 4 * k, 4 * k, C(0x22, 0x22, 0x22)); ui_rect(cx + 3 * k, y + 10 * k, 4 * k, 4 * k, C(0x22, 0x22, 0x22));
-	ui_rrect(cx - 21 * k, y + 31 * k, 42 * k, 46 * k, 5 * k, color);                             // cuerpo
-	ui_rrect(cx - 17 * k, y + 80 * k, 34 * k, 24 * k, 5 * k, C(0x34, 0x49, 0x5E));               // piernas
+// Vista previa del avatar: el mismo modelo 3D del juego, girando; X prueba los emotes
+static AvPose prev_pose; static int prev_demo; static u64 prev_t;
+static void avatar_preview(float cx, float cy, const Session *s, u32 shirt) {
+	u64 now = osGetTime(); float dt = prev_t ? (now - prev_t) / 1000.0f : 0.016f; if (dt > 0.05f) dt = 0.05f; prev_t = now;
+	if (prev_pose.legY == 0) prev_pose.legY = 0.74f;
+	av_pose_update(&prev_pose, prev_demo ? AV_EMOTE_ID[prev_demo - 1] : "idle", dt, now / 1000.0f);
+	AvCam cam = {0, 1.0f, 0, 0, 0.12f, 3.5f, 190, cx, cy};
+	AvStyle st = av_style(s->username, shirt);
+	av_draw(&cam, 0, 0, 0, now / 1000.0f * 0.9f, &st, &prev_pose, 0, 0);
 }
 
 static void page_top(const Ui *u, const Session *s) {
 	int view[MAX_GAMES];
 	switch (u->page) {
 	case P_HOME: {
-		ui_avatar(34, 52, 15, s->color, -1);
+		ui_avatar(34, 52, 15, s->color, -1, s->username);
 		char hi[64]; snprintf(hi, sizeof hi, "¡Hola, %s!", s->username); ui_text(58, 36, 0.8f, COL_TEXT, 0, hi);
 		char ft[40]; snprintf(ft, sizeof ft, "Amigos (%d)", nfriends);
 		section(72, ft, "Ver todo");
 		if (nfriends) for (int i = 0; i < nfriends && i < 7; i++) {
 			float cx = 30 + i * 52; char nm[24]; fit(nm, sizeof nm, friends[i].name, 0.34f, 48);
-			ui_avatar(cx, 104, 13, friends[i].color, friends[i].online);
+			ui_avatar(cx, 104, 13, friends[i].color, friends[i].online, friends[i].name);
 			ui_text(cx, 119, 0.34f, COL_TEXT, C2D_AlignCenter, nm);
 		} else ui_text(14, 94, 0.42f, COL_MUTED, 0, g_account ? "Anade amigos desde Amigos para verlos aqui." : "Entra con email y contrasena para ver a tus amigos.");
 		int n = build_view(u, s, view);
@@ -298,10 +303,11 @@ static void page_top(const Ui *u, const Session *s) {
 		ui_text(14, 33, 0.8f, COL_TEXT, 0, "Avatar");
 		ui_rrect(14, 66, 372, 160, 12, COL_PANEL);
 		ui_rrect(26, 78, 112, 136, 10, C(0x2E, 0x31, 0x38));
-		blocky(82, 92, AVATAR_COLORS[u->swatch] ? parse_hex(AVATAR_COLORS[u->swatch]) : s->color, 1.0f);
+		avatar_preview(82, 152, s, parse_hex(AVATAR_COLORS[u->swatch]));
 		ui_text(156, 80, 0.7f, COL_TEXT, 0, s->username);
-		ui_text(156, 106, 0.4f, COL_MUTED, 0, "Elige el color de tu personaje.");
-		ui_text(156, 120, 0.4f, COL_MUTED, 0, "Se ve igual en la web y en la 3DS.");
+		ui_text(156, 104, 0.4f, COL_MUTED, 0, "Elige el color de tu camiseta. Tu avatar");
+		ui_text(156, 118, 0.4f, COL_MUTED, 0, "es igual en la web y en la 3DS.");
+		{ char dm[48]; snprintf(dm, sizeof dm, "X: probar emote%s%s", prev_demo ? "  (" : "", prev_demo ? AV_EMOTE_LABEL[prev_demo - 1] : ""); if (prev_demo) strncat(dm, ")", sizeof dm - strlen(dm) - 1); ui_text(156, 211, 0.38f, COL_ACCENT, 0, dm); }
 		for (int i = 0; i < 10; i++) {
 			float x = 156 + (i % 5) * 44, y = 146 + (i / 5) * 36; u32 c = parse_hex(AVATAR_COLORS[i]);
 			if (i == u->swatch) ui_rrect(x - 3, y - 3, 38, 32, 8, COL_TEXT);
@@ -317,7 +323,7 @@ static void page_top(const Ui *u, const Session *s) {
 		if (!g_account) { ui_text(30, 120, 0.46f, COL_MUTED, 0, "Entra con email y contrasena para ver y"); ui_text(30, 138, 0.46f, COL_MUTED, 0, "anadir amigos (no disponible con QR)."); break; }
 		int y = 74, shown = 0;
 		for (int i = 0; i < n && shown < 5; i++, shown++, y += 30) {
-			ui_avatar(36, y + 13, 11, rows[i].p->color, rows[i].p->online);
+			ui_avatar(36, y + 13, 11, rows[i].p->color, rows[i].p->online, rows[i].p->name);
 			ui_text(56, y + 1, 0.5f, COL_TEXT, 0, rows[i].p->name);
 			ui_text(56, y + 15, 0.34f, COL_MUTED, 0, status_of(rows[i].p));
 			if (rows[i].friend) ui_text(372, y + 4, 0.4f, COL_ACCENT, C2D_AlignRight, "amigo");
@@ -438,7 +444,7 @@ static void pane(const Ui *u, const Session *s) {
 		for (int i = 0; i < vis && u->scroll + i < n; i++) {
 			int r = u->scroll + i; float y = LIST_Y + i * rh; const Person *p = pr[r].p;
 			if (r == u->cur) ui_rrect(PANE_X - 2, y, PANE_W + 2, rh - 3, 8, COL_PANEL2);
-			ui_avatar(PANE_X + 14, y + 16, 10, p->color, p->online);
+			ui_avatar(PANE_X + 14, y + 16, 10, p->color, p->online, p->name);
 			char nm[32]; fit(nm, sizeof nm, p->name, 0.44f, 76); ui_text(PANE_X + 32, y + 2, 0.44f, COL_TEXT, 0, nm);
 			ui_text(PANE_X + 32, y + 19, 0.32f, COL_MUTED, 0, status_of(p));
 			ui_button(PANE_X + PANE_W - 58, y + 5, 56, 24, pr[r].friend ? COL_PANEL2 : COL_ACCENT_D, false, pr[r].friend ? "Quitar" : "Anadir", 0.38f);
@@ -512,6 +518,7 @@ void app_preview(C3D_RenderTarget *top, C3D_RenderTarget *bot, int page, int mod
 	nfriends = 5; npeople = 0; g_account = 1;
 	snprintf(g_upd.cur, sizeof g_upd.cur, "0.1.0-dev.9"); g_upd_have = 1;
 	snprintf(g_upd.dev.tag, sizeof g_upd.dev.tag, "v0.1.0-dev.12"); g_upd.dev.valid = 1; g_upd.dev.is_dev = 1; g_upd.dev.newer = 1;
+	prev_demo = modal <= -6 ? -modal - 5 : 0; if (modal <= -6) modal = -1;
 	if (page == P_UPDATE) { g_upd_state = modal == -3 ? 2 : modal == -4 ? 3 : modal == -5 ? 4 : 0; g_upd_pct = 45; snprintf(g_upd_msg, sizeof g_upd_msg, modal == -5 ? "Descarga fallida: Couldn't resolve host" : "Instalada. Cierra Blocksy y abrela de nuevo desde HOME"); if (modal <= -3) modal = -1; }
 	Ui u = {.page = page, .cur = cursor, .modal = modal, .swatch = 1}; strcpy(u.search, page == P_DISCOVER ? "" : "");
 	draw_all(top, bot, &u, &s, version);
@@ -575,7 +582,7 @@ AppResult app_lobby(C3D_RenderTarget *top, C3D_RenderTarget *bot, Session *s, Ga
 			if (u.page == P_AVATAR) { if (down & KEY_DRIGHT) u.swatch = (u.swatch + 1) % 10; if (down & KEY_DLEFT) u.swatch = (u.swatch + 9) % 10; if (down & KEY_DDOWN) u.swatch = (u.swatch + 5) % 10; if (down & KEY_DUP) u.swatch = (u.swatch + 5) % 10; u.cur = 0; }
 			if (down & KEY_A) act_row = u.cur;
 			if (down & KEY_Y) request(RQ_REFRESH, NULL, NULL, 0);
-			if (down & KEY_X) { if (u.page == P_DISCOVER) { prompt(u.search, sizeof u.search, "Buscar juegos"); u.cur = 0; u.scroll = 0; } }
+			if (down & KEY_X) { if (u.page == P_DISCOVER) { prompt(u.search, sizeof u.search, "Buscar juegos"); u.cur = 0; u.scroll = 0; } else if (u.page == P_AVATAR) prev_demo = (prev_demo + 1) % (NEMOTES + 1); }
 		}
 
 		// ---- táctil ----

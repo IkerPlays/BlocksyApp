@@ -23,11 +23,15 @@ int main(void) {
 	fprintf(g_out, "SCENE update_downloading\n"); app_preview(&top, &bot, 4, -3, 2, v);
 	fprintf(g_out, "SCENE update_error\n"); app_preview(&top, &bot, 4, -5, 1, v);
 	fprintf(g_out, "SCENE modal\n"); app_preview(&top, &bot, 0, 0, 0, v);
+	fprintf(g_out, "SCENE avatar_wave\n"); app_preview(&top, &bot, 2, -6, 0, v);
+	fprintf(g_out, "SCENE avatar_dance\n"); app_preview(&top, &bot, 2, -7, 0, v);
 	fprintf(g_out, "SCENE game\n"); game_preview(&top, &bot);
 	fprintf(g_out, "SCENE game_bottom\n");
 	static Session s; snprintf(s.username, sizeof s.username, "Iker"); s.color = 0xFF439FFF;
 	static Remote r[3]; snprintf(r[0].name, 24, "Marta"); r[0].color = 0xFF71CC2E; snprintf(r[1].name, 24, "Dani"); r[1].color = 0xFFB6599B; r[1].is3ds = 1; snprintf(r[2].name, 24, "Pablo"); r[2].color = 0xFF129CF3;
 	ui_frame_begin(); C3D_FrameBegin(0); C2D_TargetClear(&top, 0xFF000000); C2D_SceneBegin(&top); C2D_TargetClear(&bot, COL_BG); C2D_SceneBegin(&bot);
-	ui_game_bottom(&s, r, 3, 1, "Spawn Plaza", v); C3D_FrameEnd(0);
+	ui_game_bottom(&s, r, 3, 1, "Spawn Plaza", v, false); C3D_FrameEnd(0);
+	fprintf(g_out, "SCENE game_emotes\n"); ui_frame_begin(); C3D_FrameBegin(0); C2D_TargetClear(&top, 0xFF000000); C2D_SceneBegin(&top); C2D_TargetClear(&bot, COL_BG); C2D_SceneBegin(&bot);
+	ui_game_bottom(&s, r, 3, 1, "Spawn Plaza", v, true); C3D_FrameEnd(0);
 	fclose(g_out); return 0;
 }

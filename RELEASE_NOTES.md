@@ -1,1 +1,3 @@
-Nintendo 3DS: the updater now writes the download in large blocks (like FBI) instead of many small writes, and when a write fails it shows the real error code. Removed the private repository token support: the repository has to be public for the Update page to work.
+Avatars are now 3D models on web and 3DS: every player gets their own skin tone, hair color, hairstyle and pants (taken from the username, the same on both platforms) plus the shirt color you choose. The profile picture is now the head of your avatar. The web has a 3D avatar editor you can rotate.
+New emotes: Wave, Dance, Cheer, Clap and Sit. On the web press G or use the emote button; on the 3DS tap Emotes on the touch screen. Other players see them, on both platforms. Moving or jumping stops the emote.
+Nintendo 3DS updater: fixed the install error 0xC8E083FC. Every build now has a higher title version (the number of commits) and the install retries in overwrite mode if the title already exists.

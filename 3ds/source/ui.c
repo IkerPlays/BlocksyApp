@@ -2,6 +2,7 @@
 #include "ui.h"
 #include "config.h"
 #include "qrcodegen.h"
+#include "avatar3d.h"
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
@@ -94,15 +95,32 @@ void ui_thumb(float x, float y, float s, int hue, int players) {
 		ui_text(x + 15, y + s - 17, 0.36f, COL_TEXT, 0, b);
 	}
 }
-// Avatar redondo con "gafas" (como en la web) y punto de estado opcional (online = -1: sin punto)
-void ui_avatar(float cx, float cy, float r, u32 color, int online) {
-	C2D_DrawCircleSolid(cx, cy, (g_z + 0.2f), r, shade(color, .8f));
-	C2D_DrawCircleSolid(cx, cy - r * .06f, (g_z + 0.2f), r * .94f, color);
-	rrect(cx - r * .44f, cy - r * .14f, r * .38f, r * .22f, r * .08f, C2D_Color32(20, 20, 24, 255));
-	rrect(cx + r * .06f, cy - r * .14f, r * .38f, r * .22f, r * .08f, C2D_Color32(20, 20, 24, 255));
+// Foto de perfil: la cabeza del avatar (mismo aspecto que en la web) sobre un círculo. online: -1 sin punto, 0/1 con punto de estado
+void ui_avatar(float cx, float cy, float r, u32 color, int online, const char *name) {
+	AvStyle st = av_style(name ? name : "", color);
+	C2D_DrawCircleSolid(cx, cy, (g_z + 0.2f), r, C(0x2A, 0x36, 0x4A));
+	C2D_DrawCircleSolid(cx, cy - r * 0.15f, (g_z + 0.2f), r * 0.82f, C(0x3A, 0x4F, 0x6B));
+	float z = g_z + 0.22f;
+	// hombros (trapecio que cabe dentro del círculo) y cuello
+	C2D_DrawTriangle(cx - r * .60f, cy + r * .50f, st.shirt, cx + r * .60f, cy + r * .50f, st.shirt, cx + r * .36f, cy + r * .90f, st.shirt, z);
+	C2D_DrawTriangle(cx - r * .60f, cy + r * .50f, st.shirt, cx + r * .36f, cy + r * .90f, st.shirt, cx - r * .36f, cy + r * .90f, st.shirt, z);
+	C2D_DrawRectSolid(cx - r * .15f, cy + r * .34f, z, r * .30f, r * .20f, shade(st.skin, .82f));
+	// cabeza
+	float hx = cx - r * .40f, hy = cy - r * .62f, hw = r * .80f, hh = r * .96f;
+	C2D_DrawRectSolid(hx, hy, z, hw, hh, st.skin);
+	C2D_DrawRectSolid(hx, hy, z, hw * .12f, hh, shade(st.skin, .9f));
+	// pelo
+	C2D_DrawRectSolid(hx - r * .04f, hy - r * .10f, z, hw + r * .08f, hh * .24f, st.hair);
+	if (st.hair_style == 1) { C2D_DrawRectSolid(hx - r * .04f, hy - r * .10f, z, hw * .16f, hh * .7f, st.hair); C2D_DrawRectSolid(hx + hw * .88f, hy - r * .10f, z, hw * .16f, hh * .7f, st.hair); }
+	else if (st.hair_style == 2) { for (int i = 0; i < 3; i++) C2D_DrawRectSolid(hx + hw * (0.02f + i * 0.34f), hy - r * .24f, z, hw * .28f, r * .16f, st.hair); }
+	else C2D_DrawRectSolid(hx, hy + hh * .20f, z, hw, hh * .08f, st.hair);
+	// cara
+	u32 dark = C(0x1b, 0x1b, 0x1b);
+	C2D_DrawRectSolid(hx + hw * .20f, hy + hh * .46f, z, hw * .17f, hh * .17f, dark); C2D_DrawRectSolid(hx + hw * .63f, hy + hh * .46f, z, hw * .17f, hh * .17f, dark);
+	C2D_DrawRectSolid(hx + hw * .32f, hy + hh * .76f, z, hw * .36f, hh * .06f, C(0x5b, 0x2d, 0x1a));
 	if (online >= 0) {
-		C2D_DrawCircleSolid(cx + r * .72f, cy + r * .72f, (g_z + 0.25f), r * .34f + 1.5f, COL_BG);
-		C2D_DrawCircleSolid(cx + r * .72f, cy + r * .72f, (g_z + 0.25f), r * .34f, online ? COL_GREEN : C(0x6B, 0x70, 0x77));
+		C2D_DrawCircleSolid(cx + r * .72f, cy + r * .72f, (g_z + 0.3f), r * .34f + 1.5f, COL_BG);
+		C2D_DrawCircleSolid(cx + r * .72f, cy + r * .72f, (g_z + 0.31f), r * .34f, online ? COL_GREEN : C(0x6B, 0x70, 0x77));
 	}
 }
 // Iconos sencillos del menú lateral (16x16)
@@ -433,42 +451,54 @@ void ui_message(C3D_RenderTarget *top, C3D_RenderTarget *bot, const char *title,
 }
 
 // ---------- panel inferior en juego ----------
-enum { SW_Y = 150, SW_W = 40, SW_GAP = 8, BTN2_Y = 192, BTN2_H = 36, BTN2_W = 134, BTN2_GAP = 12 };
+enum { SW_Y = 150, SW_W = 40, SW_GAP = 8, BTN2_Y = 192, BTN2_H = 36, BTN2_W = 86, BTN2_GAP = 11, EM_Y = 44, EM_W = 88, EM_H = 44, EM_GAP = 8 };
 
-void ui_game_bottom(const Session *s, const Remote *rem, int nr, int kind, const char *game, const char *version) {
+void ui_game_bottom(const Session *s, const Remote *rem, int nr, int kind, const char *game, const char *version, bool emote_menu) {
 	rect(0, 0, 320, 26, COL_PANEL);
 	rect(0, 26, 320, 1, COL_LINE);
 	ui_text(10, 4, 0.5f, COL_TEXT, 0, game);
 	ui_text(310, 5, 0.42f, COL_MUTED, C2D_AlignRight, version);
 
-	char t[48]; snprintf(t, sizeof t, "Jugadores en linea (%d)", nr + 1);
-	ui_text(10, 32, 0.45f, COL_MUTED, 0, t);
-	int row = 0;
-	ui_avatar(18, 56, 6, s->color, -1); ui_text(30, 48, 0.45f, COL_TEXT, 0, s->username); row++;
-	for (int i = 0; i < nr && row < 5; i++, row++) {
-		float y = 48 + row * 16;
-		ui_avatar(18, y + 8, 6, rem[i].color, -1);
-		ui_text(30, y, 0.45f, COL_TEXT, 0, rem[i].name);
-		if (rem[i].is3ds) { float bx = 30 + text_w(rem[i].name, 0.45f) + 8; rrect(bx, y + 1, 30, 13, 4, C(0xE6, 0x00, 0x12)); ui_text(bx + 15, y + 1, 0.32f, COL_TEXT, C2D_AlignCenter, "3DS"); }
-	}
-	ui_text(310, 48, 0.36f, COL_MUTED, C2D_AlignRight, "A saltar  X poner");
-	ui_text(310, 62, 0.36f, COL_MUTED, C2D_AlignRight, "Y romper  L/R camara");
+	if (emote_menu) {                                          // selector de emotes (tocar uno lo lanza; moverte o saltar lo corta)
+		ui_text(160, 30, 0.45f, COL_MUTED, C2D_AlignCenter, "Elige un emote");
+		for (int i = 0; i < NEMOTES; i++) {
+			float x = F_X + (i % 3) * (EM_W + EM_GAP), y = EM_Y + 6 + (i / 3) * (EM_H + EM_GAP);
+			button(x, y, EM_W, EM_H, i == 4 ? COL_PANEL2 : COL_ACCENT_D, false, AV_EMOTE_LABEL[i], 0.46f);
+		}
+		ui_text(160, 150, 0.36f, COL_MUTED, C2D_AlignCenter, "Moverte o saltar corta el emote");
+	} else {
+		char t[48]; snprintf(t, sizeof t, "Jugadores en linea (%d)", nr + 1);
+		ui_text(10, 32, 0.45f, COL_MUTED, 0, t);
+		int row = 0;
+		ui_avatar(18, 56, 6, s->color, -1, s->username); ui_text(30, 48, 0.45f, COL_TEXT, 0, s->username); row++;
+		for (int i = 0; i < nr && row < 5; i++, row++) {
+			float y = 48 + row * 16;
+			ui_avatar(18, y + 8, 6, rem[i].color, -1, rem[i].name);
+			ui_text(30, y, 0.45f, COL_TEXT, 0, rem[i].name);
+			if (rem[i].is3ds) { float bx = 30 + text_w(rem[i].name, 0.45f) + 8; rrect(bx, y + 1, 30, 13, 4, C(0xE6, 0x00, 0x12)); ui_text(bx + 15, y + 1, 0.32f, COL_TEXT, C2D_AlignCenter, "3DS"); }
+		}
+		ui_text(310, 48, 0.36f, COL_MUTED, C2D_AlignRight, "A saltar  B correr");
+		ui_text(310, 62, 0.36f, COL_MUTED, C2D_AlignRight, "X poner  Y romper");
 
-	ui_text(10, SW_Y - 17, 0.4f, COL_MUTED, 0, "Bloque");
-	for (int i = 0; i < NPALETTE; i++) {
-		float x = F_X + i * (SW_W + SW_GAP);
-		if (i == kind) rrect(x - 3, SW_Y - 3, SW_W + 6, 32, 7, COL_TEXT);
-		rrect(x, SW_Y, SW_W, 26, 5, ui_palette[i]);
+		ui_text(10, SW_Y - 17, 0.4f, COL_MUTED, 0, "Bloque");
+		for (int i = 0; i < NPALETTE; i++) {
+			float x = F_X + i * (SW_W + SW_GAP);
+			if (i == kind) rrect(x - 3, SW_Y - 3, SW_W + 6, 32, 7, COL_TEXT);
+			rrect(x, SW_Y, SW_W, 26, 5, ui_palette[i]);
+		}
 	}
-	button(F_X, BTN2_Y, BTN2_W, BTN2_H, COL_ACCENT, false, "Chat", 0.5f);
-	button(F_X + BTN2_W + BTN2_GAP, BTN2_Y, BTN2_W, BTN2_H, COL_PANEL2, false, "< Lobby", 0.5f);
+	button(F_X, BTN2_Y, BTN2_W, BTN2_H, COL_ACCENT, false, "Chat", 0.48f);
+	button(F_X + BTN2_W + BTN2_GAP, BTN2_Y, BTN2_W, BTN2_H, emote_menu ? COL_GREEN : COL_PANEL2, false, emote_menu ? "Cerrar" : "Emotes", 0.48f);
+	button(F_X + 2 * (BTN2_W + BTN2_GAP), BTN2_Y, BTN2_W, BTN2_H, COL_PANEL2, false, "< Lobby", 0.48f);
 }
 
-int ui_game_touch(int x, int y) {
+int ui_game_touch(int x, int y, bool emote_menu) {
 	touchPosition t = {(u16)x, (u16)y};
-	for (int i = 0; i < NPALETTE; i++) if (hit(t, F_X + i * (SW_W + SW_GAP), SW_Y - 4, SW_W, 34)) return UI_COLOR0 + i;
+	if (emote_menu) for (int i = 0; i < NEMOTES; i++) if (hit(t, F_X + (i % 3) * (EM_W + EM_GAP), EM_Y + 6 + (i / 3) * (EM_H + EM_GAP), EM_W, EM_H)) return UI_EMOTE0 + i;
+	if (!emote_menu) for (int i = 0; i < NPALETTE; i++) if (hit(t, F_X + i * (SW_W + SW_GAP), SW_Y - 4, SW_W, 34)) return UI_COLOR0 + i;
 	if (hit(t, F_X, BTN2_Y, BTN2_W, BTN2_H)) return UI_CHAT;
-	if (hit(t, F_X + BTN2_W + BTN2_GAP, BTN2_Y, BTN2_W, BTN2_H)) return UI_QUIT;
+	if (hit(t, F_X + BTN2_W + BTN2_GAP, BTN2_Y, BTN2_W, BTN2_H)) return UI_EMOTE_MENU;
+	if (hit(t, F_X + 2 * (BTN2_W + BTN2_GAP), BTN2_Y, BTN2_W, BTN2_H)) return UI_QUIT;
 	return UI_NONE;
 }
 

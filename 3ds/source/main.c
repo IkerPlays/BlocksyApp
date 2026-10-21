@@ -9,6 +9,7 @@
 #include "ui.h"
 #include "app.h"
 #include "update.h"
+#include "avatar3d.h"
 #include "config.h"
 
 #ifndef BLOCKSY_VERSION
@@ -32,6 +33,7 @@ static volatile bool running = true;
 static float px = 0.5f, py = 3, pz = 0.5f, pry = 0; // posición propia (leída por el hilo)
 static bool grounded;
 static volatile int moving;
+static char send_anim[12] = "idle";            // animación que se envía a los demás: idle / walk / jump / un emote
 static float vy;
 
 typedef struct { enum { PLACE, BREAK, CHAT } type; int x, y, z, kind; char text[100]; } Action;
@@ -48,7 +50,7 @@ static void net_thread(void *arg) {
 		Action a; bool have = false;
 		LightLock_Lock(&lock);
 		if (qn) { a = queue[0]; memmove(queue, queue + 1, sizeof(Action) * --qn); have = true; }
-		float x = px, y = py, z = pz, ry = pry;
+		float x = px, y = py, z = pz, ry = pry; char anim[12]; memcpy(anim, send_anim, sizeof anim); anim[11] = 0;
 		LightLock_Unlock(&lock);
 
 		if (have) {
@@ -56,7 +58,7 @@ static void net_thread(void *arg) {
 			else if (a.type == BREAK) net_break_block(&sess, a.x, a.y, a.z);
 			else net_say(&sess, a.text);
 		}
-		net_send_state(&sess, x, y, z, ry, moving ? "walk" : "idle");
+		net_send_state(&sess, x, y, z, ry, anim);
 
 		Remote tmp[MAX_PLAYERS]; int n = net_fetch_players(&sess, tmp, MAX_PLAYERS);
 		if (n >= 0) { LightLock_Lock(&lock); memcpy(remotes, tmp, sizeof(Remote) * n); nremotes = n; LightLock_Unlock(&lock); }
@@ -126,7 +128,7 @@ static bool project(float x, float y, float z, float *sx, float *sy, float *dept
 	return true;
 }
 
-typedef struct { float depth; float x, y, z, w, h; u32 color; } Box;
+typedef struct { float depth; float x, y, z, w, h; u32 color; int av; } Box;   // av: -1 bloque, 0 yo, 1+i jugador remoto i
 static Box draw_list[MAX_BLOCKS + MAX_PLAYERS * 2 + 4];
 
 static u32 shade(u32 c, float f) {
@@ -182,6 +184,11 @@ static void do_chat(void) {
 static Block local[MAX_BLOCKS]; static Remote rem[MAX_PLAYERS], disp[MAX_PLAYERS];
 static struct { char name[24], text[100]; u64 until; } chat[4];
 static int kind = 1, nl, nr, ndisp;
+static AvPose pose_self, rem_pose[MAX_PLAYERS], disp_pose[MAX_PLAYERS];     // animación de cada avatar (suavizada)
+static AvStyle self_style, rem_style[MAX_PLAYERS];
+static float self_yaw;
+static char emote[12];                      // emote activo (vacío = ninguno)
+static bool emote_menu;                     // selector de emotes abierto en la pantalla táctil
 static int tx, tz, place_y = -1, break_y = -1; static bool overlap;     // bloque al que apuntas
 static u64 now_ms, t_start;
 
@@ -194,10 +201,10 @@ static void render_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 	fog_near = 12 + lvl * 4; fog_far = 26 + lvl * 8;
 	int nd = 0; float sx, sy, d;
 	for (int i = 0; i < nl; i++) if (project(local[i].x + .5f, local[i].y + .5f, local[i].z + .5f, &sx, &sy, &d) && d < fog_far + 6)
-		draw_list[nd++] = (Box){d, local[i].x, local[i].y, local[i].z, 1, 1, fogged(PALETTE[local[i].kind % NPALETTE], d)};
-	if (project(px, py + .9f, pz, &sx, &sy, &d)) draw_list[nd++] = (Box){d, px - .3f, py, pz - .3f, .6f, 1.8f, sess.color};
+		draw_list[nd++] = (Box){d, local[i].x, local[i].y, local[i].z, 1, 1, fogged(PALETTE[local[i].kind % NPALETTE], d), -1};
+	if (project(px, py + .9f, pz, &sx, &sy, &d)) draw_list[nd++] = (Box){d, px, py, pz, 0, 0, 0, 0};
 	for (int i = 0; i < nr; i++) if (project(rem[i].x, rem[i].y + .9f, rem[i].z, &sx, &sy, &d))
-		draw_list[nd++] = (Box){d, rem[i].x - .3f, rem[i].y, rem[i].z - .3f, .6f, 1.8f, rem[i].color};
+		draw_list[nd++] = (Box){d, rem[i].x, rem[i].y, rem[i].z, 0, 0, 0, 1 + i};
 	qsort(draw_list, nd, sizeof(Box), cmp_box);
 
 	ui_frame_begin();
@@ -218,7 +225,14 @@ static void render_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 	}
 	// citro2d tiene un límite de objetos por frame: se descartan los más lejanos
 	int first = nd > cap ? nd - cap : 0;
-	for (int i = first; i < nd; i++) draw_box(draw_list[i].x, draw_list[i].y, draw_list[i].z, draw_list[i].w, draw_list[i].h, draw_list[i].color);
+	AvCam cam = {cx_, cy_, cz_, cam_yaw, cam_pitch, cam_dist, FOV, TOP_W / 2.0f, TOP_H / 2.0f};
+	self_style = av_style(sess.username, sess.color);
+	for (int i = first; i < nd; i++) {
+		const Box *b = &draw_list[i];
+		if (b->av < 0) draw_box(b->x, b->y, b->z, b->w, b->h, b->color);
+		else if (b->av == 0) av_draw(&cam, px, py, pz, self_yaw, &self_style, &pose_self, fog_near, fog_far);       // avatares 3D (modelo con partes)
+		else { int j = b->av - 1; rem_style[j] = av_style(rem[j].name, rem[j].color); av_draw(&cam, rem[j].x, rem[j].y, rem[j].z, rem[j].ry, &rem_style[j], &rem_pose[j], fog_near, fog_far); }
+	}
 	// contorno: blanco = lo que romperá Y; del color elegido = dónde pondrá X
 	if (break_y >= 0) draw_outline(tx, break_y, tz, C2D_Color32(255, 255, 255, 255));
 	else if (place_y >= 0 && !overlap) draw_outline(tx, place_y, tz, PALETTE[kind]);
@@ -247,7 +261,7 @@ static void render_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 	}
 	C2D_TargetClear(bot, C2D_Color32(0x23, 0x25, 0x27, 255));
 	C2D_SceneBegin(bot);
-	ui_game_bottom(&sess, rem, nr, kind, cur_game.name, BLOCKSY_VERSION);
+	ui_game_bottom(&sess, rem, nr, kind, cur_game.name, BLOCKSY_VERSION, emote_menu);
 	C3D_FrameEnd(0);
 }
 
@@ -261,7 +275,8 @@ static bool play_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 	Thread th = threadCreate(net_thread, NULL, 256 * 1024, prio + 1, 0, false);   // prioridad menor que la UI
 
 	// La pila principal de la app es de solo ~32 KB: los arrays grandes van en memoria estática
-	kind = 1; nl = nr = ndisp = 0;
+	kind = 1; nl = nr = ndisp = 0; emote[0] = 0; emote_menu = false; memset(&pose_self, 0, sizeof pose_self); self_yaw = 0; strcpy(send_anim, "idle");
+	pose_self.legY = 0.74f; for (int i = 0; i < MAX_PLAYERS; i++) disp_pose[i].legY = rem_pose[i].legY = 0.74f;
 	bool back = true;
 	t_start = osGetTime(); u64 t_last = t_start;
 	memset(chat, 0, sizeof chat);
@@ -286,8 +301,10 @@ static bool play_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 		if (down & KEY_SELECT) do_chat();
 		if (down & KEY_TOUCH) {
 			touchPosition tp; hidTouchRead(&tp);
-			int act = ui_game_touch(tp.px, tp.py);
+			int act = ui_game_touch(tp.px, tp.py, emote_menu);
 			if (act >= UI_COLOR0 && act < UI_COLOR0 + NPALETTE) kind = act;
+			else if (act >= UI_EMOTE0 && act < UI_EMOTE0 + NEMOTES) { if (grounded && !moving) snprintf(emote, sizeof emote, "%s", AV_EMOTE_ID[act - UI_EMOTE0]); emote_menu = false; }
+			else if (act == UI_EMOTE_MENU) emote_menu = !emote_menu;
 			else if (act == UI_CHAT) do_chat();
 			else if (act == UI_QUIT) break;
 		}
@@ -304,17 +321,19 @@ static bool play_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 		LightLock_Unlock(&lock);
 		ht_build(local, nl); local_blocks = local;
 
-		// Interpola la posición de los otros jugadores entre actualizaciones de red (~10 Hz)
+		// Interpola posición y giro de los otros jugadores entre actualizaciones de red (~10 Hz) y anima sus avatares
 		for (int i = 0; i < nr; i++) {
 			int j = 0; while (j < ndisp && strcmp(disp[j].id, rem[i].id)) j++;
-			if (j == ndisp && ndisp < MAX_PLAYERS) { disp[ndisp++] = rem[i]; continue; }
+			if (j == ndisp && ndisp < MAX_PLAYERS) { disp[ndisp] = rem[i]; memset(&disp_pose[ndisp], 0, sizeof(AvPose)); disp_pose[ndisp].legY = 0.74f; ndisp++; continue; }
 			if (j == ndisp) continue;
-			float k = fminf(1, dt * 12), x = disp[j].x, y = disp[j].y, z = disp[j].z;
+			float k = fminf(1, dt * 12), x = disp[j].x, y = disp[j].y, z = disp[j].z, a0 = disp[j].ry;
 			disp[j] = rem[i];
 			disp[j].x = x + (rem[i].x - x) * k; disp[j].y = y + (rem[i].y - y) * k; disp[j].z = z + (rem[i].z - z) * k;
+			float dyaw = fmodf(rem[i].ry - a0 + 3 * (float)M_PI, 2 * (float)M_PI) - (float)M_PI; disp[j].ry = a0 + dyaw * k;
 			rem[i] = disp[j];
 		}
-		{ int k = 0; for (int j = 0; j < ndisp; j++) { int keep = 0; for (int i = 0; i < nr; i++) if (!strcmp(disp[j].id, rem[i].id)) keep = 1; if (keep) disp[k++] = disp[j]; } ndisp = k; }
+		{ int k = 0; for (int j = 0; j < ndisp; j++) { int keep = 0; for (int i = 0; i < nr; i++) if (!strcmp(disp[j].id, rem[i].id)) keep = 1; if (keep) { disp[k] = disp[j]; disp_pose[k] = disp_pose[j]; k++; } } ndisp = k; }
+		{ float tt = now / 1000.0f; for (int i = 0; i < nr; i++) for (int j = 0; j < ndisp; j++) if (!strcmp(disp[j].id, rem[i].id)) { av_pose_update(&disp_pose[j], rem[i].anim, dt, tt); rem_pose[i] = disp_pose[j]; break; } }
 
 		// ---- movimiento: relativo a la cámara; B = correr; sube escalones de 1 bloque solo ----
 		circlePosition cp; hidCircleRead(&cp);
@@ -337,6 +356,10 @@ static bool play_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 		if (body_hits(px, ny, pz)) { if (vy < 0) grounded = true; vy = 0; }
 		else py = ny;
 		if (py < 0) { py = 0; vy = 0; grounded = true; }
+		if (emote[0] && (moving || !grounded)) emote[0] = 0;                 // moverte o saltar corta el emote
+		{ const char *an = !grounded ? "jump" : moving ? "walk" : emote[0] ? emote : "idle"; snprintf(send_anim, sizeof send_anim, "%s", an);
+		  float dyaw = fmodf(pry - self_yaw + 3 * (float)M_PI, 2 * (float)M_PI) - (float)M_PI; self_yaw += dyaw * fminf(1, dt * 14);
+		  av_pose_update(&pose_self, an, dt, now / 1000.0f); }
 
 		// ---- bloque al que apuntas (el de delante): X pone, Y rompe ----
 		tx = (int)floorf(px + sinf(pry) * 1.1f); tz = (int)floorf(pz + cosf(pry) * 1.1f); int ty = (int)floorf(py + 0.05f);
@@ -406,6 +429,11 @@ void game_preview(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 	snprintf(rem[0].name, 24, "Marta"); rem[0].x = 3; rem[0].y = 0; rem[0].z = -2; rem[0].color = 0xFF71CC2E;
 	snprintf(rem[1].name, 24, "Dani"); rem[1].x = -2; rem[1].y = 0; rem[1].z = 3; rem[1].color = 0xFFB6599B; rem[1].is3ds = 1;
 	snprintf(rem[2].name, 24, "Pablo"); rem[2].x = 6; rem[2].y = 0; rem[2].z = 6; rem[2].color = 0xFF129CF3;
+	strcpy(rem[0].anim, "wave"); strcpy(rem[1].anim, "dance"); strcpy(rem[2].anim, "walk"); rem[0].ry = 2.4f; rem[1].ry = -0.8f; rem[2].ry = 3.6f;
+	strcpy(emote, "cheer"); emote_menu = false;
+	pose_self.legY = 0.74f; for (int i = 0; i < 3; i++) rem_pose[i].legY = 0.74f;
+	for (int f = 0; f < 40; f++) { av_pose_update(&pose_self, "cheer", 0.05f, f * 0.05f); for (int i = 0; i < 3; i++) av_pose_update(&rem_pose[i], rem[i].anim, 0.05f, f * 0.05f); }
+	self_yaw = 0.7f;
 	px = 0.5f; py = 0; pz = 0.5f; pry = 0.7f; cam_yaw = 0.35f; cam_pitch = 0.5f; cam_dist = 8; cx_ = px; cy_ = py + 1; cz_ = pz;
 	tx = 1; tz = 1; break_y = -1; place_y = 0; overlap = false; kind = 2;
 	now_ms = 20000; t_start = 0;

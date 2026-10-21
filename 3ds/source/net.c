@@ -323,7 +323,7 @@ bool net_say(const Session *s, const char *text) {
 int net_fetch_players(const Session *s, Remote *out, int max) {
 	time_t t = time(NULL) - 15; struct tm *tm = gmtime(&t);
 	char url[320], ts[32]; strftime(ts, sizeof ts, "%Y-%m-%dT%H:%M:%SZ", tm);
-	snprintf(url, sizeof url, GAME_URL "/rest/v1/player_state?game_id=eq.%s&updated_at=gt.%s&select=player_id,username,color,platform,x,y,z,ry", g_game, ts);
+	snprintf(url, sizeof url, GAME_URL "/rest/v1/player_state?game_id=eq.%s&updated_at=gt.%s&select=player_id,username,color,platform,anim,x,y,z,ry", g_game, ts);
 	char *r = http(M_GET, url, GAME_ANON_KEY, NULL, NULL, NULL);
 	if (!r) return -1;
 	int n = 0; const char *p = r, *end;
@@ -334,6 +334,7 @@ int net_fetch_players(const Session *s, Remote *out, int max) {
 		if (!jstr(start, end, "username", o->name, sizeof o->name)) strcpy(o->name, "?");
 		jstr(start, end, "color", col, sizeof col); o->color = parse_color(col);
 		jstr(start, end, "platform", plat, sizeof plat); o->is3ds = strcmp(plat, "3ds") == 0;
+		o->anim[0] = 0; jstr(start, end, "anim", o->anim, sizeof o->anim); if (!o->anim[0]) strcpy(o->anim, "idle");
 		o->x = jnum(start, end, "x"); o->y = jnum(start, end, "y"); o->z = jnum(start, end, "z"); o->ry = jnum(start, end, "ry");
 		n++;
 	}
