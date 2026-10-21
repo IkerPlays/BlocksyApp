@@ -6,6 +6,7 @@ import { pages, toast, closeModal } from './pages.js'
 import { startGame } from './game.js'
 import { setLastPlayed } from './settings.js'
 import { applyIcons } from './icons.js'
+import { headshot } from './avatar.js'
 
 const $ = id => document.getElementById(id)
 let profile = null, currentGame = null, stopGame = null, mode = 'login'
@@ -25,6 +26,7 @@ const ctx = {
 function paintChip() {
   $('chip-name').textContent = profile.username
   $('chip-avatar').style.setProperty('--c', profile.avatar_color)
+  $('chip-avatar').style.setProperty('--img', `url(${headshot(profile.username, profile.avatar_color)})`)
 }
 async function route() {
   if (!profile) return

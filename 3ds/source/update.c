@@ -107,38 +107,53 @@ static bool sink_write(const void *data, size_t n, void *ud) {
 	return true;
 }
 
-bool update_install(const Rel *r, volatile int *pct, char *err, size_t en) {
-	bool cia = update_is_cia();
-	const char *url = cia ? r->cia : r->dsx;
-	Sink s = {0}; s.is_cia = cia;
+#define OUR_TITLE_ID 0x000400000B10C500ULL     // 0004000000B10C50 + 00: el título de Blocksy (ver blocksy.rsf: UniqueId 0xB10C5)
+
+// Una pasada de descarga + instalación como .cia. overwrite: usa el modo "sobrescribir título existente".
+static bool install_cia_once(const char *url, bool overwrite, volatile int *pct, char *err, size_t en, Result *rc_out) {
+	Sink s = {0}; s.is_cia = true;
 	s.buf = malloc(BLOCK); if (!s.buf) { snprintf(err, en, "Sin memoria para la descarga"); return false; }
-	char tmp_path[sizeof g_path + 8] = "";
-	if (cia) {
-		Result rc = amInit(); if (R_FAILED(rc)) { free(s.buf); snprintf(err, en, "amInit fallo (%08lX)", (unsigned long)rc); return false; }
-		rc = AM_StartCiaInstall(MEDIATYPE_SD, &s.am);
-		if (R_FAILED(rc)) { amExit(); free(s.buf); snprintf(err, en, "AM_StartCiaInstall fallo (%08lX)", (unsigned long)rc); return false; }
-	} else {
-		snprintf(tmp_path, sizeof tmp_path, "%s.new", g_path);       // se escribe al lado: si falla, el .3dsx actual queda intacto
-		s.f = fopen(tmp_path, "wb"); if (!s.f) { free(s.buf); snprintf(err, en, "No se pudo escribir en la SD"); return false; }
-	}
+	AM_DeletePendingTitle(MEDIATYPE_SD, OUR_TITLE_ID);          // restos de un intento anterior interrumpido (si no, "ya existe")
+	Result rc = overwrite ? AM_StartCiaInstallOverwrite(&s.am, MEDIATYPE_SD) : AM_StartCiaInstall(MEDIATYPE_SD, &s.am);
+	if (R_FAILED(rc)) { free(s.buf); *rc_out = rc; snprintf(err, en, "%s fallo (%08lX)", overwrite ? "AM_StartCiaInstallOverwrite" : "AM_StartCiaInstall", (unsigned long)rc); return false; }
 	*pct = 0;
 	bool ok = net_download(url, sink_write, &s, pct, err, en);
 	if (ok && !flush_block(&s)) ok = false;                      // último bloque (el resto ya se escribió)
-	if (!ok && R_FAILED(s.rc)) snprintf(err, en, "No se pudo escribir (%08lX)", (unsigned long)s.rc);   // código real del fallo
+	if (!ok && R_FAILED(s.rc)) { *rc_out = s.rc; snprintf(err, en, "No se pudo escribir (%08lX)", (unsigned long)s.rc); }
 	free(s.buf);
 	if (ok && s.total < MIN_SIZE) { ok = false; snprintf(err, en, "Descarga demasiado pequena (%u bytes)", (unsigned)s.total); }
-	if (cia) {
-		if (ok) {
-			Result rc = AM_FinishCiaInstall(s.am);
-			if (R_FAILED(rc)) { ok = false; snprintf(err, en, "AM_FinishCiaInstall fallo (%08lX)", (unsigned long)rc); }
-		}
-		if (!ok) AM_CancelCIAInstall(s.am);                           // si no, la siguiente instalación falla
-		amExit();
-	} else {
-		fclose(s.f);
-		if (ok) { remove(g_path); if (rename(tmp_path, g_path) != 0) { ok = false; snprintf(err, en, "No se pudo colocar el .3dsx nuevo (queda como %s)", tmp_path); } }
-		else remove(tmp_path);
+	if (ok) {
+		rc = AM_FinishCiaInstall(s.am);
+		if (R_FAILED(rc)) { ok = false; *rc_out = rc; snprintf(err, en, "AM_FinishCiaInstall fallo (%08lX)", (unsigned long)rc); }
 	}
+	if (!ok) AM_CancelCIAInstall(s.am);                           // si no, la siguiente instalación falla
+	return ok;
+}
+
+bool update_install(const Rel *r, volatile int *pct, char *err, size_t en) {
+	if (update_is_cia()) {
+		Result rc = amInit(); if (R_FAILED(rc)) { snprintf(err, en, "amInit fallo (%08lX)", (unsigned long)rc); return false; }
+		Result last = 0;
+		bool ok = install_cia_once(r->cia, false, pct, err, en, &last);
+		// 0xC8E083FC = "ya existe": ese título/versión ya está instalado. Se reintenta sobrescribiendo.
+		if (!ok && last == (Result)0xC8E083FC) { char err2[100] = ""; ok = install_cia_once(r->cia, true, pct, err2, sizeof err2, &last); if (!ok) snprintf(err, en, "%s", err2); }
+		amExit();
+		if (ok) *pct = 100;
+		return ok;
+	}
+	// .3dsx (Homebrew Launcher): se escribe al lado y se reemplaza al terminar
+	Sink s = {0};
+	s.buf = malloc(BLOCK); if (!s.buf) { snprintf(err, en, "Sin memoria para la descarga"); return false; }
+	char tmp_path[sizeof g_path + 8]; snprintf(tmp_path, sizeof tmp_path, "%s.new", g_path);   // si falla, el .3dsx actual queda intacto
+	s.f = fopen(tmp_path, "wb"); if (!s.f) { free(s.buf); snprintf(err, en, "No se pudo escribir en la SD"); return false; }
+	*pct = 0;
+	bool ok = net_download(r->dsx, sink_write, &s, pct, err, en);
+	if (ok && !flush_block(&s)) ok = false;
+	if (!ok && R_FAILED(s.rc)) snprintf(err, en, "No se pudo escribir en la SD");
+	free(s.buf); fclose(s.f);
+	if (ok && s.total < MIN_SIZE) { ok = false; snprintf(err, en, "Descarga demasiado pequena (%u bytes)", (unsigned)s.total); }
+	if (ok) { remove(g_path); if (rename(tmp_path, g_path) != 0) { ok = false; snprintf(err, en, "No se pudo colocar el .3dsx nuevo (queda como %s)", tmp_path); } }
+	else remove(tmp_path);
 	if (ok) *pct = 100;
 	return ok;
 }

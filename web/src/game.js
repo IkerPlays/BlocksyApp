@@ -2,6 +2,8 @@ import * as THREE from 'three'
 import { gameDb } from './supabase.js'
 import * as api from './api.js'
 import { settings, saveSettings } from './settings.js'
+import { buildAvatar, poseAvatar, styleFor, EMOTES, isEmote, headshot } from './avatar.js'
+import { icon } from './icons.js'
 
 export const PALETTE = ['#e8e8e8', '#e74c3c', '#f39c12', '#2ecc71', '#3498db', '#9b59b6']
 const SEND_MS = 100        // 10 Hz de posición
@@ -87,48 +89,21 @@ export function startGame({ game, profile, canvas, onExit }) {
     index.delete(k); bboxDirty = true
   }
 
-  // ---------- avatares ----------
+  // ---------- avatares (modelo 3D de avatar.js + cartel con el nombre) ----------
   const tagSprites = []
-  const mat = c => new THREE.MeshLambertMaterial({ color: c })
-  function box(w, h, d, c, x, y, z) {
-    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat(c)); m.position.set(x, y, z); m.castShadow = true; return m
-  }
-  function limb(x, y, w, h, d, c) { const p = new THREE.Group(); p.position.set(x, y, 0); p.add(box(w, h, d, c, 0, -h / 2, 0)); return p }
   function makeAvatar(color, name) {
-    const g = new THREE.Group(), skin = '#ffd9a8'
-    g.add(box(0.7, 0.82, 0.38, color, 0, 1.08, 0))
-    const head = new THREE.Group(); head.position.set(0, 1.72, 0)
-    head.add(box(0.5, 0.5, 0.5, skin, 0, 0, 0))
-    head.add(box(0.09, 0.09, 0.02, '#1b1b1b', -0.12, 0.04, 0.26), box(0.09, 0.09, 0.02, '#1b1b1b', 0.12, 0.04, 0.26))
-    head.add(box(0.5, 0.12, 0.52, ui_hair(color), 0, 0.2, -0.01))
-    g.add(head)
-    const legL = limb(-0.17, 0.7, 0.3, 0.7, 0.32, '#34495e'), legR = limb(0.17, 0.7, 0.3, 0.7, 0.32, '#34495e')
-    const armL = limb(-0.48, 1.46, 0.22, 0.7, 0.26, color), armR = limb(0.48, 1.46, 0.22, 0.7, 0.26, color)
-    g.add(legL, legR, armL, armR)
+    const g = buildAvatar(styleFor(name, color))
     const c = document.createElement('canvas'); c.width = 256; c.height = 64
     const ctx = c.getContext('2d'); ctx.font = 'bold 34px system-ui, sans-serif'; ctx.textAlign = 'center'
     ctx.lineWidth = 6; ctx.strokeStyle = '#000'; ctx.strokeText(name, 128, 44); ctx.fillStyle = '#fff'; ctx.fillText(name, 128, 44)
     const tag = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), depthTest: false, transparent: true }))
-    tag.scale.set(2, 0.5, 1); tag.position.y = 2.45; tag.renderOrder = 10; tag.visible = settings.names; g.add(tag); tagSprites.push(tag)
-    g.userData = { legL, legR, armL, armR, head, phase: 0 }
+    tag.scale.set(2, 0.5, 1); tag.position.y = 2.5; tag.renderOrder = 10; tag.visible = settings.names; g.add(tag); tagSprites.push(tag)
     scene.add(g); return g
   }
-  const ui_hair = color => new THREE.Color(color).multiplyScalar(0.45)
-  // Anima brazos y piernas según el estado (walk / jump / idle)
-  function animateAvatar(g, anim, dt, t) {
-    const u = g.userData
-    if (anim === 'walk') u.phase += dt * 11
-    const sw = anim === 'walk' ? Math.sin(u.phase) * 0.85 : 0
-    const k = Math.min(1, dt * 14)
-    const set = (o, v) => { o.rotation.x += (v - o.rotation.x) * k }
-    set(u.legL, anim === 'jump' ? 0.35 : sw); set(u.legR, anim === 'jump' ? -0.25 : -sw)
-    set(u.armL, anim === 'jump' ? -2.5 : -sw * 0.9 + Math.sin(t * 1.6) * 0.04); set(u.armR, anim === 'jump' ? -2.5 : sw * 0.9 - Math.sin(t * 1.6) * 0.04)
-    u.head.rotation.x = anim === 'idle' ? Math.sin(t * 1.2) * 0.03 : 0
-  }
+  const animateAvatar = poseAvatar
 
-  const me = { pos: new THREE.Vector3(0.5, 3, 0.5), vel: new THREE.Vector3(), ry: 0, grounded: false, anim: 'idle', kind: 1 }
+  const me = { pos: new THREE.Vector3(0.5, 3, 0.5), vel: new THREE.Vector3(), ry: 0, grounded: false, anim: 'idle', kind: 1, emote: null }
   const meAvatar = makeAvatar(profile.avatar_color, profile.username)
-  meAvatar.traverse(o => { if (o.isMesh) o.receiveShadow = false })
   const others = new Map() // player_id -> { avatar, target, ry, seen, name, platform, color, anim }
 
   function upsertOther(row) {
@@ -185,7 +160,9 @@ export function startGame({ game, profile, canvas, onExit }) {
     me.grounded = false
     if (collides(p.x, p.y, p.z)) { p.y = oy; if (me.vel.y < 0) me.grounded = true; me.vel.y = 0 }
     if (p.y < 0) { p.y = 0; me.vel.y = 0; me.grounded = true }
-    me.anim = !me.grounded ? 'jump' : len > 0.001 && mag > 0.05 ? 'walk' : 'idle'
+    const moving = len > 0.001 && mag > 0.05
+    if (me.emote && (moving || !me.grounded)) me.emote = null          // moverte o saltar corta el emote
+    me.anim = !me.grounded ? 'jump' : moving ? 'walk' : (me.emote ?? 'idle')
   }
 
   // ---------- UI ----------
@@ -207,7 +184,7 @@ export function startGame({ game, profile, canvas, onExit }) {
   function drawRoster() {
     const all = [{ name: profile.username, color: profile.avatar_color, platform: 'web', me: true }, ...[...others.values()]]
     roster.replaceChildren(...all.map(o => {
-      const li = document.createElement('li'); const a = document.createElement('span'); a.className = 'avatar'; a.style.setProperty('--c', o.color)
+      const li = document.createElement('li'); const a = document.createElement('span'); a.className = 'avatar'; a.style.setProperty('--c', o.color); a.style.setProperty('--img', `url(${headshot(o.name, o.color)})`)
       const n = document.createElement('span'); n.textContent = o.name + (o.me ? ' (tú)' : ''); li.append(a, n)
       if (o.platform === '3ds') { const t = document.createElement('span'); t.className = 'tag'; t.textContent = '3DS'; li.append(t) }
       return li
@@ -229,6 +206,10 @@ export function startGame({ game, profile, canvas, onExit }) {
   $('menu-btn').onclick = () => setPaused(!paused)
   $('resume').onclick = () => setPaused(false)
   $('leave').onclick = () => onExit()
+  // ---------- emotes: botón / tecla G ----------
+  const emotePanel = $('emote-panel')
+  emotePanel.replaceChildren(...EMOTES.map(e => { const b = document.createElement('button'); b.className = 'emote'; b.textContent = e.label; b.onclick = () => { if (me.grounded) me.emote = e.id; emotePanel.classList.add('hidden') }; return b }))
+  $('emote-btn').onclick = () => emotePanel.classList.toggle('hidden')
   $('players-btn').onclick = () => { drawRoster(); roster.classList.toggle('hidden') }
   $('chat-form').onsubmit = e => {
     e.preventDefault()
@@ -295,6 +276,7 @@ export function startGame({ game, profile, canvas, onExit }) {
     if (e.code === 'Escape') return setPaused(!paused)
     if (paused) return
     if (e.code === 'Slash' || e.code === 'Enter') { e.preventDefault(); $('chat-input').focus(); return }
+    if (e.code === 'KeyG') { emotePanel.classList.toggle('hidden'); return }
     if (e.code === 'Tab') { e.preventDefault(); drawRoster(); roster.classList.toggle('hidden'); return }
     if (e.code.startsWith('Digit')) { const n = Number(e.code.slice(5)) - 1; if (n >= 0 && n < PALETTE.length) { me.kind = n; drawHotbar(); ghostMat.color.set(PALETTE[n]) } }
     if (e.code === 'KeyQ' || e.code === 'KeyE') { me.kind = (me.kind + (e.code === 'KeyE' ? 1 : PALETTE.length - 1)) % PALETTE.length; drawHotbar(); ghostMat.color.set(PALETTE[me.kind]) }
@@ -441,7 +423,7 @@ export function startGame({ game, profile, canvas, onExit }) {
     window.removeEventListener('keydown', down); window.removeEventListener('keyup', up)
     window.removeEventListener('pointermove', pmove); window.removeEventListener('pointerup', pup); window.removeEventListener('pointercancel', pup)
     canvas.removeEventListener('pointerdown', pdown); canvas.removeEventListener('wheel', wheel); canvas.removeEventListener('contextmenu', noMenu); canvas.removeEventListener('pointerleave', pleave)
-    touchUi?.remove()
+    touchUi?.remove(); emotePanel.classList.add('hidden')
     $('pause').classList.add('hidden'); roster.classList.add('hidden'); log.replaceChildren()
     api.leave().catch(() => {}); gameDb.removeChannel(channel)
     scene.traverse(o => { o.geometry?.dispose?.(); if (o.material) [].concat(o.material).forEach(m => { m.map?.dispose?.(); m.dispose?.() }) })

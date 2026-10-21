@@ -15,6 +15,7 @@ const P = {
   chat: '<path d="M4 5.5h16v10H12l-4.5 4v-4H4z"/>',
   search: '<circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/>',
   back: '<path d="M14.5 6 8.5 12l6 6"/>',
+  emote: '<circle cx="12" cy="12" r="9"/><path d="M8.5 14.2c1 1.6 2.2 2.3 3.5 2.3s2.5-.7 3.5-2.3"/><path d="M9 9.5h.01M15 9.5h.01"/>',
 };
 export function icon(name, size = 20) {
   return `<svg class="ico" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${P[name] ?? ''}</svg>`

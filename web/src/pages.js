@@ -2,6 +2,7 @@ import * as auth from './auth.js'
 import * as api from './api.js'
 import { settings, saveSettings, lastPlayed } from './settings.js'
 import { icon } from './icons.js'
+import { headshot, styleFor, EMOTES, createPreview } from './avatar.js'
 
 const $ = id => document.getElementById(id)
 export function el(tag, props = {}, ...kids) {
@@ -24,8 +25,9 @@ export function toast(msg) {
   clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.add('hidden'), 2800)
 }
 const hueOf = id => { let h = 0; for (const c of id) h = (h * 31 + c.charCodeAt(0)) % 360; return h }
-const avatar = (color, online) => {
-  const a = el('span', { class: 'avatar', style: `--c:${color}` })
+// Foto de perfil = la cabeza del avatar (mismo aspecto que el modelo 3D)
+const avatar = (name, color, online) => {
+  const a = el('span', { class: 'avatar', style: `--c:${color};--img:url(${headshot(name, color)})` })
   if (online != null) a.append(el('span', { class: `dot ${online ? 'on' : ''}` }))
   return a
 }
@@ -71,11 +73,11 @@ export const pages = {
     const last = games.find(g => g.id === lastPlayed())
 
     setKids(root, 
-      el('div', { class: 'hero' }, avatar(ctx.profile.avatar_color), el('h1', { text: `¡Hola, ${ctx.profile.username}!` })),
+      el('div', { class: 'hero' }, avatar(ctx.profile.username, ctx.profile.avatar_color), el('h1', { text: `¡Hola, ${ctx.profile.username}!` })),
       el('div', { class: 'section' }, el('h2', { text: `Amigos (${friends.length})` }), el('a', { href: '#friends', text: 'Ver todo' })),
       friends.length
         ? el('div', { class: 'row-scroll' }, friends.map(f => el('div', { class: 'friend', onclick: () => ctx.go('friends') },
-            avatar(f.avatar_color, f.is_online), el('b', { text: f.username }),
+            avatar(f.username, f.avatar_color, f.is_online), el('b', { text: f.username }),
             el('small', { text: f.is_online ? (f.current_game ? 'En un juego' : 'Online') : 'Desconectado' }))))
         : el('div', { class: 'empty', text: 'Añade amigos desde la sección Amigos para verlos aquí.' }),
       last ? [el('div', { class: 'section' }, el('h2', { text: 'Continuar' })), grid([last], counts, open)] : null,
@@ -101,27 +103,31 @@ export const pages = {
   async avatar(root, ctx) {
     const colors = ['#4da6ff', '#ff9f43', '#2ecc71', '#e74c3c', '#9b59b6', '#f1c40f', '#1abc9c', '#ff6b9d', '#ecf0f1', '#95a5a6']
     let sel = ctx.profile.avatar_color
-    const body = el('div', { class: 'b' }), preview = el('div', { class: 'preview' }, el('div', { class: 'blocky', style: `--c:${sel}` }, el('div', { class: 'h' }), body, el('div', { class: 'l' })))
+    const canvas = el('canvas', { class: 'avatar-3d' })
     const custom = el('input', { type: 'color', value: sel, style: 'width:56px;height:40px;border:0;background:none' })
     const sw = el('div', { class: 'swatches' })
+    let pv = null
+    const style = () => styleFor(ctx.profile.username, sel)
     const paint = () => {
-      preview.firstChild.style.setProperty('--c', sel); custom.value = sel
+      pv?.setStyle(style()); custom.value = sel
       setKids(sw, ...colors.map(c => el('div', { class: `swatch ${c === sel ? 'sel' : ''}`, style: `--c:${c}`, onclick: () => { sel = c; paint() } })), custom)
     }
-    custom.oninput = () => { sel = custom.value; preview.firstChild.style.setProperty('--c', sel) }
-    paint()
+    custom.oninput = () => { sel = custom.value; pv?.setStyle(style()) }
+    const emotes = el('div', { class: 'emote-row' }, EMOTES.map(e => el('button', { class: 'btn', text: e.label, onclick: () => pv?.setAnim(e.id) })), el('button', { class: 'btn secondary', text: 'Quieto', onclick: () => pv?.setAnim('idle') }))
     setKids(root, el('h1', { class: 'page-title', text: 'Avatar' }),
-      el('div', { class: 'panel avatar-edit' }, preview, el('div', {},
-        el('h3', { text: ctx.profile.username }), el('p', { style: 'color:var(--muted)', text: 'Elige el color de tu personaje. Se verá igual en la web y en la 3DS.' }),
-        sw, el('button', { class: 'btn primary', text: 'Guardar', onclick: async () => {
+      el('div', { class: 'panel avatar-edit' }, el('div', { class: 'preview' }, canvas), el('div', {},
+        el('h3', { text: ctx.profile.username }), el('p', { style: 'color:var(--muted)', text: 'Elige el color de tu camiseta. Tu avatar se ve igual en la web y en la 3DS. Arrastra el modelo para girarlo.' }),
+        sw, el('div', { class: 'section-s', text: 'Probar emotes' }), emotes,
+        el('button', { class: 'btn primary', style: 'margin-top:16px', text: 'Guardar', onclick: async () => {
           try { await auth.saveColor(ctx.profile.id, sel); await ctx.refreshProfile(); toast('Avatar guardado') } catch (e) { toast(e.message) } } }))))
+    pv = createPreview(canvas, style()); paint()
   },
 
   async friends(root, ctx) {
     const input = el('input', { placeholder: 'Buscar jugadores por nombre...' })
     const results = el('div'), mine = el('div', { class: 'panel' })
     let friendIds = new Set()
-    const personRow = (p, isFriend) => el('div', { class: 'person' }, avatar(p.avatar_color, p.is_online),
+    const personRow = (p, isFriend) => el('div', { class: 'person' }, avatar(p.username, p.avatar_color, p.is_online),
       el('div', { class: 'grow' }, el('b', { text: p.username }), el('small', { text: p.is_online ? (p.current_game ? 'En un juego' : 'Online') : 'Desconectado' })),
       p.id === ctx.profile.id ? null : isFriend
         ? el('button', { class: 'btn', text: 'Quitar', onclick: async () => { await auth.removeFriend(ctx.profile.id, p.id); load() } })

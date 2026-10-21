@@ -61,6 +61,8 @@ jobs:
     container: devkitpro/devkitarm:latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # historial completo: la versión del título del .cia es el nº de commits
 
       - name: System tools
         run: |
@@ -100,7 +102,7 @@ jobs:
 
       - name: Build .3dsx and .cia
         working-directory: 3ds
-        run: make cia MAKEROM=makerom BANNERTOOL=bannertool BLOCKSY_VERSION=${{ needs.check.outputs.version }}
+        run: make cia MAKEROM=makerom BANNERTOOL=bannertool BLOCKSY_VERSION=${{ needs.check.outputs.version }} APP_VER=$(git rev-list --count HEAD)
 
       - name: Collect files
         run: |
