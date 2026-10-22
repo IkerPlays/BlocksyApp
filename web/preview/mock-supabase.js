@@ -13,7 +13,7 @@ function query(table) {
   const q = { select: () => q, eq: () => q, gt: () => q, order: () => q, limit: () => q, then: r => r({ data: table === 'blocks' ? blocks : table === 'interactions' ? chats : players }) }
   return q
 }
-const chan = { on: () => chan, subscribe: () => chan }
+const chan = { on: () => chan, subscribe: cb => { cb?.('SUBSCRIBED'); return chan }, send() {} }
 export const gameDb = { from: query, channel: () => chan, removeChannel: () => {} }
 const friends = [['Marta', '#2ecc71', true], ['Dani', '#9b59b6', true], ['Lucia', '#e74c3c', false], ['Pablo', '#f1c40f', false]].map(([u, c, o], i) => ({ id: 'f' + i, username: u, avatar_color: c, is_online: o, current_game: o && i === 0 ? 'g1' : null }))
 const msgs = [{ id: 1, from_id: 'f0', to_id: 'me', body: 'Ven al juego!', created_at: new Date().toISOString() }, { id: 2, from_id: 'me', to_id: 'f0', body: 'Voy!', created_at: new Date().toISOString() }]

@@ -285,3 +285,5 @@ textarea.code { flex:1; border:0; outline:none; resize:none; background:transpar
 .rarity { font-size:11px; font-weight:800; padding:2px 8px; border-radius:10px; background:#6b707733; color:var(--muted); } .rarity.rare { background:#4d8dff33; color:#7fb0ff; } .rarity.epic { background:#c46bff33; color:#d79bff; }
 .reward { text-align:center; align-items:center; } .reward.epic .big-ico { box-shadow:0 0 30px #c46bff88; } .reward.rare .big-ico { box-shadow:0 0 26px #4d8dff77; }
 .p-title { color:#f5c542; font-weight:800; font-size:13px; letter-spacing:.5px; text-transform:uppercase; } .p-title:empty { display:none; }
+
+.hud-btn.speaking { box-shadow:0 0 0 3px #2ecc71; } .vmic { color:var(--muted); display:inline-flex; margin-left:6px; } .vmic.on { color:#2ecc71; }

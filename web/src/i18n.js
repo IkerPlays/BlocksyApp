@@ -2,6 +2,7 @@
 const D = {
   es: {
     lang_name: 'Español',
+    voice_chat: 'Chat de voz', voice_on: 'Chat de voz activado (V para silenciar)', voice_off: 'Has salido del chat de voz', voice_err: 'No se pudo usar el micrófono', voice_muted: 'Micrófono silenciado', voice_unmuted: 'Micrófono activado', voice_ptt: 'Mantén V para hablar', voice_leave: 'Salir del chat de voz', set_voice_vol: 'Volumen de voces', set_voice_prox: 'Voz por proximidad', set_voice_mode: 'Modo del micrófono', voice_mode_toggle: 'Activar / silenciar', voice_mode_ptt: 'Pulsar para hablar (V)',
     nav_shop: 'Tienda', bcoins: 'BCoins', shop_daily: 'Recompensa diaria', shop_streak: 'Racha: {n} días', shop_claim: 'Recoger', shop_got: '+{n} BCoins', shop_come_back: 'Vuelve mañana', shop_crates: 'Cofres de botín', shop_hats: 'Sombreros', shop_titles: 'Títulos',
     shop_buy: 'Comprar', shop_open: 'Abrir', shop_equip: 'Equipar', shop_unequip: 'Quitar', shop_try: 'Probar', shop_owned: 'Ya lo tienes', shop_equipped: 'Equipado', shop_no_coins: 'No tienes suficientes BCoins', shop_bought: 'Has comprado {name}',
     shop_new: '¡Objeto nuevo en tu inventario!', shop_dup: 'Ya lo tenías: recuperas {n} BCoins.', rar_common: 'Común', rar_rare: 'Raro', rar_epic: 'Épico', coins_earned: '+{n} BCoins',
@@ -48,6 +49,7 @@ const D = {
   },
   en: {
     lang_name: 'English',
+    voice_chat: 'Voice chat', voice_on: 'Voice chat on (V to mute)', voice_off: 'You left voice chat', voice_err: 'Could not use the microphone', voice_muted: 'Microphone muted', voice_unmuted: 'Microphone on', voice_ptt: 'Hold V to talk', voice_leave: 'Leave voice chat', set_voice_vol: 'Voices volume', set_voice_prox: 'Proximity voice', set_voice_mode: 'Microphone mode', voice_mode_toggle: 'Toggle / mute', voice_mode_ptt: 'Push to talk (V)',
     nav_shop: 'Shop', bcoins: 'BCoins', shop_daily: 'Daily reward', shop_streak: 'Streak: {n} days', shop_claim: 'Claim', shop_got: '+{n} BCoins', shop_come_back: 'Come back tomorrow', shop_crates: 'Loot crates', shop_hats: 'Hats', shop_titles: 'Titles',
     shop_buy: 'Buy', shop_open: 'Open', shop_equip: 'Equip', shop_unequip: 'Unequip', shop_try: 'Try on', shop_owned: 'Owned', shop_equipped: 'Equipped', shop_no_coins: 'Not enough BCoins', shop_bought: 'You bought {name}',
     shop_new: 'New item in your inventory!', shop_dup: 'You already had it: you get {n} BCoins back.', rar_common: 'Common', rar_rare: 'Rare', rar_epic: 'Epic', coins_earned: '+{n} BCoins',

@@ -15,6 +15,7 @@ import { sfx } from './sfx.js'
 import * as music from './music.js'
 import { icon } from './icons.js'
 import * as social from './social.js'
+import { createVoice } from './voice.js'
 
 // 12 colores: la 3DS usa los mismos (3ds/source/main.c)
 export const PALETTE = ['#e8e8e8', '#e74c3c', '#f39c12', '#2ecc71', '#3498db', '#9b59b6', '#f1c40f', '#1abc9c', '#ff6b9d', '#8b5e34', '#4b4f57', '#7ed6ff']
@@ -286,6 +287,8 @@ export function startGame({ game, profile, canvas, onExit, onInvite }) {
     roster.replaceChildren(...all.map(o => {
       const li = document.createElement('li'); const a = document.createElement('span'); a.className = 'avatar'; a.style.setProperty('--c', o.color); a.style.setProperty('--img', `url(${headshot(o.name, o.color)})`)
       const n = document.createElement('span'); n.textContent = o.name + (o.me ? ' ' + t('you') : ''); n.style.flex = '1'; li.append(a, n)
+      const vm = o.me ? (voiceSt.active ? { speaking: voiceSt.selfSpeaking && !voiceSt.muted, muted: voiceSt.muted } : null) : voiceSt.members.find(m => m.id === o.id)
+      if (vm) { const mic = document.createElement('span'); mic.className = 'vmic' + (vm.speaking ? ' on' : ''); mic.innerHTML = icon(vm.muted ? 'micoff' : 'mic', 14); li.append(mic) }
       if (o.platform === '3ds') { const tg = document.createElement('span'); tg.className = 'tag'; tg.textContent = '3DS'; li.append(tg) }
       if (!o.me) { li.classList.add('tp'); li.onclick = () => { teleport(o.target.x + 1.2, o.target.y + 0.2, o.target.z); roster.classList.add('hidden') } }
       return li
@@ -476,6 +479,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite }) {
     if (e.code === 'KeyG' && cfg.allow_emotes) { emotePanel.classList.toggle('hidden'); return }
     if (e.code === 'KeyF') { toggleFly(); return }
     if (e.code === 'KeyM') { music.toggle(); return }
+    if (e.code === 'KeyV') { if (settings.voiceMode === 'ptt' && voice.active) { if (!e.repeat) voice.setMuted(false) } else if (!e.repeat) toggleVoice(); return }
     if (e.code === 'KeyP') { shotPending = true; return }
     if (e.code === 'Tab') { e.preventDefault(); drawRoster(); roster.classList.toggle('hidden'); return }
     if (e.code.startsWith('Digit')) { let n = Number(e.code.slice(5)) - 1; if (n < 0) n = 9; if (n >= 0 && n < PALETTE.length) selectKind(n) }
@@ -483,7 +487,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite }) {
     if (e.code === 'Space') { e.preventDefault(); if (!e.repeat) { const now = performance.now(); if (now - lastSpace < 280 && canFly) toggleFly(); lastSpace = now } }
     keys[e.code] = true
   }
-  const up = e => { keys[e.code] = false }
+  const up = e => { keys[e.code] = false; if (e.code === 'KeyV' && settings.voiceMode === 'ptt' && voice.active) voice.setMuted(true) }
   let drag = null
   let touchBreak = false
   const pdown = e => { if (drag) return; drag = { id: e.pointerId, x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY, moved: false }; try { canvas.setPointerCapture(e.pointerId) } catch {} }
@@ -617,6 +621,23 @@ export function startGame({ game, profile, canvas, onExit, onInvite }) {
   $('music-toggle').innerHTML = icon('play', 18); $('music-next').innerHTML = icon('next', 18); $('music-prev').innerHTML = icon('prev', 18)
   music.start(); paintMusic(music.state())
 
+  // ---------- chat de voz (WebRTC, por proximidad) ----------
+  let voiceSt = { active: false, muted: true, members: [], selfSpeaking: false }
+  const voice = createVoice({ gameId: game.id, selfId: profile.id, name: profile.username, getPos: id => (id === profile.id ? me.pos : others.get(id)?.target), onChange: st => { voiceSt = st; paintVoice() } })
+  function paintVoice() {
+    const b = $('voice-btn'); b.innerHTML = icon(voiceSt.active && !voiceSt.muted ? 'mic' : 'micoff', 20)
+    b.classList.toggle('on', voiceSt.active && !voiceSt.muted); b.classList.toggle('speaking', voiceSt.selfSpeaking)
+    if (!roster.classList.contains('hidden')) drawRoster()
+  }
+  async function toggleVoice() {
+    if (!voice.active) { try { await voice.start(); sys(t('voice_on', { n: voiceSt.members.length })) } catch (e) { sys(t('voice_err')) } }
+    else if (settings.voiceMode === 'ptt') sys(t('voice_ptt'))
+    else { voice.toggleMute(); sys(t(voice.muted ? 'voice_muted' : 'voice_unmuted')) }
+  }
+  $('voice-btn').onclick = toggleVoice
+  $('voice-leave').onclick = () => { voice.stop(); sys(t('voice_off')); setPaused(false) }
+  paintVoice()
+
   // ---------- minimapa ----------
   const mm = $('minimap'), mmc = mm.getContext('2d')
   function drawMinimap() {
@@ -701,7 +722,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite }) {
     touchUi?.remove(); emotePanel.classList.add('hidden'); mPanel.classList.add('hidden'); $('big-title').classList.add('hidden')
     $('pause').classList.add('hidden'); roster.classList.add('hidden'); log.replaceChildren()
     api.leave().catch(() => {}); gameDb.removeChannel(channel)
-    composer?.dispose(); sky.dispose()
+    voice.stop(); composer?.dispose(); sky.dispose()
     scene.traverse(o => { o.geometry?.dispose?.(); if (o.material) [].concat(o.material).forEach(m => { m.map?.dispose?.(); m.dispose?.() }) })
     renderer.dispose(); renderer.forceContextLoss()
   }

@@ -1,5 +1,6 @@
 <!doctype html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>preview</title></head><body>
   <div id="popups"></div>
+  <div id="modal" class="hidden"><div id="modal-card"></div></div>
   <div id="game" class="hidden">
     <canvas id="view"></canvas>
     <div id="crosshair"></div>
@@ -9,6 +10,7 @@
       <button id="menu-btn" class="hud-btn" aria-label="Menu"><i data-icon="menu"></i></button>
       <span id="stats"></span>
       <button id="music-btn" class="hud-btn hidden" aria-label="Music"></button>
+      <button id="voice-btn" class="hud-btn" data-i18n-title="voice_chat"><i data-icon="mic"></i></button>
       <button id="shot-btn" class="hud-btn" data-i18n-title="screenshot"><i data-icon="camera"></i></button>
       <button id="chat-btn" class="hud-btn" aria-label="Chat"><i data-icon="chat"></i></button>
       <button id="emote-btn" class="hud-btn" aria-label="Emotes"><i data-icon="emote"></i></button>
@@ -47,6 +49,7 @@
           <label class="field check"><input id="set-clouds" type="checkbox" /> <span data-i18n="set_clouds"></span></label>
           <label class="field check"><input id="set-shadows" type="checkbox" /> <span data-i18n="set_shadows"></span></label>
         </div>
+        <button class="btn wide" id="voice-leave" data-i18n="voice_leave"></button>
         <button class="btn danger wide" id="leave" data-i18n="leave_game"></button>
         <p class="hint" data-i18n="controls_help"></p>
       </div>

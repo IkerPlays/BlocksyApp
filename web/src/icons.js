@@ -34,6 +34,8 @@ const P = {
   coin: '<circle cx="12" cy="12" r="8.5"/><path d="M9 9.5h4.2a1.8 1.8 0 0 1 0 3.6H9m0 0h4.6a1.8 1.8 0 0 1 0 3.6H9M9 8v9"/>',
   shop: '<path d="M4 9h16l-1.2 10.5H5.2z"/><path d="M8.5 9V7a3.5 3.5 0 0 1 7 0v2"/>',
   gift: '<rect x="4" y="10" width="16" height="10" rx="1.5"/><path d="M3 7.5h18V10H3zM12 7.5V20M12 7.5C12 5 9 3.5 8 5.5s1.5 2 4 2zm0 0c0-2.5 3-4 4-2s-1.5 2-4 2z"/>',
+  mic: '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3"/>',
+  micoff: '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3M4 4l16 16"/>',
   star: '<path d="m12 3.5 2.6 5.4 5.9.8-4.3 4.1 1 5.9L12 17l-5.2 2.7 1-5.9L3.5 9.7l5.9-.8z"/>',
 };
 export function icon(name, size = 20) {
