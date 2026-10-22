@@ -52,6 +52,14 @@ int  net_unread_total(const Session *s);
 typedef struct { long id; int mine, edited; char text[100]; } DmMsg;
 bool net_edit_dm(const Session *s, long id, const char *text);
 bool net_delete_dm(const Session *s, long id);
+typedef struct { char id[32]; char kind[8]; char name[32]; int price; int rarity; } ShopItem;      // rarity: 0 común, 1 raro, 2 épico
+typedef struct { int bcoins, streak, can_claim, ninv; char inv[24][32]; char hat[32], title[32]; } Wallet;
+int  net_wallet(const Session *s, Wallet *w);                          // BCoins, inventario y equipado (0 ok, <0 error)
+int  net_shop_list(const Session *s, ShopItem *out, int max);
+int  net_buy(const Session *s, const char *id);                        // 0 ok, 1 sin monedas, 2 ya lo tienes, -1 error
+int  net_open_crate(const Session *s, const char *id, char *item, size_t n, int *dup, int *refund);   // 0 ok, 1 sin monedas, -1 error
+int  net_claim_daily(const Session *s);                                // BCoins recibidas; 0 = ya recogida; <0 error
+bool net_equip(const Session *s, const char *id, const char *kind);   // id vacío = quitar el de ese tipo
 typedef struct { long id; char kind[16]; char from[24]; char game_id[40]; char game[44]; int read; } Notif;   // kind: friend_request | friend_accept | invite
 int  net_list_notifs(const Session *s, Notif *out, int max);          // más nuevas primero
 bool net_notifs_read(const Session *s);

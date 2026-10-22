@@ -544,6 +544,56 @@ int net_fetch_dm(const Session *s, const char *fid, DmMsg *out, int max) {
 	auth_rpc_ok(s, "mark_read", (snprintf(url, sizeof url, "{\"p_from\":\"%s\"}", fid), url));
 	return n;
 }
+static int rarity_of(const char *r) { return !strcmp(r, "epic") ? 2 : !strcmp(r, "rare") ? 1 : 0; }
+int net_wallet(const Session *s, Wallet *w) {
+	if (!s->token[0]) return -2;
+	char *r = http(M_POST, AUTH_URL "/rest/v1/rpc/my_wallet", AUTH_ANON_KEY, s->token, "{}", NULL);
+	if (!r) return -1;
+	const char *e = r + strlen(r); memset(w, 0, sizeof *w);
+	w->bcoins = (int)jnum(r, e, "bcoins"); w->streak = (int)jnum(r, e, "streak"); w->can_claim = jbool(r, e, "can_claim");
+	{ const char *q = json_find_from(r, e, "equipped"); const char *qe = q ? strchr(q, '}') : NULL; if (q && qe) { jstr(q, qe, "hat", w->hat, sizeof w->hat); jstr(q, qe, "title", w->title, sizeof w->title); } }
+	const char *inv = json_find_from(r, e, "inventory");
+	if (inv && *inv == '[') for (const char *p = inv + 1; *p && *p != ']' && w->ninv < 24; p++) if (*p == '"') {
+		size_t i = 0; p++; while (*p && *p != '"' && i + 1 < sizeof w->inv[0]) w->inv[w->ninv][i++] = *p++;
+		w->inv[w->ninv][i] = 0; w->ninv++; while (*p && *p != '"') p++;
+	}
+	free(r); return 0;
+}
+int net_shop_list(const Session *s, ShopItem *out, int max) {
+	if (!s->token[0]) return -2;
+	char *r = http(M_GET, AUTH_URL "/rest/v1/shop_items?select=id,kind,name,price,rarity&order=sort&limit=30", AUTH_ANON_KEY, s->token, NULL, NULL);
+	if (!r) return -1;
+	int n = 0; const char *p = r, *end;
+	while (n < max && (p = next_obj(p, &end))) {
+		ShopItem *o = &out[n]; memset(o, 0, sizeof *o); char ra[12] = "";
+		jstr(p, end, "id", o->id, sizeof o->id); jstr(p, end, "kind", o->kind, sizeof o->kind); jstr(p, end, "name", o->name, sizeof o->name);
+		o->price = (int)jnum(p, end, "price"); jstr(p, end, "rarity", ra, sizeof ra); o->rarity = rarity_of(ra); n++; p = end + 1;
+	}
+	free(r); return n;
+}
+static int money_err(void) { return last_err[0] && strstr(last_err, "not enough") ? 1 : last_err[0] && strstr(last_err, "already") ? 2 : -1; }
+int net_buy(const Session *s, const char *id) {
+	char body[80]; snprintf(body, sizeof body, "{\"p_item\":\"%s\"}", id);
+	char *r = http(M_POST, AUTH_URL "/rest/v1/rpc/buy_item", AUTH_ANON_KEY, s->token, body, NULL);
+	if (!r) return money_err();
+	free(r); return 0;
+}
+int net_open_crate(const Session *s, const char *id, char *item, size_t n, int *dup, int *refund) {
+	char body[80]; snprintf(body, sizeof body, "{\"p_crate\":\"%s\"}", id);
+	char *r = http(M_POST, AUTH_URL "/rest/v1/rpc/open_crate", AUTH_ANON_KEY, s->token, body, NULL);
+	if (!r) return money_err() == 1 ? 1 : -1;
+	const char *e = r + strlen(r); item[0] = 0; jstr(r, e, "item", item, n); *dup = jbool(r, e, "duplicate"); *refund = (int)jnum(r, e, "refund");
+	free(r); return 0;
+}
+int net_claim_daily(const Session *s) {
+	char *r = http(M_POST, AUTH_URL "/rest/v1/rpc/claim_daily", AUTH_ANON_KEY, s->token, "{}", NULL);
+	if (!r) return last_err[0] && strstr(last_err, "already") ? 0 : -1;
+	int a = (int)jnum(r, r + strlen(r), "amount"); free(r); return a;
+}
+bool net_equip(const Session *s, const char *id, const char *kind) {
+	if (id[0]) { char body[80]; snprintf(body, sizeof body, "{\"p_item\":\"%s\"}", id); return auth_rpc_ok(s, "equip_item", body); }
+	char body[60]; snprintf(body, sizeof body, "{\"p_kind\":\"%s\"}", kind); return auth_rpc_ok(s, "unequip_slot", body);
+}
 bool net_edit_dm(const Session *s, long id, const char *text) {
 	char t[110]; clean(t, sizeof t, text); char body[260]; snprintf(body, sizeof body, "{\"p_id\":%ld,\"p_body\":\"%s\"}", id, t);
 	return auth_rpc_ok(s, "edit_message", body);

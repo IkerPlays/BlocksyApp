@@ -18,11 +18,11 @@ int app_sync_ms(void) { return SYNC_MS[s_sync < 0 ? 0 : s_sync > 5 ? 5 : s_sync]
 int app_notif_on(void) { return s_notif_on; }
 static const char *tr2(const char *es, const char *en) { return s_lang ? en : es; }
 // (Crear juegos es solo de la web y de la cuenta autorizada: no está en la 3DS)
-enum { P_HOME, P_DISCOVER, P_AVATAR, P_FRIENDS, P_NOTIF, P_UPDATE, P_SETTINGS, NPAGES };
-static const char *const PAGE_NAME_ES[NPAGES] = {"Inicio", "Descubrir", "Avatar", "Amigos", "Avisos", "Actualizar", "Ajustes"};
-static const char *const PAGE_NAME_EN[NPAGES] = {"Home", "Discover", "Avatar", "Friends", "Alerts", "Update", "Settings"};
+enum { P_HOME, P_DISCOVER, P_AVATAR, P_FRIENDS, P_NOTIF, P_SHOP, P_UPDATE, P_SETTINGS, NPAGES };
+static const char *const PAGE_NAME_ES[NPAGES] = {"Inicio", "Descubrir", "Avatar", "Amigos", "Avisos", "Tienda", "Actualizar", "Ajustes"};
+static const char *const PAGE_NAME_EN[NPAGES] = {"Home", "Discover", "Avatar", "Friends", "Alerts", "Shop", "Update", "Settings"};
 #define PAGE_NAME (s_lang ? PAGE_NAME_EN : PAGE_NAME_ES)
-static const int PAGE_ICON[NPAGES] = {0, 1, 2, 3, 8, 7, 5};
+static const int PAGE_ICON[NPAGES] = {0, 1, 2, 3, 8, 9, 7, 5};
 static const char *const AVATAR_COLORS[10] = {"#4da6ff", "#ff9f43", "#2ecc71", "#e74c3c", "#9b59b6", "#f1c40f", "#1abc9c", "#ff6b9d", "#ecf0f1", "#95a5a6"};
 
 // ---------- datos compartidos con el hilo de red ----------
@@ -31,6 +31,7 @@ static GameInfo g_games[MAX_GAMES]; static int g_ngames;
 static Person g_friends[MAX_PEOPLE]; static int g_nfriends;
 static FriendReq g_reqs[MAX_PEOPLE]; static int g_nreqs; static volatile int g_unread;
 static DmMsg g_dm[40]; static int g_ndm; static char g_dm_friend[40]; static volatile int g_dm_open; static volatile int g_dm_seq;
+static ShopItem g_shop[24]; static int g_nshop; static Wallet g_wallet;
 static Notif g_notifs[16]; static int g_nnotifs; static volatile int g_notif_unread;
 static char g_alert[96]; static volatile int g_alert_seq;     // aviso nuevo (toast) generado por el hilo de red static char g_dm_friend[40]; static volatile int g_dm_open; static volatile int g_dm_seq;
 static volatile int g_account = 1;   // 0 = sesión por QR (sin token de Auth): no hay amigos ni avatar
@@ -46,7 +47,7 @@ static bool cur_is_dev(void) { return strstr(g_upd.cur, "-dev") != NULL || !strc
 // ¿Hay algo nuevo? Una estable nueva siempre; una devbuild nueva solo si se usa una devbuild
 static bool upd_available(void) { return g_upd_have && (g_upd.stable.newer || (g_upd.dev.newer && cur_is_dev())); }
 
-typedef enum { RQ_NONE, RQ_REFRESH, RQ_ADD, RQ_REMOVE, RQ_COLOR, RQ_UPD_CHECK, RQ_UPD_INSTALL, RQ_ACCEPT, RQ_DM_SEND, RQ_DM_FETCH, RQ_DM_EDIT, RQ_DM_DEL, RQ_NOTIF_READ, RQ_NOTIF_CLEAR } Req;
+typedef enum { RQ_NONE, RQ_REFRESH, RQ_ADD, RQ_REMOVE, RQ_COLOR, RQ_UPD_CHECK, RQ_UPD_INSTALL, RQ_ACCEPT, RQ_DM_SEND, RQ_DM_FETCH, RQ_DM_EDIT, RQ_DM_DEL, RQ_NOTIF_READ, RQ_NOTIF_CLEAR, RQ_BUY, RQ_CRATE, RQ_CLAIM, RQ_EQUIP } Req;
 typedef struct {
 	volatile int req, busy, quit, offline, seq, done_ok;
 	char arg[48], arg2[104]; int n;
@@ -74,6 +75,11 @@ static void refresh_all(void) {
 	else snprintf(W.msg, sizeof W.msg, "%s", net_login_error());
 	int nf = net_list_friends(W.s, tf, MAX_PEOPLE), nr = net_list_requests(W.s, tr, MAX_PEOPLE);
 	int un = net_unread_total(W.s); if (un >= 0) g_unread = un;
+	{	// BCoins y tienda
+		static Wallet tw; static ShopItem ts[24];
+		if (net_wallet(W.s, &tw) == 0) { LightLock_Lock(&lk); g_wallet = tw; LightLock_Unlock(&lk); }
+		if (!g_nshop) { int nsh = net_shop_list(W.s, ts, 24); if (nsh > 0) { LightLock_Lock(&lk); memcpy(g_shop, ts, sizeof(ShopItem) * nsh); g_nshop = nsh; LightLock_Unlock(&lk); } }
+	}
 	{	// avisos: lista + detección de novedades (solicitudes, invitaciones, mensajes) para el toast
 		static Notif tn[16]; static long last_id = -1; static int last_un = -1; int nn = net_list_notifs(W.s, tn, 16);
 		if (nn >= 0) {
@@ -133,6 +139,12 @@ static void worker_thread(void *arg) {
 				{ static DmMsg te[40]; int ne = net_fetch_dm(W.s, g_dm_friend, te, 40); if (ne >= 0) { LightLock_Lock(&lk); memcpy(g_dm, te, sizeof(DmMsg) * ne); g_ndm = ne; LightLock_Unlock(&lk); g_dm_seq++; } } break;
 			case RQ_DM_DEL: W.done_ok = net_delete_dm(W.s, atol(W.arg)); snprintf(W.msg, sizeof W.msg, "%s", W.done_ok ? tr2("Mensaje borrado", "Message deleted") : tr2("No se pudo borrar", "Could not delete"));
 				{ static DmMsg td[40]; int nd2 = net_fetch_dm(W.s, g_dm_friend, td, 40); if (nd2 >= 0) { LightLock_Lock(&lk); memcpy(g_dm, td, sizeof(DmMsg) * nd2); g_ndm = nd2; LightLock_Unlock(&lk); g_dm_seq++; } } break;
+			case RQ_BUY: { int rb = net_buy(W.s, W.arg); W.done_ok = rb == 0; snprintf(W.msg, sizeof W.msg, "%s", rb == 0 ? tr2("Comprado", "Purchased") : rb == 1 ? tr2("No tienes suficientes BCoins", "Not enough BCoins") : rb == 2 ? tr2("Ya lo tienes", "You already own it") : tr2("No se pudo comprar", "Could not buy")); refresh_all(); break; }
+			case RQ_CRATE: { char it[32] = ""; int dup = 0, rf = 0; int rc2 = net_open_crate(W.s, W.arg, it, sizeof it, &dup, &rf); W.done_ok = rc2 == 0;
+				if (rc2 == 0) { const char *nm = it; for (int i = 0; i < g_nshop; i++) if (!strcmp(g_shop[i].id, it)) nm = g_shop[i].name; if (dup) snprintf(W.msg, sizeof W.msg, tr2("%s (repetido, +%d BCoins)", "%s (duplicate, +%d BCoins)"), nm, rf); else snprintf(W.msg, sizeof W.msg, tr2("Conseguiste: %s", "You got: %s"), nm); }
+				else snprintf(W.msg, sizeof W.msg, "%s", rc2 == 1 ? tr2("No tienes suficientes BCoins", "Not enough BCoins") : tr2("No se pudo abrir", "Could not open")); refresh_all(); break; }
+			case RQ_CLAIM: { int ca = net_claim_daily(W.s); W.done_ok = ca > 0; if (ca > 0) snprintf(W.msg, sizeof W.msg, "+%d BCoins", ca); else snprintf(W.msg, sizeof W.msg, "%s", ca == 0 ? tr2("Ya la recogiste hoy", "Already claimed today") : tr2("Error", "Error")); refresh_all(); break; }
+			case RQ_EQUIP: W.done_ok = net_equip(W.s, W.arg, W.arg2); snprintf(W.msg, sizeof W.msg, "%s", W.done_ok ? tr2("Hecho", "Done") : "Error"); refresh_all(); break;
 			case RQ_NOTIF_READ: net_notifs_read(W.s); refresh_all(); break;
 			case RQ_NOTIF_CLEAR: W.done_ok = net_notifs_clear(W.s); snprintf(W.msg, sizeof W.msg, "%s", W.done_ok ? tr2("Avisos borrados", "Alerts cleared") : "Error"); refresh_all(); break;
 			case RQ_DM_SEND: W.done_ok = net_send_dm(W.s, g_dm_friend, W.arg2); if (!W.done_ok) snprintf(W.msg, sizeof W.msg, "%s", tr2("No se envio el mensaje", "Message not sent")); /* fallthrough */
@@ -199,7 +211,7 @@ typedef struct {
 // copias locales (para dibujar sin bloquear al hilo de red)
 static GameInfo games[MAX_GAMES]; static int ngames;
 static Person friends[MAX_PEOPLE]; static int nfriends;
-static FriendReq reqs[MAX_PEOPLE]; static int nreqs; static DmMsg dm[40]; static int ndm; static Notif notifs[16]; static int nnotifs, notif_unread; static int unread;
+static FriendReq reqs[MAX_PEOPLE]; static int nreqs; static DmMsg dm[40]; static int ndm; static Notif notifs[16]; static int nnotifs, notif_unread; static ShopItem shop[24]; static int nshop; static Wallet wallet; static int unread;
 
 static void sync_data(void) {
 	LightLock_Lock(&lk);
@@ -207,6 +219,7 @@ static void sync_data(void) {
 	memcpy(friends, g_friends, sizeof(Person) * g_nfriends); nfriends = g_nfriends;
 	memcpy(reqs, g_reqs, sizeof(FriendReq) * g_nreqs); nreqs = g_nreqs; unread = g_unread;
 	memcpy(dm, g_dm, sizeof(DmMsg) * g_ndm); ndm = g_ndm;
+	memcpy(shop, g_shop, sizeof(ShopItem) * g_nshop); nshop = g_nshop; wallet = g_wallet;
 	memcpy(notifs, g_notifs, sizeof(Notif) * g_nnotifs); nnotifs = g_nnotifs; notif_unread = g_notif_unread;
 	LightLock_Unlock(&lk);
 }
@@ -242,7 +255,7 @@ static int build_people(const Session *s, PRow *rows) {
 	return n;
 }
 
-static int row_h(int page) { return page == P_FRIENDS || page == P_SETTINGS || page == P_NOTIF ? 36 : page == P_UPDATE ? 40 : 42; }
+static int row_h(int page) { return page == P_FRIENDS || page == P_SETTINGS || page == P_NOTIF || page == P_SHOP ? 36 : page == P_UPDATE ? 40 : 42; }
 enum { PANE_X = 108, PANE_W = 208, LIST_Y = 30, LIST_BOTTOM = 232 };
 static int rows_visible(int page) { return (LIST_BOTTOM - LIST_Y) / row_h(page); }
 
@@ -253,6 +266,7 @@ static int count_rows(const Ui *u, const Session *s) {
 	case P_FRIENDS: return build_people(s, pr);
 	case P_SETTINGS: return 7;
 	case P_NOTIF: return nnotifs + 1;
+	case P_SHOP: return nshop + 1;
 	case P_UPDATE: return 3;
 	}
 	return 0;
@@ -278,6 +292,9 @@ static int wrap(const char *src, float scale, float maxw, char lines[][96], int 
 	if (cur[0] && nl < maxlines) snprintf(lines[nl++], 96, "%s", cur);
 	return nl;
 }
+static bool shop_owned(const ShopItem *it) { for (int i = 0; i < wallet.ninv; i++) if (!strcmp(wallet.inv[i], it->id)) return true; return false; }
+static bool shop_equipped(const ShopItem *it) { return !strcmp(wallet.hat, it->id) || !strcmp(wallet.title, it->id); }
+static u32 rarity_col(int r) { return r == 2 ? C(0xC4, 0x6B, 0xFF) : r == 1 ? C(0x4D, 0x8D, 0xFF) : COL_MUTED; }
 static const char *status_of(const Person *p) { return p->in_game ? tr2("En un juego", "In a game") : p->online ? "Online" : tr2("Desconectado", "Offline"); }
 
 // ================= PANTALLA SUPERIOR =================
@@ -293,6 +310,7 @@ static void top_bar(const Ui *u, const Session *s, bool busy) {
 		ui_text(x, 7, 0.44f, act ? COL_TEXT : COL_MUTED, 0, PAGE_NAME[navp[i]]);
 		x += w + 18;
 	}
+	if (g_account && wallet.bcoins >= 0) { char bc[24]; snprintf(bc, sizeof bc, "%d BC", wallet.bcoins); ui_text(246, 6, 0.42f, C(0xF5, 0xC5, 0x42), C2D_AlignRight, bc); }
 	char nm[32]; fit(nm, sizeof nm, s->username, 0.46f, 100);
 	ui_text(388, 6, 0.46f, COL_TEXT, C2D_AlignRight, nm);
 	ui_avatar(388 - ui_text_width(nm, 0.46f) - 14, 14, 9, s->color, -1, s->username);
@@ -423,6 +441,24 @@ static void page_top(const Ui *u, const Session *s) {
 			if (i < 4) ui_rect(26, y + 28, 348, 1, COL_LINE);
 		}
 		break; }
+	case P_SHOP: {
+		ui_text(14, 33, 0.8f, COL_TEXT, 0, PAGE_NAME[P_SHOP]);
+		char bc[40]; snprintf(bc, sizeof bc, "%d BCoins", wallet.bcoins); float bw = ui_text_width(bc, 0.5f) + 18;
+		ui_rrect(386 - bw, 40, bw, 22, 11, COL_PANEL2); ui_text(386 - bw / 2, 43, 0.5f, C(0xF5, 0xC5, 0x42), C2D_AlignCenter, bc);
+		ui_rrect(14, 66, 372, 160, 12, COL_PANEL);
+		if (!g_account) { ui_text(30, 120, 0.46f, COL_MUTED, 0, tr2("La tienda necesita entrar con email.", "The shop needs an email login.")); break; }
+		ui_text(30, 72, 0.4f, wallet.can_claim ? COL_GREEN : COL_MUTED, 0, wallet.can_claim ? tr2("Recompensa diaria disponible!", "Daily reward available!") : tr2("Recompensa diaria: vuelve manana", "Daily reward: come back tomorrow"));
+		for (int i = 0, y = 92; i < nshop && i < 5; i++, y += 26) {
+			const ShopItem *it = &shop[i]; char nm[40]; fit(nm, sizeof nm, it->name, 0.46f, 220);
+			C2D_DrawCircleSolid(32, y + 9, 0.3f + ui_get_depth(), 4, rarity_col(it->rarity));
+			ui_text(44, y, 0.46f, COL_TEXT, 0, nm);
+			char pr[24]; if (!strcmp(it->kind, "crate")) snprintf(pr, sizeof pr, "%d BC", it->price); else snprintf(pr, sizeof pr, "%s", shop_equipped(it) ? tr2("Equipado", "Equipped") : shop_owned(it) ? tr2("Tuyo", "Owned") : "");
+			if (!pr[0]) snprintf(pr, sizeof pr, "%d BC", it->price);
+			ui_text(370, y + 1, 0.42f, shop_owned(it) && strcmp(it->kind, "crate") ? COL_GREEN : C(0xF5, 0xC5, 0x42), C2D_AlignRight, pr);
+			if (i < 4) ui_rect(26, y + 21, 348, 1, COL_LINE);
+		}
+		if (nshop > 5) ui_text(200, 212, 0.34f, COL_MUTED, C2D_AlignCenter, tr2("Mas articulos en la pantalla tactil", "More items on the touch screen"));
+		break; }
 	case P_UPDATE: {
 		ui_text(14, 33, 0.8f, COL_TEXT, 0, PAGE_NAME[P_UPDATE]);
 		ui_rrect(14, 66, 372, 160, 12, COL_PANEL);
@@ -481,7 +517,7 @@ static void modal_top(const Ui *u) {
 }
 
 // ================= PANTALLA INFERIOR =================
-enum { SB_W = 102, SB_ITEM_H = 27, SB_Y = 6, SB_EXIT_Y = 207 };
+enum { SB_W = 102, SB_ITEM_H = 24, SB_Y = 6, SB_EXIT_Y = 207 };
 
 static void sidebar(const Ui *u) {
 	ui_rect(0, 0, SB_W, 240, COL_PANEL); ui_rect(SB_W, 0, 1, 240, COL_LINE);
@@ -577,6 +613,20 @@ static void pane(const Ui *u, const Session *s) {
 			ui_button(PANE_X + PANE_W - 46, y + 5, 44, 24, !strcmp(n->kind, "invite") ? COL_GREEN : COL_ACCENT_D, false, !strcmp(n->kind, "invite") ? tr2("Unirse", "Join") : "Ver", 0.36f);
 		}
 		break; }
+	case P_SHOP: {
+		if (!g_account) { ui_text(PANE_X, 40, 0.42f, COL_MUTED, 0, tr2("No disponible con QR.", "Not available with QR.")); break; }
+		for (int i = 0; i < vis && u->scroll + i < nshop + 1; i++) {
+			int r = u->scroll + i; float y = LIST_Y + i * rh;
+			if (r == u->cur) ui_rrect(PANE_X - 2, y, PANE_W + 2, rh - 3, 8, COL_PANEL2);
+			if (r == 0) { ui_button(PANE_X, y + 3, PANE_W - 4, rh - 8, wallet.can_claim ? COL_GREEN : COL_PANEL2, false, wallet.can_claim ? tr2("Recoger recompensa diaria", "Claim daily reward") : tr2("Recompensa ya recogida", "Reward claimed"), 0.4f); continue; }
+			const ShopItem *it = &shop[r - 1]; char nm[32]; fit(nm, sizeof nm, it->name, 0.4f, PANE_W - 78);
+			C2D_DrawCircleSolid(PANE_X + 6, y + 18, 0.3f + ui_get_depth(), 3.5f, rarity_col(it->rarity));
+			ui_text(PANE_X + 14, y + 10, 0.4f, COL_TEXT, 0, nm);
+			bool crate = !strcmp(it->kind, "crate"), own = shop_owned(it) && !crate, eq = shop_equipped(it);
+			char lab[24]; if (crate) snprintf(lab, sizeof lab, "%s", tr2("Abrir", "Open")); else if (own) snprintf(lab, sizeof lab, "%s", eq ? tr2("Quitar", "Unequip") : tr2("Equipar", "Equip")); else snprintf(lab, sizeof lab, "%d", it->price);
+			ui_button(PANE_X + PANE_W - 60, y + 5, 58, 24, own ? (eq ? COL_PANEL2 : COL_GREEN) : COL_ACCENT_D, false, lab, 0.36f);
+		}
+		break; }
 	case P_AVATAR: {
 		ui_text(PANE_X, 30, 0.4f, COL_MUTED, 0, "Elige un color:");
 		for (int i = 0; i < 10; i++) {
@@ -660,6 +710,10 @@ void app_preview(C3D_RenderTarget *top, C3D_RenderTarget *bot, int page, int mod
 	int dm_demo = modal == -20; if (dm_demo) modal = -1;
 	prev_demo = modal <= -6 ? -modal - 5 : 0; if (modal <= -6) modal = -1;
 	if (page == P_UPDATE) { g_upd_state = modal == -3 ? 2 : modal == -4 ? 3 : modal == -5 ? 4 : 0; g_upd_pct = 45; snprintf(g_upd_msg, sizeof g_upd_msg, modal == -5 ? "Descarga fallida: Couldn't resolve host" : "Instalada. Cierra Blocksy y abrela de nuevo desde HOME"); if (modal <= -3) modal = -1; }
+	nshop = 6; wallet.bcoins = 340; wallet.can_claim = 1; wallet.ninv = 1; snprintf(wallet.inv[0], 32, "hat_cap"); snprintf(wallet.hat, 32, "hat_cap");
+	{ static const char *const sid[] = {"crate_basic", "hat_cap", "hat_halo", "hat_crown", "title_builder", "title_legend"}, *const sk[] = {"crate", "hat", "hat", "hat", "title", "title"}, *const sn[] = {"Cofre de botin", "Gorra", "Aureola", "Corona", "Constructor", "Leyenda"};
+	  static const int sp[] = {150, 100, 300, 500, 80, 400}, sr[] = {1, 0, 1, 2, 0, 2};
+	  for (int i = 0; i < 6; i++) { snprintf(shop[i].id, 32, "%s", sid[i]); snprintf(shop[i].kind, 8, "%s", sk[i]); snprintf(shop[i].name, 32, "%s", sn[i]); shop[i].price = sp[i]; shop[i].rarity = sr[i]; } }
 	nnotifs = 3; notif_unread = 2;
 	snprintf(notifs[0].kind, 16, "invite"); snprintf(notifs[0].from, 24, "Marta"); snprintf(notifs[0].game, 44, "Spawn Plaza"); notifs[0].read = 0;
 	snprintf(notifs[1].kind, 16, "friend_request"); snprintf(notifs[1].from, 24, "Carlos"); notifs[1].read = 0;
@@ -853,6 +907,15 @@ AppResult app_lobby(C3D_RenderTarget *top, C3D_RenderTarget *bot, Session *s, Ga
 					const Notif *nt = &notifs[act_row - 1];
 					if (!strcmp(nt->kind, "invite")) { int gi = -1; for (int i = 0; i < ngames; i++) if (!strcmp(games[i].id, nt->game_id)) gi = i; if (gi >= 0) u.modal = gi; else toast(&u, tr2("Ese juego ya no existe", "That game no longer exists")); }
 					else { u.page = P_FRIENDS; u.cur = 0; u.scroll = 0; }
+				}
+				break;
+			case P_SHOP:
+				if (act_row == 0) { if (wallet.can_claim) request(RQ_CLAIM, NULL, NULL, 0); else toast(&u, tr2("Ya la recogiste hoy", "Already claimed today")); }
+				else if (act_row - 1 < nshop) {
+					const ShopItem *it = &shop[act_row - 1]; bool crate = !strcmp(it->kind, "crate"), own = shop_owned(it) && !crate;
+					if (crate) request(RQ_CRATE, it->id, NULL, 0);
+					else if (own) request(RQ_EQUIP, shop_equipped(it) ? "" : it->id, it->kind, 0);
+					else request(RQ_BUY, it->id, NULL, 0);
 				}
 				break;
 			case P_UPDATE:

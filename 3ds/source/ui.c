@@ -148,6 +148,7 @@ void ui_icon(int kind, float x, float y, u32 c) {
 	case 5: C2D_DrawCircleSolid(x + 8, y + 8, (g_z + 0.2f), 7, c); C2D_DrawCircleSolid(x + 8, y + 8, (g_z + 0.2f), 3, COL_PANEL); break;                                           // ajustes
 	case 7: C2D_DrawCircleSolid(x + 8, y + 8, (g_z + 0.2f), 7.5f, c); rect(x + 6.5f, y + 3.5f, 3, 5, COL_PANEL); quad(x + 4, y + 8, x + 12, y + 8, x + 8, y + 12.5f, x + 8, y + 12.5f, COL_PANEL); break;  // actualizar (flecha abajo)
 	case 8: C2D_DrawCircleSolid(x + 8, y + 6, (g_z + 0.2f), 5, c); rect(x + 3, y + 6, 10, 5, c); rect(x + 1, y + 11, 14, 2, c); C2D_DrawCircleSolid(x + 8, y + 14, (g_z + 0.2f), 1.8f, c); break;   // avisos (campana)
+	case 9: rrect(x + 2, y + 5, 12, 10, 2, c); C2D_DrawCircleSolid(x + 8, y + 5, (g_z + 0.2f), 3.4f, c); C2D_DrawCircleSolid(x + 8, y + 5, (g_z + 0.2f), 1.9f, COL_PANEL); break;   // tienda (bolsa)
 	default: rrect(x + 2, y + 2, 12, 12, 3, c); rect(x + 7, y + 5, 2, 6, COL_PANEL); break;                                                                       // salir
 	}
 }

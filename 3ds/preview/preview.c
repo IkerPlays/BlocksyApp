@@ -17,11 +17,11 @@ int main(void) {
 	fprintf(g_out, "SCENE login\n");        ui_preview_login(&top, &bot, 0, 0, v);
 	fprintf(g_out, "SCENE signup\n");       ui_preview_login(&top, &bot, 1, 0, v);
 	fprintf(g_out, "SCENE login_busy\n");   ui_preview_login(&top, &bot, 0, 1, v);
-	static const char *names[] = {"home", "discover", "avatar", "friends", "alerts", "update_", "settings"};
-	for (int p = 0; p < 7; p++) { fprintf(g_out, "SCENE %s\n", names[p]); app_preview(&top, &bot, p, -1, p == 0 ? 1 : 0, v); }
-	fprintf(g_out, "SCENE update\n"); app_preview(&top, &bot, 5, -1, 0, v);
-	fprintf(g_out, "SCENE update_downloading\n"); app_preview(&top, &bot, 5, -3, 2, v);
-	fprintf(g_out, "SCENE update_error\n"); app_preview(&top, &bot, 5, -5, 1, v);
+	static const char *names[] = {"home", "discover", "avatar", "friends", "alerts", "shop", "update_", "settings"};
+	for (int p = 0; p < 8; p++) { fprintf(g_out, "SCENE %s\n", names[p]); app_preview(&top, &bot, p, -1, p == 0 ? 1 : 0, v); }
+	fprintf(g_out, "SCENE update\n"); app_preview(&top, &bot, 6, -1, 0, v);
+	fprintf(g_out, "SCENE update_downloading\n"); app_preview(&top, &bot, 6, -3, 2, v);
+	fprintf(g_out, "SCENE update_error\n"); app_preview(&top, &bot, 6, -5, 1, v);
 	fprintf(g_out, "SCENE chat_dm\n"); app_preview(&top, &bot, 3, -20, 0, v);
 	fprintf(g_out, "SCENE modal\n"); app_preview(&top, &bot, 0, 0, 0, v);
 	fprintf(g_out, "SCENE avatar_wave\n"); app_preview(&top, &bot, 2, -6, 0, v);
