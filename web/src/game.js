@@ -14,6 +14,7 @@ import { createRunner } from './script.js'
 import { sfx } from './sfx.js'
 import * as music from './music.js'
 import { icon } from './icons.js'
+import * as social from './social.js'
 
 // 12 colores: la 3DS usa los mismos (3ds/source/main.c)
 export const PALETTE = ['#e8e8e8', '#e74c3c', '#f39c12', '#2ecc71', '#3498db', '#9b59b6', '#f1c40f', '#1abc9c', '#ff6b9d', '#8b5e34', '#4b4f57', '#7ed6ff']
@@ -247,7 +248,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite }) {
       const fin = world.finish
       if (fin && !race.done && Math.hypot(p.x - fin.pos[0], p.z - fin.pos[2]) < fin.radius && Math.abs(p.y - fin.pos[1]) < 3) {
         race.done = true; const ms = Date.now() - (race.start || Date.now()); const prev = bestTime(game.id, null); const best = bestTime(game.id, ms)
-        sfx.win(); showTitle(`${t('finish', { t: raceTime(ms) })}${prev && best !== ms ? ` · ${t('best')} ${raceTime(prev)}` : ''}`, 4500)
+        social.earnCoins(20, 'obby').then(n => { if (n) sys(t('coins_earned', { n })) }); sfx.win(); showTitle(`${t('finish', { t: raceTime(ms) })}${prev && best !== ms ? ` · ${t('best')} ${raceTime(prev)}` : ''}`, 4500)
         setTimeout(() => { teleport(...world.spawn); respawn.pos = world.spawn.slice(); race = { start: 0, cp: 0, done: false } }, 4500)
       }
     }
@@ -600,6 +601,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite }) {
   const rosterTimer = setInterval(() => { if (!roster.classList.contains('hidden') || paused) drawRoster() }, 1500)
   const tickTimer = setInterval(() => runner.fire('tick', { data: { players: others.size + 1 } }), 1000)
   const timeTimer = setInterval(() => bump('time', 5), 5000)
+  const coinTimer = setInterval(async () => { const n = await social.earnCoins(10, 'play'); if (n) sys(t('coins_earned', { n })) }, 300_000)       // BCoins por jugar (tope diario en el servidor)
 
   // ---------- música ----------
   const mBtn = $('music-btn'), mPanel = $('music-panel')
@@ -691,7 +693,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite }) {
   if (game.script) setTimeout(() => runner.fire('join', { data: { name: profile.username }, who: profile.username }), 600)
 
   return function stop() {
-    cancelAnimationFrame(raf); for (const i of [sendTimer, pruneTimer, syncTimer, pollTimer, rosterTimer, tickTimer, timeTimer]) clearInterval(i)
+    cancelAnimationFrame(raf); for (const i of [sendTimer, pruneTimer, syncTimer, pollTimer, rosterTimer, tickTimer, timeTimer, coinTimer]) clearInterval(i)
     window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); window.removeEventListener('resize', onResize)
     window.removeEventListener('pointermove', pmove); window.removeEventListener('pointerup', pup); window.removeEventListener('pointercancel', pup)
     canvas.removeEventListener('pointerdown', pdown); canvas.removeEventListener('wheel', wheel); canvas.removeEventListener('contextmenu', noMenu); canvas.removeEventListener('pointerleave', pleave)

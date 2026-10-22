@@ -271,3 +271,17 @@ textarea.code { flex:1; border:0; outline:none; resize:none; background:transpar
 .dm-edit { min-width:200px; background:#0003; color:#fff; border:1px solid #fff5; }
 
 .upd-row { display:flex; flex-direction:column; gap:8px; align-items:flex-start; } #update-bar .btn + .btn { margin-left:0; }
+
+/* ---- BCoins y tienda ---- */
+.coin-chip { display:flex; align-items:center; gap:6px; font-weight:800; color:#f5c542; background:var(--panel2); border-radius:20px; padding:5px 12px; margin-left:auto; } .coin-chip:empty { display:none; } .coin-chip + .bell-btn { margin-left:0; }
+.coin-big { display:flex; align-items:center; gap:8px; font-size:20px; color:#f5c542; }
+.shop-layout { display:grid; grid-template-columns:240px 1fr; gap:24px; align-items:start; } @media (max-width:760px) { .shop-layout { grid-template-columns:1fr; } }
+.daily { display:flex; align-items:center; justify-content:space-between; gap:12px; margin:10px 0 6px; } .daily small { display:block; color:var(--muted); } .muted { color:var(--muted); }
+.shop-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(200px,1fr)); gap:12px; }
+.shop-card { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:12px; display:flex; flex-direction:column; gap:6px; } .shop-card small { color:var(--muted); min-height:32px; }
+.shop-card.rare { border-color:#4d8dff88; box-shadow:0 0 14px #4d8dff22; } .shop-card.epic { border-color:#c46bff99; box-shadow:0 0 18px #c46bff33; }
+.sc-top { display:flex; justify-content:space-between; align-items:center; gap:6px; } .sc-bot { display:flex; justify-content:space-between; align-items:center; gap:6px; flex-wrap:wrap; margin-top:4px; } .sc-btns { display:flex; gap:6px; flex-wrap:wrap; } .sc-btns .btn { padding:6px 10px; font-size:13px; }
+.price { display:inline-flex; align-items:center; gap:4px; color:#f5c542; font-weight:800; } .owned { color:var(--green); font-weight:700; font-size:13px; }
+.rarity { font-size:11px; font-weight:800; padding:2px 8px; border-radius:10px; background:#6b707733; color:var(--muted); } .rarity.rare { background:#4d8dff33; color:#7fb0ff; } .rarity.epic { background:#c46bff33; color:#d79bff; }
+.reward { text-align:center; align-items:center; } .reward.epic .big-ico { box-shadow:0 0 30px #c46bff88; } .reward.rare .big-ico { box-shadow:0 0 26px #4d8dff77; }
+.p-title { color:#f5c542; font-weight:800; font-size:13px; letter-spacing:.5px; text-transform:uppercase; } .p-title:empty { display:none; }

@@ -2,6 +2,9 @@
 const D = {
   es: {
     lang_name: 'Español',
+    nav_shop: 'Tienda', bcoins: 'BCoins', shop_daily: 'Recompensa diaria', shop_streak: 'Racha: {n} días', shop_claim: 'Recoger', shop_got: '+{n} BCoins', shop_come_back: 'Vuelve mañana', shop_crates: 'Cofres de botín', shop_hats: 'Sombreros', shop_titles: 'Títulos',
+    shop_buy: 'Comprar', shop_open: 'Abrir', shop_equip: 'Equipar', shop_unequip: 'Quitar', shop_try: 'Probar', shop_owned: 'Ya lo tienes', shop_equipped: 'Equipado', shop_no_coins: 'No tienes suficientes BCoins', shop_bought: 'Has comprado {name}',
+    shop_new: '¡Objeto nuevo en tu inventario!', shop_dup: 'Ya lo tenías: recuperas {n} BCoins.', rar_common: 'Común', rar_rare: 'Raro', rar_epic: 'Épico', coins_earned: '+{n} BCoins',
     update_now: 'Actualizar ahora', update_later: 'Más tarde', web_version: 'Versión de la web', check_updates: 'Buscar actualizaciones', checking: 'Buscando...', up_to_date: 'Ya tienes la última versión',
     set_dynres: 'Resolución dinámica (mantiene los fps)', err_generic: 'Error', nav_profile: 'Perfil', p_joined: 'Se unió el {date}', p_friends: 'Amigos', p_games: 'Juegos creados', p_no_bio: 'Sin biografía todavía.', p_bio_ph: 'Escribe algo sobre ti...', p_edit_avatar: 'Editar avatar', p_edit_bio: 'Editar biografía', p_not_found: 'Este usuario no existe', p_no_games: 'Aún no ha creado juegos.', p_you: 'Tu perfil', p_copy: 'Copiar enlace del perfil',
     nav_home: 'Inicio', nav_discover: 'Descubrir', nav_avatar: 'Avatar', nav_friends: 'Amigos', nav_link: 'Vincular 3DS', nav_create: 'Crear', nav_settings: 'Ajustes', nav_logout: 'Salir',
@@ -45,6 +48,9 @@ const D = {
   },
   en: {
     lang_name: 'English',
+    nav_shop: 'Shop', bcoins: 'BCoins', shop_daily: 'Daily reward', shop_streak: 'Streak: {n} days', shop_claim: 'Claim', shop_got: '+{n} BCoins', shop_come_back: 'Come back tomorrow', shop_crates: 'Loot crates', shop_hats: 'Hats', shop_titles: 'Titles',
+    shop_buy: 'Buy', shop_open: 'Open', shop_equip: 'Equip', shop_unequip: 'Unequip', shop_try: 'Try on', shop_owned: 'Owned', shop_equipped: 'Equipped', shop_no_coins: 'Not enough BCoins', shop_bought: 'You bought {name}',
+    shop_new: 'New item in your inventory!', shop_dup: 'You already had it: you get {n} BCoins back.', rar_common: 'Common', rar_rare: 'Rare', rar_epic: 'Epic', coins_earned: '+{n} BCoins',
     update_now: 'Update now', update_later: 'Later', web_version: 'Web version', check_updates: 'Check for updates', checking: 'Checking...', up_to_date: 'You have the latest version',
     set_dynres: 'Dynamic resolution (keeps fps up)', err_generic: 'Error', nav_profile: 'Profile', p_joined: 'Joined {date}', p_friends: 'Friends', p_games: 'Created games', p_no_bio: 'No bio yet.', p_bio_ph: 'Write something about yourself...', p_edit_avatar: 'Edit avatar', p_edit_bio: 'Edit bio', p_not_found: 'This user does not exist', p_no_games: 'No games created yet.', p_you: 'Your profile', p_copy: 'Copy profile link',
     nav_home: 'Home', nav_discover: 'Discover', nav_avatar: 'Avatar', nav_friends: 'Friends', nav_link: 'Link 3DS', nav_create: 'Create', nav_settings: 'Settings', nav_logout: 'Log out',

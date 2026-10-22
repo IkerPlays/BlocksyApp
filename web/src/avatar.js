@@ -47,6 +47,21 @@ function faceTexture(skin) {
   return t
 }
 
+// ---------- sombreros de la tienda ----------
+export const HAT_COLORS = { hat_cap: '#e74c3c', hat_antenna: '#7ed6ff', hat_party: '#ff6b9d', hat_halo: '#f5c542', hat_top: '#2b2f36', hat_crown: '#f1c40f' }
+export const hatStyle = id => (id && HAT_COLORS[id] ? { id, color: HAT_COLORS[id] } : null)
+function addHat(head, hat) {
+  const c = hat.color, m = lambert(c), add = (...o) => head.add(...o)
+  switch (hat.id) {
+    case 'hat_cap': add(box(0.58, 0.14, 0.58, null, 0, 0.37, -0.01, m), box(0.5, 0.04, 0.3, null, 0, 0.31, 0.4, lambert('#c0392b'))); break
+    case 'hat_antenna': add(box(0.04, 0.34, 0.04, null, 0, 0.5, 0, lambert('#9aa0a8')), box(0.12, 0.12, 0.12, null, 0, 0.74, 0, m)); break
+    case 'hat_party': { const cone = new THREE.Mesh(new THREE.ConeGeometry(0.22, 0.48, 4), m); cone.position.set(0, 0.57, 0); cone.rotation.y = Math.PI / 4; cone.castShadow = true; add(cone, box(0.08, 0.08, 0.08, null, 0, 0.84, 0, lambert('#ffffff'))); break }
+    case 'hat_halo': { const ring = new THREE.Mesh(new THREE.TorusGeometry(0.28, 0.035, 8, 28), new THREE.MeshBasicMaterial({ color: c })); ring.position.set(0, 0.62, 0); ring.rotation.x = Math.PI / 2; add(ring); break }
+    case 'hat_top': add(box(0.68, 0.05, 0.68, null, 0, 0.34, 0, m), box(0.4, 0.42, 0.4, null, 0, 0.58, 0, m), box(0.42, 0.07, 0.42, null, 0, 0.45, 0, lambert('#c0392b'))); break
+    case 'hat_crown': add(box(0.52, 0.12, 0.52, null, 0, 0.4, 0, m)); for (const [x, z] of [[-0.2, -0.2], [0.2, -0.2], [-0.2, 0.2], [0.2, 0.2], [0, 0]]) add(box(0.1, 0.16, 0.1, null, x, 0.54, z, m)); break
+  }
+}
+
 // Devuelve un Group con el avatar de pie sobre y=0, mirando a +z. userData guarda las articulaciones para animar.
 export function buildAvatar(style) {
   const g = new THREE.Group()
@@ -60,6 +75,7 @@ export function buildAvatar(style) {
   if (style.hairStyle === 1) { head.add(box(0.56, 0.22, 0.1, null, 0, 0.12, -0.23, hairMat), box(0.1, 0.3, 0.5, null, -0.27, 0.05, -0.02, hairMat), box(0.1, 0.3, 0.5, null, 0.27, 0.05, -0.02, hairMat)) }
   else if (style.hairStyle === 2) { for (const x of [-0.18, 0, 0.18]) head.add(box(0.1, 0.18, 0.1, null, x, 0.4, 0, hairMat)) }
   else head.add(box(0.56, 0.12, 0.1, null, 0, 0.18, 0.24, hairMat))
+  if (style.hat) addHat(head, style.hat)
   const legL = limb(-0.16, 0.74, 0.3, 0.74, 0.32, style.pants), legR = limb(0.16, 0.74, 0.3, 0.74, 0.32, style.pants)
   const armL = limb(-0.44, 1.42, 0.22, 0.68, 0.26, style.skin), armR = limb(0.44, 1.42, 0.22, 0.68, 0.26, style.skin)
   const sleeveL = box(0.24, 0.26, 0.28, style.shirt, 0, -0.13, 0), sleeveR = box(0.24, 0.26, 0.28, style.shirt, 0, -0.13, 0)

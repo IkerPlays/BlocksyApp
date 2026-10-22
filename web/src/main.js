@@ -10,6 +10,8 @@ import { headshot } from './avatar.js'
 import { t, applyStatic, setLang, getLang, LANGS, langName, onLang } from './i18n.js'
 import { initNotifications, openInvite } from './social-ui.js'
 import { registerSW, applyUpdate } from './pwa.js'
+import * as social from './social.js'
+import { icon } from './icons.js'
 
 const $ = id => document.getElementById(id)
 let profile = null, currentGame = null, stopGame = null, mode = 'login', stopNotif = null
@@ -79,6 +81,8 @@ async function enterApp() {
   paintChip(); showScreen('app')
   auth.startPresence(() => currentGame?.id)
   stopNotif?.(); stopNotif = initNotifications(ctx)
+  social.onWallet(w => { $('coins').innerHTML = icon('coin', 18) + ' ' + (w.bcoins ?? 0) })
+  social.loadWallet().catch(() => {})
   route()
   api.openGameSession().then(() => { showCreate(api.canCreate()); if (location.pathname.startsWith('/create')) route() }).catch(e => toast(t('err_game_server', { msg: e.message })))
 }

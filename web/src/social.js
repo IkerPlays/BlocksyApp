@@ -79,3 +79,21 @@ export async function getProfile(name, me) {
     is_online: row.is_online ?? null, current_game: row.current_game ?? null, legacy: true }, error: null }
 }
 export const setBio = (myId, bio) => authDb.from('profiles').update({ bio }).eq('id', myId)
+
+// ---------- BCoins y tienda ----------
+let wallet = null, shopCache = null; const wsubs = new Set()
+export const getWallet = () => wallet
+export const onWallet = f => { wsubs.add(f); return () => wsubs.delete(f) }
+const setWallet = w => { wallet = { ...(wallet ?? {}), ...w }; wsubs.forEach(f => f(wallet)) }
+export async function loadWallet() { const w = await rpc('my_wallet'); if (w) setWallet(w); return wallet }
+export async function claimDaily() { const r = await rpc('claim_daily'); await loadWallet(); return r }
+export async function earnCoins(amount, reason) { try { const n = await rpc('earn_coins', { p_amount: amount, p_reason: reason }); if (n > 0) await loadWallet(); return n } catch { return 0 } }
+export async function listShop() {
+  if (shopCache) return shopCache
+  const { data } = await authDb.from('shop_items').select('*').order('sort')
+  return (shopCache = data ?? [])
+}
+export async function buyItem(id) { const r = await rpc('buy_item', { p_item: id }); await loadWallet(); return r }
+export async function openCrate(id) { const r = await rpc('open_crate', { p_crate: id }); await loadWallet(); return r }
+export async function equipItem(id) { const r = await rpc('equip_item', { p_item: id }); setWallet({ equipped: r }); return r }
+export async function unequipSlot(kind) { const r = await rpc('unequip_slot', { p_kind: kind }); setWallet({ equipped: r }); return r }
