@@ -147,6 +147,7 @@ void ui_icon(int kind, float x, float y, u32 c) {
 	case 4: rrect(x + 1, y + 1, 14, 14, 3, c); rect(x + 7, y + 4, 2, 8, COL_PANEL); rect(x + 4, y + 7, 8, 2, COL_PANEL); break;                                   // crear
 	case 5: C2D_DrawCircleSolid(x + 8, y + 8, (g_z + 0.2f), 7, c); C2D_DrawCircleSolid(x + 8, y + 8, (g_z + 0.2f), 3, COL_PANEL); break;                                           // ajustes
 	case 7: C2D_DrawCircleSolid(x + 8, y + 8, (g_z + 0.2f), 7.5f, c); rect(x + 6.5f, y + 3.5f, 3, 5, COL_PANEL); quad(x + 4, y + 8, x + 12, y + 8, x + 8, y + 12.5f, x + 8, y + 12.5f, COL_PANEL); break;  // actualizar (flecha abajo)
+	case 8: C2D_DrawCircleSolid(x + 8, y + 6, (g_z + 0.2f), 5, c); rect(x + 3, y + 6, 10, 5, c); rect(x + 1, y + 11, 14, 2, c); C2D_DrawCircleSolid(x + 8, y + 14, (g_z + 0.2f), 1.8f, c); break;   // avisos (campana)
 	default: rrect(x + 2, y + 2, 12, 12, 3, c); rect(x + 7, y + 5, 2, 6, COL_PANEL); break;                                                                       // salir
 	}
 }
@@ -467,7 +468,7 @@ void ui_message(C3D_RenderTarget *top, C3D_RenderTarget *bot, const char *title,
 // ---------- panel inferior en juego ----------
 enum { SW_Y = 126, SW_W = 40, SW_GAP = 8, BTN2_Y = 192, BTN2_H = 36, BTN2_W = 86, BTN2_GAP = 11, EM_Y = 44, EM_W = 88, EM_H = 44, EM_GAP = 8 };
 
-void ui_game_bottom(const Session *s, const Remote *rem, int nr, int kind, const char *game, const char *version, bool emote_menu) {
+void ui_game_bottom(const Session *s, const Remote *rem, int nr, int kind, const char *game, const char *version, bool emote_menu, const ChatLine *hist, int nhist, int hscroll, bool chat_view) {
 	rect(0, 0, 320, 26, COL_PANEL);
 	rect(0, 26, 320, 1, COL_LINE);
 	ui_text(10, 4, 0.5f, COL_TEXT, 0, game);
@@ -481,9 +482,23 @@ void ui_game_bottom(const Session *s, const Remote *rem, int nr, int kind, const
 		}
 		ui_text(160, 150, 0.36f, COL_MUTED, C2D_AlignCenter, "Moverte o saltar corta el emote");
 	} else {
-		char t[48]; snprintf(t, sizeof t, "Jugadores en linea (%d)", nr + 1);
-		ui_text(10, 32, 0.45f, COL_MUTED, 0, t);
+		char t[48]; snprintf(t, sizeof t, "Jugadores (%d)", nr + 1);
+		button(10, 30, 130, 17, chat_view ? COL_PANEL2 : COL_ACCENT_D, false, t, 0.38f);
+		button(146, 30, 84, 17, chat_view ? COL_ACCENT_D : COL_PANEL2, false, "Historial", 0.38f);
+		if (chat_view) {                                        // historial de chat con scroll (botones o arrastrar)
+			int end = nhist - hscroll; if (end < 0) end = 0; int start = end - 5; if (start < 0) start = 0;
+			float y = 52;
+			for (int i = start; i < end; i++, y += 14) {
+				char l[130]; snprintf(l, sizeof l, "%s: %s", hist[i].name, hist[i].text);
+				while (strlen(l) > 4 && text_w(l, 0.38f) > 238) l[strlen(l) - 1] = 0;
+				ui_text(10, y, 0.38f, i == nhist - 1 ? COL_TEXT : COL_MUTED, 0, l);
+			}
+			if (!nhist) ui_text(10, 60, 0.4f, COL_MUTED, 0, "Aun no hay mensajes.");
+			button(262, 50, 48, 28, COL_PANEL2, false, "^", 0.5f); button(262, 84, 48, 28, COL_PANEL2, false, "v", 0.5f);
+			if (nhist > 5) { float th = 60.0f * 5 / nhist, ty = 52 + (60 - th) * (1.0f - (float)hscroll / (nhist - 5)); rrect(256, ty, 3, th, 1.5f, COL_LINE); }
+		}
 		int row = 0;
+		if (!chat_view) {
 		ui_avatar(18, 56, 6, s->color, -1, s->username); ui_text(30, 48, 0.45f, COL_TEXT, 0, s->username); row++;
 		for (int i = 0; i < nr && row < 4; i++, row++) {
 			float y = 48 + row * 16;
@@ -491,8 +506,9 @@ void ui_game_bottom(const Session *s, const Remote *rem, int nr, int kind, const
 			ui_text(30, y, 0.45f, COL_TEXT, 0, rem[i].name);
 			if (rem[i].is3ds) { float bx = 30 + text_w(rem[i].name, 0.45f) + 8; rrect(bx, y + 1, 30, 13, 4, C(0xE6, 0x00, 0x12)); ui_text(bx + 15, y + 1, 0.32f, COL_TEXT, C2D_AlignCenter, "3DS"); }
 		}
-		ui_text(310, 48, 0.36f, COL_MUTED, C2D_AlignRight, "A saltar  B correr");
-		ui_text(310, 62, 0.36f, COL_MUTED, C2D_AlignRight, "X poner  Y romper");
+		ui_text(310, 52, 0.36f, COL_MUTED, C2D_AlignRight, "A saltar  B correr");
+		ui_text(310, 66, 0.36f, COL_MUTED, C2D_AlignRight, "X poner  Y romper");
+		}
 
 		for (int i = 0; i < NPALETTE; i++) {
 			float x = F_X + (i % 6) * (SW_W + SW_GAP), y = SW_Y + (i / 6) * 30;
@@ -505,8 +521,14 @@ void ui_game_bottom(const Session *s, const Remote *rem, int nr, int kind, const
 	button(F_X + 2 * (BTN2_W + BTN2_GAP), BTN2_Y, BTN2_W, BTN2_H, COL_PANEL2, false, "< Lobby", 0.48f);
 }
 
-int ui_game_touch(int x, int y, bool emote_menu) {
+int ui_game_touch(int x, int y, bool emote_menu, bool chat_view) {
 	touchPosition t = {(u16)x, (u16)y};
+	if (!emote_menu) {
+		if (hit(t, 10, 30, 130, 18)) return UI_TAB_PLAYERS;
+		if (hit(t, 146, 30, 84, 18)) return UI_TAB_CHAT;
+		if (chat_view && hit(t, 262, 50, 48, 30)) return UI_CHAT_UP;
+		if (chat_view && hit(t, 262, 84, 48, 30)) return UI_CHAT_DOWN;
+	}
 	if (emote_menu) for (int i = 0; i < NEMOTES; i++) if (hit(t, F_X + (i % 3) * (EM_W + EM_GAP), EM_Y + 6 + (i / 3) * (EM_H + EM_GAP), EM_W, EM_H)) return UI_EMOTE0 + i;
 	if (!emote_menu) for (int i = 0; i < NPALETTE; i++) if (hit(t, F_X + (i % 6) * (SW_W + SW_GAP), SW_Y + (i / 6) * 30 - 4, SW_W, 32)) return UI_COLOR0 + i;
 	if (hit(t, F_X, BTN2_Y, BTN2_W, BTN2_H)) return UI_CHAT;

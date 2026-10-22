@@ -17,22 +17,39 @@ let openedChat = null     // { friendId, add(msg) } mientras la ventana está ab
 export function openChat(ctx, friend) {
   const me = ctx.profile
   const list = el('div', { class: 'dm-list' }), input = el('input', { placeholder: t('chat_ph'), maxlength: 500, autocomplete: 'off' })
-  const seen = new Set()
-  const line = m => {
-    if (seen.has(m.id)) return; seen.add(m.id)
-    const mine = m.from_id === me.id
-    list.append(el('div', { class: `dm ${mine ? 'mine' : ''}` }, el('div', { class: 'bubble' }, el('span', { text: m.body }), el('small', { text: fmtTime(m.created_at) }))))
-    list.scrollTop = list.scrollHeight
+  let shown = '', editing = null, selected = null
+  // Se repinta toda la conversación (así se ven también los mensajes editados o borrados por el otro lado)
+  function draw(msgs) {
+    const sig = JSON.stringify(msgs.map(m => [m.id, m.body, m.edited_at])) + editing + selected
+    if (sig === shown) return; shown = sig
+    const atBottom = list.scrollHeight - list.scrollTop - list.clientHeight < 60 || !list.children.length
+    if (!msgs.length) return setKids(list, el('div', { class: 'empty', text: t('chat_empty') }))
+    setKids(list, msgs.map(m => {
+      const mine = m.from_id === me.id
+      if (editing === m.id) {
+        const ei = el('input', { value: m.body, maxlength: 500, class: 'dm-edit' })
+        const save = async () => { const v = ei.value.trim(); editing = null; if (v && v !== m.body) { try { await social.editMessage(m.id, v) } catch (e) { toast(e.message) } } refresh(true) }
+        ei.onkeydown = e => { if (e.key === 'Enter') save(); if (e.key === 'Escape') { editing = null; refresh(true) } }
+        setTimeout(() => ei.focus(), 0)
+        return el('div', { class: 'dm mine' }, el('div', { class: 'bubble' }, ei, el('div', { class: 'dm-actions show' }, el('button', { class: 'btn', text: t('save'), onclick: save }), el('button', { class: 'btn', text: t('cancel'), onclick: () => { editing = null; refresh(true) } }))))
+      }
+      const acts = mine ? el('div', { class: `dm-actions ${selected === m.id ? 'show' : ''}` },
+        el('button', { class: 'btn', html: icon('edit', 14), title: t('edit'), onclick: e => { e.stopPropagation(); editing = m.id; refresh(true) } }),
+        el('button', { class: 'btn danger', html: icon('trash', 14), title: t('delete'), onclick: async e => { e.stopPropagation(); if (confirm(t('msg_confirm_delete'))) { try { await social.deleteMessage(m.id) } catch (er) { toast(er.message) } refresh(true) } } })) : null
+      return el('div', { class: `dm ${mine ? 'mine' : ''}`, onclick: () => { if (mine) { selected = selected === m.id ? null : m.id; refresh(true) } } },
+        el('div', { class: 'bubble' }, el('span', { text: m.body }), el('small', { text: (m.edited_at ? t('msg_edited') + ' · ' : '') + fmtTime(m.created_at) })), acts)
+    }))
+    if (atBottom) list.scrollTop = list.scrollHeight
   }
+  let last = []
   const form = el('form', { class: 'dm-form', onsubmit: async e => {
     e.preventDefault(); const body = input.value.trim(); if (!body) return; input.value = ''
     try { await social.sendMessage(friend.id, body); await refresh() } catch (er) { toast(er.message) }
   } }, input, el('button', { class: 'btn blue', html: icon('send', 18), title: t('send') }))
-  async function refresh() {
-    const msgs = await social.conversation(me.id, friend.id)
-    if (!msgs.length && !seen.size) setKids(list, el('div', { class: 'empty', text: t('chat_empty') }))
-    else { if (list.querySelector('.empty')) list.replaceChildren(); msgs.forEach(line) }
-    social.markRead(friend.id).then(() => ctx.refreshBadges?.(), () => {})
+  async function refresh(local) {
+    if (!local || !last.length) last = await social.conversation(me.id, friend.id)
+    shown = ''; draw(last)
+    if (!local) social.markRead(friend.id).then(() => ctx.refreshBadges?.(), () => {})
   }
   const card = $('modal-card')
   setKids(card, el('div', { class: 'dm-card' },
@@ -40,7 +57,7 @@ export function openChat(ctx, friend) {
       el('button', { class: 'btn', text: t('close'), onclick: () => { stop(); closeModal() } })),
     list, form))
   $('modal').classList.remove('hidden'); refresh(); input.focus()
-  const timer = setInterval(refresh, 4000)
+  const timer = setInterval(() => { if (!editing) refresh() }, 4000)
   const stop = () => { clearInterval(timer); openedChat = null }
   openedChat = { friendId: friend.id, refresh, stop }
   const mo = new MutationObserver(() => { if ($('modal').classList.contains('hidden')) { stop(); mo.disconnect() } })

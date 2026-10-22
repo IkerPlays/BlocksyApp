@@ -2,6 +2,8 @@
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
+static float g_av_z;
+void av_set_z(float z) { g_av_z = z; }          // profundidad base (para dibujar el avatar encima de un panel de la interfaz)
 
 // ---------- aspecto (idéntico a web/src/avatar.js) ----------
 #define RGB(r, g, b) (0xFF000000u | ((u32)(b) << 16) | ((u32)(g) << 8) | (u32)(r))
@@ -127,8 +129,8 @@ void av_draw(const AvCam *c, float x, float y, float z, float yaw, const AvStyle
 			float nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx, nl = sqrtf(nx * nx + ny * ny + nz * nz) + 1e-6f;
 			float dot = (nx * 0.30f + ny * 0.85f + nz * 0.40f) / nl; if (dot < 0) dot = -dot * 0.5f;
 			u32 col = shade(fogged(P[i].color, P[i].depth, fog_near, fog_far), 0.62f + 0.38f * dot);
-			C2D_DrawTriangle(sx[fi[0]], sy[fi[0]], col, sx[fi[1]], sy[fi[1]], col, sx[fi[2]], sy[fi[2]], col, 0);
-			C2D_DrawTriangle(sx[fi[0]], sy[fi[0]], col, sx[fi[2]], sy[fi[2]], col, sx[fi[3]], sy[fi[3]], col, 0);
+			C2D_DrawTriangle(sx[fi[0]], sy[fi[0]], col, sx[fi[1]], sy[fi[1]], col, sx[fi[2]], sy[fi[2]], col, g_av_z);
+			C2D_DrawTriangle(sx[fi[0]], sy[fi[0]], col, sx[fi[2]], sy[fi[2]], col, sx[fi[3]], sy[fi[3]], col, g_av_z);
 		}
 	}
 }

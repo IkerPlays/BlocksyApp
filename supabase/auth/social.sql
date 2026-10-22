@@ -238,3 +238,20 @@ begin
     'current_game', case when fr or t.id = me then t.current_game end);
 end $$;
 grant execute on function public.get_profile(text) to authenticated;
+
+-- ---------- Editar y borrar mensajes privados (solo los propios) ----------
+alter table public.messages add column if not exists edited_at timestamptz;
+
+create or replace function public.edit_message(p_id bigint, p_body text) returns void
+language plpgsql security definer set search_path = public as $$
+begin
+  p_body := left(btrim(p_body), 500);
+  if p_body = '' then raise exception 'empty message' using errcode = '22023'; end if;
+  update messages set body = p_body, edited_at = now() where id = p_id and from_id = auth.uid();
+end $$;
+
+create or replace function public.delete_message(p_id bigint) returns void
+language sql security definer set search_path = public as $$
+  delete from messages where id = p_id and from_id = auth.uid();
+$$;
+grant execute on function public.edit_message(bigint, text), public.delete_message(bigint) to authenticated;

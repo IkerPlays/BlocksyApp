@@ -50,9 +50,10 @@ void ui_forget_session(void);            // borra la sesión guardada (cerrar se
 void ui_message(C3D_RenderTarget *top, C3D_RenderTarget *bot, const char *title, const char *msg);
 
 // Panel de la pantalla inferior durante el juego
-typedef enum { UI_NONE = -1, UI_COLOR0 = 0, UI_CHAT = 30, UI_QUIT = 31, UI_EMOTE_MENU = 33, UI_EMOTE0 = 40 } UiAction;
-void ui_game_bottom(const Session *s, const Remote *rem, int nr, int kind, const char *game, const char *version, bool emote_menu);
-int  ui_game_touch(int x, int y, bool emote_menu);        // UI_NONE, UI_COLOR0 + n, UI_CHAT o UI_QUIT (volver al lobby)
+typedef enum { UI_NONE = -1, UI_COLOR0 = 0, UI_CHAT = 30, UI_QUIT = 31, UI_EMOTE_MENU = 33, UI_EMOTE0 = 40, UI_TAB_PLAYERS = 60, UI_TAB_CHAT = 61, UI_CHAT_UP = 62, UI_CHAT_DOWN = 63 } UiAction;
+typedef struct { char name[24], text[100]; } ChatLine;      // historial de chat de la partida
+void ui_game_bottom(const Session *s, const Remote *rem, int nr, int kind, const char *game, const char *version, bool emote_menu, const ChatLine *hist, int nhist, int hscroll, bool chat_view);
+int  ui_game_touch(int x, int y, bool emote_menu, bool chat_view);        // UI_NONE, UI_COLOR0 + n, UI_CHAT o UI_QUIT (volver al lobby)
 
 #ifdef BLOCKSY_PREVIEW
 void ui_preview_login(C3D_RenderTarget *top, C3D_RenderTarget *bot, int signup, int busy, const char *version);

@@ -11,6 +11,7 @@
 #define RELEASES_URL "https://api.github.com/repos/" UPDATE_REPO "/releases?per_page=20"
 #define MIN_SIZE 50000        // un fichero más pequeño es una página de error, no la app
 
+#define OUR_TITLE_ID 0x000400000B10C500ULL     // 0004000000B10C50 + 00: el título de Blocksy (ver blocksy.rsf: UniqueId 0xB10C5)
 static char g_cur[48] = "dev";
 static char g_path[256];      // ruta del .3dsx en ejecución (vacía si se ejecuta como .cia)
 
@@ -118,11 +119,13 @@ bool update_check(UpdateInfo *out, char *err, size_t en) {
 		ok = check_atom(out, &best_s, &best_d, e2, sizeof e2);
 	}
 	if (!ok) { snprintf(err, en, "%s", e1[0] ? e1 : e2); return false; }
-	if (out->stable.valid) out->stable.newer = cmp_ver(best_s, cur) > 0;
-	if (out->dev.valid) out->dev.newer = cmp_ver(best_d, cur) > 0;
+	if (out->stable.valid) { out->stable.cmp = cmp_ver(best_s, cur); out->stable.newer = out->stable.cmp > 0; }
+	if (out->dev.valid) { out->dev.cmp = cmp_ver(best_d, cur); out->dev.newer = out->dev.cmp > 0; }
 	return true;
 }
 
+// Reinicio tras actualizar: al salir de la app, el sistema abre el título recién instalado
+void update_restart(void) { if (update_is_cia()) aptSetChainloader(OUR_TITLE_ID, MEDIATYPE_SD); }
 // ---------- instalación ----------
 // Los datos llegan de curl en trozos pequeños; se juntan en bloques grandes antes de escribir (el servicio AM se queja con
 // escrituras pequeñas y es mucho más lento si se vacía cada 16 KB).
@@ -155,7 +158,6 @@ static bool sink_write(const void *data, size_t n, void *ud) {
 	return true;
 }
 
-#define OUR_TITLE_ID 0x000400000B10C500ULL     // 0004000000B10C50 + 00: el título de Blocksy (ver blocksy.rsf: UniqueId 0xB10C5)
 
 // Explica los errores más comunes del servicio AM / del sistema de ficheros
 static const char *am_hint(Result rc) {

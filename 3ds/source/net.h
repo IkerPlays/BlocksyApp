@@ -49,7 +49,13 @@ int  net_list_requests(const Session *s, FriendReq *out, int max);     // solici
 int  net_friend_request(const Session *s, const char *name);           // 0 enviada, 1 aceptada, 2 ya amigos, 3 ya enviada, -1 error / no existe
 bool net_respond_request(const Session *s, long id, bool accept);
 int  net_unread_total(const Session *s);
-typedef struct { long id; int mine; char text[100]; } DmMsg;
+typedef struct { long id; int mine, edited; char text[100]; } DmMsg;
+bool net_edit_dm(const Session *s, long id, const char *text);
+bool net_delete_dm(const Session *s, long id);
+typedef struct { long id; char kind[16]; char from[24]; char game_id[40]; char game[44]; int read; } Notif;   // kind: friend_request | friend_accept | invite
+int  net_list_notifs(const Session *s, Notif *out, int max);          // más nuevas primero
+bool net_notifs_read(const Session *s);
+bool net_notifs_clear(const Session *s);
 int  net_fetch_dm(const Session *s, const char *friend_id, DmMsg *out, int max);   // más antiguo primero
 bool net_send_dm(const Session *s, const char *friend_id, const char *text);
 bool net_remove_friend(const Session *s, const char *id);

@@ -46,6 +46,37 @@ static size_t write_cb(char *d, size_t sz, size_t nm, void *ud) {
 }
 
 // Devuelve el cuerpo (malloc, terminado en \0) o NULL si falla / status >= 300.
+// ---- hora del servidor: el reloj de la 3DS no es fiable (hora local sin zona horaria), así que se usa la cabecera Date de las respuestas ----
+static time_t g_srv_date;                       // última hora UTC del servidor (epoch); 0 = desconocida
+static long days_from_civil(int y, int m, int d) {
+	y -= m <= 2; long era = (y >= 0 ? y : y - 399) / 400; unsigned yoe = (unsigned)(y - era * 400);
+	unsigned doy = (153 * (m + (m > 2 ? -3 : 9)) + 2) / 5 + d - 1; unsigned doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+	return era * 146097 + (long)doe - 719468;
+}
+static time_t to_epoch(int y, int mo, int d, int h, int mi, int sec) { return (time_t)(days_from_civil(y, mo, d) * 86400L + h * 3600L + mi * 60L + sec); }
+static size_t hdr_cb(char *b, size_t sz, size_t n, void *ud) {
+	(void)ud; size_t len = sz * n;
+	if (len > 12 && (b[0] == 'D' || b[0] == 'd') && (b[1] == 'a' || b[1] == 'A') && (b[2] == 't' || b[2] == 'T') && (b[3] == 'e' || b[3] == 'E') && b[4] == ':') {
+		static const char *const mon = "JanFebMarAprMayJunJulAugSepOctNovDec"; char line[64], mn[4] = "";
+		size_t k = len < sizeof line - 1 ? len : sizeof line - 1; memcpy(line, b, k); line[k] = 0;
+		int d, y, h, mi, sec;
+		if (sscanf(line + 5, " %*3s, %d %3s %d %d:%d:%d", &d, mn, &y, &h, &mi, &sec) == 6) {
+			const char *f = strstr(mon, mn); if (f && (f - mon) % 3 == 0) g_srv_date = to_epoch(y, (int)((f - mon) / 3) + 1, d, h, mi, sec);
+		}
+	}
+	return len;
+}
+static time_t parse_iso(const char *iso) {       // "2026-10-21T18:20:00.123+00:00" (UTC) -> epoch; 0 si no se entiende
+	int y, mo, d, h, mi, sec; if (sscanf(iso, "%d-%d-%dT%d:%d:%d", &y, &mo, &d, &h, &mi, &sec) != 6) return 0;
+	return to_epoch(y, mo, d, h, mi, sec);
+}
+// ¿Esta fila está "viva"? (actualizada hace menos de max_age segundos según la hora del servidor)
+static bool fresh(const char *updated_at, time_t newest, int max_age) {
+	time_t t = parse_iso(updated_at); if (!t) return true;
+	time_t now = g_srv_date ? g_srv_date : newest;
+	return now - t <= max_age;
+}
+
 static char *http(Method m, const char *url, const char *apikey, const char *bearer,
                   const char *body, const char *prefer) {
 	last_status = 0; last_err[0] = 0;
@@ -73,6 +104,7 @@ static char *http(Method m, const char *url, const char *apikey, const char *bea
 	curl_easy_setopt(c, CURLOPT_WRITEFUNCTION, write_cb);
 	curl_easy_setopt(c, CURLOPT_WRITEDATA, &b);
 	curl_easy_setopt(c, CURLOPT_ERRORBUFFER, errbuf);
+	curl_easy_setopt(c, CURLOPT_HEADERFUNCTION, hdr_cb);
 
 	CURLcode rc = curl_easy_perform(c);
 	long code = 0; curl_easy_getinfo(c, CURLINFO_RESPONSE_CODE, &code);
@@ -321,16 +353,18 @@ bool net_say(const Session *s, const char *text) {
 }
 
 int net_fetch_players(const Session *s, Remote *out, int max) {
-	time_t t = time(NULL) - 15; struct tm *tm = gmtime(&t);
-	char url[320], ts[32]; strftime(ts, sizeof ts, "%Y-%m-%dT%H:%M:%SZ", tm);
-	snprintf(url, sizeof url, GAME_URL "/rest/v1/player_state?game_id=eq.%s&updated_at=gt.%s&select=player_id,username,color,platform,anim,x,y,z,ry", g_game, ts);
+	char url[360];
+	snprintf(url, sizeof url, GAME_URL "/rest/v1/player_state?game_id=eq.%s&select=player_id,username,color,platform,anim,x,y,z,ry,updated_at&order=updated_at.desc&limit=40", g_game);
 	char *r = http(M_GET, url, GAME_ANON_KEY, NULL, NULL, NULL);
 	if (!r) return -1;
+	char newest[40] = ""; { const char *e = r + strlen(r); jstr(r, e, "updated_at", newest, sizeof newest); }     // la primera fila es la más reciente
+	time_t nt = parse_iso(newest);
 	int n = 0; const char *p = r, *end;
 	while (n < max && (p = next_obj(p, &end))) {
 		const char *start = p; p = end + 1;
-		Remote *o = &out[n]; char col[12] = "", plat[8] = "";
+		Remote *o = &out[n]; char col[12] = "", plat[8] = "", up[40] = "";
 		if (!jstr(start, end, "player_id", o->id, sizeof o->id) || strcmp(o->id, s->user_id) == 0) continue;
+		jstr(start, end, "updated_at", up, sizeof up); if (!fresh(up, nt, 20)) continue;     // desconectado: sin actualizar hace >20 s (hora del servidor)
 		if (!jstr(start, end, "username", o->name, sizeof o->name)) strcpy(o->name, "?");
 		jstr(start, end, "color", col, sizeof col); o->color = parse_color(col);
 		jstr(start, end, "platform", plat, sizeof plat); o->is3ds = strcmp(plat, "3ds") == 0;
@@ -403,15 +437,17 @@ int net_list_games(GameInfo *out, int max) {
 }
 // Rellena g[i].players con los jugadores activos (visto en los últimos 15 s)
 void net_player_counts(GameInfo *g, int n) {
-	time_t t = time(NULL) - 15; struct tm *tm = gmtime(&t);
-	char url[200], ts[32]; strftime(ts, sizeof ts, "%Y-%m-%dT%H:%M:%SZ", tm);
-	snprintf(url, sizeof url, GAME_URL "/rest/v1/player_state?select=game_id&updated_at=gt.%s&limit=500", ts);
+	char url[220];
+	snprintf(url, sizeof url, GAME_URL "/rest/v1/player_state?select=game_id,updated_at&order=updated_at.desc&limit=300");
 	char *r = http(M_GET, url, GAME_ANON_KEY, NULL, NULL, NULL);
 	for (int i = 0; i < n; i++) g[i].players = 0;
 	if (!r) return;
+	char newest[40] = ""; { const char *e = r + strlen(r); jstr(r, e, "updated_at", newest, sizeof newest); }
+	time_t nt = parse_iso(newest);
 	const char *p = r, *end;
 	while ((p = next_obj(p, &end))) {
-		char gid[40] = ""; jstr(p, end, "game_id", gid, sizeof gid); p = end + 1;
+		char gid[40] = "", up[40] = ""; jstr(p, end, "game_id", gid, sizeof gid); jstr(p, end, "updated_at", up, sizeof up); p = end + 1;
+		if (!fresh(up, nt, 20)) continue;
 		for (int i = 0; i < n; i++) if (!strcmp(g[i].id, gid)) { g[i].players++; break; }
 	}
 	free(r);
@@ -494,18 +530,39 @@ int net_unread_total(const Session *s) {
 }
 int net_fetch_dm(const Session *s, const char *fid, DmMsg *out, int max) {
 	if (!s->token[0]) return -2;
-	char url[420]; snprintf(url, sizeof url, AUTH_URL "/rest/v1/messages?select=id,from_id,body&or=(and(from_id.eq.%s,to_id.eq.%s),and(from_id.eq.%s,to_id.eq.%s))&order=id.desc&limit=%d", s->user_id, fid, fid, s->user_id, max);
+	char url[420]; snprintf(url, sizeof url, AUTH_URL "/rest/v1/messages?select=id,from_id,body,edited_at&or=(and(from_id.eq.%s,to_id.eq.%s),and(from_id.eq.%s,to_id.eq.%s))&order=id.desc&limit=%d", s->user_id, fid, fid, s->user_id, max);
 	char *r = http(M_GET, url, AUTH_ANON_KEY, s->token, NULL, NULL);
 	if (!r) return -1;
 	int n = 0; const char *p = r, *end;
 	while (n < max && (p = next_obj(p, &end))) {
 		char from[40] = ""; DmMsg *m = &out[n]; memset(m, 0, sizeof *m); m->id = (long)jnum(p, end, "id");
-		jstr(p, end, "from_id", from, sizeof from); jstr(p, end, "body", m->text, sizeof m->text); m->mine = !strcmp(from, s->user_id); n++; p = end + 1;
+		jstr(p, end, "from_id", from, sizeof from); jstr(p, end, "body", m->text, sizeof m->text); m->mine = !strcmp(from, s->user_id);
+		{ const char *e = find_val(p, end, "edited_at"); m->edited = e && *e == '"'; } n++; p = end + 1;
 	}
 	free(r);
 	for (int i = 0; i < n / 2; i++) { DmMsg t = out[i]; out[i] = out[n - 1 - i]; out[n - 1 - i] = t; }   // más antiguo primero
 	auth_rpc_ok(s, "mark_read", (snprintf(url, sizeof url, "{\"p_from\":\"%s\"}", fid), url));
 	return n;
+}
+bool net_edit_dm(const Session *s, long id, const char *text) {
+	char t[110]; clean(t, sizeof t, text); char body[260]; snprintf(body, sizeof body, "{\"p_id\":%ld,\"p_body\":\"%s\"}", id, t);
+	return auth_rpc_ok(s, "edit_message", body);
+}
+bool net_delete_dm(const Session *s, long id) { char body[48]; snprintf(body, sizeof body, "{\"p_id\":%ld}", id); return auth_rpc_ok(s, "delete_message", body); }
+bool net_notifs_read(const Session *s) { return auth_rpc_ok(s, "read_notifications", "{}"); }
+bool net_notifs_clear(const Session *s) { return auth_rpc_ok(s, "clear_notifications", "{}"); }
+int net_list_notifs(const Session *s, Notif *out, int max) {
+	if (!s->token[0]) return -2;
+	char *r = http(M_GET, AUTH_URL "/rest/v1/notifications?select=id,kind,from_name,payload,read&order=id.desc&limit=20", AUTH_ANON_KEY, s->token, NULL, NULL);
+	if (!r) return -1;
+	int n = 0; const char *p = r, *end;
+	while (n < max && (p = next_obj(p, &end))) {
+		Notif *o = &out[n]; memset(o, 0, sizeof *o); o->id = (long)jnum(p, end, "id");
+		jstr(p, end, "kind", o->kind, sizeof o->kind); jstr(p, end, "from_name", o->from, sizeof o->from);
+		jstr(p, end, "game_id", o->game_id, sizeof o->game_id); jstr(p, end, "game_name", o->game, sizeof o->game); o->read = jbool(p, end, "read");
+		n++; p = end + 1;
+	}
+	free(r); return n;
 }
 bool net_send_dm(const Session *s, const char *fid, const char *text) {
 	char t[110]; clean(t, sizeof t, text);

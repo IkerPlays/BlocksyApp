@@ -11,6 +11,8 @@ export const cancelRequest = id => rpc('cancel_friend_request', { p_id: id })
 export const removeFriend = id => rpc('remove_friend', { p_friend: id })
 export const myRequests = async () => (await rpc('my_requests')) ?? []
 export const unreadCounts = async () => (await rpc('unread_counts')) ?? {}
+export const editMessage = (id, body) => rpc('edit_message', { p_id: id, p_body: body })
+export const deleteMessage = id => rpc('delete_message', { p_id: id })
 export const markRead = from => rpc('mark_read', { p_from: from })
 export const sendMessage = (to, body) => rpc('send_message', { p_to: to, p_body: body })
 export const inviteFriend = (friend, game, name) => rpc('invite_friend', { p_friend: friend, p_game: game, p_game_name: name })

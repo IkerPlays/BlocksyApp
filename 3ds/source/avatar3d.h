@@ -22,3 +22,5 @@ bool av_project(const AvCam *c, float x, float y, float z, float *sx, float *sy,
 
 // Dibuja el avatar con los pies en (x,y,z) mirando a yaw. fog_far <= 0: sin niebla.
 void av_draw(const AvCam *c, float x, float y, float z, float yaw, const AvStyle *st, const AvPose *pose, float fog_near, float fog_far);
+
+void av_set_z(float z);   // 0 = mundo 3D; >0.2 para dibujarlo sobre paneles de la UI

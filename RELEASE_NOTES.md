@@ -1,10 +1,4 @@
-Big update. Web: other players, emotes and chat now sync reliably (a polling fallback covers networks where Realtime fails), chat works on tablets and phones, and online/offline status is fixed (a heartbeat every 20 s, plus on return to the tab).
-Friends: add people by their exact username; they must accept your request. Private chat between friends, notifications (requests, invitations, messages) and game invitations. Join a friend's game from the friends list.
-New: languages (Spanish, English, Portuguese, French, German), installable PWA, music from the playlist folder, many more settings, light and dark themes, minimap, chat bubbles, screenshots, fly mode, sound effects and break particles.
-New: game types (Build, Social, Obby, Arena), terrains (hills, islands, plaza, void, obby), day and night cycle, clouds, optional bloom, and an advanced editor with rules, world options and scripting (owner only).
-Nintendo 3DS: friend requests and private chat, 12 block colors, language setting (Spanish or English), sun, clouds and player shadows, faster presence.
-Run the new SQL files: supabase/auth/social.sql (AUTH) and supabase/game/v2.sql (GAME). See supabase/README.md.
-Web: real URLs (/home, /friends, /u/name) instead of /#..., and Roblox-style profile pages (/profile for yours, /u/username for anyone): 3D avatar, bio, friends count, created games, and friend actions. Old # links and the 3DS QR still work. Run supabase/auth/social.sql again (adds get_profile and the bio column).
-Updater: much more robust. Retries, a no-limit fallback (releases feed) when the GitHub API refuses, checks that the file is a real .cia/.3dsx before writing, checks free SD space and explains common errors.
-New Blocksy logo everywhere (PWA, tab, web, 3DS icon, banner and menus) and a new soft musical chime on the 3DS HOME Menu.
-Web: dynamic resolution keeps the fps up on tablets, ultra no longer forces heavy effects, per-block color variation, vignette. Fixed profiles showing 'does not exist' and other games not loading.
+Nintendo 3DS: fixed web players not showing up. The 3DS clock is local time, so the "recently active" filter hid everyone; it now uses the server time. Also fixed the 3D avatar missing in the Avatar page.
+3DS: new Alerts page and pop-up notifications (friend requests, invitations, new messages), also during a game. Private chat has scrolling, edit and delete for your own messages. In game, a Chat history tab with scrolling.
+3DS: Settings has a Sync slider (how often player positions are sent and read), alerts on/off and language. The updater no longer offers the version you already have, and restarts the app by itself after installing a new one (.cia).
+Web: edit and delete your private messages. Run supabase/auth/social.sql again (adds edit_message and delete_message).

@@ -3,7 +3,7 @@
 #include <citro2d.h>
 #include "net.h"
 
-typedef enum { APP_PLAY, APP_LOGOUT, APP_QUIT } AppResult;
+typedef enum { APP_PLAY, APP_LOGOUT, APP_QUIT, APP_RESTART } AppResult;   // APP_RESTART: tras actualizar, salir y abrir de nuevo la app
 
 // Lobby de Blocksy (réplica de la web): Inicio, Descubrir, Avatar, Amigos, Crear y Ajustes.
 // Devuelve APP_PLAY con `chosen` relleno, APP_LOGOUT (cerrar sesión) o APP_QUIT (START).
@@ -11,6 +11,9 @@ AppResult app_lobby(C3D_RenderTarget *top, C3D_RenderTarget *bot, Session *s, Ga
 
 // Ajustes guardados en la SD
 int app_draw_level(void);   // 0 corta, 1 media, 2 larga
+int app_sync_ms(void);      // pausa entre envíos/lecturas de posiciones durante la partida (ajuste)
+int app_notif_on(void);     // avisos emergentes activados
+void app_notif_text(const Notif *n, char *out, size_t sz);   // texto de un aviso en el idioma elegido
 
 #ifdef BLOCKSY_PREVIEW
 // Solo para generar capturas en el ordenador (ver 3ds/preview)

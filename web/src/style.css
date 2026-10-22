@@ -264,3 +264,8 @@ textarea.code { flex:1; border:0; outline:none; resize:none; background:transpar
 .logo-mark { background:url(/icons/icon-192.png) center/cover no-repeat !important; border-radius:22%; transform:none !important; box-shadow:0 2px 8px #0005 !important; }
 /* viñeta suave sobre el juego */
 #game::after { content:""; position:fixed; inset:0; pointer-events:none; background:radial-gradient(ellipse at center, transparent 62%, #0000003a 100%); z-index:1; }
+
+/* ---- editar / borrar mensajes ---- */
+.dm { position:relative; align-items:center; gap:6px; } .dm.mine { flex-direction:row-reverse; justify-content:flex-start; }
+.dm-actions { display:none; gap:4px; } .dm.mine:hover .dm-actions, .dm-actions.show { display:flex; } .dm-actions .btn { padding:4px 8px; }
+.dm-edit { min-width:200px; background:#0003; color:#fff; border:1px solid #fff5; }

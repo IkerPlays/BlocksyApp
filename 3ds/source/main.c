@@ -35,6 +35,8 @@ static bool grounded;
 static volatile int moving;
 static char send_anim[12] = "idle";            // animación que se envía a los demás: idle / walk / jump / un emote
 static float vy;
+static ChatLine hist[40]; static int nhist, hscroll; static bool chat_view;        // historial de chat de la partida (con scroll)
+static char game_alert[96]; static u64 game_alert_until;                          // aviso de amigos (solicitud, invitación, mensaje) sobre la partida
 
 typedef struct { enum { PLACE, BREAK, CHAT } type; int x, y, z, kind; char text[100]; } Action;
 #define QMAX 16
@@ -43,7 +45,7 @@ static void push_action(Action a) { LightLock_Lock(&lock); if (qn < QMAX) queue[
 
 static void net_thread(void *arg) {
 	(void)arg;
-	u64 last_blocks = 0, last_presence = 0, last_chat = 0, last_token = osGetTime();
+	u64 last_blocks = 0, last_presence = 0, last_chat = 0, last_token = osGetTime(), last_alerts = 0; long alert_id = -1; int alert_un = -1;
 	long chat_last = -1;
 	while (running) {
 		u64 now = osGetTime();
@@ -78,7 +80,13 @@ static void net_thread(void *arg) {
 			last_token = now;
 		}
 		if (now - last_presence > 30000) { net_presence(&sess, net_game()); last_presence = now; }
-		svcSleepThread((qn ? 30 : 100) * 1000000LL); // ~10 Hz
+		if (sess.token[0] && app_notif_on() && now - last_alerts > 12000) {          // avisos de amigos también durante la partida
+			last_alerts = now; static Notif an[6]; int c = net_list_notifs(&sess, an, 6); int un = net_unread_total(&sess); char msg[96] = "";
+			if (c >= 0) { for (int i = 0; i < c; i++) { if (alert_id >= 0 && an[i].id > alert_id && !an[i].read && !msg[0]) app_notif_text(&an[i], msg, sizeof msg); } long mx_id = 0; for (int i = 0; i < c; i++) if (an[i].id > mx_id) mx_id = an[i].id; if (mx_id > alert_id) alert_id = mx_id; if (alert_id < 0) alert_id = 0; }
+			if (un >= 0) { if (!msg[0] && alert_un >= 0 && un > alert_un) snprintf(msg, sizeof msg, "Mensaje nuevo de un amigo"); alert_un = un; }
+			if (msg[0]) { LightLock_Lock(&lock); snprintf(game_alert, sizeof game_alert, "%s", msg); game_alert_until = osGetTime() + 5000; LightLock_Unlock(&lock); }
+		}
+		svcSleepThread((qn ? 30 : (long long)app_sync_ms()) * 1000000LL);   // pausa entre envíos/lecturas: ajuste "Sincronizacion" (por defecto 100 ms)
 	}
 	// Al salir (en este hilo, que ya tiene la conexión TLS abierta): dejar la partida
 	net_leave(&sess);
@@ -272,13 +280,20 @@ static void render_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 		char fit[140]; snprintf(fit, sizeof fit, "%s", line); while (strlen(fit) > 4 && ui_text_width(fit, 0.38f) > lw - 10) fit[strlen(fit) - 1] = 0;
 		ui_text(12, y, 0.38f, COL_TEXT, 0, fit); row++;
 	}
+	if (game_alert_until > now && game_alert[0]) {                              // aviso de un amigo
+		char al[96]; LightLock_Lock(&lock); snprintf(al, sizeof al, "%s", game_alert); LightLock_Unlock(&lock);
+		float aw = ui_text_width(al, 0.4f) + 22; if (aw > 380) aw = 380;
+		ui_rrect(200 - aw / 2, 40, aw, 22, 10, C2D_Color32(0x23, 0x25, 0x27, 230)); ui_rect(200 - aw / 2 + 6, 46, 3, 10, COL_ACCENT);
+		char fl[96]; snprintf(fl, sizeof fl, "%s", al); while (strlen(fl) > 4 && ui_text_width(fl, 0.4f) > aw - 26) fl[strlen(fl) - 1] = 0;
+		ui_text(200 - aw / 2 + 14, 43, 0.4f, COL_TEXT, 0, fl);
+	}
 	if (now - t_start < 9000) {                                               // ayuda de controles los primeros segundos
 		ui_rrect(70, 206, 260, 22, 9, C2D_Color32(0, 0, 0, 150));
 		ui_text(200, 209, 0.38f, COL_TEXT, C2D_AlignCenter, "A saltar  B correr  X poner  Y romper  +/- color");
 	}
 	C2D_TargetClear(bot, C2D_Color32(0x23, 0x25, 0x27, 255));
 	C2D_SceneBegin(bot);
-	ui_game_bottom(&sess, rem, nr, kind, cur_game.name, BLOCKSY_VERSION, emote_menu);
+	ui_game_bottom(&sess, rem, nr, kind, cur_game.name, BLOCKSY_VERSION, emote_menu, hist, nhist, hscroll, chat_view);
 	C3D_FrameEnd(0);
 }
 
@@ -294,9 +309,9 @@ static bool play_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 	// La pila principal de la app es de solo ~32 KB: los arrays grandes van en memoria estática
 	kind = 1; nl = nr = ndisp = 0; emote[0] = 0; emote_menu = false; memset(&pose_self, 0, sizeof pose_self); self_yaw = 0; strcpy(send_anim, "idle");
 	pose_self.legY = 0.74f; for (int i = 0; i < MAX_PLAYERS; i++) disp_pose[i].legY = rem_pose[i].legY = 0.74f;
-	bool back = true;
+	bool back = true; bool chat_drag = false; int chat_drag_y = 0;
 	t_start = osGetTime(); u64 t_last = t_start;
-	memset(chat, 0, sizeof chat);
+	memset(chat, 0, sizeof chat); nhist = 0; hscroll = 0; chat_view = false; game_alert[0] = 0; game_alert_until = 0;
 
 	while (aptMainLoop()) {
 		hidScanInput();
@@ -318,12 +333,21 @@ static bool play_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 		if (down & KEY_SELECT) do_chat();
 		if (down & KEY_TOUCH) {
 			touchPosition tp; hidTouchRead(&tp);
-			int act = ui_game_touch(tp.px, tp.py, emote_menu);
+			int act = ui_game_touch(tp.px, tp.py, emote_menu, chat_view);
 			if (act >= UI_COLOR0 && act < UI_COLOR0 + NPALETTE) kind = act;
 			else if (act >= UI_EMOTE0 && act < UI_EMOTE0 + NEMOTES) { if (grounded && !moving) snprintf(emote, sizeof emote, "%s", AV_EMOTE_ID[act - UI_EMOTE0]); emote_menu = false; }
 			else if (act == UI_EMOTE_MENU) emote_menu = !emote_menu;
 			else if (act == UI_CHAT) do_chat();
 			else if (act == UI_QUIT) break;
+			else if (act == UI_TAB_PLAYERS) chat_view = false;
+			else if (act == UI_TAB_CHAT) { chat_view = true; hscroll = 0; }
+			else if (act == UI_CHAT_UP) { if (hscroll < nhist - 5) hscroll++; }
+			else if (act == UI_CHAT_DOWN) { if (hscroll > 0) hscroll--; }
+			else if (chat_view && tp.px < 256 && tp.py >= 50 && tp.py < 120) { chat_drag_y = tp.py; chat_drag = true; }
+		}
+		if (chat_drag) {                                             // arrastrar sobre el historial para desplazarlo
+			if (held & KEY_TOUCH) { touchPosition tp; hidTouchRead(&tp); int dy = tp.py - chat_drag_y; if (dy > 12 && hscroll < nhist - 5) { hscroll++; chat_drag_y = tp.py; } else if (dy < -12 && hscroll > 0) { hscroll--; chat_drag_y = tp.py; } }
+			else chat_drag = false;
 		}
 
 		// ---- datos de red -> copia local ----
@@ -333,6 +357,8 @@ static bool play_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 		for (int i = 0; i < nchat_new; i++) {                       // mensajes nuevos -> lista visible 10 s
 			memmove(&chat[0], &chat[1], sizeof chat[0] * 3);
 			snprintf(chat[3].name, sizeof chat[3].name, "%s", chat_new[i].name); snprintf(chat[3].text, sizeof chat[3].text, "%s", chat_new[i].text); chat[3].until = now + 10000;
+			if (nhist == 40) { memmove(&hist[0], &hist[1], sizeof hist[0] * 39); nhist = 39; }
+			snprintf(hist[nhist].name, sizeof hist[nhist].name, "%s", chat_new[i].name); snprintf(hist[nhist].text, sizeof hist[nhist].text, "%s", chat_new[i].text); nhist++; if (hscroll > 0 && hscroll < nhist - 5) hscroll++;
 		}
 		nchat_new = 0;
 		LightLock_Unlock(&lock);
@@ -424,6 +450,7 @@ int main(int argc, char **argv) {
 		for (;;) {                                           // login -> lobby <-> juego
 			AppResult r = app_lobby(top, bot, &sess, &cur_game, BLOCKSY_VERSION);
 			if (r == APP_PLAY) { if (!play_game(top, bot)) { quit = true; break; } continue; }
+			if (r == APP_RESTART) { update_restart(); quit = true; break; }      // tras actualizar: el sistema abre la versión nueva al salir
 			if (r == APP_LOGOUT) { ui_forget_session(); memset(&sess, 0, sizeof sess); } else quit = true;
 			break;
 		}
