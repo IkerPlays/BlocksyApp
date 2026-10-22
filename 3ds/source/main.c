@@ -10,6 +10,7 @@
 #include "app.h"
 #include "update.h"
 #include "avatar3d.h"
+#include "world.h"
 #include "config.h"
 
 #ifndef BLOCKSY_VERSION
@@ -26,7 +27,13 @@ static LightLock lock;
 static Session sess;
 static GameInfo cur_game;
 static volatile bool want_offline;   // al salir de la app desde el juego: marcar offline en el hilo de red
+#define MAX_LOCAL (MAX_BLOCKS + WORLD_MAX_CELLS)      // bloques del servidor + bloques fijos del mundo
 static Block blocks[MAX_BLOCKS]; static int nblocks;
+static World world;                                    // mundo base del juego (plaza, carrera...)
+static bool can_build = true; static float jump_v = 8.6f;
+static float rsp_x, rsp_y, rsp_z;                      // punto de reaparición (último punto de control)
+static struct { u64 start; int cp; bool done; } race;  // carrera: cronómetro, punto de control y meta
+static char big_msg[64]; static u64 big_until;         // mensaje grande sobre la partida (punto de control, meta...)
 static Remote remotes[MAX_PLAYERS]; static int nremotes;
 static ChatMsg chat_new[8]; static int nchat_new;          // mensajes nuevos que la interfaz todavía no ha mostrado
 static volatile bool running = true;
@@ -95,7 +102,7 @@ static void net_thread(void *arg) {
 }
 
 // ---------- Mundo local: tabla hash de bloques (antes se recorría la lista entera en cada colisión) ----------
-#define HT_SIZE 4096
+#define HT_SIZE 8192
 static short ht[HT_SIZE];                 // índice+1 en local[]; 0 = vacío
 static unsigned hkey(int x, int y, int z) { unsigned h = (unsigned)x * 73856093u ^ (unsigned)y * 19349663u ^ (unsigned)z * 83492791u; return h & (HT_SIZE - 1); }
 static void ht_build(const Block *bl, int n) {
@@ -104,11 +111,18 @@ static void ht_build(const Block *bl, int n) {
 }
 static const Block *local_blocks; 
 static bool solid_at(int x, int y, int z) {
+	if (world_floor_solid(&world, x, y, z)) return true;
 	if (!local_blocks) return false;
 	for (unsigned h = hkey(x, y, z); ht[h]; h = (h + 1) & (HT_SIZE - 1)) {
 		const Block *b = &local_blocks[ht[h] - 1];
 		if (b->x == x && b->y == y && b->z == z) return true;
 	}
+	return false;
+}
+// ¿Hay un bloque de jugador (rompible) ahí? Los bloques fijos del mundo no se rompen
+static bool breakable(int x, int y, int z) {
+	if (!local_blocks) return false;
+	for (unsigned h = hkey(x, y, z); ht[h]; h = (h + 1) & (HT_SIZE - 1)) { const Block *b = &local_blocks[ht[h] - 1]; if (b->x == x && b->y == y && b->z == z) return b->kind >= 0; }
 	return false;
 }
 #define SOLID(X, Y, Z) solid_at((int)floorf(X), (int)floorf(Y), (int)floorf(Z))
@@ -137,7 +151,7 @@ static bool project(float x, float y, float z, float *sx, float *sy, float *dept
 }
 
 typedef struct { float depth; float x, y, z, w, h; u32 color; int av; } Box;   // av: -1 bloque, 0 yo, 1+i jugador remoto i
-static Box draw_list[MAX_BLOCKS + MAX_PLAYERS * 2 + 4];
+static Box draw_list[MAX_LOCAL + MAX_PLAYERS * 2 + 4];
 
 static u32 shade(u32 c, float f) {
 	u32 r = (c & 0xFF) * f, g = ((c >> 8) & 0xFF) * f, b = ((c >> 16) & 0xFF) * f;
@@ -164,9 +178,11 @@ static void draw_box(float x, float y, float z, float w, float h, u32 color) {
 		const int *q = F[f];
 		float area = (sx[q[1]] - sx[q[0]]) * (sy[q[2]] - sy[q[0]]) - (sx[q[2]] - sx[q[0]]) * (sy[q[1]] - sy[q[0]]);
 		if (area <= 0) continue; // cara trasera (orientación según el orden de vértices)
-		u32 c = shade(color, lum[f]);
-		C2D_DrawTriangle(sx[q[0]], sy[q[0]], c, sx[q[1]], sy[q[1]], c, sx[q[2]], sy[q[2]], c, 0);
-		C2D_DrawTriangle(sx[q[0]], sy[q[0]], c, sx[q[2]], sy[q[2]], c, sx[q[3]], sy[q[3]], c, 0);
+		// degradado por vértice (gratis): las caras laterales se oscurecen hacia abajo (oclusión ambiental falsa) y la superior hacia el fondo
+		u32 cv[4];
+		for (int k = 0; k < 4; k++) { float fk = lum[f]; if (f >= 2 && q[k] < 4) fk *= 0.74f; else if (f == 1 && d[q[k]] > d[q[0]]) fk *= 0.94f; cv[k] = shade(color, fk); }
+		C2D_DrawTriangle(sx[q[0]], sy[q[0]], cv[0], sx[q[1]], sy[q[1]], cv[1], sx[q[2]], sy[q[2]], cv[2], 0);
+		C2D_DrawTriangle(sx[q[0]], sy[q[0]], cv[0], sx[q[2]], sy[q[2]], cv[2], sx[q[3]], sy[q[3]], cv[3], 0);
 	}
 }
 // Contorno de un cubo (el bloque al que apuntas)
@@ -189,7 +205,7 @@ static void do_chat(void) {
 }
 
 // ---------- Estado de la partida que usa el dibujado (a nivel de fichero para poder previsualizarlo) ----------
-static Block local[MAX_BLOCKS]; static Remote rem[MAX_PLAYERS], disp[MAX_PLAYERS];
+static Block local[MAX_LOCAL]; static Remote rem[MAX_PLAYERS], disp[MAX_PLAYERS];
 static struct { char name[24], text[100]; u64 until; } chat[4];
 static int kind = 1, nl, nr, ndisp;
 static AvPose pose_self, rem_pose[MAX_PLAYERS], disp_pose[MAX_PLAYERS];     // animación de cada avatar (suavizada)
@@ -209,7 +225,7 @@ static void render_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 	fog_near = 12 + lvl * 4; fog_far = 26 + lvl * 8;
 	int nd = 0; float sx, sy, d;
 	for (int i = 0; i < nl; i++) if (project(local[i].x + .5f, local[i].y + .5f, local[i].z + .5f, &sx, &sy, &d) && d < fog_far + 6)
-		draw_list[nd++] = (Box){d, local[i].x, local[i].y, local[i].z, 1, 1, fogged(shade(PALETTE[local[i].kind % NPALETTE], ((local[i].x * 7 + local[i].y * 13 + local[i].z * 5) & 3) == 0 ? 0.93f : 1.0f), d), -1};
+		draw_list[nd++] = (Box){d, local[i].x, local[i].y, local[i].z, 1, 1, fogged(shade(local[i].kind < 0 ? local[i].color : PALETTE[local[i].kind % NPALETTE], ((local[i].x * 7 + local[i].y * 13 + local[i].z * 5) & 3) == 0 ? 0.93f : 1.0f), d), -1};
 	if (project(px, py + .9f, pz, &sx, &sy, &d)) draw_list[nd++] = (Box){d, px, py, pz, 0, 0, 0, 0};
 	for (int i = 0; i < nr; i++) if (project(rem[i].x, rem[i].y + .9f, rem[i].z, &sx, &sy, &d))
 		draw_list[nd++] = (Box){d, rem[i].x, rem[i].y, rem[i].z, 0, 0, 0, 1 + i};
@@ -232,21 +248,28 @@ static void render_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 			C2D_DrawEllipseSolid(x, y, 0, w, h, c); C2D_DrawEllipseSolid(x + w * 0.22f, y - h * 0.5f, 0, w * 0.5f, h * 0.9f, c); C2D_DrawEllipseSolid(x + w * 0.5f, y - h * 0.25f, 0, w * 0.4f, h * 0.8f, c);
 		}
 	}
-	// Suelo: cuadrícula alrededor del jugador (con niebla)
-	for (int gx = -R; gx < R; gx++) for (int gz = -R; gz < R; gz++) {
-		int ax = (int)floorf(px) + gx, az = (int)floorf(pz) + gz;
-		float p[4][2], dd = 0, dm = 0; bool ok = true;
-		float cs4[4][2] = {{0,0},{1,0},{1,1},{0,1}};
-		for (int k = 0; k < 4; k++) { ok &= project(ax + cs4[k][0], 0, az + cs4[k][1], &p[k][0], &p[k][1], &dd); dm += dd; }
-		if (!ok) continue;
-		u32 c = fogged(((ax + az) & 1) ? C2D_Color32(0x5F, 0xAE, 0x5A, 255) : C2D_Color32(0x52, 0x9E, 0x4E, 255), dm / 4);
-		C2D_DrawTriangle(p[0][0], p[0][1], c, p[1][0], p[1][1], c, p[2][0], p[2][1], c, 0);
-		C2D_DrawTriangle(p[0][0], p[0][1], c, p[2][0], p[2][1], c, p[3][0], p[3][1], c, 0);
+	// Suelo: cuadrícula alrededor del jugador (con niebla). La plaza tiene su propio suelo de piedra a 1 bloque de altura.
+	if (world.floor) {
+		for (int gx = -R; gx < R; gx++) for (int gz = -R; gz < R; gz++) {
+			int ax = (int)floorf(px) + gx, az = (int)floorf(pz) + gz;
+			float p[4][2], dd = 0, dm = 0; bool ok = true;
+			float cs4[4][2] = {{0,0},{1,0},{1,1},{0,1}};
+			bool plaza = world.type == 1 && abs(ax) <= world.plaza_n && abs(az) <= world.plaza_n; float gy = plaza ? 1.0f : 0.0f;
+			for (int k = 0; k < 4; k++) { ok &= project(ax + cs4[k][0], gy, az + cs4[k][1], &p[k][0], &p[k][1], &dd); dm += dd; }
+			if (!ok) continue;
+			u32 base = plaza ? world_plaza_color(ax, az) : (((ax + az) & 1) ? C2D_Color32(0x5F, 0xAE, 0x5A, 255) : C2D_Color32(0x52, 0x9E, 0x4E, 255));
+			u32 c = fogged(base, dm / 4);
+			C2D_DrawTriangle(p[0][0], p[0][1], c, p[1][0], p[1][1], c, p[2][0], p[2][1], c, 0);
+			C2D_DrawTriangle(p[0][0], p[0][1], c, p[2][0], p[2][1], c, p[3][0], p[3][1], c, 0);
+		}
+	} else {                                                    // sin suelo (carrera, vacío): un abismo oscuro
+		u32 a = C2D_Color32(0x16, 0x1B, 0x33, 255), bb = C2D_Color32(0x05, 0x07, 0x12, 255);
+		C2D_DrawRectangle(0, 120, 0, 400, 120, a, a, bb, bb);
 	}
 	// sombras redondas bajo los jugadores
 	for (int i = -1; i < nr; i++) {
 		float ex = i < 0 ? px : rem[i].x, ey = i < 0 ? py : rem[i].y, ez = i < 0 ? pz : rem[i].z; float gx, gy, gd;
-		if (project(ex, floorf(ey) + 0.02f, ez, &gx, &gy, &gd) && gd < fog_far) { float r = 120.0f / (gd + 2.0f); C2D_DrawEllipseSolid(gx - r, gy - r * 0.35f, 0, r * 2, r * 0.7f, C2D_Color32(0, 0, 0, 70)); }
+		if (world.floor && project(ex, floorf(ey) + 0.02f, ez, &gx, &gy, &gd) && gd < fog_far) { float r = 120.0f / (gd + 2.0f); C2D_DrawEllipseSolid(gx - r, gy - r * 0.35f, 0, r * 2, r * 0.7f, C2D_Color32(0, 0, 0, 70)); }
 	}
 	// citro2d tiene un límite de objetos por frame: se descartan los más lejanos
 	int first = nd > cap ? nd - cap : 0;
@@ -280,6 +303,13 @@ static void render_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 		char fit[140]; snprintf(fit, sizeof fit, "%s", line); while (strlen(fit) > 4 && ui_text_width(fit, 0.38f) > lw - 10) fit[strlen(fit) - 1] = 0;
 		ui_text(12, y, 0.38f, COL_TEXT, 0, fit); row++;
 	}
+	if (race.start && !race.done) {                                            // cronómetro de la carrera
+		unsigned ms = (unsigned)(now - race.start); char tb[24]; snprintf(tb, sizeof tb, "%u:%05.2f", ms / 60000, (ms % 60000) / 1000.0f);
+		ui_rrect(170, 8, 60, 20, 8, C2D_Color32(0, 0, 0, 140)); ui_text(200, 10, 0.42f, COL_TEXT, C2D_AlignCenter, tb);
+	}
+	if (big_until > now && big_msg[0]) {                                       // mensaje grande
+		float bw = ui_text_width(big_msg, 0.8f) + 30; ui_rrect(200 - bw / 2, 80, bw, 36, 12, C2D_Color32(0, 0, 0, 160)); ui_text(200, 86, 0.8f, COL_TEXT, C2D_AlignCenter, big_msg);
+	}
 	if (game_alert_until > now && game_alert[0]) {                              // aviso de un amigo
 		char al[96]; LightLock_Lock(&lock); snprintf(al, sizeof al, "%s", game_alert); LightLock_Unlock(&lock);
 		float aw = ui_text_width(al, 0.4f) + 22; if (aw > 380) aw = 380;
@@ -300,7 +330,11 @@ static void render_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 // Una partida. Devuelve true para volver al lobby; false si el usuario pulsa START (salir de la app).
 static bool play_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 	LightLock_Init(&lock);
-	nblocks = nremotes = qn = nchat_new = 0; px = 0.5f; py = 3; pz = 0.5f; pry = 0; vy = 0; grounded = false; moving = 0; running = true; want_offline = false;
+	nblocks = nremotes = qn = nchat_new = 0; pry = 0; vy = 0; grounded = false; moving = 0; running = true; want_offline = false;
+	world_build(&world, cur_game.world, cur_game.seed);                         // mundo base (plaza, carrera...) igual que en la web
+	px = world.spawn[0]; py = world.spawn[1]; pz = world.spawn[2]; rsp_x = px; rsp_y = py; rsp_z = pz;
+	can_build = !strcmp(cur_game.owner_id, sess.user_id) || (cur_game.allow_build >= 0 ? cur_game.allow_build > 0 : !strcmp(cur_game.mode, "build"));
+	jump_v = cur_game.jump > 1 ? cur_game.jump : 8.6f; memset(&race, 0, sizeof race); big_msg[0] = 0; big_until = 0;
 	cam_yaw = 0; cam_pitch = 0.5f; cam_dist = 9; cx_ = px; cy_ = py + 1; cz_ = pz;
 	net_set_game(cur_game.id);
 	s32 prio = 0; svcGetThreadPriority(&prio, CUR_THREAD_HANDLE);
@@ -353,6 +387,7 @@ static bool play_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 		// ---- datos de red -> copia local ----
 		LightLock_Lock(&lock);
 		memcpy(local, blocks, sizeof(Block) * nblocks); nl = nblocks;
+		for (int i = 0; i < world.ncells && nl < MAX_LOCAL; i++) local[nl++] = world.cells[i];      // bloques fijos del mundo
 		memcpy(rem, remotes, sizeof(Remote) * nremotes); nr = nremotes;
 		for (int i = 0; i < nchat_new; i++) {                       // mensajes nuevos -> lista visible 10 s
 			memmove(&chat[0], &chat[1], sizeof chat[0] * 3);
@@ -394,11 +429,25 @@ static bool play_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 		else if (grounded && !body_hits(nx, py + 1.01f, pz)) { px = nx; py += 1.01f; }
 		if (!body_hits(px, py, nz)) pz = nz;
 		else if (grounded && !body_hits(px, py + 1.01f, nz)) { pz = nz; py += 1.01f; }
-		if ((down & KEY_A) && grounded) { vy = 8.6f; grounded = false; }
+		if ((down & KEY_A) && grounded) { vy = jump_v; grounded = false; }
 		vy -= 24 * dt; float ny = py + vy * dt; grounded = false;
 		if (body_hits(px, ny, pz)) { if (vy < 0) grounded = true; vy = 0; }
 		else py = ny;
-		if (py < 0) { py = 0; vy = 0; grounded = true; }
+		if (world.floor && py < 0) { py = 0; vy = 0; grounded = true; }
+		if (!world.floor && py < world.void_y) {                              // caíste al vacío: vuelves al último punto de control
+			px = rsp_x; py = rsp_y; pz = rsp_z; vy = 0; cx_ = px; cy_ = py + 1; cz_ = pz;
+			snprintf(big_msg, sizeof big_msg, "Has caido"); big_until = now + 1200;
+		}
+		if (world.ncp || world.has_fin) {                                      // carrera: cronómetro, puntos de control y meta
+			if (!race.start && moving) race.start = now;
+			for (int i = 0; i < world.ncp; i++) if (world.cp[i].id > race.cp && hypotf(px - world.cp[i].x, pz - world.cp[i].z) < 2.2f && fabsf(py - world.cp[i].y) < 2.5f) {
+				race.cp = world.cp[i].id; rsp_x = world.cp[i].x; rsp_y = world.cp[i].y; rsp_z = world.cp[i].z; snprintf(big_msg, sizeof big_msg, "Punto de control %d", race.cp); big_until = now + 1400;
+			}
+			if (world.has_fin && !race.done && hypotf(px - world.fin[0], pz - world.fin[2]) < world.fin_r && fabsf(py - world.fin[1]) < 3) {
+				race.done = true; unsigned ms = (unsigned)(now - (race.start ? race.start : now)); snprintf(big_msg, sizeof big_msg, "Meta! %u:%05.2f", ms / 60000, (ms % 60000) / 1000.0f); big_until = now + 5000;
+			}
+			if (race.done && now > big_until - 500) { px = world.spawn[0]; py = world.spawn[1]; pz = world.spawn[2]; rsp_x = px; rsp_y = py; rsp_z = pz; vy = 0; cx_ = px; cy_ = py + 1; cz_ = pz; memset(&race, 0, sizeof race); }
+		}
 		if (emote[0] && (moving || !grounded)) emote[0] = 0;                 // moverte o saltar corta el emote
 		{ const char *an = !grounded ? "jump" : moving ? "walk" : emote[0] ? emote : "idle"; snprintf(send_anim, sizeof send_anim, "%s", an);
 		  float dyaw = fmodf(pry - self_yaw + 3 * (float)M_PI, 2 * (float)M_PI) - (float)M_PI; self_yaw += dyaw * fminf(1, dt * 14);
@@ -408,13 +457,14 @@ static bool play_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 		tx = (int)floorf(px + sinf(pry) * 1.1f); tz = (int)floorf(pz + cosf(pry) * 1.1f); int ty = (int)floorf(py + 0.05f);
 		place_y = break_y = -1;
 		for (int dy = 0; dy < 4 && place_y < 0; dy++) if (!solid_at(tx, ty + dy, tz)) place_y = ty + dy;      // primer hueco libre (apila si hay bloque)
-		for (int dy = 0; dy < 3 && break_y < 0; dy++) if (solid_at(tx, ty + dy, tz)) break_y = ty + dy;        // el bloque más bajo
+		for (int dy = 0; dy < 3 && break_y < 0; dy++) if (breakable(tx, ty + dy, tz)) break_y = ty + dy;        // el bloque más bajo (solo los de jugadores)
 		overlap = place_y >= 0 && fabsf(px - (tx + .5f)) < 0.8f && fabsf(pz - (tz + .5f)) < 0.8f && py < place_y + 1 && py + 1.8f > place_y;
-		if ((down & KEY_X) && place_y >= 0 && !overlap && nl < MAX_BLOCKS) {
+		if (!can_build && (down & (KEY_X | KEY_Y))) { snprintf(big_msg, sizeof big_msg, "Aqui no se puede construir"); big_until = now + 1500; }
+		if (can_build && (down & KEY_X) && place_y >= 0 && !overlap && nblocks < MAX_BLOCKS) {
 			push_action((Action){.type = PLACE, .x = tx, .y = place_y, .z = tz, .kind = kind});
 			LightLock_Lock(&lock); if (nblocks < MAX_BLOCKS) blocks[nblocks++] = (Block){tx, place_y, tz, kind}; LightLock_Unlock(&lock);
 		}
-		if ((down & KEY_Y) && break_y >= 0) {
+		if (can_build && (down & KEY_Y) && break_y >= 0) {
 			push_action((Action){.type = BREAK, .x = tx, .y = break_y, .z = tz});
 			LightLock_Lock(&lock);
 			for (int i = 0; i < nblocks; i++) if (blocks[i].x == tx && blocks[i].y == break_y && blocks[i].z == tz) { blocks[i] = blocks[--nblocks]; break; }
@@ -462,8 +512,10 @@ int main(int argc, char **argv) {
 #ifdef BLOCKSY_PREVIEW
 // Solo para generar capturas en el ordenador (3ds/preview): un mundo de ejemplo
 void game_preview(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
+	{ const char *pw = getenv("BLOCKSY_PREVIEW_WORLD"); world_build(&world, pw ? pw : "", 0); can_build = true; }
 	snprintf(sess.username, sizeof sess.username, "IkerPlays"); sess.color = 0xFF439FFF; snprintf(cur_game.name, sizeof cur_game.name, "Spawn Plaza");
 	nl = 0;
+	if (getenv("BLOCKSY_PREVIEW_WORLD")) { for (int i = 0; i < world.ncells; i++) local[nl++] = world.cells[i]; ht_build(local, nl); local_blocks = local; nr = 0; px = world.spawn[0]; py = world.spawn[1]; pz = world.spawn[2]; pry = 0.3f; cam_yaw = 0.2f; cam_pitch = 0.45f; cam_dist = 9; cx_ = px; cy_ = py + 1; cz_ = pz; now_ms = 20000; t_start = 0; self_yaw = 0.3f; kind = 2; tx = 0; tz = 0; break_y = place_y = -1; overlap = false; pose_self.legY = 0.74f; render_game(top, bot); return; }
 	for (int x = -6; x <= 6; x++) for (int z = -6; z <= 6; z++) if ((x + z) % 4 == 0) local[nl++] = (Block){x, 0, z, 4};
 	for (int y = 0; y < 3; y++) for (int i = -5; i <= 5; i++) { local[nl++] = (Block){i, y, -5, 1}; local[nl++] = (Block){-5, y, i, 2}; if (i % 2) local[nl++] = (Block){i, y, 5, 3}; }
 	for (int y = 0; y < 5; y++) local[nl++] = (Block){4, y, 2, 5};

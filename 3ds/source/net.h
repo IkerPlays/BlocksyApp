@@ -6,7 +6,7 @@
 #define MAX_BLOCKS  2048
 
 typedef struct { char id[40]; char name[24]; float x, y, z, ry; unsigned int color; int is3ds; char anim[12]; } Remote;
-typedef struct { int x, y, z, kind; } Block;
+typedef struct { int x, y, z, kind; unsigned int color; } Block;   // kind = -1: bloque fijo del mundo (color propio, no se rompe)
 
 typedef struct {
 	char token[1600];   // access_token del proyecto AUTH
@@ -24,7 +24,7 @@ bool net_download(const char *url, NetSink sink, void *ud, volatile int *pct, ch
 bool net_init(void);
 void net_exit(void);
 
-typedef struct { char id[40]; char name[44]; char desc[104]; char owner_id[40]; char owner[24]; int hue, max, players; } GameInfo;
+typedef struct { char id[40]; char name[44]; char desc[104]; char owner_id[40]; char owner[24]; int hue, max, players; char mode[8]; char world[12]; int allow_build; float jump; int seed; } GameInfo;   // allow_build: -1 según el modo
 typedef struct { char id[40]; char name[24]; unsigned int color; int online, in_game; } Person;
 #define MAX_GAMES  32
 #define MAX_PEOPLE 32

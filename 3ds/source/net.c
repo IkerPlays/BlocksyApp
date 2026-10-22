@@ -421,7 +421,7 @@ int net_fetch_chat(long since, ChatMsg *out, int max, long *last) {
 
 // ---------- Lobby: juegos, amigos, avatar ----------
 int net_list_games(GameInfo *out, int max) {
-	char *r = http(M_GET, GAME_URL "/rest/v1/games?select=id,name,description,owner_id,owner_name,hue,max_players&order=created_at.asc&limit=32", GAME_ANON_KEY, NULL, NULL, NULL);
+	char *r = http(M_GET, GAME_URL "/rest/v1/games?select=id,name,description,owner_id,owner_name,hue,max_players,mode,config&order=created_at.asc&limit=32", GAME_ANON_KEY, NULL, NULL, NULL);
 	if (!r) { set_err("No se pudo cargar la lista de juegos"); return -1; }
 	int n = 0; const char *p = r, *end;
 	while (n < max && (p = next_obj(p, &end))) {
@@ -431,6 +431,16 @@ int net_list_games(GameInfo *out, int max) {
 		jstr(st, end, "name", g->name, sizeof g->name); jstr(st, end, "description", g->desc, sizeof g->desc);
 		jstr(st, end, "owner_id", g->owner_id, sizeof g->owner_id); jstr(st, end, "owner_name", g->owner, sizeof g->owner);
 		g->hue = (int)jnum(st, end, "hue"); g->max = (int)jnum(st, end, "max_players"); if (!g->max) g->max = 20;
+		strcpy(g->mode, "build"); jstr(st, end, "mode", g->mode, sizeof g->mode);
+		g->allow_build = -1; g->jump = 8.6f; g->seed = 1337;
+		{ const char *cf = json_find_from(st, end, "config");
+		  if (cf && *cf == '{') {
+			const char *ce = strchr(cf, '}'); if (!ce) ce = end;
+			jstr(cf, ce, "world", g->world, sizeof g->world);
+			const char *ab = json_find_from(cf, ce, "allow_build"); if (ab) g->allow_build = *ab == 't';
+			const char *jp = json_find_from(cf, ce, "jump"); if (jp) g->jump = strtof(jp, NULL);
+			const char *sd = json_find_from(cf, ce, "seed"); if (sd) g->seed = (int)strtof(sd, NULL);
+		  } }
 		n++;
 	}
 	free(r); return n;

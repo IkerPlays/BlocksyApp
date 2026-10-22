@@ -1,6 +1,7 @@
 #include <3ds.h>
 #include <citro2d.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include "ui.h"
 #include "app.h"
@@ -27,6 +28,9 @@ int main(void) {
 	fprintf(g_out, "SCENE avatar_wave\n"); app_preview(&top, &bot, 2, -6, 0, v);
 	fprintf(g_out, "SCENE avatar_dance\n"); app_preview(&top, &bot, 2, -7, 0, v);
 	fprintf(g_out, "SCENE game\n"); game_preview(&top, &bot);
+	setenv("BLOCKSY_PREVIEW_WORLD", "plaza", 1); fprintf(g_out, "SCENE world_plaza\n"); game_preview(&top, &bot);
+	setenv("BLOCKSY_PREVIEW_WORLD", "obby", 1); fprintf(g_out, "SCENE world_obby\n"); game_preview(&top, &bot);
+	unsetenv("BLOCKSY_PREVIEW_WORLD");
 	fprintf(g_out, "SCENE game_bottom\n");
 	static Session s; snprintf(s.username, sizeof s.username, "Iker"); s.color = 0xFF439FFF;
 	static Remote r[3]; snprintf(r[0].name, 24, "Marta"); r[0].color = 0xFF71CC2E; snprintf(r[1].name, 24, "Dani"); r[1].color = 0xFFB6599B; r[1].is3ds = 1; snprintf(r[2].name, 24, "Pablo"); r[2].color = 0xFF129CF3;
