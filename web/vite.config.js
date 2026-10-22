@@ -1,5 +1,5 @@
 import { defineConfig } from 'vite'
-import { readdirSync, writeFileSync, mkdirSync, existsSync } from 'node:fs'
+import { readdirSync, writeFileSync, mkdirSync, existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { join } from 'node:path'
 
@@ -25,7 +25,17 @@ function playlistPlugin() {
   }
 }
 
+const BUILD = new Date().toISOString().replace(/[-:T.Z]/g, '').slice(0, 14)    // ej. 20261022154300
+// Escribe el identificador de compilación en dist/sw.js
+function stampSW() {
+  return { name: 'blocksy-stamp-sw', apply: 'build', closeBundle() {
+    const f = fileURLToPath(new URL('./dist/sw.js', import.meta.url))
+    if (existsSync(f)) writeFileSync(f, readFileSync(f, 'utf8').replace('__BUILD__', BUILD))
+  } }
+}
+
 export default defineConfig({
-  plugins: [playlistPlugin()],
+  define: { __BUILD__: JSON.stringify(BUILD) },
+  plugins: [playlistPlugin(), stampSW()],
   build: { chunkSizeWarningLimit: 1200 },
 })

@@ -1,12 +1,14 @@
 // Service worker de Blocksy: la app (HTML/JS/CSS/iconos) funciona sin conexión; la API y la música siempre van a la red.
-const VERSION = 'blocksy-v2'
+const BUILD = '__BUILD__'                       // la sustituye vite en cada compilación: así el navegador detecta una versión nueva
+const VERSION = 'blocksy-' + BUILD
 const SHELL = ['/', '/manifest.webmanifest', '/icons/icon-192.png', '/icons/icon-512.png']
 
-self.addEventListener('install', e => { e.waitUntil(caches.open(VERSION).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())) })
+// La versión nueva espera a que el usuario pulse "Actualizar" (mensaje 'skip'); así no cambia el código a mitad de una partida
+self.addEventListener('install', e => { e.waitUntil(caches.open(VERSION).then(c => c.addAll(SHELL))) })
 self.addEventListener('activate', e => {
   e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== VERSION).map(k => caches.delete(k)))).then(() => self.clients.claim()))
 })
-self.addEventListener('message', e => { if (e.data === 'skip') self.skipWaiting() })
+self.addEventListener('message', e => { if (e.data === 'skip') self.skipWaiting(); if (e.data === 'version') e.source?.postMessage({ type: 'version', build: BUILD }) })
 
 self.addEventListener('fetch', e => {
   const req = e.request, url = new URL(req.url)

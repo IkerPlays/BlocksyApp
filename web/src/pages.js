@@ -6,7 +6,7 @@ import { icon } from './icons.js'
 import { headshot, styleFor, EMOTES, createPreview } from './avatar.js'
 import { t, LANGS, langName, getLang, setLang, onLang } from './i18n.js'
 import { checkSyntax, EXAMPLES } from './script.js'
-import { installApp, canInstall, isInstalled, askNotifications } from './pwa.js'
+import { installApp, canInstall, isInstalled, askNotifications, checkForUpdate, applyUpdate, isUpdateReady, BUILD } from './pwa.js'
 
 const $ = id => document.getElementById(id)
 export function el(tag, props = {}, ...kids) {
@@ -317,10 +317,15 @@ export const pages = {
       : canInstall() ? el('button', { class: 'btn blue', html: icon('device', 16) + ' ' + t('set_install'), onclick: async () => { await installApp(); paintInstall() } }) : null,
       'Notification' in window && Notification.permission !== 'granted' ? el('button', { class: 'btn', style: 'margin-left:8px', html: icon('bell', 16) + ' ' + t('set_notif_perm'), onclick: async () => { await askNotifications(); paintInstall() } }) : null)
     paintInstall()
+    const upd = el('div', { class: 'upd-row' }), updMsg = el('small', { style: 'color:var(--muted)' })
+    const paintUpd = () => setKids(upd, el('div', {}, el('b', { text: t('web_version') }), ' ', el('code', { text: BUILD })), updMsg,
+      isUpdateReady() ? el('button', { class: 'btn primary', text: t('update_now'), onclick: applyUpdate })
+        : el('button', { class: 'btn', text: t('check_updates'), onclick: async () => { updMsg.textContent = t('checking'); const r = await checkForUpdate(); updMsg.textContent = r === 'latest' ? t('up_to_date') : r === 'ready' ? t('update_available') : t('err_generic'); paintUpd() } }))
+    paintUpd()
     setKids(root, el('h1', { class: 'page-title', text: t('settings') }),
       el('div', { class: 'settings-grid' },
         el('div', { class: 'panel' }, el('h3', { text: t('set_language') }), el('label', { class: 'field' }, t('set_language'), langSel), el('p', { class: 'msg', style: 'text-align:left', text: t('lang_hint') }),
-          sel('theme', t('set_theme'), [['dark', t('theme_dark')], ['light', t('theme_light')]], applyTheme), el('label', { class: 'field' }, t('set_accent'), accent), sw('reduceMotion', t('set_motion'), applyTheme), installRow),
+          sel('theme', t('set_theme'), [['dark', t('theme_dark')], ['light', t('theme_light')]], applyTheme), el('label', { class: 'field' }, t('set_accent'), accent), sw('reduceMotion', t('set_motion'), applyTheme), installRow, el('div', { class: 'section-s', text: t('web_version') }), upd),
         el('div', { class: 'panel' }, el('h3', { text: t('set_quality') }),
           sel('quality', t('set_quality'), [['low', t('q_low')], ['med', t('q_med')], ['high', t('q_high')], ['ultra', t('q_ultra')]]),
           rg('viewDistance', t('set_dist'), 30, 250, 10), rg('fov', t('set_fov'), 50, 100, 1), sw('dynRes', t('set_dynres')), sw('shadows', t('set_shadows')), sw('bloom', t('set_bloom')), sw('clouds', t('set_clouds'))),
@@ -328,7 +333,7 @@ export const pages = {
           sw('music', t('set_music')), rg('musicVol', t('set_music_vol'), 0, 1, 0.05, v => Math.round(v * 100) + '%'), sw('shuffle', t('set_shuffle')),
           sw('sfx', t('set_sfx')), rg('sfxVol', t('set_sfx_vol'), 0, 1, 0.05, v => Math.round(v * 100) + '%')),
         el('div', { class: 'panel' }, el('h3', { text: t('controls') ?? 'Controles' }),
-          rg('sensitivity', t('set_sens'), 0.3, 2.5, 0.1), sw('invertY', t('set_invert')), sw('names', t('set_names')), sw('bubbles', t('set_bubbles')),
+          rg('sensitivity', t('set_sens'), 0.3, 2.5, 0.1), rg('syncMs', t('set_sync'), 40, 400, 10, v => v + ' ms'), sw('invertY', t('set_invert')), sw('names', t('set_names')), sw('bubbles', t('set_bubbles')),
           sw('minimap', t('set_minimap')), sw('showFps', t('set_fps')), sw('notifPopups', t('set_notif')),
           rg('touchSize', t('set_touch_size'), 0.7, 1.5, 0.1), sw('leftHanded', t('set_left'))),
         el('div', { class: 'panel' }, el('h3', { text: t('set_stats') }),

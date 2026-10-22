@@ -9,7 +9,7 @@ import { applyIcons } from './icons.js'
 import { headshot } from './avatar.js'
 import { t, applyStatic, setLang, getLang, LANGS, langName, onLang } from './i18n.js'
 import { initNotifications, openInvite } from './social-ui.js'
-import { registerSW } from './pwa.js'
+import { registerSW, applyUpdate } from './pwa.js'
 
 const $ = id => document.getElementById(id)
 let profile = null, currentGame = null, stopGame = null, mode = 'login', stopNotif = null
@@ -133,7 +133,8 @@ new MutationObserver(() => { if ($('modal').classList.contains('hidden')) $('gam
 $('search').addEventListener('submit', e => { e.preventDefault(); const q = $('search-input').value.trim(); navigate(q ? `/discover/${encodeURIComponent(q)}` : '/discover') })
 window.addEventListener('beforeunload', () => { api.leaveBeacon() })
 registerSW(() => { $('update-bar').classList.remove('hidden') })
-$('update-reload').onclick = () => location.reload()
+$('update-reload').onclick = () => applyUpdate()
+$('update-later').onclick = () => $('update-bar').classList.add('hidden')
 
 applyTheme(); applyStatic(); buildLangSelect(); applyIcons()
 authDb.auth.getSession().then(({ data }) => (data.session ? enterApp() : showScreen('auth')))

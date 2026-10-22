@@ -635,7 +635,7 @@ static void draw_all(C3D_RenderTarget *top, C3D_RenderTarget *bot, const Ui *u, 
 	ui_set_depth(0.4f); modal_top(u);                         // ficha del juego: por encima de los textos de la página
 	ui_set_depth(0); top_bar(u, s, W.busy);
 	if (u->toast_until > osGetTime()) {
-		ui_set_depth(0.6f);
+		ui_set_depth(0.45f);   // texto = +0.5: por encima de 1.0 citro2d lo recorta (el texto del aviso no salía)
 		float w = ui_text_width(u->toast, 0.44f) + 28;
 		ui_rrect(200 - w / 2, 204, w, 24, 10, COL_PANEL2); ui_text(200, 208, 0.44f, COL_TEXT, C2D_AlignCenter, u->toast);
 		ui_set_depth(0);

@@ -269,3 +269,5 @@ textarea.code { flex:1; border:0; outline:none; resize:none; background:transpar
 .dm { position:relative; align-items:center; gap:6px; } .dm.mine { flex-direction:row-reverse; justify-content:flex-start; }
 .dm-actions { display:none; gap:4px; } .dm.mine:hover .dm-actions, .dm-actions.show { display:flex; } .dm-actions .btn { padding:4px 8px; }
 .dm-edit { min-width:200px; background:#0003; color:#fff; border:1px solid #fff5; }
+
+.upd-row { display:flex; flex-direction:column; gap:8px; align-items:flex-start; } #update-bar .btn + .btn { margin-left:0; }

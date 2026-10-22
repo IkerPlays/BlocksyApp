@@ -17,7 +17,6 @@ import { icon } from './icons.js'
 
 // 12 colores: la 3DS usa los mismos (3ds/source/main.c)
 export const PALETTE = ['#e8e8e8', '#e74c3c', '#f39c12', '#2ecc71', '#3498db', '#9b59b6', '#f1c40f', '#1abc9c', '#ff6b9d', '#8b5e34', '#4b4f57', '#7ed6ff']
-const SEND_MS = 100        // 10 Hz de posición
 const STALE_MS = 15_000    // jugador sin actualizar = desconectado
 const CAP = 6000           // bloques máximos por color
 const key = (x, y, z) => `${x},${y},${z}`
@@ -571,7 +570,8 @@ export function startGame({ game, profile, canvas, onExit, onInvite }) {
     for (const p of pl ?? []) upsertOther(p)
   })()
 
-  const sendTimer = setInterval(send, SEND_MS)
+  let sendTimer = setInterval(send, settings.syncMs)
+  const offSync = onSettings(() => { clearInterval(sendTimer); sendTimer = setInterval(send, settings.syncMs) })      // ajuste "Sincronización": cada cuántos ms se envía la posición
   const pruneTimer = setInterval(() => { for (const [id, o] of others) if (Date.now() - o.seen > STALE_MS) dropOther(id) }, 2000)
   const syncTimer = setInterval(async () => {
     const { data } = await gameDb.from('blocks').select('x,y,z,kind').eq('game_id', game.id).limit(5000)
@@ -596,7 +596,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite }) {
         if (chatSeen.size > 200) chatSeen = new Set([...chatSeen].slice(-50))
       }
     } catch {} finally { pollBusy = false }
-  }, 900)
+  }, Math.max(500, Math.min(1500, settings.syncMs * 6)))
   const rosterTimer = setInterval(() => { if (!roster.classList.contains('hidden') || paused) drawRoster() }, 1500)
   const tickTimer = setInterval(() => runner.fire('tick', { data: { players: others.size + 1 } }), 1000)
   const timeTimer = setInterval(() => bump('time', 5), 5000)
@@ -695,7 +695,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite }) {
     window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); window.removeEventListener('resize', onResize)
     window.removeEventListener('pointermove', pmove); window.removeEventListener('pointerup', pup); window.removeEventListener('pointercancel', pup)
     canvas.removeEventListener('pointerdown', pdown); canvas.removeEventListener('wheel', wheel); canvas.removeEventListener('contextmenu', noMenu); canvas.removeEventListener('pointerleave', pleave)
-    offSettings(); offLang(); offMusic(); music.stop(); runner.dispose()
+    offSettings(); offSync(); offLang(); offMusic(); music.stop(); runner.dispose()
     touchUi?.remove(); emotePanel.classList.add('hidden'); mPanel.classList.add('hidden'); $('big-title').classList.add('hidden')
     $('pause').classList.add('hidden'); roster.classList.add('hidden'); log.replaceChildren()
     api.leave().catch(() => {}); gameDb.removeChannel(channel)

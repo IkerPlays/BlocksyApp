@@ -2,6 +2,7 @@
 const D = {
   es: {
     lang_name: 'Español',
+    update_now: 'Actualizar ahora', update_later: 'Más tarde', web_version: 'Versión de la web', check_updates: 'Buscar actualizaciones', checking: 'Buscando...', up_to_date: 'Ya tienes la última versión',
     set_dynres: 'Resolución dinámica (mantiene los fps)', err_generic: 'Error', nav_profile: 'Perfil', p_joined: 'Se unió el {date}', p_friends: 'Amigos', p_games: 'Juegos creados', p_no_bio: 'Sin biografía todavía.', p_bio_ph: 'Escribe algo sobre ti...', p_edit_avatar: 'Editar avatar', p_edit_bio: 'Editar biografía', p_not_found: 'Este usuario no existe', p_no_games: 'Aún no ha creado juegos.', p_you: 'Tu perfil', p_copy: 'Copiar enlace del perfil',
     nav_home: 'Inicio', nav_discover: 'Descubrir', nav_avatar: 'Avatar', nav_friends: 'Amigos', nav_link: 'Vincular 3DS', nav_create: 'Crear', nav_settings: 'Ajustes', nav_logout: 'Salir',
     search_games: 'Buscar juegos', loading: 'Cargando...', see_all: 'Ver todo', close: 'Cerrar', cancel: 'Cancelar', save: 'Guardar', saved: 'Guardado', delete: 'Borrar', play: 'Jugar', back: 'Volver', send: 'Enviar', yes: 'Sí', no: 'No',
@@ -40,10 +41,11 @@ const D = {
     controls_help: 'WASD mover, Mayús correr, Espacio saltar (doble salto = volar con F). Arrastra para girar la cámara. Clic poner, clic derecho romper. 1-6 elige bloque. G emotes, / chat, Tab jugadores, M música, P captura, Esc menú.',
     checkpoint: 'Punto de control', finish: '¡Meta! Tiempo: {t}', fell: 'Has caído', best: 'Mejor tiempo',
     err_game_server: 'Servidor de juego: {msg}', copy: 'Copiar', lang_hint: 'El idioma se aplica al instante.',
-    update_available: 'Hay una versión nueva. Recarga para actualizar.', reload: 'Recargar', offline_ready: 'Lista para usarse sin conexión',
+    update_available: 'Hay una versión nueva. Pulsa Actualizar.', reload: 'Recargar', offline_ready: 'Lista para usarse sin conexión',
   },
   en: {
     lang_name: 'English',
+    update_now: 'Update now', update_later: 'Later', web_version: 'Web version', check_updates: 'Check for updates', checking: 'Checking...', up_to_date: 'You have the latest version',
     set_dynres: 'Dynamic resolution (keeps fps up)', err_generic: 'Error', nav_profile: 'Profile', p_joined: 'Joined {date}', p_friends: 'Friends', p_games: 'Created games', p_no_bio: 'No bio yet.', p_bio_ph: 'Write something about yourself...', p_edit_avatar: 'Edit avatar', p_edit_bio: 'Edit bio', p_not_found: 'This user does not exist', p_no_games: 'No games created yet.', p_you: 'Your profile', p_copy: 'Copy profile link',
     nav_home: 'Home', nav_discover: 'Discover', nav_avatar: 'Avatar', nav_friends: 'Friends', nav_link: 'Link 3DS', nav_create: 'Create', nav_settings: 'Settings', nav_logout: 'Log out',
     search_games: 'Search games', loading: 'Loading...', see_all: 'See all', close: 'Close', cancel: 'Cancel', save: 'Save', saved: 'Saved', delete: 'Delete', play: 'Play', back: 'Back', send: 'Send', yes: 'Yes', no: 'No',
@@ -82,7 +84,7 @@ const D = {
     controls_help: 'WASD move, Shift sprint, Space jump (double jump = fly with F). Drag to turn the camera. Click place, right click break. 1-6 pick block. G emotes, / chat, Tab players, M music, P screenshot, Esc menu.',
     checkpoint: 'Checkpoint', finish: 'Finish! Time: {t}', fell: 'You fell', best: 'Best time',
     err_game_server: 'Game server: {msg}', copy: 'Copy', lang_hint: 'The language applies instantly.',
-    update_available: 'A new version is available. Reload to update.', reload: 'Reload', offline_ready: 'Ready to use offline',
+    update_available: 'A new version is available. Tap Update.', reload: 'Reload', offline_ready: 'Ready to use offline',
   },
   pt: {
     lang_name: 'Português',
