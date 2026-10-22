@@ -27,9 +27,13 @@ export function applyTheme() {
 const SK = 'blocksy.stats'
 let stats = { time: 0, placed: 0, broken: 0, msgs: 0, games: [] }
 try { stats = { ...stats, ...JSON.parse(localStorage.getItem(SK) ?? '{}') } } catch {}
-export const getStats = () => stats
-export function bump(k, n = 1) { stats[k] = (stats[k] || 0) + n; try { localStorage.setItem(SK, JSON.stringify(stats)) } catch {} }
-export function visited(id) { if (!stats.games.includes(id)) { stats.games.push(id); bump('games', 0) } }
+export const getStats = () => { if (!Array.isArray(stats.games)) stats.games = []; return stats }
+const saveStats = () => { try { localStorage.setItem(SK, JSON.stringify(stats)) } catch {} }
+export function bump(k, n = 1) { stats[k] = (Number(stats[k]) || 0) + n; saveStats() }
+export function visited(id) {
+  if (!Array.isArray(stats.games)) stats.games = []            // estadísticas guardadas por una versión con el fallo: se repara solas
+  if (!stats.games.includes(id)) { stats.games.push(id); saveStats() }
+}
 
 // Mejores tiempos de carreras (por juego)
 export function bestTime(gameId, t) {
