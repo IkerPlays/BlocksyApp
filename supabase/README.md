@@ -51,3 +51,12 @@ La web enseña el apartado Crear solo si la respuesta de `game-session` trae `ca
 3. Para que el chat y los jugadores lleguen en tiempo real, comprueba en Database → Publications → `supabase_realtime` que están las tablas
    (los scripts ya las añaden). La web usa además consultas de respaldo cada ~1 s, así que sigue funcionando aunque Realtime falle.
 4. Música: pon tus archivos en `web/public/playlist/` y haz push; Netlify genera la lista al compilar.
+
+## BCoins, tienda y cofres (v3)
+1. **AUTH** → SQL Editor: ejecuta `auth/shop.sql` (después de `social.sql`). Crea `shop_items`, `inventory`, `coin_log` y las funciones `my_wallet`, `claim_daily`, `earn_coins`, `buy_item`, `open_crate`, `equip_item`.
+   También **quita al cliente el permiso de modificar** `bcoins`, `streak` y `equipped` (solo se pueden cambiar con esas funciones).
+2. Las monedas por jugar (`earn_coins`) las pide el cliente con topes diarios bajos; vale para amigos, no es a prueba de tramposos decididos.
+3. Para añadir objetos a la tienda: inserta filas en `shop_items` (`kind`: hat | title | crate). Los sombreros nuevos necesitan además su modelo en `web/src/avatar.js` (`addHat`).
+
+## Studio y Lua
+El Studio (`/studio/<id>`) guarda en `games.config` (`ui` = textos en pantalla, `script_lang` = js | lua) y en `games.script`; no necesita más SQL que `game/v2.sql`.

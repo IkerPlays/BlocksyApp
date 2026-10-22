@@ -287,3 +287,14 @@ textarea.code { flex:1; border:0; outline:none; resize:none; background:transpar
 .p-title { color:#f5c542; font-weight:800; font-size:13px; letter-spacing:.5px; text-transform:uppercase; } .p-title:empty { display:none; }
 
 .hud-btn.speaking { box-shadow:0 0 0 3px #2ecc71; } .vmic { color:var(--muted); display:inline-flex; margin-left:6px; } .vmic.on { color:#2ecc71; }
+
+/* ---- Studio y texto de UI ---- */
+#ui-layer { position:fixed; inset:0; pointer-events:none; z-index:2; overflow:hidden; }
+.ui-el { position:absolute; transform:translate(-50%,-50%); font-weight:800; text-shadow:0 2px 8px #000a, 0 0 2px #000; white-space:pre; pointer-events:none; user-select:none; }
+#game.studio .ui-el { outline:1px dashed #ffffff55; padding:2px 6px; } #game.studio.tool-ui .ui-el { pointer-events:auto; cursor:move; outline-color:#ffffffaa; } #game.studio .ui-el.sel { outline:2px solid var(--accent2); }
+#studio-bar { position:fixed; left:50%; top:10px; transform:translateX(-50%); display:flex; gap:6px; background:#000c; padding:6px; border-radius:14px; z-index:7; flex-wrap:wrap; justify-content:center; max-width:96vw; }
+.st-btn { display:flex; align-items:center; gap:6px; border:0; border-radius:9px; padding:8px 12px; background:#ffffff1c; color:#fff; font-weight:700; cursor:pointer; } .st-btn:hover { background:#ffffff33; } .st-btn.on { background:var(--accent); } .st-btn.primary { background:var(--green); }
+@media (max-width:720px) { .st-btn span { display:none; } }
+#game.studio #hud-top #emote-btn, #game.studio #chat, #game.studio #minimap, #game.studio #voice-btn, #game.studio #chat-btn, #game.studio #music-btn { display:none; }
+#game.studio #hud-top { top:64px; }
+#ui-inspector { position:fixed; right:10px; top:120px; width:260px; background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:14px; z-index:8; display:flex; flex-direction:column; gap:8px; } #ui-inspector label { font-size:12px; color:var(--muted); }

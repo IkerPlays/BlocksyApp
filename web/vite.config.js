@@ -35,6 +35,10 @@ function stampSW() {
 }
 
 export default defineConfig({
+  resolve: { alias: [
+    { find: /^os$/, replacement: fileURLToPath(new URL('./src/os-shim.js', import.meta.url)) },
+    { find: /^\.\/(liolib|loslib|loadlib|ldblib)\.js$/, replacement: fileURLToPath(new URL('./src/lua-stub.js', import.meta.url)) },     // fengari: sin librerías de Node
+  ] },
   define: { __BUILD__: JSON.stringify(BUILD) },
   plugins: [playlistPlugin(), stampSW()],
   build: { chunkSizeWarningLimit: 1200 },

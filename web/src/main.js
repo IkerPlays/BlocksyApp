@@ -9,6 +9,7 @@ import { applyIcons } from './icons.js'
 import { headshot } from './avatar.js'
 import { t, applyStatic, setLang, getLang, LANGS, langName, onLang } from './i18n.js'
 import { initNotifications, openInvite } from './social-ui.js'
+import { openScriptModal } from './studio-ui.js'
 import { registerSW, applyUpdate } from './pwa.js'
 import * as social from './social.js'
 import { icon } from './icons.js'
@@ -50,6 +51,12 @@ async function route() {
     if (g) play(g); else toast(t('invite_game_gone'))
     return
   }
+  if (page === 'studio') {                                        // /studio/<id>: editor tipo Roblox Studio (solo el dueño)
+    if (!api.canCreate()) await api.openGameSession().catch(() => {})
+    const g = await api.getGame(arg)
+    if (!g || g.owner_id !== profile.id || !api.canCreate()) { history.replaceState(null, '', '/create'); return route() }
+    return play(g, { studio: true })
+  }
   if (page === 'u') { page = 'profile'; arg = arg ?? profile.username }
   if (page === 'profile' && !arg) arg = profile.username
   const name = pages[page] && !(page === 'create' && !api.canCreate()) ? page : 'home'
@@ -88,17 +95,22 @@ async function enterApp() {
 }
 
 // ---------- juego ----------
-function play(game) {
-  closeModal(); currentGame = game; setLastPlayed(game.id)
+function play(game, opts = {}) {
+  closeModal(); currentGame = game; if (!opts.studio) setLastPlayed(game.id)
   auth.startPresence(() => currentGame?.id)
   showScreen('game')
   // lienzo nuevo en cada partida: reutilizar el de otro juego con un contexto WebGL ya usado puede dejar la pantalla en negro
   const old = $('view'), cv = document.createElement('canvas'); cv.id = 'view'; old.replaceWith(cv)
   try {
-    stopGame = startGame({ game, profile, canvas: cv, onExit: exitGame, onInvite: g => { $('game').classList.add('hidden-for-modal'); openInvite(ctx, g) } })
+    stopGame = startGame({ game, profile, canvas: cv, onExit: opts.studio ? () => exitStudio(game) : exitGame, studio: opts.studio ? { save: g => api.updateGameRow(g), openScript: openScriptModal } : undefined, onInvite: g => { $('game').classList.add('hidden-for-modal'); openInvite(ctx, g) } })
   } catch (e) {
     console.error(e); toast(`${game.name}: ${e.message}`); exitGame()
   }
+}
+function exitStudio(game) {
+  stopGame?.(); stopGame = null; currentGame = null
+  auth.startPresence(() => null)
+  showScreen('app'); navigate(`/create/${game.id}`, true)
 }
 async function exitGame() {
   stopGame?.(); stopGame = null; currentGame = null

@@ -29,3 +29,8 @@ Same release system as Iker's Tube.
   pwa.js + `public/sw.js` + manifest. Game rules (allow_build/allow_chat) are enforced in the GAME RPCs (`supabase/game/v2.sql`). The 12-color palette is shared by web/game.js and 3ds ui.c.
 - Web preview: `web/preview/README.md` (shot.cjs renders worlds and pages). 3DS preview needs `source/avatar3d.c` in the gcc command (see `3ds/preview/README.md`).
 - Friends on the 3DS use the AUTH RPCs (send_friend_request, my_requests, respond_friend_request, remove_friend, messages) and need an email login (not QR).
+- Shop/BCoins: AUTH RPCs in `supabase/auth/shop.sql` (never let the client update `profiles.bcoins`; column grants enforce it). Web: pages.js `shop`, social.js wallet helpers; 3DS: `P_SHOP` in app.c + net.c wallet/shop RPCs.
+- Studio (`/studio/<id>`): game.js `startGame({studio})` edit mode + `ui-layer` texts; scripts in JS (script.js worker) or Lua (lua-worker.js with fengari, vite aliases in vite.config.js replace Node-only libs). Voice chat: voice.js (WebRTC, Realtime broadcast signaling, no TURN).
+- 3DS worlds: `3ds/source/world.c` mirrors `web/src/world.js` (plaza, obby, checker, void; same RNG for obby). Keep them in sync.
+- PWA: `public/sw.js` is stamped with a build id by vite.config.js (`__BUILD__`); updates wait for the user (`applyUpdate()` in pwa.js).
+- 3DS toasts/modals: citro2d clips depth above 1.0 and ui_text adds +0.5, so never call `ui_set_depth` with more than ~0.45.

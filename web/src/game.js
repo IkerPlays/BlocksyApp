@@ -48,11 +48,14 @@ const groundTexture = repeat => canvasTex(128, (g, s) => {
   for (let i = 0; i < 520; i++) { g.fillStyle = `rgba(${Math.random() < .5 ? '255,255,255' : '0,40,0'},.07)`; g.fillRect(Math.random() * s | 0, Math.random() * s | 0, 2, 3) }
 }, { repeat })
 
-export function startGame({ game, profile, canvas, onExit, onInvite }) {
+export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
+  const ST = !!studio                              // modo Studio (editor del dueño): vuelo libre, herramientas y texto de interfaz
+  let testing = false, tool = 'place'
+  const editing = () => ST && !testing
   const cfg = { allow_chat: true, allow_emotes: true, gravity: 24, speed: 6, jump: 8.6, ...(game.config ?? {}) }
   const mode = game.mode ?? 'build'
   const isOwner = game.owner_id === profile.id
-  const canBuild = isOwner || (cfg.allow_build ?? mode === 'build')
+  const canBuild = ST || isOwner || (cfg.allow_build ?? mode === 'build')
   const canFly = mode === 'build' || cfg.allow_fly === true
   const phys = { gravity: Number(cfg.gravity) || 24, speed: Number(cfg.speed) || 6, jump: Number(cfg.jump) || 8.6 }
   visited(game.id)
@@ -175,7 +178,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite }) {
       o = { avatar: makeAvatar(row.color, row.username), target: new THREE.Vector3(row.x, row.y, row.z), ry: row.ry, name: row.username, color: row.color, anim: 'idle', id: row.player_id }
       o.avatar.position.copy(o.target); others.set(row.player_id, o)
       sys(t('joined', { name: row.username })); sfx.join()
-      runner.fire('join', { data: { name: row.username }, who: row.username })
+      runner.fire('playerjoin', { data: { name: row.username }, who: row.username })
     }
     o.target.set(row.x, row.y, row.z); o.ry = row.ry; o.seen = Date.now(); o.platform = row.platform; o.anim = row.anim || 'idle'
   }
@@ -187,6 +190,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite }) {
   // ---------- física ----------
   const R = 0.3
   function collides(px, py, pz) {
+    if (editing()) return false                      // Studio: atraviesas los bloques
     for (const dx of [-R, R]) for (const dz of [-R, R]) for (const h of [0.05, 0.9, 1.7])
       if (solid(Math.floor(px + dx), Math.floor(py + h), Math.floor(pz + dz))) return true
     return false
@@ -233,7 +237,8 @@ export function startGame({ game, profile, canvas, onExit, onInvite }) {
     me.grounded = false
     if (collides(p.x, p.y, p.z)) { p.y = oy; if (me.vel.y < 0) me.grounded = true; me.vel.y = 0 }
     if (world.floor && p.y < 0) { p.y = 0; me.vel.y = 0; me.grounded = true }
-    if (me.fly && me.grounded && !(keys.Space || jumpHeld)) { me.fly = false; sys(t('fly_off')) }
+    if (editing()) me.fly = true
+    else if (me.fly && me.grounded && !(keys.Space || jumpHeld)) { me.fly = false; sys(t('fly_off')) }
     if (!wasGrounded && me.grounded && !me.fly) sfx.land()
     if (world.voidY != null && p.y < world.voidY) { sfx.fall(); showTitle(t('fell'), 1200); teleport(...respawn.pos); if (race.start && !race.done) race.start = race.cp === 0 ? 0 : race.start }
     const moving = len > 0.001 && mag > 0.05
@@ -388,19 +393,78 @@ export function startGame({ game, profile, canvas, onExit, onInvite }) {
   const chatSeenLocal = new Set()
 
   // ---------- script del juego (Worker aislado) ----------
-  const runner = createRunner(game.script, { name: profile.username }, (type, a) => {
-    switch (type) {
-      case 'say': sys('» ' + a[0]); break
-      case 'title': showTitle(a[0], a[1]); break
-      case 'teleport': teleport(a[0], a[1], a[2]); break
-      case 'speed': phys.speed = Math.min(30, Math.max(0, a[0])); break
-      case 'jump': phys.jump = Math.min(30, Math.max(0, a[0])); break
-      case 'gravity': phys.gravity = Math.min(80, Math.max(-20, a[0])); break
-      case 'emote': if (EMOTES.some(e => e.id === a[0])) me.emote = a[0]; break
-      case 'sky': sky.setPreset(a[0]); break
-      case 'sound': sfx[a[0]]?.(); break
+  let runner = { fire() {}, has: () => false, dispose() {} }
+  const uiText = {}                                          // textos de interfaz cambiados por el script (Lua: ui.setText)
+  function startRunner() {
+    runner.dispose()
+    runner = createRunner(game.script, { name: profile.username }, (type, a) => {
+      switch (type) {
+        case 'say': sys('» ' + a[0]); break
+        case 'title': showTitle(a[0], a[1]); break
+        case 'teleport': teleport(a[0], a[1], a[2]); break
+        case 'speed': phys.speed = Math.min(30, Math.max(0, a[0])); break
+        case 'jump': phys.jump = Math.min(30, Math.max(0, a[0])); break
+        case 'gravity': phys.gravity = Math.min(80, Math.max(-20, a[0])); break
+        case 'emote': if (EMOTES.some(e => e.id === a[0])) me.emote = a[0]; break
+        case 'sky': sky.setPreset(a[0]); break
+        case 'sound': sfx[a[0]]?.(); break
+        case 'uitext': uiText[a[0]] = String(a[1]); drawUi(); break
+      }
+    }, msg => sys('script: ' + msg), cfg.script_lang === 'lua' ? 'lua' : 'js')
+  }
+  if (!ST) startRunner()
+
+  // ---------- texto de interfaz (UI) del juego: {players} {name} {game} {time} ----------
+  const uiLayer = $('ui-layer'); let uiEls = (cfg.ui ?? []).map(e => ({ ...e })), selUi = null, playSecs = 0
+  const mmss = n => `${Math.floor(n / 60)}:${String(n % 60).padStart(2, '0')}`
+  const fmtUi = e => String(uiText[e.id] ?? e.text ?? '').replaceAll('{players}', others.size + 1).replaceAll('{name}', profile.username).replaceAll('{game}', game.name).replaceAll('{time}', mmss(playSecs))
+  function drawUi() {
+    uiLayer.replaceChildren(...uiEls.map(e => {
+      const d = document.createElement('div'); d.className = 'ui-el' + (e === selUi ? ' sel' : ''); d.textContent = editing() ? (e.text ?? '') : fmtUi(e)
+      d.style.left = e.x + '%'; d.style.top = e.y + '%'; d.style.fontSize = (e.size || 28) + 'px'; d.style.color = e.color || '#fff'
+      if (editing()) d.addEventListener('pointerdown', ev => { ev.stopPropagation(); selUi = e; openInspector(); dragUi = { e, el: d }; drawUi() })
+      return d
+    }))
+  }
+  let dragUi = null
+  const uiMove = ev => { if (!dragUi) return; const r = uiLayer.getBoundingClientRect(); dragUi.e.x = Math.round(Math.min(100, Math.max(0, (ev.clientX - r.left) / r.width * 100)) * 10) / 10; dragUi.e.y = Math.round(Math.min(100, Math.max(0, (ev.clientY - r.top) / r.height * 100)) * 10) / 10; dragUi.el.style.left = dragUi.e.x + '%'; dragUi.el.style.top = dragUi.e.y + '%' }
+  const uiUp = () => { dragUi = null }
+  window.addEventListener('pointermove', uiMove); window.addEventListener('pointerup', uiUp)
+  function openInspector() {
+    const box = $('ui-inspector'); if (!selUi || !editing()) return box.classList.add('hidden')
+    const e = selUi, f = (label, input) => { const l = document.createElement('label'); l.append(label, input); return l }
+    const txt = document.createElement('textarea'); txt.rows = 2; txt.value = e.text ?? ''; txt.placeholder = t('st_text_ph'); txt.className = 'bio-edit'; txt.oninput = () => { e.text = txt.value; drawUi() }
+    const id = document.createElement('input'); id.value = e.id; id.oninput = () => (e.id = id.value.replace(/[^\w]/g, '').slice(0, 24))
+    const size = document.createElement('input'); size.type = 'range'; size.min = 12; size.max = 96; size.value = e.size || 28; size.oninput = () => { e.size = +size.value; drawUi() }
+    const col = document.createElement('input'); col.type = 'color'; col.value = e.color || '#ffffff'; col.oninput = () => { e.color = col.value; drawUi() }
+    const del = document.createElement('button'); del.className = 'btn danger'; del.textContent = t('st_delete'); del.onclick = () => { uiEls = uiEls.filter(x => x !== e); selUi = null; drawUi(); openInspector() }
+    box.replaceChildren(f(t('st_text_ph'), txt), f(t('st_id'), id), f(t('st_size'), size), f(t('st_color'), col), del); box.classList.remove('hidden')
+  }
+  drawUi()
+  const uiTimer = setInterval(() => { playSecs++; if (!editing()) drawUi() }, 1000)
+
+  // ---------- Studio ----------
+  const studioCleanup = []
+  if (ST) {
+    const g = $('game'); g.classList.add('studio'); $('studio-bar').classList.remove('hidden')
+    const setTool = n => { tool = n; g.classList.toggle('tool-ui', n === 'ui'); for (const [id, k] of [['st-place', 'place'], ['st-erase', 'erase'], ['st-ui', 'ui']]) $(id).classList.toggle('on', k === n); if (n !== 'ui') { selUi = null; openInspector(); drawUi() } }
+    $('st-place').onclick = () => setTool('place'); $('st-erase').onclick = () => setTool('erase'); $('st-ui').onclick = () => setTool('ui')
+    $('st-addtext').onclick = () => {
+      let n = 1; while (uiEls.some(x => x.id === 'texto' + n)) n++
+      const e = { id: 'texto' + n, text: 'Texto', x: 50, y: 18, size: 32, color: '#ffffff' }; uiEls.push(e); setTool('ui'); selUi = e; drawUi(); openInspector()
     }
-  }, msg => sys('script: ' + msg))
+    $('st-script').onclick = async () => { await studio.openScript(game) }
+    $('st-test').onclick = () => {
+      testing = !testing
+      $('st-test').querySelector('span').textContent = t(testing ? 'st_stop' : 'st_test'); $('st-test').classList.toggle('on', testing)
+      if (testing) { selUi = null; openInspector(); teleport(...world.spawn); me.fly = false; for (const k in uiText) delete uiText[k]; startRunner(); drawUi(); setTimeout(() => runner.fire('join', { data: { name: profile.username }, who: profile.username }), 400) }
+      else { runner.dispose(); runner = { fire() {}, has: () => false, dispose() {} }; for (const k in uiText) delete uiText[k]; me.fly = true; drawUi() }
+    }
+    $('st-save').onclick = async () => { try { game.config = { ...(game.config ?? {}), ui: uiEls }; await studio.save(game); showTitle(t('st_saved'), 1600); sfx.click() } catch (e) { showTitle(e.message, 3000) } }
+    $('st-exit').onclick = () => onExit()
+    showTitle(t('st_help'), 7000)
+    studioCleanup.push(() => { g.classList.remove('studio', 'tool-ui'); $('studio-bar').classList.add('hidden'); $('ui-inspector').classList.add('hidden') })
+  }
 
   // ---------- selección de bloque con rayo de vóxeles ----------
   const outline = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(1.012, 1.012, 1.012)), new THREE.LineBasicMaterial({ color: 0xffffff }))
@@ -501,11 +565,11 @@ export function startGame({ game, profile, canvas, onExit, onInvite }) {
   }
   const pup = e => {
     if (!drag || drag.id !== e.pointerId) return
-    if (!drag.moved && !paused) interact(e, IS_TOUCH ? touchBreak : e.button === 2)
+    if (!drag.moved && !paused && !(ST && tool === 'ui' && editing())) interact(e, ST && editing() && tool === 'erase' ? true : IS_TOUCH ? touchBreak : e.button === 2)
     drag = null
   }
   const pleave = () => { hoverPt = null }
-  const wheel = e => { e.preventDefault(); cam.dist = Math.min(22, Math.max(2.5, cam.dist + e.deltaY * 0.01)) }
+  const wheel = e => { e.preventDefault(); cam.dist = Math.min(ST ? 60 : 22, Math.max(2.5, cam.dist + e.deltaY * 0.01 * (ST ? 3 : 1))) }
   const noMenu = e => e.preventDefault()
   window.addEventListener('keydown', down); window.addEventListener('keyup', up)
   canvas.addEventListener('pointerdown', pdown); window.addEventListener('pointermove', pmove); window.addEventListener('pointerup', pup); window.addEventListener('pointercancel', pup)
@@ -542,6 +606,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite }) {
   // ---------- red ----------
   let sending = false, lastSent = 0, last = { x: NaN, y: NaN, z: NaN, ry: NaN, anim: '' }
   function send() {
+    if (editing()) return                              // Studio: no se emite tu posición
     const now = Date.now()
     const changed = last.x !== me.pos.x || last.y !== me.pos.y || last.z !== me.pos.z || last.ry !== me.ry || last.anim !== me.anim
     if (sending || (!changed && now - lastSent < 1000)) return
@@ -619,7 +684,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite }) {
   mBtn.onclick = () => mPanel.classList.toggle('hidden')
   $('music-toggle').onclick = () => music.toggle(); $('music-next').onclick = () => music.next(); $('music-prev').onclick = () => music.prev()
   $('music-toggle').innerHTML = icon('play', 18); $('music-next').innerHTML = icon('next', 18); $('music-prev').innerHTML = icon('prev', 18)
-  music.start(); paintMusic(music.state())
+  if (!ST) music.start(); paintMusic(music.state())
 
   // ---------- chat de voz (WebRTC, por proximidad) ----------
   let voiceSt = { active: false, muted: true, members: [], selfSpeaking: false }
@@ -671,7 +736,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite }) {
     const w = canvas.clientWidth, h = canvas.clientHeight
     if (w && h && (canvas.width !== Math.floor(w * renderer.getPixelRatio()) || canvas.height !== Math.floor(h * renderer.getPixelRatio()))) size()
     step(dt)
-    meAvatar.position.copy(me.pos)
+    meAvatar.position.copy(me.pos); meAvatar.visible = !editing()
     let dy = me.ry - meAvatar.rotation.y; dy = ((dy + Math.PI * 3) % (Math.PI * 2)) - Math.PI
     meAvatar.rotation.y += dy * Math.min(1, dt * 16)
     animateAvatar(meAvatar, me.anim, dt, tAnim)
@@ -710,15 +775,15 @@ export function startGame({ game, profile, canvas, onExit, onInvite }) {
   }
   frame()
   sys(t('welcome_to', { name: game.name }))
-  if (cfg.welcome) showTitle(String(cfg.welcome).slice(0, 120), 4200)
-  if (game.script) setTimeout(() => runner.fire('join', { data: { name: profile.username }, who: profile.username }), 600)
+  if (cfg.welcome && !ST) showTitle(String(cfg.welcome).slice(0, 120), 4200)
+  if (game.script && !ST) setTimeout(() => runner.fire('join', { data: { name: profile.username }, who: profile.username }), 600)
 
   return function stop() {
     cancelAnimationFrame(raf); for (const i of [sendTimer, pruneTimer, syncTimer, pollTimer, rosterTimer, tickTimer, timeTimer, coinTimer]) clearInterval(i)
     window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); window.removeEventListener('resize', onResize)
     window.removeEventListener('pointermove', pmove); window.removeEventListener('pointerup', pup); window.removeEventListener('pointercancel', pup)
     canvas.removeEventListener('pointerdown', pdown); canvas.removeEventListener('wheel', wheel); canvas.removeEventListener('contextmenu', noMenu); canvas.removeEventListener('pointerleave', pleave)
-    offSettings(); offSync(); offLang(); offMusic(); music.stop(); runner.dispose()
+    offSettings(); offSync(); offLang(); offMusic(); music.stop(); runner.dispose(); clearInterval(uiTimer); window.removeEventListener('pointermove', uiMove); window.removeEventListener('pointerup', uiUp); studioCleanup.forEach(f => f()); uiLayer.replaceChildren()
     touchUi?.remove(); emotePanel.classList.add('hidden'); mPanel.classList.add('hidden'); $('big-title').classList.add('hidden')
     $('pause').classList.add('hidden'); roster.classList.add('hidden'); log.replaceChildren()
     api.leave().catch(() => {}); gameDb.removeChannel(channel)

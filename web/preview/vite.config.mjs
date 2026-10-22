@@ -8,6 +8,8 @@ export default defineConfig({
   server: { port: 5188, strictPort: true },
   optimizeDeps: { entries: ['preview/game.html', 'preview/pages.html'] },
   resolve: { alias: [
+    { find: /^os$/, replacement: path.resolve(here, '../src/os-shim.js') },
+    { find: /^\.\/(liolib|loslib|loadlib|ldblib)\.js$/, replacement: path.resolve(here, '../src/lua-stub.js') },
     { find: /^\.\/supabase\.js$/, replacement: path.resolve(here, 'mock-supabase.js') },
     { find: /^\.\/api\.js$/, replacement: path.resolve(here, 'mock-api.js') },
   ] },

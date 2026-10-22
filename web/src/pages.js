@@ -5,7 +5,7 @@ import { settings, saveSettings, resetSettings, lastPlayed, getStats, applyTheme
 import { icon } from './icons.js'
 import { headshot, styleFor, EMOTES, createPreview, hatStyle } from './avatar.js'
 import { t, LANGS, langName, getLang, setLang, onLang } from './i18n.js'
-import { checkSyntax, EXAMPLES } from './script.js'
+import { codeEditor } from './studio-ui.js'
 import { installApp, canInstall, isInstalled, askNotifications, checkForUpdate, applyUpdate, isUpdateReady, BUILD } from './pwa.js'
 
 const $ = id => document.getElementById(id)
@@ -306,6 +306,7 @@ export const pages = {
         el('div', { class: 'thumb', style: `width:56px;--h:${g.hue}` }, el('div', { class: 'cube' })),
         el('div', { class: 'grow' }, el('b', { text: g.name }), el('small', { text: `${modeLabel(g.mode)} · ${g.description || ''}` })),
         el('button', { class: 'btn', text: t('play'), onclick: () => ctx.play(g) }),
+        el('button', { class: 'btn', html: icon('code', 16), title: t('st_open'), onclick: () => ctx.go(`studio/${g.id}`) }),
         el('button', { class: 'btn blue', html: icon('edit', 16), title: t('edit'), onclick: () => ctx.go(`create/${g.id}`) }),
         el('button', { class: 'btn danger', html: icon('trash', 16), title: t('delete'), onclick: async () => { if (confirm(t('confirm_delete', { name: g.name }))) { await api.deleteGameRow(g.id); load() } } })))
         : el('div', { class: 'empty', text: t('no_my_games') }))
@@ -430,18 +431,7 @@ async function editor(root, ctx, id) {
       const music = chk('music', t('ed_music'))
       return [el('div', { class: 'section-s', text: t('ed_terrain') }), tp, el('div', { class: 'section-s', text: t('ed_sky') }), sk, el('div', { class: 'section-s', text: t('ed_spawn') }), el('div', { class: 'form-row' }, spawn)]
     },
-    code: () => {
-      const ta = el('textarea', { class: 'code', spellcheck: 'false', autocapitalize: 'off', autocorrect: 'off', wrap: 'off' }); ta.value = g.script ?? ''
-      const gut = el('div', { class: 'gutter' }), info = el('small', { style: 'color:var(--muted)' }), res = el('p', { class: 'msg', style: 'text-align:left' })
-      const lines = () => { const n = ta.value.split('\n').length; gut.textContent = Array.from({ length: n }, (_, i) => i + 1).join('\n'); info.textContent = `${t('ed_lines', { n })} · ${ta.value.length}/20000` }
-      ta.oninput = () => { g.script = ta.value; lines() }
-      ta.onscroll = () => (gut.scrollTop = ta.scrollTop)
-      ta.onkeydown = e => { if (e.key === 'Tab') { e.preventDefault(); const s = ta.selectionStart; ta.setRangeText('  ', s, ta.selectionEnd, 'end'); ta.oninput() } }
-      lines()
-      const ex = el('select', { onchange: e => { if (e.target.value) { ta.value = (ta.value ? ta.value + '\n\n' : '') + EXAMPLES[e.target.value]; ta.oninput(); e.target.value = '' } } }, el('option', { value: '', text: t('ed_examples') }), Object.keys(EXAMPLES).map(k => el('option', { value: k, text: k })))
-      return [el('p', { style: 'color:var(--muted);margin-top:0;font-size:14px', text: t('ed_script_help') }),
-        el('div', { class: 'code-wrap' }, gut, ta), el('div', { class: 'form-row', style: 'align-items:center;margin-top:8px' }, info, ex, el('button', { type: 'button', class: 'btn', html: icon('check', 16) + ' ' + t('ed_check'), onclick: () => { const er = checkSyntax(ta.value); res.className = 'msg ' + (er ? 'err' : 'ok'); res.textContent = er || t('ed_ok') } })), res]
-    },
+    code: () => codeEditor(g),
   }
   function draw() {
     setKids(tabs, ['general', 'rules', 'world', 'code'].map(k => el('button', { class: `tab ${tab === k ? 'active' : ''}`, text: t('ed_' + k), onclick: () => { tab = k; draw() } })))
@@ -452,6 +442,7 @@ async function editor(root, ctx, id) {
     el('div', { class: 'panel' }, tabs, body),
     el('div', { class: 'form-row', style: 'margin-top:14px' },
       el('button', { class: 'btn primary', text: t('save'), onclick: () => save().catch(e => toast(e.message)) }),
+      el('button', { class: 'btn', html: icon('edit', 16) + ' ' + t('st_open'), onclick: async () => { try { await save(); ctx.go(`studio/${g.id}`) } catch (e) { toast(e.message) } } }),
       el('button', { class: 'btn blue', html: icon('play', 16) + ' ' + t('play'), onclick: async () => { try { await save(); ctx.play(await api.getGame(g.id)) } catch (e) { toast(e.message) } } })))
   draw()
 }

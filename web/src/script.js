@@ -4,7 +4,7 @@ const PRELUDE = `
 'use strict';
 const __post = self.postMessage.bind(self);
 for (const k of ['fetch','XMLHttpRequest','WebSocket','EventSource','importScripts','indexedDB','caches','BroadcastChannel','Worker','SharedWorker','navigator']) { try { Object.defineProperty(self, k, { value: undefined, configurable: false }) } catch {} }
-const __h = { join: [], chat: [], tick: [], reach: [], command: {} };
+const __h = { join: [], playerjoin: [], chat: [], tick: [], reach: [], command: {} };
 let __me = { name: '' }, __n = 0;
 const num = (v, d = 0) => (Number.isFinite(+v) ? +v : d);
 const str = v => String(v ?? '').slice(0, 200);
@@ -34,13 +34,24 @@ self.onmessage = e => {
 export function checkSyntax(code) {
   try { new Function(code); return null } catch (e) { return e.message }
 }
+// Comprobación de sintaxis de Lua (en un Worker aparte, sin tocar la página)
+export function checkLua(code) {
+  return new Promise(resolve => {
+    const w = new LuaWorker(), done = v => { w.terminate(); resolve(v) }
+    w.onmessage = e => { if (e.data.t === 'checked') done(e.data.err) }
+    w.onerror = e => done(e.message || 'error')
+    w.postMessage({ t: 'check', code })
+    setTimeout(() => done('timeout'), 8000)
+  })
+}
+import LuaWorker from './lua-worker.js?worker'
 
-export function createRunner(code, me, onAction, onError) {
+export function createRunner(code, me, onAction, onError, lang = 'js') {
   if (!code || !code.trim()) return { fire() {}, has: () => false, dispose() {} }
   let w, alive = true, seq = 0, pending = new Map()
   try {
-    const url = URL.createObjectURL(new Blob([PRELUDE], { type: 'text/javascript' }))
-    w = new Worker(url); URL.revokeObjectURL(url)
+    if (lang === 'lua') w = new LuaWorker()
+    else { const url = URL.createObjectURL(new Blob([PRELUDE], { type: 'text/javascript' })); w = new Worker(url); URL.revokeObjectURL(url) }
   } catch (e) { onError?.(e.message); return { fire() {}, has: () => false, dispose() {} } }
   const kill = why => { if (!alive) return; alive = false; w.terminate(); onError?.(why) }
   w.onmessage = e => {
@@ -65,4 +76,33 @@ export const EXAMPLES = {
   'Teletransportes': `command('inicio', () => teleport(0.5, 3, 0.5));\ncommand('cielo', () => teleport(0.5, 60, 0.5));\ncommand('tp', a => { const [x, y, z] = String(a).split(' ').map(Number); teleport(x, y, z); });`,
   'Reloj y anuncios': `let n = 0;\non('tick', () => {\n  n++;\n  if (n % 60 === 0) say('Han pasado ' + (n / 60) + ' minutos. ¡Sigue construyendo!');\n});`,
   'Respuesta del chat': `on('chat', m => {\n  if (/hola/i.test(m.text) && m.name !== game.me.name) say('Hola, ' + m.name + '!');\n});`,
+}
+
+export const EXAMPLES_LUA = {
+  'Bienvenida': `on("join", function(p)
+  game.title("Bienvenido, " .. game.me.name, 3500)
+  game.say("Escribe /saltar para un super salto")
+end)
+
+command("saltar", function()
+  game.setJump(14)
+  game.say("Super salto activado")
+end)
+command("normal", function() game.setJump(8.6); game.setSpeed(6) end)`,
+  'Luna (baja gravedad)': `on("join", function()
+  game.setGravity(7)
+  game.sky("night")
+  game.title("Bienvenido a la Luna", 3000)
+end)`,
+  'Marcador en pantalla': `-- Necesita un texto de UI con id "marcador" (añádelo en Studio)
+local segundos = 0
+on("tick", function()
+  segundos = segundos + 1
+  ui.setText("marcador", "Tiempo: " .. segundos .. " s")
+end)`,
+  'Respuesta del chat': `on("chat", function(m)
+  if string.find(string.lower(m.text), "hola") and m.name ~= game.me.name then
+    game.say("Hola, " .. m.name .. "!")
+  end
+end)`,
 }
