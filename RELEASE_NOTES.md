@@ -1,1 +1,1 @@
-Dev build 12: Lua teams (Teams, Team, Player.Team colors the name tag), BillboardGui over parts, Humanoid animations (LoadAnimation plays emotes), and chat commands: /me, /pos, /ping, /clear and /help lists the commands of the game script.
+Dev build 13: networked RemoteEvents in Lua (players can talk to each other; RunService:IsServer() is true for the first player alphabetically) and four multiplayer game templates: Tag, Steal the flag, Waves and Hide and seek. Run supabase/game/v8.sql (GAME).

@@ -3,6 +3,7 @@ import { EXTRA } from './i18n-extra.js'
 const D = {
   es: {
     lang_name: 'Español',
+    tpl_tag: 'Pilla-pilla', tpl_tag_d: 'Multijugador: uno la lleva', tpl_flag: 'Roba la bandera', tpl_flag_d: 'Multijugador: puntos por llevarla', tpl_waves: 'Oleadas', tpl_waves_d: 'Multijugador: sobrevive a monstruos', tpl_hide: 'Escondite', tpl_hide_d: 'Multijugador: uno busca',
     templates: 'Plantilla', tpl_blank: 'En blanco', tpl_blank_d: 'Un mundo vacío para construir', tpl_obby: 'Obby', tpl_obby_d: 'Parkour con puntos de control', tpl_plaza: 'Plaza social', tpl_plaza_d: 'Chat, emotes y música', tpl_coins: 'Recoge monedas', tpl_coins_d: 'Script Lua con marcador', tpl_sky: 'Plataformas y lava', tpl_sky_d: 'Plataformas móviles con Lua',
     import_game: 'Importar juego (.json)', import_bad: 'Ese archivo no es un juego de Blocksy', st_export: 'Exportar', st_explorer: 'Objetos', st_autosave: 'Guardado automático',
     st_group: 'Grupo', st_group_ph: 'Piezas con el mismo grupo se mueven juntas', st_grid: 'Rejilla',
@@ -83,6 +84,7 @@ const D = {
   },
   en: {
     lang_name: 'English',
+    tpl_tag: 'Tag', tpl_tag_d: 'Multiplayer: someone is it', tpl_flag: 'Steal the flag', tpl_flag_d: 'Multiplayer: points for holding it', tpl_waves: 'Waves', tpl_waves_d: 'Multiplayer: survive monsters', tpl_hide: 'Hide and seek', tpl_hide_d: 'Multiplayer: one seeks',
     templates: 'Template', tpl_blank: 'Blank', tpl_blank_d: 'An empty world to build in', tpl_obby: 'Obby', tpl_obby_d: 'Parkour with checkpoints', tpl_plaza: 'Social plaza', tpl_plaza_d: 'Chat, emotes and music', tpl_coins: 'Collect coins', tpl_coins_d: 'Lua script with a scoreboard', tpl_sky: 'Platforms and lava', tpl_sky_d: 'Moving platforms with Lua',
     import_game: 'Import game (.json)', import_bad: 'That file is not a Blocksy game', st_export: 'Export', st_explorer: 'Objects', st_autosave: 'Autosaved',
     st_group: 'Group', st_group_ph: 'Parts with the same group move together', st_grid: 'Grid',

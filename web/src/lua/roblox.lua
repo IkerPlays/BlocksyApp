@@ -542,10 +542,33 @@ standard("Folder", "Instance"); standard("Configuration", "Instance")
 standard("Model", "Instance", { nilprops = { "PrimaryPart" } })
 standard("Script", "Instance"); standard("LocalScript", "Script"); standard("ModuleScript", "Script")
 standard("BindableEvent", "Instance", { events = { "Event" }, methods = { Fire = function(self, ...) self.Event:Fire(...) end } })
+-- RemoteEvent de verdad: viaja por la red a todos los jugadores de la partida (maximo ~600 caracteres por mensaje).
+-- El "servidor" es el jugador con el nombre alfabeticamente menor (RunService:IsServer() solo es true en su navegador).
+local function rpack(v)
+  local t = typeof(v)
+  if t == "Vector3" then return { ["$v"] = { v.X, v.Y, v.Z } } elseif t == "Color3" then return { ["$c"] = { v.R, v.G, v.B } }
+  elseif t == "Instance" then return { ["$i"] = v:GetFullName() }
+  elseif t == "table" then local o = {} for k, x in pairs(v) do o[k] = rpack(x) end return o end
+  return v
+end
+local function runpack(v)
+  if type(v) ~= "table" then return v end
+  if v["$v"] then return Vector3.new(v["$v"][1], v["$v"][2], v["$v"][3]) elseif v["$c"] then return Color3.new(v["$c"][1], v["$c"][2], v["$c"][3])
+  elseif v["$i"] then local cur = game; for part in tostring(v["$i"]):gmatch("[^%.]+") do cur = rawget(cur, "_kids") and Methods.FindFirstChild(cur, part) or nil; if not cur then return nil end end return cur end
+  local o = {} for k, x in pairs(v) do o[k] = runpack(x) end return o
+end
+local function isHost()
+  local me = rawget(_G.__localPlayer, "_name"); for name in pairs(_G.__nameToPlayer or {}) do if name < me then return false end end return true
+end
+local function sendRemote(ev, mode, target, ...)
+  local args = table.pack(...); local list = {}; for i = 1, args.n do list[i] = rpack(args[i]) end
+  local j = _G.__jenc({ n = args.n, a = list }); if #j > 600 then error("RemoteEvent: mensaje demasiado grande (" .. #j .. " caracteres)", 3) end
+  act("remote", ev:GetFullName(), mode, target or "", j)
+end
 standard("RemoteEvent", "Instance", { events = { "OnServerEvent", "OnClientEvent" }, methods = {
-  FireServer = function(self, ...) local lp = _G.__localPlayer; self.OnServerEvent:Fire(lp, ...) end,
-  FireClient = function(self, _, ...) self.OnClientEvent:Fire(...) end,
-  FireAllClients = function(self, ...) self.OnClientEvent:Fire(...) end } })
+  FireServer = function(self, ...) if isHost() then self.OnServerEvent:Fire(_G.__localPlayer, ...) else sendRemote(self, "srv", nil, ...) end end,
+  FireClient = function(self, player, ...) if player == _G.__localPlayer then self.OnClientEvent:Fire(...) else sendRemote(self, "cl", rawget(player, "_name"), ...) end end,
+  FireAllClients = function(self, ...) self.OnClientEvent:Fire(...); sendRemote(self, "all", nil, ...) end } })
 standard("BindableFunction", "Instance", { methods = { Invoke = function(self, ...) local f = rawget(self, "_props").OnInvoke; if f then return f(...) end end } })
 classes.BindableFunction.set.OnInvoke = function(self, f) rawget(self, "_props").OnInvoke = f end
 standard("RemoteFunction", "Instance", { methods = { InvokeServer = function(self, ...) local f = rawget(self, "_props").OnServerInvoke; if f then return f(_G.__localPlayer, ...) end end, InvokeClient = function(self, _, ...) local f = rawget(self, "_props").OnClientInvoke; if f then return f(...) end end } })
@@ -744,7 +767,7 @@ classes.Lighting.set.Brightness = function(i, v) setProp(i, "Brightness", v); ac
 classes.Lighting.set.Ambient = function(i, c) setProp(i, "Ambient", c) end
 classes.Lighting.set.OutdoorAmbient = function(i, c) setProp(i, "OutdoorAmbient", c) end
 local RunService = services.RunService
-def("RunService", "Instance", { events = { "Heartbeat", "Stepped", "RenderStepped", "PreRender", "PreSimulation", "PostSimulation" }, methods = { IsClient = function() return true end, IsServer = function() return true end, IsStudio = function() return false end, IsRunning = function() return true end, BindToRenderStep = function(_, n, p, f) _G.__rs = _G.__rs or {}; _G.__rs[n] = f end, UnbindFromRenderStep = function(_, n) if _G.__rs then _G.__rs[n] = nil end end } })
+def("RunService", "Instance", { events = { "Heartbeat", "Stepped", "RenderStepped", "PreRender", "PreSimulation", "PostSimulation" }, methods = { IsClient = function() return true end, IsServer = function() return isHost() end, IsStudio = function() return false end, IsRunning = function() return true end, BindToRenderStep = function(_, n, p, f) _G.__rs = _G.__rs or {}; _G.__rs[n] = f end, UnbindFromRenderStep = function(_, n) if _G.__rs then _G.__rs[n] = nil end end } })
 rawset(RunService, "_class", classes.RunService)
 rawset(services.SoundService, "_class", (function() def("SoundService", "Instance", { methods = { PlayLocalSound = function(_, s) s:Play() end } }); return classes.SoundService end)())
 def("StarterPlayer", "Instance", { props = { CharacterWalkSpeed = 16, CharacterJumpPower = 50 } }); rawset(StarterPlayer, "_class", classes.StarterPlayer)
@@ -788,6 +811,7 @@ local function jdec(s)
   end
   return val()
 end
+_G.__jenc, _G.__jdec = jenc, jdec
 service("HttpService", "Instance", { methods = { JSONEncode = function(_, v) return jenc(v) end, JSONDecode = function(_, s) return jdec(s) end,
   GenerateGUID = function(_, wrap) local g = string.format("%08X-%04X-%04X-%04X-%06X%06X", math.random(0, 2 ^ 31 - 1), math.random(0, 65535), math.random(0, 65535), math.random(0, 65535), math.random(0, 16777215), math.random(0, 16777215)); return wrap == false and g or "{" .. g .. "}" end,
   GetAsync = function() error("HttpService: las peticiones HTTP no estan permitidas", 2) end, PostAsync = function() error("HttpService: las peticiones HTTP no estan permitidas", 2) end, RequestAsync = function() error("HttpService: las peticiones HTTP no estan permitidas", 2) end } })
@@ -895,6 +919,7 @@ local function spawnCharacter(p, isLocal)
   return ch
 end
 local others, nameToPlayer = {}, {}
+_G.__nameToPlayer = nameToPlayer
 local function joinPlayer(p) rawset(p, "_joined", true); fire(PlayersS, "PlayerAdded", p) end
 local function playerJoined(name)
   if nameToPlayer[name] then return end
@@ -1000,6 +1025,14 @@ end
 function DISPATCH.mouse(d)
   local inp = inputObject("Unknown", Enum.UserInputType.MouseButton1, d.down and Enum.UserInputState.Begin or Enum.UserInputState.End)
   fire(UIS, d.down and "InputBegan" or "InputEnded", inp, false)
+end
+function DISPATCH.remote(d)
+  local ev = runpack({ ["$i"] = d.id }); if not ev or rawget(ev, "_class").name ~= "RemoteEvent" then return end
+  local ok, data = pcall(jdec, d.a); if not ok or type(data) ~= "table" then return end
+  local args = {}; for i = 1, data.n or 0 do args[i] = runpack(data.a[i]) end
+  local from = nameToPlayer[d.from]
+  if d.m == "srv" then if isHost() and from then fire(ev, "OnServerEvent", from, table.unpack(args, 1, data.n)) end
+  elseif d.m == "all" or (d.m == "cl" and d.t == rawget(_G.__localPlayer, "_name")) then fire(ev, "OnClientEvent", table.unpack(args, 1, data.n)) end
 end
 function DISPATCH.partpos(d)
   local part = findById(d.id, Workspace); if part then rawget(part, "_props").Position = Vector3.new(d.x, d.y, d.z) end

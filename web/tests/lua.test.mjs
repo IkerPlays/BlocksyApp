@@ -73,3 +73,24 @@ test('Equipos, animaciones y comandos registrados', () => {
   const h2 = run('game.Players.PlayerAdded:Connect(function(p) local ch = p.Character or p.CharacterAdded:Wait(); local hum = ch:FindFirstChildOfClass("Humanoid"); local a = Instance.new("Animation"); a.AnimationId = "blocksy://flex"; hum:LoadAnimation(a):Play() end)'); steps(h2, 2)
   assert.deepEqual(h2.acts.filter(a => a[0] === 'emote').map(a => a[1]), ['flex'])
 })
+
+test('RemoteEvent viaja entre dos clientes y solo el servidor recibe OnServerEvent', () => {
+  const code = 'local ev = Instance.new("RemoteEvent"); ev.Name = "Ping"; ev.Parent = game.ReplicatedStorage; ev.OnClientEvent:Connect(function(v, p) print("cliente", v, p.X) end); ev.OnServerEvent:Connect(function(pl, x) print("servidor", pl.Name, x) end); command("srv", function() ev:FireServer(7) end); command("all", function() ev:FireAllClients("hola", Vector3.new(4, 5, 6)) end); task.wait(0.1); print("host", game:GetService("RunService"):IsServer())'
+  const a = make(), b = make(); a.dispatch('init', { me: 'Ana', code }); b.dispatch('init', { me: 'Beto', code })
+  steps(a, 4); steps(b, 4)
+  a.dispatch('playerjoin', { name: 'Beto' }); b.dispatch('playerjoin', { name: 'Ana' })
+  const sent = new Set(), deliver = (from, to, fromName) => { for (const r of from.acts.filter(x => x[0] === 'remote' && !sent.has(x))) { sent.add(r); to.dispatch('remote', { id: r[1], m: r[2], t: r[3], a: r[4], from: fromName }) } }
+  b.dispatch('command', { name: 'srv', args: '', who: 'Beto' }); deliver(b, a, 'Beto')
+  a.dispatch('command', { name: 'all', args: '', who: 'Ana' }); deliver(a, b, 'Ana')
+  assert.deepEqual(a.errs.concat(b.errs), [])
+  assert.ok(prints(a).includes('servidor Beto 7')); assert.ok(prints(b).includes('cliente hola 4')); assert.ok(prints(a).includes('cliente hola 4'))
+})
+
+import { TAG, FLAG, WAVES, HIDE } from '../src/modes.js'
+for (const [name, src] of [['pilla-pilla', TAG], ['bandera', FLAG], ['oleadas', WAVES], ['escondite', HIDE]]) {
+  test(`modo ${name}: arranca sin errores con dos jugadores y avisa por RemoteEvent`, () => {
+    const h = make(); h.dispatch('init', { me: 'Ana', code: transpile(src) }); h.dispatch('playerjoin', { name: 'Beto' })
+    for (let i = 0; i < 80; i++) h.dispatch('step', { dt: 0.05, now: 1, x: 0, y: 0, z: 0, others: [{ n: 'Beto', x: 1, y: 0, z: 1 }] })
+    assert.deepEqual(h.errs, []); assert.ok(h.acts.some(a => a[0] === 'remote'), 'el servidor debe emitir eventos')
+  })
+}

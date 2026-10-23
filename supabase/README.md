@@ -94,3 +94,4 @@ Lua estilo Roblox: cada jugador ejecuta el script en su navegador (como un Local
 - **AUTH** `auth/v13.sql`: me gusta / no me gusta en los juegos.
 - **GAME** `game/v7.sql` (accesorios sincronizados, 64 caracteres) y **STORE** `store/v12.sql` (22 objetos nuevos: sombreros, gafas, espalda, estelas y mascotas).
 - **AUTH** `auth/v14.sql`: aspecto elegido del avatar (piel, pelo, peinado, pantalon). Ejecutalo despues de v12.sql. El aspecto se sincroniza por `game/v7.sql` (96 caracteres).
+- **GAME** `game/v8.sql`: eventos `rem` (RemoteEvent de los scripts Lua entre jugadores). Lo necesitan los modos multijugador (pilla-pilla, bandera, oleadas, escondite).

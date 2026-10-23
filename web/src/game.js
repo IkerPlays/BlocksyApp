@@ -433,6 +433,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
     fire: (ev, data) => runner.fire(ev, { data }), onSpawn: p => { respawn.pos = p; teleport(...p) }, setHour: h => sky.setHour(h), setFog: () => {} })
   const keyName = c => (/^Key[A-Z]$/.test(c) ? c.slice(3) : /^Digit\d$/.test(c) ? ['Zero', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine'][+c.slice(5)]
     : { Space: 'Space', ShiftLeft: 'LeftShift', ShiftRight: 'RightShift', ControlLeft: 'LeftControl', Enter: 'Return', Escape: 'Escape', Tab: 'Tab', Backspace: 'Backspace', ArrowUp: 'Up', ArrowDown: 'Down', ArrowLeft: 'Left', ArrowRight: 'Right' }[c] ?? null)
+  let remoteTokens = 10, remoteAt = performance.now()
   const uiText = {}                                          // textos de interfaz cambiados por el script (Lua: ui.setText)
   function startRunner() {
     runner.dispose(); rbx.reset()
@@ -443,6 +444,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
         case 'print': sys('› ' + a[0]); break
         case 'team': setTeam(String(a[0]), a[1] ? `rgb(${[1, 2, 3].map(i => Math.round(Number(String(a[1]).slice(2).split(',')[i - 1]) * 255)).join(',')})` : ''); break
         case 'cmd': scriptCmds.add(String(a[0])); break
+        case 'remote': { const now = performance.now(); remoteTokens = Math.min(10, remoteTokens + (now - remoteAt) / 100); remoteAt = now; if (remoteTokens >= 1) { remoteTokens--; api.gameEvent(game.id, 'rem', { id: String(a[0]), m: String(a[1]), t: String(a[2] ?? ''), a: String(a[3] ?? '') }).catch(() => {}) } break }
         case 'dsset': saveDataStore(game.parentId ?? game.id, String(a[0]), String(a[1]), String(a[2] ?? '')); break
         case 'respawn': teleport(...respawn.pos); runner.fire('respawned', { data: {} }); break
         case 'say': sys('» ' + a[0]); break
@@ -682,7 +684,11 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
 
   let chatSince = new Date().toISOString(), chatSeen = new Set(), rtAt = 0, chatRtOk = false
   const seenEv = new Set()
-  const routeEvent = row => { if (!row || row.kind === 'chat' || seenEv.has(row.id)) return; seenEv.add(row.id); horror?.onEvent(row) }
+  const routeEvent = row => {
+    if (!row || row.kind === 'chat' || seenEv.has(row.id)) return; seenEv.add(row.id)
+    if (row.kind === 'rem') { if (row.player_id !== profile.id && runner.has()) { const p = row.payload ?? {}; runner.fire('remote', { data: { id: String(p.id ?? ''), m: String(p.m ?? ''), t: String(p.t ?? ''), a: String(p.a ?? ''), from: row.username } }) } return }
+    horror?.onEvent(row)
+  }
   const onChatRow = row => {
     if (!row || row.kind !== 'chat' || chatSeen.has(row.id)) return
     chatSeen.add(row.id); chatSince = row.created_at
@@ -729,7 +735,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
         if (pl) { const ids = new Set(pl.map(p => p.player_id)); for (const p of pl) upsertOther(p); for (const id of [...others.keys()]) if (!ids.has(id)) dropOther(id) }
       }
       if (!chatRtOk || pollN % 4 === 0) {
-        const { data: ch } = await gameDb.from('interactions').select('id,player_id,username,kind,payload,created_at').eq('game_id', game.id).in('kind', horror ? ['chat', 'orb', 'win', 'round', 'caught'] : ['chat']).gt('created_at', chatSince).order('created_at').limit(40)
+        const { data: ch } = await gameDb.from('interactions').select('id,player_id,username,kind,payload,created_at').eq('game_id', game.id).in('kind', horror ? ['chat', 'rem', 'orb', 'win', 'round', 'caught'] : ['chat', 'rem']).gt('created_at', chatSince).order('created_at').limit(40)
         for (const c of ch ?? []) { if (c.kind === 'chat') onChatRow(c); else routeEvent(c); chatSince = c.created_at > chatSince ? c.created_at : chatSince }
         if (chatSeen.size > 200) chatSeen = new Set([...chatSeen].slice(-50))
       }
