@@ -232,7 +232,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
   const joy = { x: 0, y: 0 }
   let jumpHeld = false, downHeld = false
   let paused = false
-  const typing = () => document.activeElement === $('chat-input')
+  const typing = () => { const ae = document.activeElement; return ae === $('chat-input') || (!!ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName) && ae.type !== 'range' && ae.type !== 'checkbox') }       // también los campos del Studio
   const respawn = { pos: world.spawn.slice() }
   function teleport(x, y, z) { me.pos.set(x, y, z); me.vel.set(0, 0, 0); camPos.set(x, y + 6, z + 9) }
   let race = { start: 0, cp: 0, done: false }

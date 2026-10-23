@@ -47,7 +47,7 @@ export function createStudio(ctx) {
   const snap = v => (state.grid > 0 ? Math.round(v / state.grid) * state.grid : v)
   const groupOf = i => { const g = parts[i]?.group; return g ? parts.map((p, k) => (p.group === g ? k : -1)).filter(k => k >= 0) : [i] }
   const targets = i => [...new Set((multi.has(i) || i === selPart ? [i, ...multi] : [i]).flatMap(groupOf))].filter(k => parts[k])
-  const movePart = (i, dx, dy, dz) => { for (const k of targets(i)) { const q = parts[k]; q.x = +(q.x + dx).toFixed(3); q.y = +(q.y + dy).toFixed(3); q.z = +(q.z + dz).toFixed(3) } }
+  const movePart = (i, dx, dy, dz) => { for (const k of targets(i).filter(k => !parts[k].locked)) { const q = parts[k]; q.x = +(q.x + dx).toFixed(3); q.y = +(q.y + dy).toFixed(3); q.z = +(q.z + dz).toFixed(3) } }
 
   // ---------- operaciones con bloques (todas pasan por aquí: local al instante, servidor en lotes, con deshacer) ----------
   const kindAt = (x, y, z) => { const k = key(x, y, z); if (statics.has(k)) return 'S'; return index.get(k)?.kind ?? -1 }
@@ -127,13 +127,24 @@ export function createStudio(ctx) {
   }
 
   // ---------- piezas (Part): guardadas en config.parts ----------
-  const refreshParts = () => { cfg.parts = parts; game.config = { ...(game.config ?? {}), parts }; rbx.reset(); rbx.spawnStatic(parts); updateSelBox(); paintExplorer() }
+  let testing = false
+  const applyHidden = () => { for (let i = 0; i < parts.length; i++) { const o = rbx.partAt(i); if (o?.mesh) o.mesh.visible = testing || !parts[i].eh } }       // eh = oculta solo en el editor
+  const refreshParts = () => { cfg.parts = parts; game.config = { ...(game.config ?? {}), parts }; rbx.reset(); rbx.spawnStatic(parts); applyHidden(); updateSelBox(); paintExplorer() }
   // explorador: lista de piezas del juego (clic = seleccionar)
   const explorer = h('div', { id: 'studio-explorer', class: 'hidden' }); g.append(explorer)
+  let exFilter = ''
   function paintExplorer() {
     if (explorer.classList.contains('hidden')) return
-    const groups = [...new Set(parts.map(p => p.group).filter(Boolean))]
-    explorer.replaceChildren(h('b', { text: `${t('st_explorer')} (${parts.length})` }), ...parts.map((p, i) => h('button', { type: 'button', class: 'ex-row' + (i === selPart ? ' on' : ''), onclick: () => { selPart = i; setTool('part'); updateSelBox(); openPartInspector(); paintExplorer() } }, h('span', { text: p.type === 'spawn' ? 'S' : p.shape === 'Ball' ? 'O' : '[]' }), h('span', { text: p.name }), p.group ? h('small', { text: '#' + p.group }) : null)), !parts.length ? h('small', { text: t('no_games') }) : null, groups.length ? h('small', { text: groups.map(x => '#' + x).join(' ') }) : null)
+    const groups = [...new Set(parts.map(p => p.group).filter(Boolean))], q = exFilter.toLowerCase()
+    const search = h('input', { type: 'search', class: 'ex-search', placeholder: t('st_search_parts'), value: exFilter }); search.oninput = () => { exFilter = search.value; paintExplorer(); document.querySelector('.ex-search')?.focus() }
+    const rows = parts.map((p, i) => ({ p, i })).filter(({ p }) => !q || p.name.toLowerCase().includes(q) || (p.group ?? '').toLowerCase().includes(q)).map(({ p, i }) => {
+      const nm = h('span', { class: 'ex-name', text: p.name })
+      nm.ondblclick = e => { e.stopPropagation(); const inp = h('input', { class: 'ex-rename', value: p.name, maxlength: 24 }); nm.replaceWith(inp); inp.focus(); inp.select(); const done = () => { const v = inp.value.replace(/[^\w ]/g, '').slice(0, 24).trim(); if (v) p.name = v; refreshParts(); openPartInspector() }; inp.onblur = done; inp.onkeydown = ev => { if (ev.key === 'Enter') inp.blur(); ev.stopPropagation() } }
+      const tog = (k, glyph, title) => h('span', { class: 'ex-tog' + (p[k] ? ' on' : ''), title, text: glyph, onclick: e => { e.stopPropagation(); p[k] = !p[k]; refreshParts() } })
+      return h('div', { class: 'ex-row' + (i === selPart ? ' on' : '') + (multi.has(i) ? ' multi' : ''), onclick: e => { if (e.shiftKey) { multi.has(i) ? multi.delete(i) : multi.add(i) } else { selPart = i; multi.clear() } setTool('part'); updateSelBox(); openPartInspector(); paintExplorer() } },
+        h('span', { text: p.type === 'spawn' ? 'S' : p.shape === 'Ball' ? 'O' : '[]' }), nm, p.group ? h('small', { text: '#' + p.group }) : null, tog('eh', '◌', t('st_hide')), tog('locked', '⚿', t('st_lock')))
+    })
+    explorer.replaceChildren(h('b', { text: `${t('st_explorer')} (${parts.length})` }), search, ...rows, !parts.length ? h('small', { text: t('no_games') }) : null, groups.length ? h('small', { text: groups.map(x => '#' + x).join(' ') }) : null)
   }
   const toggleExplorer = () => { explorer.classList.toggle('hidden'); paintExplorer() }
   // exportar el juego entero (.json) para guardarlo o pasarlo a otro juego (se importa desde Crear)
@@ -161,6 +172,9 @@ export function createStudio(ctx) {
     selPart = parts.length - 1; refreshParts(); setTool('part'); openPartInspector(); sfx.place()
   }
   const partInsp = h('div', { id: 'part-inspector', class: 'hidden' }); g.append(partInsp)
+  const selIdx = () => [selPart, ...multi].filter(i => parts[i] && !parts[i].locked)
+  function alignSel(ax) { const ref = parts[selPart]; if (!ref) return; for (const i of selIdx()) parts[i][ax] = ref[ax]; refreshParts(); openPartInspector() }
+  function distributeSel(ax) { const l = selIdx().sort((a, b) => parts[a][ax] - parts[b][ax]); if (l.length < 3) return showTitle(t('st_need3'), 1600); const a = parts[l[0]][ax], b = parts[l[l.length - 1]][ax]; l.forEach((i, k) => { parts[i][ax] = +(a + (b - a) * k / (l.length - 1)).toFixed(3) }); refreshParts(); openPartInspector() }
   function deleteSelected() { const del = new Set([selPart, ...multi]); for (const i of [...del].sort((a, b) => b - a)) if (parts[i]) parts.splice(i, 1); selPart = -1; multi.clear(); refreshParts(); partInsp.classList.add('hidden') }
   function openPartInspector() {
     const p = parts[selPart]; if (!p || state.tool !== 'part') return partInsp.classList.add('hidden')
@@ -178,8 +192,10 @@ export function createStudio(ctx) {
       row('X', num('x'), nudge('x', -1), nudge('x', 1)), row('Y', num('y'), nudge('y', -1), nudge('y', 1)), row('Z', num('z'), nudge('z', -1), nudge('z', 1)),
       row(t('st_size3'), num('sx', 0.5, 48), num('sy', 0.5, 48), num('sz', 0.5, 48)), row(t('st_rot'), num('ry', 15, 62)),
       row(t('st_shape'), sel('shape', SHAPES)), row(t('st_material'), sel('material', MATERIALS)), row(t('st_color'), col), row(t('st_transp'), tr),
+      row(t('st_lock'), (() => { const i = h('input', { type: 'checkbox', checked: !!p.locked }); i.onchange = () => { p.locked = i.checked; refreshParts() }; return i })()), row(t('st_hide'), (() => { const i = h('input', { type: 'checkbox', checked: !!p.eh }); i.onchange = () => { p.eh = i.checked; refreshParts() }; return i })()),
       row(t('st_anchored'), chk('anchored')), row(t('st_collide'), chk('collide')), row(t('st_climb'), (() => { const i = h('input', { type: 'checkbox', checked: !!p.climb }); i.onchange = () => { p.climb = i.checked; refreshParts() }; return i })()),
       multi.size ? h('small', { class: 'muted', text: t('st_multi_n', { n: multi.size + 1 }) }) : null,
+      multi.size ? h('div', { class: 'pi-row wrap' }, ...[['x', 'st_align_x'], ['y', 'st_align_y'], ['z', 'st_align_z']].map(([ax, k]) => h('button', { type: 'button', class: 'btn tiny', text: t(k), onclick: () => alignSel(ax) })), ...[['x', 'st_dist_x'], ['z', 'st_dist_z']].map(([ax, k]) => h('button', { type: 'button', class: 'btn tiny', text: t(k), onclick: () => distributeSel(ax) }))) : null,
       h('div', { class: 'pi-row' }, h('button', { type: 'button', class: 'btn', text: t('st_dup'), onclick: () => { parts.push({ ...p, name: p.name + '2', x: p.x + 1, z: p.z + 1 }); selPart = parts.length - 1; refreshParts(); openPartInspector() } }),
         h('button', { type: 'button', class: 'btn danger', text: t('st_del_part'), onclick: deleteSelected })))
     partInsp.classList.remove('hidden')
@@ -349,7 +365,7 @@ export function createStudio(ctx) {
     }
     return false
   }
-  function setTesting(on) { bar.classList.toggle('testing', on); if (on) { opts.classList.add('hidden'); partInsp.classList.add('hidden'); envBox.classList.add('hidden'); wire.visible = stamp.visible = selWire.visible = false } else { paintOpts(); if (state.tool === 'part') openPartInspector(); rbx.reset(); rbx.spawnStatic(parts) } }
+  function setTesting(on) { testing = on; applyHidden(); bar.classList.toggle('testing', on); if (on) { opts.classList.add('hidden'); partInsp.classList.add('hidden'); envBox.classList.add('hidden'); wire.visible = stamp.visible = selWire.visible = false } else { paintOpts(); if (state.tool === 'part') openPartInspector(); rbx.reset(); rbx.spawnStatic(parts) } }
   // arrastrar piezas con el ratón (Mayús = subir y bajar); el grupo entero se mueve a la vez
   const dragRay = new THREE.Raycaster(), dragPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), hitPt = new THREE.Vector3()
   const ndcOf = e => { const r = canvas.getBoundingClientRect(); return new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1) }
@@ -360,6 +376,7 @@ export function createStudio(ctx) {
     if (e.shiftKey) { if (i === selPart) { selPart = [...multi][0] ?? -1; multi.delete(selPart) } else if (!multi.delete(i)) { if (selPart < 0) selPart = i; else multi.add(i) } updateSelBox(); openPartInspector(); return true }
     if (!multi.has(i) && i !== selPart) multi.clear()
     selPart = i; updateSelBox(); openPartInspector()
+    if (parts[i].locked) { showTitle(t('st_locked'), 1100); return true }
     const p = parts[i]; dragPlane.constant = -p.y; dragRay.setFromCamera(ndcOf(e), camera)
     if (!dragRay.ray.intersectPlane(dragPlane, hitPt)) hitPt.set(p.x, p.y, p.z)
     dragPart = { i, ox: p.x - hitPt.x, oz: p.z - hitPt.z, sy: e.clientY, y0: p.y }; return true

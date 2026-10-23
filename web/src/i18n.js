@@ -3,6 +3,7 @@ import { EXTRA } from './i18n-extra.js'
 const D = {
   es: {
     lang_name: 'Español',
+    st_search_parts: 'Buscar pieza…', st_hide: 'Ocultar en el editor', st_lock: 'Bloquear', st_locked: 'Pieza bloqueada', st_align_x: 'Alinear X', st_align_y: 'Alinear Y', st_align_z: 'Alinear Z', st_dist_x: 'Repartir X', st_dist_z: 'Repartir Z', st_need3: 'Elige al menos 3 piezas',
     st_multi_n: '{n} piezas seleccionadas (Mayús+clic para añadir)', st_rot90: 'Girar 90°', st_flipx: 'Voltear X', st_flipz: 'Voltear Z',
     tut_move: 'Muévete con W A S D', tut_jump: 'Salta con Espacio', tut_look: 'Arrastra el ratón o el dedo para girar la cámara', tut_chat: 'Pulsa Enter o / para abrir el chat', tut_emote: 'Pulsa G para ver los emotes', tut_done: '¡Listo! Ya sabes jugar.', egg_konami: '¡Modo arcoíris!', egg_party: '¡Fiesta!', welcome_title: '¡Bienvenido a Blocksy!', welcome_text: 'Tres pasos para empezar:', welcome_avatar: 'Crea tu avatar', welcome_play: 'Elige un juego', welcome_shop: 'Mira la tienda', my_game_stats: 'Has jugado aquí {n} veces ({m} min)',
     theme_contrast: 'Alto contraste', set_ui_sounds: 'Sonidos de la interfaz',
@@ -95,6 +96,7 @@ const D = {
   },
   en: {
     lang_name: 'English',
+    st_search_parts: 'Search parts…', st_hide: 'Hide in editor', st_lock: 'Lock', st_locked: 'Part is locked', st_align_x: 'Align X', st_align_y: 'Align Y', st_align_z: 'Align Z', st_dist_x: 'Distribute X', st_dist_z: 'Distribute Z', st_need3: 'Select at least 3 parts',
     st_multi_n: '{n} parts selected (Shift+click to add)', st_rot90: 'Rotate 90°', st_flipx: 'Flip X', st_flipz: 'Flip Z',
     tut_move: 'Move with W A S D', tut_jump: 'Jump with Space', tut_look: 'Drag the mouse or your finger to turn the camera', tut_chat: 'Press Enter or / to open the chat', tut_emote: 'Press G to see the emotes', tut_done: 'Done! You know how to play.', egg_konami: 'Rainbow mode!', egg_party: 'Party time!', welcome_title: 'Welcome to Blocksy!', welcome_text: 'Three steps to get started:', welcome_avatar: 'Make your avatar', welcome_play: 'Pick a game', welcome_shop: 'Check out the shop', my_game_stats: 'You have played here {n} times ({m} min)',
     theme_contrast: 'High contrast', set_ui_sounds: 'Interface sounds',
