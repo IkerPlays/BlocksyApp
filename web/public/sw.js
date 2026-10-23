@@ -1,7 +1,7 @@
 // Service worker de Blocksy: la app (HTML/JS/CSS/iconos) funciona sin conexión; la API y la música siempre van a la red.
 const BUILD = '__BUILD__'                       // la sustituye vite en cada compilación: así el navegador detecta una versión nueva
 const VERSION = 'blocksy-' + BUILD
-const SHELL = ['/', '/manifest.webmanifest', '/icons/icon-192.png', '/icons/icon-512.png']
+const SHELL = ['/', '/offline.html', '/manifest.webmanifest', '/icons/icon-192.png', '/icons/icon-512.png']
 
 // La versión nueva espera a que el usuario pulse "Actualizar" (mensaje 'skip'); así no cambia el código a mitad de una partida
 self.addEventListener('install', e => { e.waitUntil(caches.open(VERSION).then(c => c.addAll(SHELL))) })
@@ -15,7 +15,7 @@ self.addEventListener('fetch', e => {
   if (req.method !== 'GET' || url.origin !== location.origin) return          // Supabase y demás: red
   if (url.pathname.startsWith('/playlist/')) return                            // la música no se guarda (puede ser grande)
   if (req.mode === 'navigate') {                                               // páginas: red primero, caché si no hay conexión
-    e.respondWith(fetch(req).then(r => { const c = r.clone(); caches.open(VERSION).then(ca => ca.put('/', c)); return r }).catch(() => caches.match('/')))
+    e.respondWith(fetch(req).then(r => { const c = r.clone(); caches.open(VERSION).then(ca => ca.put('/', c)); return r }).catch(() => caches.match('/').then(r => r || caches.match('/offline.html'))))
     return
   }
   e.respondWith(caches.match(req).then(hit => {

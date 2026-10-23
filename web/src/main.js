@@ -11,7 +11,7 @@ import { headshot } from './avatar.js'
 import { t, applyStatic, setLang, getPref, LANGS, langName, onLang } from './i18n.js'
 import { initNotifications, openInvite } from './social-ui.js'
 import { openScriptModal } from './studio-ui.js'
-import { registerSW, applyUpdate } from './pwa.js'
+import { registerSW, applyUpdate, canInstall, installApp, isInstalled } from './pwa.js'
 import { installErrorLog, isNewVersion } from './about.js'
 import { installPalette } from './palette.js'
 import { needsWelcome, markWelcomed, installEasterEggs } from './onboarding.js'
@@ -62,6 +62,11 @@ async function route() {
     const g = await api.getGame(arg)
     if (!g || g.owner_id !== profile.id || !api.canCreate()) { history.replaceState(null, '', '/create'); return route() }
     return play(g, { studio: true })
+  }
+  if (page === 'share') {                                         // destino de "Compartir con Blocksy" (manifest share_target)
+    const sp = new URLSearchParams(location.search), raw = sp.get('url') || sp.get('text') || ''; let target = ''
+    try { const u = new URL(raw.match(/https?:\/\/\S+/)?.[0] ?? raw, location.origin); if (u.origin === location.origin && /^\/(join|u)\//.test(u.pathname)) target = u.pathname } catch {}
+    history.replaceState(null, '', target || (sp.get('title') || sp.get('text') ? '/discover/' + encodeURIComponent((sp.get('title') || sp.get('text')).slice(0, 40)) : '/home')); return route()
   }
   if (page === 'u') { page = 'profile'; arg = arg ?? profile.username }
   if (page === 'profile' && !arg) arg = profile.username
@@ -165,7 +170,20 @@ $('modal').addEventListener('click', e => { if (e.target.id === 'modal') closeMo
 new MutationObserver(() => { if ($('modal').classList.contains('hidden')) $('game').classList.remove('hidden-for-modal') }).observe($('modal'), { attributes: true, attributeFilter: ['class'] })
 $('search').addEventListener('submit', e => { e.preventDefault(); const q = $('search-input').value.trim(); navigate(q ? `/discover/${encodeURIComponent(q)}` : '/discover') })
 window.addEventListener('beforeunload', () => { api.leaveBeacon() })
-installPalette(() => (profile ? { go: ctx.go, play, canCreate: api.canCreate, games: api.listGames, setTheme: v => { settings.theme = v; saveSettings(); applyTheme() } } : null)); installErrorLog(); installEasterEggs(m => toast(m))
+installPalette(() => (profile ? { go: ctx.go, play, canCreate: api.canCreate, games: api.listGames, setTheme: v => { settings.theme = v; saveSettings(); applyTheme() } } : null)); // aviso para instalar la app: a partir de la 3.ª visita, una sola vez (se puede cerrar para siempre)
+{
+  let visits = 0, dismissed = false; try { visits = +(localStorage.getItem('blocksy.visits') || 0) + 1; localStorage.setItem('blocksy.visits', String(visits)); dismissed = localStorage.getItem('blocksy.installDismissed') === '1' } catch {}
+  const show = () => {
+    if (dismissed || visits < 3 || isInstalled() || !canInstall() || document.getElementById('install-banner')) return
+    const b = document.createElement('div'); b.id = 'install-banner'
+    const txt = document.createElement('span'); txt.textContent = t('install_banner')
+    const yes = document.createElement('button'); yes.className = 'btn primary tiny'; yes.textContent = t('install_btn'); yes.onclick = async () => { await installApp(); b.remove() }
+    const no = document.createElement('button'); no.className = 'btn tiny'; no.textContent = '×'; no.onclick = () => { try { localStorage.setItem('blocksy.installDismissed', '1') } catch {} b.remove() }
+    b.append(txt, yes, no); document.body.append(b)
+  }
+  window.addEventListener('blocksy:installable', () => setTimeout(show, 4000)); setTimeout(show, 6000)
+}
+installErrorLog(); installEasterEggs(m => toast(m))
 document.addEventListener('click', e => { if (settings.uiSounds && e.target.closest?.('.btn, #sidebar a, .tab, .card, .game-card, .person, .shop-card button')) sfx.click() }, true)
 registerSW(() => { $('update-bar').classList.remove('hidden') })
 $('update-reload').onclick = () => applyUpdate()

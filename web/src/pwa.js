@@ -1,6 +1,6 @@
 // PWA: service worker con sistema de actualizaciones, instalación y notificaciones del sistema
 let deferred = null, reg = null, onUpdateCb = null, updateReady = false
-window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferred = e })
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferred = e; window.dispatchEvent(new Event('blocksy:installable')) })
 window.addEventListener('appinstalled', () => { deferred = null })
 export const isInstalled = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true
 export const canInstall = () => !!deferred
