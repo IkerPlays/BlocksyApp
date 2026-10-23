@@ -31,5 +31,6 @@ export const sfx = {
   checkpoint: () => { tone(700, 0.1, { gain: 0.1 }); tone(1050, 0.18, { gain: 0.1, delay: 0.09 }) },
   win: () => [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.25, { gain: 0.12, delay: i * 0.12 })),
   fall: () => tone(400, 0.4, { type: 'triangle', gain: 0.1, slide: -300 }),
+  step: () => noise(0.04, { gain: 0.045, freq: 700 + Math.random() * 300 }),
   click: () => tone(500, 0.04, { type: 'square', gain: 0.05 }),
 }

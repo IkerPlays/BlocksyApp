@@ -6,6 +6,10 @@ Blocksy is a multiplayer block-building game for the web and the Nintendo 3DS (h
 - **Loading tips.** A loading screen with a random tip when you enter a game.
 - **Shortcuts panel.** Press ? or F1 in a game to see every keyboard shortcut.
 - **Ping and photo mode.** The HUD shows your ping; press H to hide the interface for screenshots.
+- **More emotes.** Jump for joy, Cry, Point and Flex, shown on web (the 3DS shows them as idle).
+- **Emote wheel.** The emote menu is now a wheel around your character.
+- **Quick reactions.** Alt+1 to Alt+4 show +1, GG, LOL or ! above your head for everybody.
+- **Footsteps.** Soft footstep sounds while you walk or run.
 
 ## Installing
 - Install `Blocksy.cia` with FBI, or copy `Blocksy.3dsx` to the `3ds` folder of the SD card and run it from the Homebrew Launcher.

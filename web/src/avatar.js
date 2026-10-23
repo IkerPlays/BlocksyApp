@@ -13,6 +13,10 @@ export const EMOTES = [
   { id: 'cheer', label: 'Celebrar' },
   { id: 'clap', label: 'Aplaudir' },
   { id: 'sit', label: 'Sentarse' },
+  { id: 'jumpjoy', label: 'Saltar de alegria' },
+  { id: 'cry', label: 'Llorar' },
+  { id: 'point', label: 'Senalar' },
+  { id: 'flex', label: 'Presumir' },
 ]
 export const isEmote = a => EMOTES.some(e => e.id === a)
 
@@ -90,7 +94,7 @@ export function buildAvatar(style) {
 export function poseAvatar(g, anim, dt, t) {
   const u = g.userData
   if (anim === 'walk') u.phase += dt * 11
-  else if (isEmote(anim)) u.phase += dt * (anim === 'dance' ? 9 : anim === 'clap' ? 14 : 7)
+  else if (isEmote(anim)) u.phase += dt * (anim === 'dance' ? 9 : anim === 'clap' ? 14 : anim === 'jumpjoy' ? 8 : anim === 'cry' ? 10 : anim === 'flex' ? 5 : 7)
   const k = Math.min(1, dt * 14)
   const lerp = (o, p, v) => { o.rotation[p] += (v - o.rotation[p]) * k }
   const s = Math.sin(u.phase)
@@ -102,6 +106,10 @@ export function poseAvatar(g, anim, dt, t) {
     case 'dance': legL = s * 0.5; legR = -s * 0.5; armLz = -2.4 - Math.sin(u.phase * 2) * 0.4; armRz = 2.4 + Math.sin(u.phase * 2 + 1) * 0.4; bodyY = Math.abs(Math.sin(u.phase)) * 0.16; headX = Math.sin(u.phase * 2) * 0.12; break
     case 'cheer': armLx = -3.0; armRx = -3.0; armLz = -0.35; armRz = 0.35; bodyY = Math.abs(Math.sin(u.phase)) * 0.22; break
     case 'clap': armLx = -1.45; armRx = -1.45; armLz = 0.55 - (Math.sin(u.phase) + 1) * 0.28; armRz = -0.55 + (Math.sin(u.phase) + 1) * 0.28; break
+    case 'jumpjoy': armLx = -3; armRx = -3; legL = Math.abs(s) * 0.4; legR = -Math.abs(s) * 0.3; bodyY = Math.abs(Math.sin(u.phase)) * 0.38; break
+    case 'cry': armLx = -1.35; armRx = -1.35; armLz = 0.5; armRz = -0.5; headX = 0.4 + Math.sin(u.phase) * 0.05; bodyY = -0.04 + Math.sin(u.phase * 1.4) * 0.02; break
+    case 'point': armRx = -1.55; armLx = Math.sin(t * 1.6) * 0.04; headX = -0.05; break
+    case 'flex': armLz = -1.55 + Math.sin(u.phase) * 0.1; armRz = 1.55 - Math.sin(u.phase) * 0.1; armLx = -0.4; armRx = -0.4; bodyY = Math.abs(Math.sin(u.phase)) * 0.05; break
     case 'sit': legL = -1.5; legR = -1.5; armLx = -0.5; armRx = -0.5; bodyY = -0.36; break
     default: armLx = Math.sin(t * 1.6) * 0.05; armRx = -Math.sin(t * 1.6) * 0.05; headX = Math.sin(t * 1.2) * 0.03
   }

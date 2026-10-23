@@ -1,1 +1,1 @@
-Dev build 1 of the 1.2 roadmap: loading screen with tips, keyboard shortcuts panel (? or F1), ping in the HUD and photo mode (H hides the interface).
+Dev build 2: four new emotes (jump for joy, cry, point, flex), a radial emote wheel, quick reactions (Alt+1..4) and footstep sounds.

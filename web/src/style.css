@@ -346,3 +346,6 @@ textarea.code { flex:1; border:0; outline:none; resize:none; background:transpar
 #shortcuts div { display: flex; gap: 12px; align-items: center; } #shortcuts kbd { background: #ffffff22; border-radius: 6px; padding: 2px 8px; min-width: 70px; text-align: center; font: 700 12px system-ui; } #shortcuts span { color: #cfd6e4; font-size: 14px; }
 #game.photo #hud-top, #game.photo #hotbar, #game.photo #minimap, #game.photo #chat-log, #game.photo #chat-form, #game.photo #touch-ui, #game.photo #ui-layer, #game.photo .rb-layer, #game.photo .rb-lb, #game.photo #horror-hud, #game.photo #music-btn { display: none !important; }
 #photo-hint { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); background: #000a; color: #fff; padding: 6px 14px; border-radius: 14px; z-index: 12; font-size: 13px; }
+#emote-panel.wheel { position: fixed; top: 50%; left: 50%; right: auto; width: 0; height: 0; padding: 0; background: none; display: block; transform: none; }
+#emote-panel.wheel .emote { position: absolute; transform: translate(-50%, -50%); white-space: nowrap; box-shadow: 0 4px 14px #0008; }
+#emote-panel.wheel::before { content: ''; position: absolute; width: 250px; height: 250px; left: -125px; top: -125px; border-radius: 50%; background: #000a; }

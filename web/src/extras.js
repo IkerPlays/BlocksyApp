@@ -22,6 +22,18 @@ export function createShortcuts() {
   return { toggle() { render(); box.classList.toggle('hidden') }, hide() { box.classList.add('hidden') }, dispose() { box.remove() } }
 }
 
+// 6. Reacciones rápidas: Alt + 1..4 muestran una burbuja sobre tu avatar (viajan como mensaje de chat con un prefijo invisible)
+export const REACT_PREFIX = '\u2063r'
+export const REACTIONS = ['+1', 'GG', 'LOL', '!']
+export const isReaction = text => typeof text === 'string' && text.startsWith(REACT_PREFIX) ? text.slice(REACT_PREFIX.length) : null
+
+// 7. Rueda de emotes: reparte los botones del panel en círculo
+export function layoutWheel(panel) {
+  const btns = [...panel.querySelectorAll('.emote')], n = btns.length, R = 155
+  panel.classList.add('wheel')
+  btns.forEach((b, i) => { const a = (i / n) * Math.PI * 2 - Math.PI / 2; b.style.left = `calc(50% + ${Math.cos(a) * R}px)`; b.style.top = `calc(50% + ${Math.sin(a) * R}px)` })
+}
+
 // 4. Modo foto: H oculta todo el HUD
 export function togglePhoto() {
   const on = $('game').classList.toggle('photo')

@@ -19,7 +19,7 @@ import { createVoice } from './voice.js'
 import { createHorror } from './horror.js'
 import { createScripted } from './scene-parts.js'
 import { createStudio } from './studio-tools.js'
-import { loadingScreen, createShortcuts, togglePhoto } from './extras.js'
+import { loadingScreen, createShortcuts, togglePhoto, REACT_PREFIX, REACTIONS, isReaction, layoutWheel } from './extras.js'
 
 // 12 colores: la 3DS usa los mismos (3ds/source/main.c)
 export const PALETTE = ['#e8e8e8', '#e74c3c', '#f39c12', '#2ecc71', '#3498db', '#9b59b6', '#f1c40f', '#1abc9c', '#ff6b9d', '#8b5e34', '#4b4f57', '#7ed6ff']
@@ -247,6 +247,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
     if (editing()) me.fly = true
     else if (me.fly && me.grounded && !(keys.Space || jumpHeld)) { me.fly = false; sys(t('fly_off')) }
     if (!wasGrounded && me.grounded && !me.fly) sfx.land()
+    if (me.grounded && !me.fly && mag > 0.1 && (stepAt -= dt) <= 0) { stepAt = sprint ? 0.26 : 0.38; sfx.step() }
     if (world.voidY != null && p.y < world.voidY) { sfx.fall(); showTitle(t('fell'), 1200); teleport(...respawn.pos); if (race.start && !race.done) race.start = race.cp === 0 ? 0 : race.start }
     const moving = len > 0.001 && mag > 0.05
     if (me.emote && (moving || !me.grounded)) me.emote = null
@@ -371,6 +372,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
   // ----- emotes -----
   const emotePanel = $('emote-panel')
   emotePanel.replaceChildren(...EMOTES.map(e => { const b = document.createElement('button'); b.className = 'emote'; b.dataset.id = e.id; b.textContent = t('emote_' + e.id); b.onclick = () => { if (!cfg.allow_emotes) return; if (me.grounded || me.fly) { me.fly = false; me.emote = e.id } emotePanel.classList.add('hidden') }; return b }))
+  layoutWheel(emotePanel)
   onLang(() => emotePanel.querySelectorAll('.emote').forEach(b => (b.textContent = t('emote_' + b.dataset.id))))
   $('emote-btn').onclick = () => emotePanel.classList.toggle('hidden')
   $('emote-btn').classList.toggle('hidden', !cfg.allow_emotes)
@@ -555,7 +557,11 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
     if (!canFly) return
     me.fly = !me.fly; sys(t(me.fly ? 'fly_on' : 'fly_off')); $('down-btn')?.classList.toggle('hidden', !me.fly)
   }
-  let lastSpace = 0
+  let lastSpace = 0, lastReact = 0, stepAt = 0
+  function react(i) {
+    if (!cfg.allow_chat || Date.now() - lastReact < 1500) return; lastReact = Date.now()
+    bubble(meAvatar, REACTIONS[i]); sfx.click(); api.say(game.id, REACT_PREFIX + REACTIONS[i]).catch(() => {})
+  }
   const help = createShortcuts(); loadingScreen(game.name); let ping = 0
   const down = e => {
     if (typing()) { if (e.code === 'Escape') { $('chat-input').blur(); $('chat-form').classList.remove('open') } return }
@@ -566,6 +572,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
     if (e.code === 'Slash' || e.code === 'Enter') { if (!cfg.allow_chat) return; e.preventDefault(); $('chat-form').classList.add('open'); $('chat-input').focus(); return }
     if (e.code === 'KeyG' && cfg.allow_emotes) { emotePanel.classList.toggle('hidden'); return }
     if (e.code === 'KeyF') { if (horror) horror.toggleLight(); else toggleFly(); return }
+    if (e.altKey && /^Digit[1-4]$/.test(e.code)) { e.preventDefault(); react(Number(e.code.slice(5)) - 1); return }
     if (e.code === 'KeyM') { music.toggle(); return }
     if (e.code === 'KeyH') { togglePhoto(); return }
     if (e.key === '?' || e.code === 'F1') { e.preventDefault(); help.toggle(); return }
@@ -648,6 +655,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
     if (!row || row.kind !== 'chat' || chatSeen.has(row.id)) return
     chatSeen.add(row.id); chatSince = row.created_at
     if (row.player_id === profile.id || social.isBlockedName(row.username)) return                      // mis mensajes ya se enseñaron al enviarlos
+    { const r = isReaction(row.payload?.text); if (r) { bubble(others.get(row.player_id)?.avatar, r); return } }
     chatLine(row.username, row.payload?.text ?? '', row.player_id)
   }
   const channel = gameDb.channel(`game:${game.id}`)
