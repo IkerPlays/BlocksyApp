@@ -3,6 +3,7 @@ import { EXTRA } from './i18n-extra.js'
 const D = {
   es: {
     lang_name: 'Español',
+    pos_copied: 'Coordenadas copiadas: {p}', stats_copy: 'Pulsa para copiar tus coordenadas', place_saved: 'Lugar «{n}» guardado', place_go: 'Vas a «{n}»', place_none: 'No hay ningún lugar llamado «{n}»', place_deleted: 'Lugar «{n}» borrado', place_list: 'Tus lugares: {l}  (usa /place go nombre)', place_help: 'Sin lugares guardados. /place save nombre · /place go nombre · /place del nombre', set_stamina: 'Barra de aguante al correr', voice_peer_vol: 'Volumen de este jugador',
     ctab_all: 'Todo', ctab_chat: 'Chat', ctab_system: 'Avisos', chat_history: 'Historial del chat', chat_search: 'Buscar en el chat…', set_chat_time: 'Mostrar la hora en el chat', sc_chat_hist: 'Historial del chat',
     today: 'Hoy', yesterday: 'Ayer', dnd_on: 'No molestar', dnd_off: 'No molestar: activo', dnd_setting: 'No molestar (sin avisos ni sonidos)', nt_message: 'Avisar de mensajes', nt_friend_request: 'Avisar de solicitudes de amistad', nt_friend_accept: 'Avisar cuando aceptan mi solicitud', nt_invite: 'Avisar de invitaciones a juegos', friends_search: 'Buscar amigo…', ff_all: 'Todos', ff_online: 'En línea', ff_ingame: 'Jugando', ff_none: 'Ningún amigo coincide',
     p_banner: 'Color del banner', p_banner_none: 'Quitar banner', p_share: 'Compartir perfil', p_nick: 'Apodo', p_nick_ask: 'Apodo para {name} (solo lo ves tú; vacío = quitarlo)', p_nick_is: 'Para ti: {nick}',
@@ -107,6 +108,7 @@ const D = {
   },
   en: {
     lang_name: 'English',
+    pos_copied: 'Coordinates copied: {p}', stats_copy: 'Click to copy your coordinates', place_saved: 'Place “{n}” saved', place_go: 'Going to “{n}”', place_none: 'No place called “{n}”', place_deleted: 'Place “{n}” deleted', place_list: 'Your places: {l}  (use /place go name)', place_help: 'No saved places. /place save name · /place go name · /place del name', set_stamina: 'Sprint stamina bar', voice_peer_vol: 'This player\'s volume',
     ctab_all: 'All', ctab_chat: 'Chat', ctab_system: 'System', chat_history: 'Chat history', chat_search: 'Search the chat…', set_chat_time: 'Show time in the chat', sc_chat_hist: 'Chat history',
     today: 'Today', yesterday: 'Yesterday', dnd_on: 'Do not disturb', dnd_off: 'Do not disturb: on', dnd_setting: 'Do not disturb (no pop-ups or sounds)', nt_message: 'Notify me of messages', nt_friend_request: 'Notify me of friend requests', nt_friend_accept: 'Notify me when my request is accepted', nt_invite: 'Notify me of game invites', friends_search: 'Search friends…', ff_all: 'All', ff_online: 'Online', ff_ingame: 'In game', ff_none: 'No friend matches',
     p_banner: 'Banner color', p_banner_none: 'No banner', p_share: 'Share profile', p_nick: 'Nickname', p_nick_ask: 'Nickname for {name} (only you see it; empty = remove)', p_nick_is: 'To you: {nick}',

@@ -617,7 +617,7 @@ export const pages = {
           sw('music', t('set_music')), rg('musicVol', t('set_music_vol'), 0, 1, 0.05, v => Math.round(v * 100) + '%'), sw('shuffle', t('set_shuffle')),
           sw('sfx', t('set_sfx')), rg('sfxVol', t('set_sfx_vol'), 0, 1, 0.05, v => Math.round(v * 100) + '%')),
         el('div', { class: 'panel' }, el('h3', { text: t('controls') ?? 'Controles' }),
-          rg('sensitivity', t('set_sens'), 0.3, 2.5, 0.1), rg('syncMs', t('set_sync'), 40, 400, 10, v => v + ' ms'), sw('invertY', t('set_invert')), sw('chatTime', t('set_chat_time')), sw('names', t('set_names')), sw('bubbles', t('set_bubbles')),
+          rg('sensitivity', t('set_sens'), 0.3, 2.5, 0.1), rg('syncMs', t('set_sync'), 40, 400, 10, v => v + ' ms'), sw('invertY', t('set_invert')), sw('chatTime', t('set_chat_time')), sw('stamina', t('set_stamina')), sw('names', t('set_names')), sw('bubbles', t('set_bubbles')),
           sw('notifPopups', t('set_notif')), sw('dnd', t('dnd_setting'), () => document.getElementById('bell')?.classList.toggle('dnd', !!settings.dnd)), ...['message', 'friend_request', 'friend_accept', 'invite'].map(k => { const i = el('input', { type: 'checkbox' }); i.checked = settings.nt?.[k] !== false; i.onchange = () => { settings.nt = { ...(settings.nt ?? {}), [k]: i.checked }; saveSettings() }; return el('label', { class: 'field check sub' }, i, t('nt_' + k)) }),
           sw('minimap', t('set_minimap')), sw('compass', t('set_compass')), sw('showFps', t('set_fps')),
           rg('touchSize', t('set_touch_size'), 0.7, 1.5, 0.1), sw('leftHanded', t('set_left'))),

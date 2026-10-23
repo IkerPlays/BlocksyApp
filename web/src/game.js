@@ -249,7 +249,14 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
     let mz = -Math.cos(cam.yaw) * f - Math.sin(cam.yaw) * s
     const len = Math.hypot(mx, mz)
     if (len > 0.001) { mx /= len; mz /= len; me.ry = Math.atan2(mx, mz) }
-    const sprint = active && (keys.ShiftLeft || keys.ShiftRight) && !me.fly
+    let sprint = active && (keys.ShiftLeft || keys.ShiftRight) && !me.fly
+    if (settings.stamina) {                                                // barra de aguante: correr gasta, descansar recupera
+      const moving = f !== 0 || s !== 0
+      if (sprint && moving && !exhausted) stamina = Math.max(0, stamina - 25 * dt); else stamina = Math.min(100, stamina + (moving ? 10 : 20) * dt)
+      if (stamina <= 0) exhausted = true; else if (exhausted && stamina >= 25) exhausted = false
+      if (exhausted) sprint = false
+      stBar.classList.toggle('hidden', stamina >= 99.5); stFill.style.width = stamina + '%'; stBar.classList.toggle('low', exhausted)
+    } else if (!stBar.classList.contains('hidden')) stBar.classList.add('hidden')
     const p = me.pos
     const swimming = !me.fly && rbx.inWater(p.x, p.y, p.z), climbing = !me.fly && !swimming && rbx.climbable(p.x, p.y, p.z)
     const crouching = active && keys.KeyC && !me.fly && me.grounded && cfg.allow_crouch !== false
@@ -357,6 +364,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
       const li = document.createElement('li'); const a = document.createElement('span'); a.className = 'avatar'; a.style.setProperty('--c', o.color); a.style.setProperty('--img', `url(${headshot(o.name, o.color)})`)
       const n = document.createElement('span'); n.textContent = o.name + (o.me ? ' ' + t('you') : ''); n.style.flex = '1'; li.append(a, n)
       const vm = o.me ? (voiceSt.active ? { speaking: voiceSt.selfSpeaking && !voiceSt.muted, muted: voiceSt.muted } : null) : voiceSt.members.find(m => m.id === o.id)
+      if (vm && !o.me) { const sl = document.createElement('input'); sl.type = 'range'; sl.min = 0; sl.max = 2; sl.step = 0.1; sl.value = voice.getPeerVolume(o.id); sl.title = t('voice_peer_vol'); sl.className = 'peer-vol'; sl.onclick = ev => ev.stopPropagation(); sl.oninput = () => voice.setPeerVolume(o.id, +sl.value); li.append(sl) }
       if (vm) { const mic = document.createElement('span'); mic.className = 'vmic' + (vm.speaking ? ' on' : ''); mic.innerHTML = icon(vm.muted ? 'micoff' : 'mic', 14); li.append(mic) }
       if (o.platform === '3ds') { const tg = document.createElement('span'); tg.className = 'tag'; tg.textContent = '3DS'; li.append(tg) }
       if (!o.me) { const mb = document.createElement('button'); mb.className = 'mute-btn' + (isMuted(o.name) ? ' on' : ''); mb.innerHTML = icon('mute', 14); mb.title = t('mute_player'); mb.onclick = ev => { ev.stopPropagation(); const on = toggleMute(o.name); mb.classList.toggle('on', on); sys(t(on ? 'muted_player' : 'unmuted_player', { name: o.name })) }; li.append(mb) }
@@ -439,6 +447,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
   $('emote-btn').classList.toggle('hidden', !cfg.allow_emotes)
   $('players-btn').onclick = () => { drawRoster(); roster.classList.toggle('hidden') }
   $('shot-btn').onclick = () => (shotPending = true)
+  $('stats').style.pointerEvents = 'auto'; $('stats').style.cursor = 'copy'; $('stats').title = t('stats_copy'); $('stats').onclick = () => { const txt = `${me.pos.x.toFixed(1)} ${me.pos.y.toFixed(1)} ${me.pos.z.toFixed(1)}`; (navigator.clipboard?.writeText(txt) ?? Promise.reject()).then(() => sys(t('pos_copied', { p: txt })), () => {}) }
   $('chat-btn').onclick = () => { const f = $('chat-form'); f.classList.toggle('open'); if (f.classList.contains('open')) $('chat-input').focus() }
   $('chat-form').classList.toggle('hidden', !cfg.allow_chat)
   $('chat-btn').classList.toggle('hidden', !cfg.allow_chat)
@@ -450,11 +459,20 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
   function sendChat(tx) {
     if (tx.startsWith('/')) {
       const [cmd, ...rest] = tx.slice(1).split(' '), name = cmd.toLowerCase(), args = rest.join(' ').trim()
-      if (name === 'help') return sys('/help  /tp <jugador>  /fly  /spawn  /me <texto>  /pos  /ping  /clear' + (scriptCmds.size ? '  ·  ' + [...scriptCmds].map(c => '/' + c).join('  ') : ''))
+      if (name === 'help') return sys('/help  /tp <jugador>  /fly  /spawn  /me <texto>  /pos  /copypos  /place save|go|del <nombre>  /places  /ping  /clear' + (scriptCmds.size ? '  ·  ' + [...scriptCmds].map(c => '/' + c).join('  ') : ''))
       if (name === 'me') return args ? sendChat(`* ${profile.username} ${args}`) : sys('/me <texto>')
       if (name === 'pos') return sys(`(${me.pos.x.toFixed(1)}, ${me.pos.y.toFixed(1)}, ${me.pos.z.toFixed(1)})`)
       if (name === 'ping') return sys(`${ping || '?'} ms`)
       if (name === 'clear') return log.replaceChildren()
+      if (name === 'copypos') { const txt = `${me.pos.x.toFixed(1)} ${me.pos.y.toFixed(1)} ${me.pos.z.toFixed(1)}`; return (navigator.clipboard?.writeText(txt) ?? Promise.reject()).then(() => sys(t('pos_copied', { p: txt })), () => sys(txt)) }
+      if (name === 'place' || name === 'places') {
+        const K = `blocksy.places.${game.id}`; let pl = {}; try { pl = JSON.parse(localStorage.getItem(K) || '{}') } catch {}
+        const [sub, ...nm] = name === 'places' ? ['list'] : args.split(' '), pn = nm.join(' ').trim().slice(0, 20)
+        if (sub === 'save' && pn) { pl[pn.toLowerCase()] = [+me.pos.x.toFixed(2), +me.pos.y.toFixed(2), +me.pos.z.toFixed(2)]; try { localStorage.setItem(K, JSON.stringify(pl)) } catch {} return sys(t('place_saved', { n: pn })) }
+        if (sub === 'go' && pn) { const p = pl[pn.toLowerCase()]; return p ? (teleport(...p), sys(t('place_go', { n: pn }))) : sys(t('place_none', { n: pn })) }
+        if (sub === 'del' && pn) { delete pl[pn.toLowerCase()]; try { localStorage.setItem(K, JSON.stringify(pl)) } catch {} return sys(t('place_deleted', { n: pn })) }
+        return sys(Object.keys(pl).length ? t('place_list', { l: Object.keys(pl).join(', ') }) : t('place_help'))
+      }
       if (name === 'party') { me.fly = false; me.emote = 'dance'; sys(t('egg_party')); sfx.win(); return }
       if (name === 'spawn') return teleport(...respawn.pos)
       if (name === 'fly') return toggleFly()
@@ -474,6 +492,8 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
   // piezas, luces, interfaz y puntuaciones que crean los scripts (API de Roblox en Lua)
   const weather = createWeather(scene); weather.setKind(cfg.weather)
   const compass = createCompass(), pings = createPings(scene), health = createHealth()
+  let stamina = 100, exhausted = false
+  const stBar = document.createElement('div'); stBar.id = 'stamina-bar'; stBar.className = 'hidden'; const stFill = document.createElement('i'); stBar.append(stFill); $('game').append(stBar)
   const projV = new THREE.Vector3()
   const rbx = createScripted({ scene, uiRoot: $('game'), getMe: () => me.pos, solid, world, sfx,
     project: (x, y, z) => { projV.set(x, y, z).project(camera); const w = canvas.clientWidth, h = canvas.clientHeight, r = canvas.getBoundingClientRect(); return { x: r.left + (projV.x * 0.5 + 0.5) * w, y: r.top + (-projV.y * 0.5 + 0.5) * h, visible: projV.z < 1 && Math.abs(projV.x) < 1.2 && Math.abs(projV.y) < 1.2, dist: camera.position.distanceTo(projV.set(x, y, z)) } },
@@ -947,7 +967,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
     window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); window.removeEventListener('resize', onResize)
     window.removeEventListener('pointermove', pmove); window.removeEventListener('pointerup', pup); window.removeEventListener('pointercancel', pup)
     canvas.removeEventListener('pointerdown', pdown); canvas.removeEventListener('wheel', wheel); canvas.removeEventListener('contextmenu', noMenu); canvas.removeEventListener('pointerleave', pleave)
-    offSettings(); offSync(); offLang(); offMusic(); music.stop(); runner.dispose(); rbx.dispose(); help.dispose(); weather.dispose(); compass.dispose(); pings.dispose(); orient.dispose(); tut.dispose(); histPanel.remove(); tabs.remove(); health.dispose(); clearInterval(uiTimer); clearInterval(loadoutTimer); window.removeEventListener('pointermove', uiMove); window.removeEventListener('pointerup', uiUp); studioCleanup.forEach(f => f()); uiLayer.replaceChildren()
+    offSettings(); offSync(); offLang(); offMusic(); music.stop(); runner.dispose(); rbx.dispose(); help.dispose(); weather.dispose(); compass.dispose(); pings.dispose(); orient.dispose(); tut.dispose(); stBar.remove(); histPanel.remove(); tabs.remove(); health.dispose(); clearInterval(uiTimer); clearInterval(loadoutTimer); window.removeEventListener('pointermove', uiMove); window.removeEventListener('pointerup', uiUp); studioCleanup.forEach(f => f()); uiLayer.replaceChildren()
     touchUi?.remove(); emotePanel.classList.add('hidden'); mPanel.classList.add('hidden'); $('big-title').classList.add('hidden')
     $('pause').classList.add('hidden'); roster.classList.add('hidden'); log.replaceChildren()
     api.leave().catch(() => {}); gameDb.removeChannel(channel)

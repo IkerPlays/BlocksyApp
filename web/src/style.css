@@ -437,3 +437,5 @@ html.rainbow { animation: rainbow 2s linear infinite; } @keyframes rainbow { to 
 #chat-log .chat-time { display: none; opacity: .6; } #chat-log.show-time .chat-time { display: inline; } #chat-log li.mention { background: #b8860bcc; box-shadow: 0 0 0 1px #ffd34d; }
 #chat-history { position: absolute; left: 14px; bottom: 110px; width: min(420px, 90vw); max-height: 55vh; background: #000d; color: #fff; border-radius: 12px; padding: 10px; z-index: 40; display: flex; flex-direction: column; gap: 6px; }
 #chat-history input { padding: 5px 8px; border-radius: 8px; border: 0; background: #ffffff22; color: #fff; } .ch-body { overflow: auto; font-size: 12px; display: flex; flex-direction: column; gap: 2px; } .ch-row.sys { color: #aab; font-style: italic; } .ch-row.mention { color: #ffd34d; }
+#stamina-bar { position: fixed; left: 14px; bottom: 98px; width: 180px; height: 8px; background: #000a; border-radius: 4px; overflow: hidden; z-index: 4; pointer-events: none; } #stamina-bar i { display: block; height: 100%; background: #ffd34d; } #stamina-bar.low i { background: #ff8f5a; }
+.peer-vol { width: 70px; margin-left: 6px; }

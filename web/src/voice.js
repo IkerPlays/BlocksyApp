@@ -57,6 +57,9 @@ export function createVoice({ gameId, selfId, name, getPos, onChange }) {
   }
 
   // volumen por distancia + indicadores de "hablando"
+  const VK = 'blocksy.voicevol'
+  const volMap = () => { try { const o = JSON.parse(localStorage.getItem(VK) || '{}'); return o && typeof o === 'object' ? o : {} } catch { return {} } }
+  const peerVol = p => p.vol ?? (p.vol = volMap()[String(p.name).toLowerCase()] ?? 1)
   const buf = new Uint8Array(256)
   const level = an => { an.getByteTimeDomainData(buf); let s = 0; for (let i = 0; i < buf.length; i++) { const v = (buf[i] - 128) / 128; s += v * v } return Math.sqrt(s / buf.length) }
   function loop() {
@@ -67,7 +70,7 @@ export function createVoice({ gameId, selfId, name, getPos, onChange }) {
       if (p.gain) {
         let g = 1
         if (settings.voiceProximity) { const o = getPos?.(id); if (me && o) { const d = Math.hypot(me.x - o.x, me.y - o.y, me.z - o.z); g = d <= NEAR ? 1 : d >= FAR ? 0 : 1 - (d - NEAR) / (FAR - NEAR); g *= g } }
-        p.gain.gain.value += (g * settings.voiceVol - p.gain.gain.value) * 0.2
+        p.gain.gain.value += (g * settings.voiceVol * peerVol(p) - p.gain.gain.value) * 0.2
         const sp = level(p.analyser) > 0.02; if (sp !== p.speaking) { p.speaking = sp; changed = true }
       }
     }
@@ -90,6 +93,8 @@ export function createVoice({ gameId, selfId, name, getPos, onChange }) {
     },
     setMuted(v) { muted = v; stream?.getAudioTracks().forEach(t => (t.enabled = !v)); notify() },
     toggleMute() { this.setMuted(!muted) },
+    getPeerVolume(id) { const p = peers.get(id); return p ? peerVol(p) : 1 },
+    setPeerVolume(id, v) { const p = peers.get(id); if (!p) return; p.vol = v; const o = volMap(); o[String(p.name).toLowerCase()] = v; try { localStorage.setItem(VK, JSON.stringify(o)) } catch {} },
     stop() {
       if (!active && !ch) return
       send(null, 'bye', {}); active = false; cancelAnimationFrame(raf)
