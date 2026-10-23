@@ -17,6 +17,8 @@ import { icon } from './icons.js'
 import * as social from './social.js'
 import { createVoice } from './voice.js'
 import { createHorror } from './horror.js'
+import { createScripted } from './scene-parts.js'
+import { createStudio } from './studio-tools.js'
 
 // 12 colores: la 3DS usa los mismos (3ds/source/main.c)
 export const PALETTE = ['#e8e8e8', '#e74c3c', '#f39c12', '#2ecc71', '#3498db', '#9b59b6', '#f1c40f', '#1abc9c', '#ff6b9d', '#8b5e34', '#4b4f57', '#7ed6ff']
@@ -51,7 +53,7 @@ const groundTexture = repeat => canvasTex(128, (g, s) => {
 
 export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
   const ST = !!studio                              // modo Studio (editor del dueño): vuelo libre, herramientas y texto de interfaz
-  let testing = false, tool = 'place'
+  let testing = false
   const editing = () => ST && !testing
   const cfg = { allow_chat: true, allow_emotes: true, gravity: 24, speed: 6, jump: 8.6, ...(game.config ?? {}) }
   const mode = game.mode ?? 'build'
@@ -188,7 +190,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
   }
   function dropOther(id) {
     const o = others.get(id); if (!o) return
-    scene.remove(o.avatar); others.delete(id); sys(t('left', { name: o.name }))
+    scene.remove(o.avatar); others.delete(id); sys(t('left', { name: o.name })); runner.fire('playerleave', { data: { name: o.name } })
   }
 
   // ---------- física ----------
@@ -197,7 +199,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
     if (editing()) return false                      // Studio: atraviesas los bloques
     for (const dx of [-R, R]) for (const dz of [-R, R]) for (const h of [0.05, 0.9, 1.7])
       if (solid(Math.floor(px + dx), Math.floor(py + h), Math.floor(pz + dz))) return true
-    return false
+    return rbx.collides(px, py, pz, R)
   }
   const cam = { yaw: 0, pitch: 0.42, dist: 8 }
   const keys = {}
@@ -398,11 +400,20 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
 
   // ---------- script del juego (Worker aislado) ----------
   let runner = { fire() {}, has: () => false, dispose() {} }
+  // piezas, luces, interfaz y puntuaciones que crean los scripts (API de Roblox en Lua)
+  const rbx = createScripted({ scene, uiRoot: $('game'), getMe: () => me.pos, solid, world, sfx,
+    fire: (ev, data) => runner.fire(ev, { data }), onSpawn: p => { respawn.pos = p; teleport(...p) }, setHour: h => sky.setHour(h), setFog: () => {} })
+  const keyName = c => (/^Key[A-Z]$/.test(c) ? c.slice(3) : /^Digit\d$/.test(c) ? ['Zero', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine'][+c.slice(5)]
+    : { Space: 'Space', ShiftLeft: 'LeftShift', ShiftRight: 'RightShift', ControlLeft: 'LeftControl', Enter: 'Return', Escape: 'Escape', Tab: 'Tab', Backspace: 'Backspace', ArrowUp: 'Up', ArrowDown: 'Down', ArrowLeft: 'Left', ArrowRight: 'Right' }[c] ?? null)
   const uiText = {}                                          // textos de interfaz cambiados por el script (Lua: ui.setText)
   function startRunner() {
-    runner.dispose()
+    runner.dispose(); rbx.reset()
+    const lua = cfg.script_lang === 'lua', hasCode = !!game.script?.trim()
+    if (!(lua && hasCode)) rbx.spawnStatic(cfg.parts)                      // piezas del Studio: con script Lua las crea el propio script (para que las encuentre por nombre)
     runner = createRunner(game.script, { name: profile.username }, (type, a) => {
       switch (type) {
+        case 'print': sys('› ' + a[0]); break
+        case 'respawn': teleport(...respawn.pos); runner.fire('respawned', { data: {} }); break
         case 'say': sys('» ' + a[0]); break
         case 'title': showTitle(a[0], a[1]); break
         case 'teleport': teleport(a[0], a[1], a[2]); break
@@ -413,8 +424,9 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
         case 'sky': sky.setPreset(a[0]); break
         case 'sound': sfx[a[0]]?.(); break
         case 'uitext': uiText[a[0]] = String(a[1]); drawUi(); break
+        default: rbx.apply(type, a)
       }
-    }, msg => sys('script: ' + msg), cfg.script_lang === 'lua' ? 'lua' : 'js')
+    }, msg => sys('script: ' + msg), lua ? 'lua' : 'js', { parts: cfg.parts ?? [] })
   }
   if (!ST) startRunner()
 
@@ -449,25 +461,27 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
 
   // ---------- Studio ----------
   const studioCleanup = []
+  let sd = null
   if (ST) {
     const g = $('game'); g.classList.add('studio'); $('studio-bar').classList.remove('hidden')
-    const setTool = n => { tool = n; g.classList.toggle('tool-ui', n === 'ui'); for (const [id, k] of [['st-place', 'place'], ['st-erase', 'erase'], ['st-ui', 'ui']]) $(id).classList.toggle('on', k === n); if (n !== 'ui') { selUi = null; openInspector(); drawUi() } }
-    $('st-place').onclick = () => setTool('place'); $('st-erase').onclick = () => setTool('erase'); $('st-ui').onclick = () => setTool('ui')
-    $('st-addtext').onclick = () => {
-      let n = 1; while (uiEls.some(x => x.id === 'texto' + n)) n++
-      const e = { id: 'texto' + n, text: 'Texto', x: 50, y: 18, size: 32, color: '#ffffff' }; uiEls.push(e); setTool('ui'); selUi = e; drawUi(); openInspector()
-    }
-    $('st-script').onclick = async () => { await studio.openScript(game) }
-    $('st-test').onclick = () => {
-      testing = !testing
-      $('st-test').querySelector('span').textContent = t(testing ? 'st_stop' : 'st_test'); $('st-test').classList.toggle('on', testing)
-      if (testing) { selUi = null; openInspector(); teleport(...world.spawn); me.fly = false; for (const k in uiText) delete uiText[k]; startRunner(); drawUi(); setTimeout(() => runner.fire('join', { data: { name: profile.username }, who: profile.username }), 400) }
-      else { runner.dispose(); runner = { fire() {}, has: () => false, dispose() {} }; for (const k in uiText) delete uiText[k]; me.fly = true; drawUi() }
-    }
-    $('st-save').onclick = async () => { try { game.config = { ...(game.config ?? {}), ui: uiEls }; await studio.save(game); showTitle(t('st_saved'), 1600); sfx.click() } catch (e) { showTitle(e.message, 3000) } }
-    $('st-exit').onclick = () => onExit()
+    sd = createStudio({ game, cfg, api, PALETTE, key, index, statics, setBlock, removeBlock, me, pick, scene, camera, canvas, rbx, showTitle, sys, sfx, burst, selectKind, getHover: () => hoverPt,
+      setUiTool: on => { if (!on) { selUi = null; openInspector(); drawUi() } },
+      onAddText: () => { let n = 1; while (uiEls.some(x => x.id === 'texto' + n)) n++; const e = { id: 'texto' + n, text: 'Texto', x: 50, y: 18, size: 32, color: '#ffffff' }; uiEls.push(e); selUi = e; drawUi(); openInspector() },
+      onEnv: (k, v) => {
+        if (k === 'gravity') phys.gravity = Number(v) || 24; else if (k === 'speed') phys.speed = Number(v) || 6; else if (k === 'jump') phys.jump = Number(v) || 8.6
+        else if (k === 'sky') { if (v === 'auto') sky.setHour(0); else sky.setPreset(v) }
+      },
+      onScript: async () => { await studio.openScript(game) },
+      onTestToggle: () => {
+        testing = !testing
+        $('st-test').querySelector('span').textContent = t(testing ? 'st_stop' : 'st_test'); $('st-test').classList.toggle('on', testing); sd.setTesting(testing)
+        if (testing) { selUi = null; openInspector(); teleport(...world.spawn); me.fly = false; for (const k in uiText) delete uiText[k]; startRunner(); drawUi(); setTimeout(() => runner.fire('join', { data: { name: profile.username }, who: profile.username }), 400) }
+        else { runner.dispose(); rbx.reset(); rbx.spawnStatic(cfg.parts); runner = { fire() {}, has: () => false, dispose() {} }; for (const k in uiText) delete uiText[k]; me.fly = true; drawUi() }
+      },
+      onSave: async () => { try { await sd.flush(); game.config = { ...(game.config ?? {}), ui: uiEls, parts: sd.parts }; await studio.save(game); showTitle(t('st_saved'), 1600); sfx.click() } catch (e) { showTitle(e.message, 3000) } },
+      onExit: () => onExit() })
     showTitle(t('st_help'), 7000)
-    studioCleanup.push(() => { g.classList.remove('studio', 'tool-ui'); $('studio-bar').classList.add('hidden'); $('ui-inspector').classList.add('hidden') })
+    studioCleanup.push(() => { sd.dispose(); g.classList.remove('studio', 'tool-ui'); $('studio-bar').classList.add('hidden'); $('ui-inspector').classList.add('hidden') })
   }
 
   // ---------- selección de bloque con rayo de vóxeles ----------
@@ -506,7 +520,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
   }
   let hoverPt = null
   function updateHover() {
-    if (!hoverPt || paused || IS_TOUCH || !canBuild) { outline.visible = ghost.visible = false; return }
+    if (!hoverPt || paused || IS_TOUCH || !canBuild || (ST && editing() && sd && sd.tool !== 'place')) { outline.visible = ghost.visible = false; return }
     const h = pick(hoverPt.x, hoverPt.y)
     if (!h) { outline.visible = ghost.visible = false; return }
     outline.visible = !h.floor; if (!h.floor) outline.position.set(h.cell[0] + 0.5, h.cell[1] + 0.5, h.cell[2] + 0.5)
@@ -517,6 +531,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
   const overlapsMe = (x, y, z) => Math.abs(me.pos.x - (x + 0.5)) < 0.8 && Math.abs(me.pos.z - (z + 0.5)) < 0.8 && me.pos.y < y + 1 && me.pos.y + 1.8 > y
 
   function interact(e, breakMode) {
+    if (ST && editing() && sd) { sd.interact(e, e.button === 2); return }
     if (!canBuild) { sys(t('build_off')); return }
     const h = pick(e.clientX, e.clientY); if (!h) return
     if (breakMode) {
@@ -543,6 +558,8 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
     if (typing()) { if (e.code === 'Escape') { $('chat-input').blur(); $('chat-form').classList.remove('open') } return }
     if (e.code === 'Escape') return setPaused(!paused)
     if (paused) return
+    if (ST && editing() && sd?.keydown(e)) return
+    { const kn = keyName(e.code); if (kn && !e.repeat) runner.fire('key', { data: { k: kn, down: true } }); if (rbx.onKey(e.code, true)) return }
     if (e.code === 'Slash' || e.code === 'Enter') { if (!cfg.allow_chat) return; e.preventDefault(); $('chat-form').classList.add('open'); $('chat-input').focus(); return }
     if (e.code === 'KeyG' && cfg.allow_emotes) { emotePanel.classList.toggle('hidden'); return }
     if (e.code === 'KeyF') { if (horror) horror.toggleLight(); else toggleFly(); return }
@@ -555,7 +572,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
     if (e.code === 'Space') { e.preventDefault(); if (!e.repeat) { const now = performance.now(); if (now - lastSpace < 280 && canFly) toggleFly(); lastSpace = now } }
     keys[e.code] = true
   }
-  const up = e => { keys[e.code] = false; if (e.code === 'KeyV' && settings.voiceMode === 'ptt' && voice.active) voice.setMuted(true) }
+  const up = e => { keys[e.code] = false; { const kn = keyName(e.code); if (kn && !typing()) runner.fire('key', { data: { k: kn, down: false } }); rbx.onKey(e.code, false) } if (e.code === 'KeyV' && settings.voiceMode === 'ptt' && voice.active) voice.setMuted(true) }
   let drag = null
   let touchBreak = false
   const pdown = e => { if (drag) return; drag = { id: e.pointerId, x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY, moved: false }; try { canvas.setPointerCapture(e.pointerId) } catch {} }
@@ -569,7 +586,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
   }
   const pup = e => {
     if (!drag || drag.id !== e.pointerId) return
-    if (!drag.moved && !paused && !(ST && tool === 'ui' && editing())) interact(e, ST && editing() && tool === 'erase' ? true : IS_TOUCH ? touchBreak : e.button === 2)
+    if (!drag.moved && !paused && !(ST && sd?.tool === 'ui' && editing()) && !(runner.has() && rbx.click(new THREE.Vector2(((e.clientX - canvas.getBoundingClientRect().left) / canvas.clientWidth) * 2 - 1, -((e.clientY - canvas.getBoundingClientRect().top) / canvas.clientHeight) * 2 + 1), camera))) interact(e, IS_TOUCH ? touchBreak : e.button === 2)
     drag = null
   }
   const pleave = () => { hoverPt = null }
@@ -737,7 +754,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
   if (horror) { sky.setPreset('night'); canvas.style.background = '#000' }
 
   // ---------- bucle ----------
-  const clock = new THREE.Clock(); let raf, tAnim = 0, fps = 60, frames = 0, fpsAt = performance.now(), mmAt = 0, shotPending = false
+  const clock = new THREE.Clock(); let raf, stepAcc = 0, tAnim = 0, fps = 60, frames = 0, fpsAt = performance.now(), mmAt = 0, shotPending = false
   const camPos = new THREE.Vector3(), camLook = new THREE.Vector3(), want = new THREE.Vector3(), tgt = new THREE.Vector3()
   camPos.set(me.pos.x, me.pos.y + 6, me.pos.z + 9)
   paintStatic(); applyAll()
@@ -757,7 +774,11 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
       o.avatar.rotation.y += d * Math.min(1, dt * 12)
       animateAvatar(o.avatar, o.anim, dt, tAnim)
     }
-    stepParts(dt)
+    stepParts(dt); rbx.step(dt)
+    stepAcc += dt
+    if (stepAcc >= 0.066 && runner.has()) {                                 // el script Lua avanza (task.wait, Heartbeat, tweens...) con la posición de los jugadores
+      runner.fire('step', { data: { dt: stepAcc, now: Date.now() / 1000, x: me.pos.x, y: me.pos.y, z: me.pos.z, others: [...others.values()].slice(0, 20).map(o => ({ n: o.name, x: o.avatar.position.x, y: o.avatar.position.y, z: o.avatar.position.z })) } }); stepAcc = 0
+    }
     const c = me.pos
     want.set(c.x + Math.sin(cam.yaw) * Math.cos(cam.pitch) * cam.dist, c.y + 1.6 + Math.sin(cam.pitch) * cam.dist, c.z + Math.cos(cam.yaw) * Math.cos(cam.pitch) * cam.dist)
     if (world.floor && want.y < 0.4) want.y = 0.4
@@ -771,7 +792,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
     const sk = sky.update(dt, camera, c)
     horror?.update(dt, tAnim)
     renderer.toneMappingExposure = sk.night ? 1.15 : 1.0
-    updateHover()
+    updateHover(); if (ST && editing()) sd?.update()
     if (composer) composer.render(dt); else renderer.render(scene, camera)
     if (shotPending) { shotPending = false; canvas.toBlob(b => { if (!b) return; const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = `blocksy-${Date.now()}.png`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); sys(t('screenshot_saved')); sfx.click() }) }
     frames++; const now = performance.now()
@@ -795,7 +816,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
     window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); window.removeEventListener('resize', onResize)
     window.removeEventListener('pointermove', pmove); window.removeEventListener('pointerup', pup); window.removeEventListener('pointercancel', pup)
     canvas.removeEventListener('pointerdown', pdown); canvas.removeEventListener('wheel', wheel); canvas.removeEventListener('contextmenu', noMenu); canvas.removeEventListener('pointerleave', pleave)
-    offSettings(); offSync(); offLang(); offMusic(); music.stop(); runner.dispose(); clearInterval(uiTimer); window.removeEventListener('pointermove', uiMove); window.removeEventListener('pointerup', uiUp); studioCleanup.forEach(f => f()); uiLayer.replaceChildren()
+    offSettings(); offSync(); offLang(); offMusic(); music.stop(); runner.dispose(); rbx.dispose(); clearInterval(uiTimer); window.removeEventListener('pointermove', uiMove); window.removeEventListener('pointerup', uiUp); studioCleanup.forEach(f => f()); uiLayer.replaceChildren()
     touchUi?.remove(); emotePanel.classList.add('hidden'); mPanel.classList.add('hidden'); $('big-title').classList.add('hidden')
     $('pause').classList.add('hidden'); roster.classList.add('hidden'); log.replaceChildren()
     api.leave().catch(() => {}); gameDb.removeChannel(channel)

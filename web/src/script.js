@@ -46,7 +46,7 @@ export function checkLua(code) {
 }
 import LuaWorker from './lua-worker.js?worker'
 
-export function createRunner(code, me, onAction, onError, lang = 'js') {
+export function createRunner(code, me, onAction, onError, lang = 'js', extra = {}) {
   if (!code || !code.trim()) return { fire() {}, has: () => false, dispose() {} }
   let w, alive = true, seq = 0, pending = new Map()
   try {
@@ -61,11 +61,11 @@ export function createRunner(code, me, onAction, onError, lang = 'js') {
     else if (m.t === 'ack') pending.delete(m.id)
   }
   w.onerror = e => kill(e.message || 'error')
-  w.postMessage({ t: 'init', code, me })
+  w.postMessage({ t: 'init', code, me, ...extra })
   const watchdog = setInterval(() => { for (const [, at] of pending) if (Date.now() - at > 3000) return kill('El script tardó demasiado y se detuvo') }, 1000)
   return {
     has: () => alive,
-    fire(ev, data = {}) { if (!alive) return; const id = ++seq; pending.set(id, Date.now()); w.postMessage({ id, ev, ...data }) },
+    fire(ev, data = {}) { if (!alive) return; if (ev === 'step' && pending.size > 1) return; const id = ++seq; pending.set(id, Date.now()); w.postMessage({ id, ev, ...data }) },
     dispose() { alive = false; clearInterval(watchdog); w.terminate() },
   }
 }

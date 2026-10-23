@@ -36,6 +36,12 @@ const P = {
   gift: '<rect x="4" y="10" width="16" height="10" rx="1.5"/><path d="M3 7.5h18V10H3zM12 7.5V20M12 7.5C12 5 9 3.5 8 5.5s1.5 2 4 2zm0 0c0-2.5 3-4 4-2s-1.5 2-4 2z"/>',
   mic: '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3"/>',
   micoff: '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3M4 4l16 16"/>',
+  undo: '<path d="M9 7 4.5 11.5 9 16"/><path d="M5 11.5h8.5a5.5 5.5 0 0 1 0 11H11" transform="translate(0 -3)"/>',
+  redo: '<path d="m15 7 4.5 4.5L15 16"/><path d="M19 11.5h-8.5a5.5 5.5 0 0 0 0 11H13" transform="translate(0 -3)"/>',
+  box: '<path d="M4 8.5 12 4l8 4.5v7L12 20l-8-4.5z"/><path d="M4 8.5 12 13l8-4.5M12 13v7"/>',
+  select: '<path d="M5 9V5h4M15 5h4v4M19 15v4h-4M9 19H5v-4"/><path d="M10 10h4v4h-4z"/>',
+  cube: '<path d="M12 3.5 20 8v8l-8 4.5L4 16V8z"/><path d="M12 12 4 8M12 12l8-4M12 12v8.5"/>',
+  part: '<rect x="4" y="9" width="16" height="7" rx="1.5"/><path d="M8 9V6.5h8V9"/>',
   star: '<path d="m12 3.5 2.6 5.4 5.9.8-4.3 4.1 1 5.9L12 17l-5.2 2.7 1-5.9L3.5 9.7l5.9-.8z"/>',
 };
 export function icon(name, size = 20) {

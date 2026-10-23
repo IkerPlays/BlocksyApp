@@ -58,6 +58,16 @@ export const move = async (game, p, platform = 'web') => {
   return rpc('move', base)
 }
 export const placeBlock = (game, x, y, z, kind) => rpc('place_block', { p_game: game, p_x: x, p_y: y, p_z: z, p_kind: kind })
+// Varios bloques de una vez ([x, y, z, tipo]; tipo -1 = borrar). Si el servidor aún no tiene place_blocks (GAME v5), se hace uno a uno.
+let bulkOk = true
+export async function placeBlocks(game, list) {
+  if (bulkOk) {
+    try { await rpc('place_blocks', { p_game: game, p_blocks: list }); return } catch (e) { if (!/place_blocks|schema cache|PGRST202/i.test(e.message ?? '')) throw e; bulkOk = false }
+  }
+  let i = 0
+  const worker = async () => { while (i < list.length) { const [x, y, z, k] = list[i++]; await (k < 0 ? breakBlock(game, x, y, z) : placeBlock(game, x, y, z, k)) } }
+  await Promise.all([worker(), worker(), worker(), worker()])
+}
 export const breakBlock = (game, x, y, z) => rpc('break_block', { p_game: game, p_x: x, p_y: y, p_z: z })
 export const say = (game, text) => rpc('say', { p_game: game, p_text: text })
 export const leave = () => rpc('leave', {})

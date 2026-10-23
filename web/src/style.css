@@ -306,3 +306,33 @@ textarea.code { flex:1; border:0; outline:none; resize:none; background:transpar
 /* ---- Bosque Oscuro ---- */
 #horror-hud { position:fixed; top:64px; left:50%; transform:translateX(-50%); background:#000a; color:#cfeaff; padding:6px 14px; border-radius:18px; font-weight:800; font-size:14px; z-index:3; pointer-events:none; white-space:nowrap; }
 #fear { position:fixed; inset:0; pointer-events:none; z-index:2; opacity:0; transition:opacity .25s; background:radial-gradient(ellipse at center, transparent 35%, #7a0000cc 100%); }
+
+/* ---- Scripts Lua estilo Roblox: interfaz, puntuaciones y aviso de proximidad ---- */
+.rb-layer { position: fixed; inset: 0; pointer-events: none; z-index: 4; overflow: hidden; }
+.rb-el { position: absolute; box-sizing: border-box; display: flex; align-items: center; justify-content: center; color: #000; font: 14px system-ui, sans-serif; pointer-events: none; }
+.rb-screengui { inset: 0; position: absolute; display: block; }
+.rb-textbutton { pointer-events: auto; cursor: pointer; border: 0; font-family: inherit; }
+.rb-textbutton:active { filter: brightness(.9); }
+.rb-lb { position: fixed; top: 64px; right: 12px; background: #000a; color: #fff; border-radius: 10px; padding: 6px 10px; z-index: 3; font-size: 13px; min-width: 140px; pointer-events: none; }
+.rb-lb-row { display: flex; gap: 14px; justify-content: space-between; line-height: 1.6; }
+.rb-lb-row b { margin-right: auto; font-weight: 700; }
+.rb-prompt { --hold: 0; position: fixed; left: 50%; bottom: 24%; transform: translateX(-50%); background: #000b linear-gradient(90deg, #ffffff44 calc(var(--hold) * 100%), transparent 0); color: #fff; padding: 8px 16px; border-radius: 12px; z-index: 4; display: flex; gap: 10px; align-items: center; font-weight: 700; pointer-events: none; }
+.rb-prompt kbd { background: #fff; color: #000; padding: 2px 9px; border-radius: 6px; font: 700 14px system-ui; }
+.rb-prompt small { opacity: .7; font-weight: 500; }
+
+/* ---- Studio v2 ---- */
+.st-sep { width: 1px; background: #ffffff33; margin: 2px 2px; align-self: stretch; }
+.st-btn:disabled { opacity: .35; cursor: default; }
+#studio-bar.testing #st-place, #studio-bar.testing #st-erase, #studio-bar.testing #st-paint, #studio-bar.testing #st-pick, #studio-bar.testing #st-box, #studio-bar.testing #st-select, #studio-bar.testing #st-stamp, #studio-bar.testing #st-part, #studio-bar.testing #st-ui, #studio-bar.testing #st-addtext, #studio-bar.testing #st-undo, #studio-bar.testing #st-redo, #studio-bar.testing #st-env { display: none; }
+#studio-opts { position: fixed; left: 50%; top: 62px; transform: translateX(-50%); display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; align-items: center; background: #000b; padding: 6px 10px; border-radius: 12px; z-index: 7; max-width: 96vw; }
+#studio-opts .hint { color: #cfd6e4; font-size: 12px; margin-left: 4px; }
+#studio-opts select { background: #ffffff22; color: #fff; border: 0; border-radius: 8px; padding: 6px 8px; }
+#studio-opts select option { color: #000; }
+#part-inspector, #studio-env { position: fixed; right: 10px; top: 120px; width: 280px; max-height: 70vh; overflow: auto; background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 14px; padding: 12px; z-index: 8; display: flex; flex-direction: column; gap: 8px; }
+.pi-row { display: flex; gap: 6px; align-items: center; } .pi-row > span { width: 92px; font-size: 12px; color: var(--muted); flex-shrink: 0; }
+.pi-row input[type=number], .pi-row input:not([type]), .pi-row select { min-width: 0; flex: 1; }
+.btn.tiny { padding: 2px 8px; min-width: 0; }
+#studio-env label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); } #studio-env label.chk { flex-direction: row; align-items: center; gap: 8px; color: var(--text); font-size: 14px; }
+.rb-lb { right: 160px; top: 70px; }
+
+.st-btn { padding: 8px 10px; } #studio-bar .st-btn span { display: none; } #studio-bar .st-btn.lbl span { display: inline; } @media (max-width:720px) { #studio-bar .st-btn.lbl span { display: none; } }

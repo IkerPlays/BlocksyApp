@@ -1,0 +1,258 @@
+// Herramientas del Studio (editor del dueño del juego): colocar/borrar/pintar, cuentagotas, cajas, selección con copiar/pegar,
+// estructuras prefabricadas, deshacer/rehacer, piezas (Part) con propiedades y panel de entorno.
+import * as THREE from 'three'
+import { t } from './i18n.js'
+import { icon } from './icons.js'
+import { PRESET_HOUR } from './sky.js'
+
+const MAX_VOL = 6000                      // bloques por operación
+const SEND_CHUNK = 400
+const MAX_PARTS = 300
+const clampI = (v, a, b) => Math.max(a, Math.min(b, Math.round(v)))
+function h(tag, props = {}, ...kids) {
+  const e = document.createElement(tag)
+  for (const [k, v] of Object.entries(props)) { if (k === 'text') e.textContent = v; else if (k === 'html') e.innerHTML = v; else if (k.startsWith('on')) e.addEventListener(k.slice(2), v); else if (v !== false && v != null) e.setAttribute(k, v === true ? '' : v) }
+  for (const c of kids.flat()) if (c != null) e.append(c.nodeType ? c : document.createTextNode(String(c)))
+  return e
+}
+
+// ---------- estructuras prefabricadas: listas [dx, dy, dz, color] con el origen en el centro del suelo ----------
+const B = (a, x0, y0, z0, x1, y1, z1, k, hollow = false) => { for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++) for (let z = z0; z <= z1; z++) { if (hollow && x > x0 && x < x1 && y > y0 && y < y1 && z > z0 && z < z1) continue; a.push([x, y, z, k]) } }
+const cut = (a, f) => a.filter(b => !f(b[0], b[1], b[2]))
+export const PREFABS = {
+  house: k => { let a = []; B(a, -3, 0, -3, 3, 0, 3, 9); B(a, -3, 1, -3, 3, 3, 3, k, true); a = cut(a, (x, y, z) => x === 0 && z === 3 && y >= 1 && y <= 2); a = cut(a, (x, y, z) => y === 2 && (Math.abs(x) === 3 && z === 0 || Math.abs(z) === 3 && Math.abs(x) === 2)); B(a, -3, 4, -3, 3, 4, 3, 1); B(a, -2, 5, -2, 2, 5, 2, 1); B(a, -1, 6, -1, 1, 6, 1, 1); return a },
+  tower: k => { let a = []; B(a, -2, 0, -2, 2, 11, 2, k, true); B(a, -2, 12, -2, 2, 12, 2, 10); for (const [x, z] of [[-2, -2], [0, -2], [2, -2], [-2, 0], [2, 0], [-2, 2], [0, 2], [2, 2]]) a.push([x, 13, z, 10]); a = cut(a, (x, y, z) => x === 0 && z === 2 && y >= 0 && y <= 2); for (let y = 0; y < 12; y += 4) a = cut(a, (x, yy, z) => yy === y + 3 && x === 0 && z === -2); return a },
+  bridge: k => { const a = []; B(a, -1, 0, 0, 1, 0, 11, 9); for (let z = 0; z <= 11; z += 2) { a.push([-1, 1, z, k], [1, 1, z, k]) } return a },
+  wall: k => { const a = []; B(a, -5, 0, 0, 5, 2, 0, k); for (let x = -5; x <= 5; x += 2) a.push([x, 3, 0, k]); return a },
+  stairs: k => { const a = []; for (let i = 0; i < 8; i++) B(a, -1, i, i, 1, i, i, i % 2 ? k : 0); return a },
+  pyramid: k => { const a = []; for (let i = 0; i < 6; i++) B(a, -5 + i, i, -5 + i, 5 - i, i, 5 - i, i % 2 ? 6 : k); return a },
+  tree: () => { const a = []; B(a, 0, 0, 0, 0, 3, 0, 9); B(a, -2, 4, -2, 2, 5, 2, 3); B(a, -1, 6, -1, 1, 6, 1, 3); a.push([0, 7, 0, 3]); return cut(a, (x, y, z) => y >= 4 && y <= 5 && Math.abs(x) === 2 && Math.abs(z) === 2) },
+  arch: k => { const a = []; B(a, -3, 0, 0, -2, 5, 0, k); B(a, 2, 0, 0, 3, 5, 0, k); B(a, -3, 6, 0, 3, 7, 0, k); return a },
+  platform: k => { const a = []; B(a, -4, 0, -4, 3, 0, 3, k); return a },
+  fence: k => { const a = []; for (let x = -5; x <= 5; x++) { a.push([x, 0, 0, 9]); if (x % 2 === 0) a.push([x, 1, 0, 9]); } B(a, -5, 1, 0, 5, 1, 0, 9); return a.map(b => b) },
+}
+const rotate = (list, r) => list.map(([x, y, z, k]) => { for (let i = 0; i < r; i++) [x, z] = [-z, x]; return [x, y, z, k] })
+const SHAPES = ['Block', 'Ball', 'Cylinder'], MATERIALS = ['Plastic', 'Neon', 'Glass', 'Metal', 'Wood', 'Grass', 'Brick', 'Concrete']
+const SKIES = ['day', 'sunset', 'night', 'space']
+
+export function createStudio(ctx) {
+  const { game, cfg, api, PALETTE, key, index, statics, setBlock, removeBlock, me, pick, scene, camera, canvas, rbx, showTitle, sys, sfx, burst, selectKind, onEnv, onTestToggle, onSave, onExit, onScript, onAddText, setUiTool, getHover } = ctx
+  const g = document.getElementById('game'), bar = document.getElementById('studio-bar')
+  const state = { tool: 'place', mode: 'fill', prefab: 'house', rot: 0, a: null, region: null, clip: null }
+  const undoS = [], redoS = []
+  const parts = cfg.parts = Array.isArray(cfg.parts) ? cfg.parts.slice(0, MAX_PARTS).map(p => ({ ...p })) : []
+  let selPart = -1
+
+  // ---------- operaciones con bloques (todas pasan por aquí: local al instante, servidor en lotes, con deshacer) ----------
+  const kindAt = (x, y, z) => { const k = key(x, y, z); if (statics.has(k)) return 'S'; return index.get(k)?.kind ?? -1 }
+  let pending = new Map(), sendT = 0, sendBusy = false
+  function enqueue(x, y, z, to) { pending.set(key(x, y, z), [x, y, z, to]); if (!sendT) sendT = setTimeout(flush, 120) }
+  async function flush() {
+    sendT = 0; if (sendBusy) { sendT = setTimeout(flush, 200); return }
+    sendBusy = true
+    try { while (pending.size) { const batch = [...pending.values()].slice(0, SEND_CHUNK); for (const b of batch) pending.delete(key(b[0], b[1], b[2])); await api.placeBlocks(game.id, batch) } }
+    catch (e) { sys(e.message) } finally { sendBusy = false }
+  }
+  function commit(ops, record = true) {
+    const real = []
+    for (const o of ops) {
+      if (o.y < 0 || o.y > 255 || Math.abs(o.x) > 4000 || Math.abs(o.z) > 4000) continue
+      const from = kindAt(o.x, o.y, o.z); if (from === 'S' || from === o.to) continue
+      real.push({ x: o.x, y: o.y, z: o.z, from, to: o.to })
+    }
+    if (!real.length) return 0
+    for (const o of real) { if (o.to < 0) { if (real.length < 40) burst(o.x, o.y, o.z, PALETTE[o.from] ?? '#fff', 4); removeBlock(o.x, o.y, o.z) } else setBlock(o.x, o.y, o.z, o.to); enqueue(o.x, o.y, o.z, o.to) }
+    if (record) { undoS.push(real); if (undoS.length > 80) undoS.shift(); redoS.length = 0 }
+    paintHistory(); return real.length
+  }
+  function undo() { const ops = undoS.pop(); if (!ops) return; redoS.push(ops); commit(ops.map(o => ({ x: o.x, y: o.y, z: o.z, to: o.from })).reverse(), false); paintHistory(); sfx.click() }
+  function redo() { const ops = redoS.pop(); if (!ops) return; undoS.push(ops); commit(ops.map(o => ({ x: o.x, y: o.y, z: o.z, to: o.to })), false); paintHistory(); sfx.click() }
+
+  const boxCells = (a, b, mode, kind) => {
+    const x0 = Math.min(a[0], b[0]), x1 = Math.max(a[0], b[0]), y0 = Math.min(a[1], b[1]), y1 = Math.max(a[1], b[1]), z0 = Math.min(a[2], b[2]), z1 = Math.max(a[2], b[2])
+    const n = (x1 - x0 + 1) * (y1 - y0 + 1) * (z1 - z0 + 1); if (n > MAX_VOL) { showTitle(t('st_big', { n: MAX_VOL }), 2200); return [] }
+    const out = []
+    for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++) for (let z = z0; z <= z1; z++) {
+      if (mode === 'hollow' && x > x0 && x < x1 && y > y0 && y < y1 && z > z0 && z < z1) continue
+      out.push({ x, y, z, to: mode === 'erase' ? -1 : kind })
+    }
+    return out
+  }
+  const prefabList = () => (state.prefab === 'clip' ? (state.clip ?? []) : PREFABS[state.prefab]?.(me.kind) ?? [])
+
+  // ---------- ayudas visuales: caja de región y vista previa de la estructura ----------
+  const wire = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(1, 1, 1)), new THREE.LineBasicMaterial({ color: 0x4dd0ff, depthTest: false })); wire.visible = false; wire.renderOrder = 5; scene.add(wire)
+  const stampGeo = new THREE.BoxGeometry(1, 1, 1), stampMat = new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.4, depthWrite: false })
+  const stamp = new THREE.InstancedMesh(stampGeo, stampMat, 2500); stamp.count = 0; stamp.frustumCulled = false; stamp.visible = false; scene.add(stamp)
+  const selWire = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(1, 1, 1)), new THREE.LineBasicMaterial({ color: 0xffd34d, depthTest: false })); selWire.visible = false; selWire.renderOrder = 6; scene.add(selWire)
+  const setWire = (a, b) => { const x0 = Math.min(a[0], b[0]), x1 = Math.max(a[0], b[0]) + 1, y0 = Math.min(a[1], b[1]), y1 = Math.max(a[1], b[1]) + 1, z0 = Math.min(a[2], b[2]), z1 = Math.max(a[2], b[2]) + 1; wire.position.set((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2); wire.scale.set(x1 - x0 + 0.02, y1 - y0 + 0.02, z1 - z0 + 0.02); wire.visible = true }
+  const m4 = new THREE.Matrix4(), c3 = new THREE.Color()
+  function showStamp(origin) {
+    const list = rotate(prefabList(), state.rot).slice(0, 2500); stamp.count = list.length
+    list.forEach(([x, y, z, k], i) => { m4.makeTranslation(origin[0] + x + 0.5, origin[1] + y + 0.5, origin[2] + z + 0.5); stamp.setMatrixAt(i, m4); stamp.setColorAt(i, c3.set(PALETTE[k % PALETTE.length])) })
+    stamp.instanceMatrix.needsUpdate = true; if (stamp.instanceColor) stamp.instanceColor.needsUpdate = true; stamp.visible = list.length > 0
+  }
+
+  // ---------- piezas (Part): guardadas en config.parts ----------
+  const refreshParts = () => { cfg.parts = parts; game.config = { ...(game.config ?? {}), parts }; rbx.reset(); rbx.spawnStatic(parts); updateSelBox() }
+  function updateSelBox() {
+    const o = selPart >= 0 ? rbx.partAt(selPart) : null
+    if (!o) { if (state.tool === 'part' || selPart < 0) selWire.visible = false; return }
+    const b = o.box; selWire.position.set((b[0] + b[3]) / 2, (b[1] + b[4]) / 2, (b[2] + b[5]) / 2); selWire.scale.set(b[3] - b[0] + 0.06, b[4] - b[1] + 0.06, b[5] - b[2] + 0.06); selWire.visible = true
+  }
+  function newPart(type = 'part') {
+    if (parts.length >= MAX_PARTS) return showTitle(t('st_big', { n: MAX_PARTS }), 2000)
+    const v = new THREE.Vector3(); camera.getWorldDirection(v)
+    const hit = pick(canvas.clientWidth / 2 + canvas.getBoundingClientRect().left, canvas.clientHeight / 2 + canvas.getBoundingClientRect().top)
+    const at = hit?.place ?? [Math.round(me.pos.x + v.x * 6), Math.max(0, Math.round(me.pos.y)), Math.round(me.pos.z + v.z * 6)]
+    let n = 1; const base = type === 'spawn' ? 'Spawn' : 'Part'; while (parts.some(p => p.name === base + n)) n++
+    parts.push({ name: base + n, type, x: at[0] + 0.5, y: at[1] + (type === 'spawn' ? 0.25 : 0.5), z: at[2] + 0.5, sx: type === 'spawn' ? 4 : 2, sy: type === 'spawn' ? 0.5 : 1, sz: type === 'spawn' ? 4 : 2, color: type === 'spawn' ? '#4dd0ff' : '#ff9f43', shape: 'Block', material: 'Plastic', anchored: true, collide: true, transparency: 0, ry: 0 })
+    selPart = parts.length - 1; refreshParts(); setTool('part'); openPartInspector(); sfx.place()
+  }
+  const partInsp = h('div', { id: 'part-inspector', class: 'hidden' }); g.append(partInsp)
+  function openPartInspector() {
+    const p = parts[selPart]; if (!p || state.tool !== 'part') return partInsp.classList.add('hidden')
+    const num = (k, step = 0.5, w = 62) => { const i = h('input', { type: 'number', step, value: +(+p[k]).toFixed(3) }); i.style.width = w + 'px'; i.oninput = () => { if (i.value !== '' && Number.isFinite(+i.value)) { p[k] = +i.value; refreshParts() } }; return i }
+    const nudge = (k, d) => h('button', { type: 'button', class: 'btn tiny', text: d > 0 ? '+' : '−', onclick: () => { p[k] = +(p[k] + d).toFixed(3); refreshParts(); openPartInspector() } })
+    const row = (label, ...c) => h('div', { class: 'pi-row' }, h('span', { text: label }), ...c)
+    const sel = (k, list, lab = x => x) => { const s = h('select', {}, list.map(v => h('option', { value: v, text: lab(v), selected: p[k] === v }))); s.onchange = () => { p[k] = s.value; refreshParts() }; return s }
+    const chk = k => { const i = h('input', { type: 'checkbox', checked: p[k] !== false }); i.onchange = () => { p[k] = i.checked; refreshParts() }; return i }
+    const name = h('input', { value: p.name, maxlength: 24 }); name.oninput = () => { p.name = name.value.replace(/[^\w ]/g, '').slice(0, 24) }
+    const col = h('input', { type: 'color', value: p.color || '#a3a2a5' }); col.oninput = () => { p.color = col.value; refreshParts() }
+    const tr = h('input', { type: 'range', min: 0, max: 1, step: 0.05, value: p.transparency || 0 }); tr.oninput = () => { p.transparency = +tr.value; refreshParts() }
+    partInsp.replaceChildren(
+      h('b', { text: p.type === 'spawn' ? t('st_add_spawn') : 'Part' }), row(t('st_part_name'), name),
+      row('X', num('x'), nudge('x', -1), nudge('x', 1)), row('Y', num('y'), nudge('y', -1), nudge('y', 1)), row('Z', num('z'), nudge('z', -1), nudge('z', 1)),
+      row(t('st_size3'), num('sx', 0.5, 48), num('sy', 0.5, 48), num('sz', 0.5, 48)), row(t('st_rot'), num('ry', 15, 62)),
+      row(t('st_shape'), sel('shape', SHAPES)), row(t('st_material'), sel('material', MATERIALS)), row(t('st_color'), col), row(t('st_transp'), tr),
+      row(t('st_anchored'), chk('anchored')), row(t('st_collide'), chk('collide')),
+      h('div', { class: 'pi-row' }, h('button', { type: 'button', class: 'btn', text: t('st_dup'), onclick: () => { parts.push({ ...p, name: p.name + '2', x: p.x + 1, z: p.z + 1 }); selPart = parts.length - 1; refreshParts(); openPartInspector() } }),
+        h('button', { type: 'button', class: 'btn danger', text: t('st_del_part'), onclick: () => { parts.splice(selPart, 1); selPart = -1; refreshParts(); partInsp.classList.add('hidden') } })))
+    partInsp.classList.remove('hidden')
+  }
+
+  // ---------- panel de entorno ----------
+  const envBox = h('div', { id: 'studio-env', class: 'hidden' }); g.append(envBox)
+  function openEnv() {
+    if (!envBox.classList.contains('hidden')) return envBox.classList.add('hidden')
+    const c = game.config = game.config ?? {}
+    const numf = (k, label, d, step = 1, min = -999, max = 999) => { const i = h('input', { type: 'number', step, min, max, value: c[k] ?? d }); i.oninput = () => { if (i.value === '') delete c[k]; else c[k] = +i.value; cfg[k] = c[k]; onEnv(k, c[k]) }; return h('label', {}, label, i) }
+    const bool = (k, label, d) => { const i = h('input', { type: 'checkbox', checked: c[k] ?? d }); i.onchange = () => { c[k] = i.checked; cfg[k] = i.checked; onEnv(k, i.checked) }; return h('label', { class: 'chk' }, i, label) }
+    const sky = h('select', {}, SKIES.map(s => h('option', { value: s, text: t('sky_' + s), selected: (c.sky ?? 'day') === s && c.time !== 0 })), h('option', { value: 'auto', text: t('ed_time').split(' (')[0] + ' ⟳', selected: c.time === 0 }))
+    sky.onchange = () => { if (sky.value === 'auto') { c.time = 0; delete c.sky } else { c.sky = sky.value; delete c.time }; cfg.sky = c.sky; cfg.time = c.time; onEnv('sky', sky.value) }
+    const wel = h('input', { value: c.welcome ?? '', maxlength: 120, placeholder: t('env_welcome') }); wel.oninput = () => { c.welcome = wel.value; cfg.welcome = wel.value }
+    envBox.replaceChildren(h('b', { text: t('st_env') }), h('label', {}, t('ed_sky'), sky), numf('gravity', t('env_gravity'), 24, 1, 0, 80), numf('speed', t('env_speed'), 6, 0.5, 1, 30), numf('jump', t('env_jump'), 8.6, 0.5, 1, 30), h('label', {}, t('env_welcome'), wel),
+      bool('allow_chat', t('env_chat'), true), bool('allow_emotes', t('env_emotes'), true), bool('allow_fly', t('env_fly'), true), bool('allow_build', t('env_build'), false))
+    envBox.classList.remove('hidden')
+  }
+
+  // ---------- barra de herramientas ----------
+  const TOOLS = [['place', 'plus'], ['erase', 'trash'], ['paint', 'edit'], ['pick', 'search'], ['box', 'box'], ['select', 'select'], ['stamp', 'cube'], ['part', 'part'], ['ui', 'chat']]
+  const opts = h('div', { id: 'studio-opts', class: 'hidden' }); g.append(opts)
+  const btnFor = {}
+  function paintOpts() {
+    const L = []
+    const chip = (label, on, fn) => h('button', { type: 'button', class: 'chip' + (on ? ' on' : ''), text: label, onclick: fn })
+    if (state.tool === 'box') for (const m of ['fill', 'hollow', 'erase']) L.push(chip(t('st_mode_' + m), state.mode === m, () => { state.mode = m; paintOpts() }))
+    if (state.tool === 'stamp') {
+      const s = h('select', {}, [...Object.keys(PREFABS), ...(state.clip ? ['clip'] : [])].map(k => h('option', { value: k, text: t('pf_' + k), selected: state.prefab === k }))); s.onchange = () => { state.prefab = s.value }
+      L.push(s, h('button', { type: 'button', class: 'chip', text: t('st_rotate'), onclick: () => (state.rot = (state.rot + 1) % 4) }))
+    }
+    if (state.tool === 'select') L.push(h('button', { type: 'button', class: 'chip', text: t('st_copy') + ' (Ctrl+C)', onclick: copySel }), h('button', { type: 'button', class: 'chip', text: t('st_cut'), onclick: () => { copySel(); clearSel() } }), h('button', { type: 'button', class: 'chip', text: t('st_fillsel'), onclick: fillSel }), h('button', { type: 'button', class: 'chip', text: t('st_clear') + ' (Del)', onclick: clearSel }))
+    if (state.tool === 'part') L.push(h('button', { type: 'button', class: 'chip on', text: '+ ' + t('st_add_part'), onclick: () => newPart('part') }), h('button', { type: 'button', class: 'chip', text: '+ ' + t('st_add_spawn'), onclick: () => newPart('spawn') }))
+    L.push(h('span', { class: 'hint', text: t('st_hint_' + state.tool) }))
+    opts.replaceChildren(...L); opts.classList.remove('hidden'); requestAnimationFrame(() => { opts.style.top = Math.round(bar.getBoundingClientRect().bottom + 8) + 'px' })
+  }
+  function setTool(n) {
+    state.tool = n; state.a = null; wire.visible = false; stamp.visible = false
+    g.classList.toggle('tool-ui', n === 'ui'); for (const [k, b] of Object.entries(btnFor)) b.classList.toggle('on', k === n)
+    setUiTool(n === 'ui')
+    if (n !== 'select') { state.region = null; if (selPart < 0 || n !== 'part') selWire.visible = false }
+    if (n === 'part') { openPartInspector(); updateSelBox() } else partInsp.classList.add('hidden')
+    paintOpts()
+  }
+  let undoBtn, redoBtn
+  function paintHistory() { if (undoBtn) { undoBtn.disabled = !undoS.length; redoBtn.disabled = !redoS.length } }
+  const mkBtn = (id, ic, label, fn, cls = '') => { const b = h('button', { id, class: 'st-btn ' + cls, title: label, onclick: fn, html: icon(ic, 18) + `<span>${label}</span>` }); return b }
+  function buildBar() {
+    const items = TOOLS.map(([k, ic]) => { const b = mkBtn('st-' + k, ic, t('st_' + k), () => setTool(k), k === 'place' ? 'on' : ''); btnFor[k] = b; return b })
+    undoBtn = mkBtn('st-undo', 'undo', t('st_undo'), undo); redoBtn = mkBtn('st-redo', 'redo', t('st_redo'), redo)
+    bar.replaceChildren(...items, h('i', { class: 'st-sep' }), mkBtn('st-addtext', 'chat', t('st_addtext'), () => { onAddText(); setTool('ui') }), undoBtn, redoBtn, mkBtn('st-env', 'sliders', t('st_env'), openEnv), mkBtn('st-script', 'code', t('ed_script'), onScript),
+      h('i', { class: 'st-sep' }), mkBtn('st-test', 'play', t('st_test'), onTestToggle, 'lbl'), mkBtn('st-save', 'check', t('save'), onSave, 'primary lbl'), mkBtn('st-exit', 'back', t('close'), onExit, 'lbl'))
+    paintHistory(); setTool('place')
+  }
+  buildBar()
+
+  // ---------- selección / copiar / pegar ----------
+  function copySel() {
+    if (!state.region) return showTitle(t('st_hint_select'), 2000)
+    const [a, b] = state.region, x0 = Math.min(a[0], b[0]), y0 = Math.min(a[1], b[1]), z0 = Math.min(a[2], b[2]), x1 = Math.max(a[0], b[0]), y1 = Math.max(a[1], b[1]), z1 = Math.max(a[2], b[2]), out = []
+    for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++) for (let z = z0; z <= z1; z++) { const k = kindAt(x, y, z); if (typeof k === 'number' && k >= 0) out.push([x - x0, y - y0, z - z0, k]) }
+    state.clip = out; state.prefab = 'clip'; showTitle(t('st_done_n', { n: out.length }), 1400); sfx.click(); paintOpts()
+  }
+  const clearSel = () => { if (state.region) { const n = commit(boxCells(state.region[0], state.region[1], 'erase', 0)); if (n) showTitle(t('st_done_n', { n }), 1200) } }
+  const fillSel = () => { if (state.region) { const n = commit(boxCells(state.region[0], state.region[1], 'fill', me.kind)); if (n) showTitle(t('st_done_n', { n }), 1200) } }
+
+  // ---------- clic en el mundo ----------
+  function interact(e, right) {
+    const tool = state.tool
+    if (tool === 'ui') return false
+    if (tool === 'part') {
+      const r = canvas.getBoundingClientRect()
+      const i = rbx.pickPart(new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1), camera)
+      selPart = i; updateSelBox(); openPartInspector(); return true
+    }
+    if (right && (state.a || tool === 'box' || tool === 'select')) { state.a = null; wire.visible = false; return true }
+    const hit = pick(e.clientX, e.clientY)
+    if (e.button === 1 || tool === 'pick') { if (hit && !hit.floor) { const k = kindAt(...hit.cell); if (typeof k === 'number' && k >= 0) { selectKind(k); sfx.click() } } return true }
+    if (!hit) return true
+    const cell = hit.floor ? hit.place : hit.cell, place = hit.place
+    switch (tool) {
+      case 'place': {
+        if (right) { if (!hit.floor && !hit.fixed) commit([{ x: cell[0], y: cell[1], z: cell[2], to: -1 }]); return true }
+        const [x, y, z] = place; if (y < 0 || y > 255) return true
+        if (commit([{ x, y, z, to: me.kind }])) sfx.place(); return true }
+      case 'erase': if (!hit.floor && !hit.fixed) { commit([{ x: cell[0], y: cell[1], z: cell[2], to: -1 }]); sfx.break() } return true
+      case 'paint': if (!hit.floor) { const k = kindAt(...hit.cell); if (typeof k === 'number' && k >= 0) commit([{ x: cell[0], y: cell[1], z: cell[2], to: me.kind }]) } return true
+      case 'box': {
+        const here = state.mode === 'erase' ? (hit.floor ? null : hit.cell) : place; if (!here) return true
+        if (!state.a) { state.a = here; setWire(here, here); return true }
+        const n = commit(boxCells(state.a, here, state.mode, me.kind)); state.a = null; wire.visible = false; if (n) { sfx.place(); showTitle(t('st_done_n', { n }), 1200) } return true }
+      case 'select': {
+        const here = hit.floor ? place : hit.cell
+        if (!state.a) { state.a = here; state.region = null; setWire(here, here); return true }
+        state.region = [state.a, here]; state.a = null; setWire(state.region[0], state.region[1]); wire.material.color.set(0xffd34d); return true }
+      case 'stamp': {
+        const list = rotate(prefabList(), state.rot); const [ox, oy, oz] = place
+        const n = commit(list.map(([x, y, z, k]) => ({ x: ox + x, y: oy + y, z: oz + z, to: k }))); if (n) { sfx.place(); showTitle(t('st_done_n', { n }), 1200) } return true }
+    }
+    return false
+  }
+  // vista previa bajo el cursor (se llama cada fotograma)
+  function update() {
+    const hp = getHover(); const tool = state.tool
+    if (tool === 'stamp' && hp) { const hit = pick(hp.x, hp.y); if (hit) showStamp(hit.place); else stamp.visible = false }
+    else if ((tool === 'box' || tool === 'select') && state.a && hp) { const hit = pick(hp.x, hp.y); if (hit) { const here = (tool === 'box' && state.mode !== 'erase') || hit.floor ? hit.place : hit.cell; setWire(state.a, here); wire.material.color.set(tool === 'box' && state.mode === 'erase' ? 0xff6b6b : 0x4dd0ff) } }
+  }
+  // atajos (devuelve true si los consume)
+  function keydown(e) {
+    const ctrl = e.ctrlKey || e.metaKey
+    if (ctrl && e.code === 'KeyZ') { e.preventDefault(); e.shiftKey ? redo() : undo(); return true }
+    if (ctrl && e.code === 'KeyY') { e.preventDefault(); redo(); return true }
+    if (ctrl && e.code === 'KeyC') { e.preventDefault(); copySel(); return true }
+    if (ctrl && e.code === 'KeyV') { e.preventDefault(); if (state.clip) { state.prefab = 'clip'; setTool('stamp') } return true }
+    if (e.code === 'Delete' || e.code === 'Backspace') { if (state.tool === 'part' && selPart >= 0) { parts.splice(selPart, 1); selPart = -1; refreshParts(); partInsp.classList.add('hidden') } else clearSel(); return true }
+    if (e.code === 'KeyR' && state.tool === 'stamp') { state.rot = (state.rot + 1) % 4; return true }
+    if (e.altKey && selPart >= 0 && state.tool === 'part' && e.code.startsWith('Arrow')) {
+      const p = parts[selPart], yaw = Math.round(((Math.atan2(camera.position.x - me.pos.x, camera.position.z - me.pos.z)) / (Math.PI / 2))); const d = e.shiftKey ? 0.25 : 1
+      const f = [[0, -1], [-1, 0], [0, 1], [1, 0]][((-yaw % 4) + 4) % 4]
+      if (e.code === 'ArrowUp') { p.x += f[0] * d; p.z += f[1] * d } else if (e.code === 'ArrowDown') { p.x -= f[0] * d; p.z -= f[1] * d } else if (e.code === 'ArrowLeft') { p.x += f[1] * d; p.z -= f[0] * d } else { p.x -= f[1] * d; p.z += f[0] * d }
+      refreshParts(); openPartInspector(); e.preventDefault(); return true
+    }
+    return false
+  }
+  function setTesting(on) { bar.classList.toggle('testing', on); if (on) { opts.classList.add('hidden'); partInsp.classList.add('hidden'); envBox.classList.add('hidden'); wire.visible = stamp.visible = selWire.visible = false } else { paintOpts(); if (state.tool === 'part') openPartInspector(); rbx.reset(); rbx.spawnStatic(parts) } }
+  refreshParts()
+  function dispose() { for (const o of [wire, stamp, selWire]) scene.remove(o); stampGeo.dispose(); stampMat.dispose(); stamp.dispose(); opts.remove(); partInsp.remove(); envBox.remove() }
+  return { interact, update, keydown, undo, redo, setTool, setTesting, dispose, flush, get tool() { return state.tool }, get parts() { return parts } }
+}
