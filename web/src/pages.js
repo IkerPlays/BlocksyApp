@@ -441,7 +441,11 @@ export const pages = {
     const input = el('input', { placeholder: t('friend_ph'), maxlength: 20, autocapitalize: 'off', autocomplete: 'off', spellcheck: 'false' })
     const msg = el('p', { class: 'msg', style: 'text-align:left' })
     const reqBox = el('div'), mine = el('div', { class: 'panel' }), partyBox = partyPanel(ctx)
-    let games = {}
+    let games = {}, fFilter = 'all', fSearch = ''
+    const filterBar = el('div', { class: 'form-row', style: 'align-items:center;gap:8px;margin-bottom:8px' })
+    const fSearchEl = el('input', { type: 'search', placeholder: t('friends_search'), style: 'max-width:200px' }); fSearchEl.oninput = () => { fSearch = fSearchEl.value.trim().toLowerCase(); load() }
+    const paintFilter = () => setKids(filterBar, ['all', 'online', 'ingame'].map(k => el('button', { class: `chip ${fFilter === k ? 'on' : ''}`, text: t('ff_' + k), onclick: () => { fFilter = k; paintFilter(); load() } })), fSearchEl)
+    paintFilter()
     const add = async e => {
       e?.preventDefault(); const name = input.value.trim(); if (!name) return
       msg.className = 'msg'; msg.textContent = '...'
@@ -473,7 +477,7 @@ export const pages = {
           el('div', { class: 'grow' }, el('b', { text: r.username })),
           el('button', { class: 'btn', text: t('cancel_req'), onclick: async () => { await social.cancelRequest(r.id); load() } }))))] : null)
       setKids(mine, el('h3', { text: t('my_friends', { n: friends.length }), style: 'margin-bottom:6px' }),
-        friends.length ? friends.map(f => row(f, uc[f.id])) : el('div', { class: 'empty', text: t('no_friends') }))
+        filterBar, ...(() => { const shown = friends.filter(f => (fFilter === 'all' || (fFilter === 'online' && f.is_online) || (fFilter === 'ingame' && f.is_online && f.current_game)) && (!fSearch || f.username.toLowerCase().includes(fSearch) || nickOf(f.username).toLowerCase().includes(fSearch))); return [shown.length ? shown.map(f => row(f, uc[f.id])) : el('div', { class: 'empty', text: friends.length ? t('ff_none') : t('no_friends') })] })())
     }
     setKids(root, el('h1', { class: 'page-title', text: t('friends') }),
       el('form', { class: 'panel add-friend', onsubmit: add }, el('h3', { text: t('add_friend'), style: 'margin-bottom:6px' }), el('p', { style: 'color:var(--muted);margin:0 0 10px;font-size:14px', text: t('friend_help') }),
@@ -614,7 +618,8 @@ export const pages = {
           sw('sfx', t('set_sfx')), rg('sfxVol', t('set_sfx_vol'), 0, 1, 0.05, v => Math.round(v * 100) + '%')),
         el('div', { class: 'panel' }, el('h3', { text: t('controls') ?? 'Controles' }),
           rg('sensitivity', t('set_sens'), 0.3, 2.5, 0.1), rg('syncMs', t('set_sync'), 40, 400, 10, v => v + ' ms'), sw('invertY', t('set_invert')), sw('names', t('set_names')), sw('bubbles', t('set_bubbles')),
-          sw('minimap', t('set_minimap')), sw('compass', t('set_compass')), sw('showFps', t('set_fps')), sw('notifPopups', t('set_notif')),
+          sw('notifPopups', t('set_notif')), sw('dnd', t('dnd_setting'), () => document.getElementById('bell')?.classList.toggle('dnd', !!settings.dnd)), ...['message', 'friend_request', 'friend_accept', 'invite'].map(k => { const i = el('input', { type: 'checkbox' }); i.checked = settings.nt?.[k] !== false; i.onchange = () => { settings.nt = { ...(settings.nt ?? {}), [k]: i.checked }; saveSettings() }; return el('label', { class: 'field check sub' }, i, t('nt_' + k)) }),
+          sw('minimap', t('set_minimap')), sw('compass', t('set_compass')), sw('showFps', t('set_fps')),
           rg('touchSize', t('set_touch_size'), 0.7, 1.5, 0.1), sw('leftHanded', t('set_left'))),
         el('div', { class: 'panel' }, el('h3', { text: t('about') }), el('p', { class: 'muted', text: `Blocksy ${APP_VERSION} · ${BUILD}` }),
           el('div', { class: 'row-btns' },

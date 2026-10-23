@@ -3,6 +3,7 @@ import { EXTRA } from './i18n-extra.js'
 const D = {
   es: {
     lang_name: 'Español',
+    today: 'Hoy', yesterday: 'Ayer', dnd_on: 'No molestar', dnd_off: 'No molestar: activo', dnd_setting: 'No molestar (sin avisos ni sonidos)', nt_message: 'Avisar de mensajes', nt_friend_request: 'Avisar de solicitudes de amistad', nt_friend_accept: 'Avisar cuando aceptan mi solicitud', nt_invite: 'Avisar de invitaciones a juegos', friends_search: 'Buscar amigo…', ff_all: 'Todos', ff_online: 'En línea', ff_ingame: 'Jugando', ff_none: 'Ningún amigo coincide',
     p_banner: 'Color del banner', p_banner_none: 'Quitar banner', p_share: 'Compartir perfil', p_nick: 'Apodo', p_nick_ask: 'Apodo para {name} (solo lo ves tú; vacío = quitarlo)', p_nick_is: 'Para ti: {nick}',
     trending: 'Tendencias ahora', related_games: 'Juegos parecidos', report_game: 'Denunciar este juego',
     random_game: 'Sorpréndeme', friends_playing: 'Amigos jugando ahora', no_one_playing: 'Nadie jugando ahora',
@@ -105,6 +106,7 @@ const D = {
   },
   en: {
     lang_name: 'English',
+    today: 'Today', yesterday: 'Yesterday', dnd_on: 'Do not disturb', dnd_off: 'Do not disturb: on', dnd_setting: 'Do not disturb (no pop-ups or sounds)', nt_message: 'Notify me of messages', nt_friend_request: 'Notify me of friend requests', nt_friend_accept: 'Notify me when my request is accepted', nt_invite: 'Notify me of game invites', friends_search: 'Search friends…', ff_all: 'All', ff_online: 'Online', ff_ingame: 'In game', ff_none: 'No friend matches',
     p_banner: 'Banner color', p_banner_none: 'No banner', p_share: 'Share profile', p_nick: 'Nickname', p_nick_ask: 'Nickname for {name} (only you see it; empty = remove)', p_nick_is: 'To you: {nick}',
     trending: 'Trending now', related_games: 'Similar games', report_game: 'Report this game',
     random_game: 'Surprise me', friends_playing: 'Friends playing now', no_one_playing: 'Nobody playing now',

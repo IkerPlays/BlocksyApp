@@ -1,4 +1,5 @@
-Devbuild 40: profile
-- Bio character counter and a banner color for your profile (shown to everyone).
-- Share profile button that uses the system share sheet.
-- Friend nicknames: give a friend a private nickname that only you see.
+Devbuild 41: friends and notifications
+- Friends list filters (All, Online, In game) and a name search.
+- Do not disturb: no pop-ups or sounds (button in the bell panel and in Settings).
+- Choose which events notify you: messages, friend requests, accepted requests and game invites.
+- Private chats show day separators (Today, Yesterday, date).

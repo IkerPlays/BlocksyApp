@@ -4,13 +4,14 @@ import * as api from './api.js'
 import { headshot } from './avatar.js'
 import { t, onLang } from './i18n.js'
 import { icon } from './icons.js'
-import { settings } from './settings.js'
+import { settings, saveSettings } from './settings.js'
 import { sfx } from './sfx.js'
 import { el, setKids, toast, avatarEl, closeModal } from './pages.js'
 import { attachEmoticons } from './party-ui.js'
 
 const $ = id => document.getElementById(id)
 const status = f => (f.is_online ? (f.current_game ? t('status_game') : t('status_online')) : t('status_offline'))
+export const dayLabel = iso => { const d = new Date(iso), n = new Date(), y = new Date(Date.now() - 864e5); return d.toDateString() === n.toDateString() ? t('today') : d.toDateString() === y.toDateString() ? t('yesterday') : d.toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' }) }
 export const fmtTime = iso => new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 
 // ---------- chat privado ----------
@@ -25,7 +26,12 @@ export function openChat(ctx, friend) {
     if (sig === shown) return; shown = sig
     const atBottom = list.scrollHeight - list.scrollTop - list.clientHeight < 60 || !list.children.length
     if (!msgs.length) return setKids(list, el('div', { class: 'empty', text: t('chat_empty') }))
-    setKids(list, msgs.map(m => {
+    let lastDay = ''
+    setKids(list, msgs.flatMap(m => {
+      const day = new Date(m.created_at).toDateString(), sep = day !== lastDay ? el('div', { class: 'dm-day', text: dayLabel(m.created_at) }) : null; lastDay = day
+      return [sep, dmRow(m)]
+    }))
+    function dmRow(m) {
       const mine = m.from_id === me.id
       if (editing === m.id) {
         const ei = el('input', { value: m.body, maxlength: 500, class: 'dm-edit' })
@@ -39,7 +45,7 @@ export function openChat(ctx, friend) {
         el('button', { class: 'btn danger', html: icon('trash', 14), title: t('delete'), onclick: async e => { e.stopPropagation(); if (confirm(t('msg_confirm_delete'))) { try { await social.deleteMessage(m.id) } catch (er) { toast(er.message) } refresh(true) } } })) : null
       return el('div', { class: `dm ${mine ? 'mine' : ''}`, onclick: () => { if (mine) { selected = selected === m.id ? null : m.id; refresh(true) } } },
         el('div', { class: 'bubble' }, el('span', { text: m.body }), el('small', { text: (m.edited_at ? t('msg_edited') + ' · ' : '') + fmtTime(m.created_at) })), acts)
-    }))
+    }
     if (atBottom) list.scrollTop = list.scrollHeight
   }
   let last = []
@@ -122,7 +128,7 @@ export function initNotifications(ctx) {
         const g = await api.getGame(n.payload?.game_id); if (!g) return toast(t('invite_game_gone')); ctx.play(g, { room: api.roomFromName(n.payload?.game_name) }) } }))
       rows.push(el('div', { class: `notif ${n.read ? '' : 'unread'}` }, avatarEl(n.from_name || '?', '#4da6ff'), el('div', { class: 'grow' }, el('b', { text: text(n) }), el('small', { text: new Date(n.created_at).toLocaleString() })), actions))
     }
-    setKids(panel, el('div', { class: 'notif-head' }, el('b', { text: t('notifications') }), ns.length ? el('button', { class: 'link-btn', text: t('notif_clear'), onclick: async () => { await social.clearNotifications(); drawPanel(); refreshBadges() } }) : null),
+    setKids(panel, el('div', { class: 'notif-head' }, el('b', { text: t('notifications') }), el('button', { class: 'link-btn', text: settings.dnd ? t('dnd_off') : t('dnd_on'), onclick: () => { settings.dnd = !settings.dnd; saveSettings(); bell.classList.toggle('dnd', !!settings.dnd); drawPanel() } }), ns.length ? el('button', { class: 'link-btn', text: t('notif_clear'), onclick: async () => { await social.clearNotifications(); drawPanel(); refreshBadges() } }) : null),
       rows.length ? rows : el('div', { class: 'empty', text: t('notif_none') }))
     await social.readNotifications().catch(() => {})
     badges.notif = 0; paint()
@@ -131,8 +137,8 @@ export function initNotifications(ctx) {
   document.addEventListener('click', e => { if (!panel.contains(e.target) && e.target !== bell) panel.classList.add('hidden') })
   onLang(() => { if (!panel.classList.contains('hidden')) drawPanel() })
 
-  const popup = (title, body, onClick) => {
-    if (!settings.notifPopups) return
+  const popup = (title, body, onClick, kind = 'message') => {
+    if (!settings.notifPopups || settings.dnd || settings.nt?.[kind] === false) return
     const p = el('div', { class: 'popup', onclick: () => { p.remove(); onClick?.() } }, el('b', { text: title }), el('span', { text: body }))
     $('popups').append(p); setTimeout(() => p.remove(), 6000)
     sfx.notify()
@@ -145,10 +151,11 @@ export function initNotifications(ctx) {
       const f = (await social.listFriends(ctx.profile.id)).find(x => x.id === row.from_id)
       if (f) popup(f.username, row.body, () => openChat(ctx, f))
     } else if (kind === 'notification') {
-      popup('Blocksy', text(row), () => (row.kind === 'invite' ? api.getGame(row.payload?.game_id).then(g => (g ? ctx.play(g, { room: api.roomFromName(row.payload?.game_name) }) : toast(t('invite_game_gone')))) : ctx.go('friends')))
+      popup('Blocksy', text(row), () => (row.kind === 'invite' ? api.getGame(row.payload?.game_id).then(g => (g ? ctx.play(g, { room: api.roomFromName(row.payload?.game_name) }) : toast(t('invite_game_gone')))) : ctx.go('friends')), row.kind)
     }
     refreshBadges()
   })
+  bell.classList.toggle('dnd', !!settings.dnd)
   refreshBadges(); const poll = setInterval(refreshBadges, 20000)
   return () => { stopWatch(); clearInterval(poll) }
 }
