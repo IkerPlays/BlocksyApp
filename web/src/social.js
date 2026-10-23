@@ -87,6 +87,7 @@ export const getWallet = () => wallet
 export const onWallet = f => { wsubs.add(f); return () => wsubs.delete(f) }
 const setWallet = w => { wallet = { ...(wallet ?? {}), ...w }; wsubs.forEach(f => f(wallet)) }
 export async function loadWallet() { const w = await rpc('my_wallet'); if (w) setWallet(w); return wallet }
+export const bcoinRanking = async () => (await rpc('bcoin_leaderboard', { p_limit: 25 })) ?? []
 export async function claimDaily() { const r = await rpc('claim_daily'); await loadWallet(); return r }
 export async function earnCoins(amount, reason) { try { const n = await rpc('earn_coins', { p_amount: amount, p_reason: reason }); if (n > 0) await loadWallet(); return n } catch { return 0 } }
 export async function listShop() {

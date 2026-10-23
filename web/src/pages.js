@@ -1,6 +1,7 @@
 import * as auth from './auth.js'
 import * as api from './api.js'
 import * as social from './social.js'
+import { ACHIEVEMENTS, unlockedIds, progress, checkAchievements, wishlist, toggleWish } from './achievements.js'
 import { KEY_ACTIONS, keyLabel } from './access.js'
 import { settings, saveSettings, resetSettings, lastPlayed, recentGames, getStats, applyTheme } from './settings.js'
 import { icon } from './icons.js'
@@ -160,6 +161,25 @@ export const pages = {
     setKids(root, el('h1', { class: 'page-title', text: t('discover') }), el('div', { class: 'form-row', style: 'margin-bottom:12px' }, input, sortEl), chips, allTags.length ? el('div', { class: 'chips tags' }, allTags.map(tg => el('button', { class: 'chip', text: '#' + tg, onclick: e => { tagSel = tagSel === tg ? '' : tg; e.target.parentNode.querySelectorAll('.chip').forEach(c => c.classList.toggle('on', c.textContent === '#' + tagSel)); draw() } }))) : null, out)
   },
 
+  // Logros y ranking de BCoins
+  async achievements(root, ctx) {
+    await social.loadWallet().catch(() => {}); checkAchievements()
+    const have = unlockedIds(), rank = el('div', { class: 'panel' }, el('small', { text: t('loading') }))
+    setKids(root, el('h1', { class: 'page-title', text: t('nav_achievements') }),
+      el('p', { class: 'muted', text: t('ach_count', { n: have.size, total: ACHIEVEMENTS.length }) }),
+      el('div', { class: 'ach-grid' }, ACHIEVEMENTS.map(a => {
+        const done = have.has(a.id), v = progress(a)
+        return el('div', { class: `ach ${done ? 'done' : ''}` }, el('i', { html: icon(done ? 'trophy' : 'star', 22) }),
+          el('div', { class: 'grow' }, el('b', { text: t('ach_' + a.id) }), el('small', { text: t('ach_' + a.id + '_d') }),
+            el('div', { class: 'prog' }, el('i', { style: `width:${Math.round(v / a.goal * 100)}%` })), el('small', { text: `${a.fmt ? a.fmt(v) : v} / ${a.fmt ? a.fmt(a.goal) : a.goal}` })))
+      })),
+      el('div', { class: 'section' }, el('h2', { text: t('bcoin_ranking') })), rank)
+    try {
+      const r = await social.bcoinRanking()
+      setKids(rank, r.length ? r.map((u, i) => el('div', { class: 'person', onclick: () => ctx.go(`u/${u.username}`) }, el('b', { text: `#${i + 1}` }), avatar(u.username, u.avatar_color, false), el('div', { class: 'grow', text: u.username }), el('span', { class: 'price', html: icon('coin', 16) + ' ' + u.bcoins }))) : el('small', { text: t('no_ranking') }))
+    } catch { setKids(rank, el('small', { text: t('no_ranking') })) }
+  },
+
   // Tienda: BCoins, sombreros, títulos y cofres de botín
   async shop(root, ctx) {
     setKids(root, el('h1', { class: 'page-title', text: t('loading') }))
@@ -174,13 +194,15 @@ export const pages = {
     const run = async fn => { try { await fn() } catch (e) { toast(/not enough/i.test(e.message) ? t('shop_no_coins') : /already/i.test(e.message) ? t('shop_owned') : e.message) } draw() }
     function paintDaily() {
       const wl = social.getWallet()
-      setKids(daily, el('div', { class: 'panel daily' }, el('div', {}, el('b', { text: t('shop_daily') }), el('small', { text: t('shop_streak', { n: wl?.streak ?? 0 }) })),
+      const nextIn = () => { const n = new Date(), m = Date.UTC(n.getUTCFullYear(), n.getUTCMonth(), n.getUTCDate() + 1) - n.getTime(); return `${Math.floor(m / 3600000)}h ${Math.floor(m % 3600000 / 60000)}m` }
+      setKids(daily, el('div', { class: `panel daily chest ${wl?.can_claim ? 'ready' : ''}` }, el('i', { class: 'chest-ico', html: icon('gift', 34) }), el('div', { class: 'grow' }, el('b', { text: t('daily_chest') }), el('small', { text: t('shop_streak', { n: wl?.streak ?? 0 }) + (wl?.can_claim ? '' : ' · ' + t('daily_next', { t: nextIn() })) })),
         wl?.can_claim ? el('button', { class: 'btn primary', html: icon('gift', 16) + ' ' + t('shop_claim'), onclick: () => run(async () => { const r = await social.claimDaily(); toast(t('shop_got', { n: r.amount })) }) })
           : el('span', { class: 'muted', text: t('shop_come_back') })))
     }
     function card(it) {
       const have = owned().has(it.id), eq = equipped()[it.kind] === it.id
-      const btns = []
+      const btns = [], wished = wishlist().includes(it.id)
+      if (!have && it.kind !== 'crate') btns.push(el('button', { class: `btn wish ${wished ? 'on' : ''}`, html: icon('star', 16), title: t('wish_toggle'), onclick: () => { toggleWish(it.id); draw() } }))
       if (it.kind === 'crate') btns.push(el('button', { class: 'btn blue', html: icon('gift', 16) + ' ' + t('shop_open'), onclick: () => run(async () => { const r = await social.openCrate(it.id); showReward(r) }) }))
       else if (have) {
         btns.push(el('button', { class: `btn ${eq ? '' : 'primary'}`, text: eq ? t('shop_unequip') : t('shop_equip'), onclick: () => run(async () => { eq ? await social.unequipSlot(it.kind) : await social.equipItem(it.id); tryOn = null; pv?.setStyle(style()) }) }))
@@ -199,7 +221,9 @@ export const pages = {
       coins.innerHTML = icon('coin', 22) + ' ' + (social.getWallet()?.bcoins ?? 0)
       paintDaily(); pv?.setStyle(style())
       const sec = (title, kind) => { const l = items.filter(i => i.kind === kind); return l.length ? [el('div', { class: 'section' }, el('h2', { text: title })), el('div', { class: 'shop-grid' }, l.map(card))] : null }
-      setKids(body, sec(t('shop_crates'), 'crate'), sec(t('shop_hats'), 'hat'), sec(t('shop_faces'), 'face'), sec(t('shop_backs'), 'back'), sec(t('shop_trails'), 'trail'), sec(t('shop_pets'), 'pet'), sec(t('shop_titles'), 'title'))
+      const wl = items.filter(i => wishlist().includes(i.id) && !owned().has(i.id)), coinsNow = social.getWallet()?.bcoins ?? 0
+      const wishBlock = wl.length ? [el('div', { class: 'section' }, el('h2', { text: t('wishlist') + (wl.some(i => i.price <= coinsNow) ? ' · ' + t('wish_afford') : '') })), el('div', { class: 'shop-grid' }, wl.map(card))] : null
+      setKids(body, wishBlock, sec(t('shop_crates'), 'crate'), sec(t('shop_hats'), 'hat'), sec(t('shop_faces'), 'face'), sec(t('shop_backs'), 'back'), sec(t('shop_trails'), 'trail'), sec(t('shop_pets'), 'pet'), sec(t('shop_titles'), 'title'))
     }
     const missionsBox = el('div')
     const paintMissions = async () => {

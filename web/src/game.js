@@ -20,6 +20,7 @@ import { createHorror } from './horror.js'
 import { createScripted } from './scene-parts.js'
 import { createStudio } from './studio-tools.js'
 import { createWeather } from './weather.js'
+import { checkAchievements } from './achievements.js'
 import { remapEvent, saverOn, shareGame } from './access.js'
 import { createCompass, createPings, createHealth, PING_PREFIX, isPing } from './hud.js'
 import { loadingScreen, createShortcuts, togglePhoto, orientationHint, REACT_PREFIX, REACTIONS, isReaction, layoutWheel } from './extras.js'
@@ -774,7 +775,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
   const rosterTimer = setInterval(() => { if (!roster.classList.contains('hidden') || paused) drawRoster() }, 1500)
   const tickTimer = setInterval(() => runner.fire('tick', { data: { players: others.size + 1 } }), 1000)
   const timeTimer = setInterval(() => bump('time', 5), 5000)
-  const missionTimer = setInterval(() => { social.missionAdd('play_10', 1); if (!document.hidden) social.addPlaytime(60) }, 60_000)
+  const missionTimer = setInterval(() => { social.missionAdd('play_10', 1); if (!document.hidden) social.addPlaytime(60); for (const a of checkAchievements()) { sys(t('ach_unlocked', { name: t('ach_' + a.id) })); sfx.win() } }, 60_000)
   const coinTimer = setInterval(async () => { const n = await social.earnCoins(10, 'play'); if (n) sys(t('coins_earned', { n })) }, 300_000)       // BCoins por jugar (tope diario en el servidor)
 
   // ---------- música ----------

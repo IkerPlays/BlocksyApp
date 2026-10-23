@@ -1,5 +1,5 @@
-Devbuild 18: mobile
-- Vibration feedback on mobile (setting).
-- Rotate hint when playing in portrait on a touch device.
-- Battery saver (automatic when the battery is low): lower resolution, no shadows, 30 fps cap.
-- Share a game with the system share sheet (falls back to copying the link).
+Devbuild 19: progression
+- Achievements page (12 achievements with progress, unlock message in game).
+- BCoins ranking (needs supabase/auth/v15.sql).
+- Daily chest panel in the shop with a countdown to the next reward.
+- Shop wish list (star button) with a hint when you can afford an item.

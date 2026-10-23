@@ -378,3 +378,10 @@ html.big-text .page, html.big-text #chat-log, html.big-text #chat-form, html.big
 
 #rotate-hint { position: absolute; top: 90px; left: 50%; transform: translateX(-50%); background: #000c; color: #fff; padding: 8px 14px; border-radius: 10px; font-size: 13px; opacity: 0; transition: opacity .3s; pointer-events: none; z-index: 50; }
 #rotate-hint.show { opacity: 1; }
+
+.ach-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; margin: 12px 0; }
+.ach { display: flex; gap: 12px; align-items: center; background: var(--panel, #2a2d31); border-radius: 12px; padding: 12px; opacity: .6; } .ach.done { opacity: 1; box-shadow: inset 0 0 0 1px #f5c542; } .ach.done > i { color: #f5c542; }
+.ach .prog { height: 5px; background: #0005; border-radius: 3px; margin: 6px 0 2px; overflow: hidden; } .ach .prog i { display: block; height: 100%; background: var(--accent); }
+.daily.chest { display: flex; align-items: center; gap: 12px; } .chest-ico { color: #9aa0a8; } .daily.chest.ready .chest-ico { color: #f5c542; animation: chestbob 1s ease-in-out infinite alternate; }
+@keyframes chestbob { to { transform: translateY(-4px) rotate(-4deg); } } .reduce-motion .chest-ico { animation: none !important; }
+.btn.wish.on { color: #f5c542; }
