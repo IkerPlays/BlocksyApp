@@ -3,6 +3,8 @@ import { EXTRA } from './i18n-extra.js'
 const D = {
   es: {
     lang_name: 'Español',
+    templates: 'Plantilla', tpl_blank: 'En blanco', tpl_blank_d: 'Un mundo vacío para construir', tpl_obby: 'Obby', tpl_obby_d: 'Parkour con puntos de control', tpl_plaza: 'Plaza social', tpl_plaza_d: 'Chat, emotes y música', tpl_coins: 'Recoge monedas', tpl_coins_d: 'Script Lua con marcador', tpl_sky: 'Plataformas y lava', tpl_sky_d: 'Plataformas móviles con Lua',
+    import_game: 'Importar juego (.json)', import_bad: 'Ese archivo no es un juego de Blocksy', st_export: 'Exportar', st_explorer: 'Objetos', st_autosave: 'Guardado automático',
     st_group: 'Grupo', st_group_ph: 'Piezas con el mismo grupo se mueven juntas', st_grid: 'Rejilla',
     st_shape_tool: 'Formas', st_line: 'Línea', st_replace: 'Reemplazar color', st_sym: 'Simetría', st_sym_off: 'apagada', shape_sphere: 'Esfera', shape_hollowsphere: 'Esfera hueca', shape_cylinder: 'Cilindro',
     st_hint_shape: 'Clic en dos esquinas: la forma queda dentro de esa caja', st_hint_line: 'Clic en dos puntos para trazar una línea', st_hint_replace: 'Clic en un bloque: todos los de su color pasan al color elegido',
@@ -81,6 +83,8 @@ const D = {
   },
   en: {
     lang_name: 'English',
+    templates: 'Template', tpl_blank: 'Blank', tpl_blank_d: 'An empty world to build in', tpl_obby: 'Obby', tpl_obby_d: 'Parkour with checkpoints', tpl_plaza: 'Social plaza', tpl_plaza_d: 'Chat, emotes and music', tpl_coins: 'Collect coins', tpl_coins_d: 'Lua script with a scoreboard', tpl_sky: 'Platforms and lava', tpl_sky_d: 'Moving platforms with Lua',
+    import_game: 'Import game (.json)', import_bad: 'That file is not a Blocksy game', st_export: 'Export', st_explorer: 'Objects', st_autosave: 'Autosaved',
     st_group: 'Group', st_group_ph: 'Parts with the same group move together', st_grid: 'Grid',
     st_shape_tool: 'Shapes', st_line: 'Line', st_replace: 'Replace color', st_sym: 'Symmetry', st_sym_off: 'off', shape_sphere: 'Sphere', shape_hollowsphere: 'Hollow sphere', shape_cylinder: 'Cylinder',
     st_hint_shape: 'Click two corners: the shape fits inside that box', st_hint_line: 'Click two points to draw a line', st_hint_replace: 'Click a block: every block of its color becomes the chosen color',

@@ -1,1 +1,1 @@
-Dev build 9: drag parts with the mouse in Studio (Shift moves up and down), groups of parts, copy and paste parts, and a configurable grid.
+Dev build 10: game templates (blank, obby, plaza, coins, platforms and lava), export and import games as .json, an object explorer in Studio and autosave every minute.

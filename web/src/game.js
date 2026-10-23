@@ -498,9 +498,12 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
         if (testing) { selUi = null; openInspector(); teleport(...world.spawn); me.fly = false; for (const k in uiText) delete uiText[k]; startRunner(); drawUi(); setTimeout(() => runner.fire('join', { data: { name: profile.username }, who: profile.username }), 400) }
         else { runner.dispose(); rbx.reset(); rbx.spawnStatic(cfg.parts); runner = { fire() {}, has: () => false, dispose() {} }; for (const k in uiText) delete uiText[k]; me.fly = true; drawUi() }
       },
-      onSave: async () => { try { await sd.flush(); game.config = { ...(game.config ?? {}), ui: uiEls, parts: sd.parts }; await studio.save(game); showTitle(t('st_saved'), 1600); sfx.click() } catch (e) { showTitle(e.message, 3000) } },
+      getConfig: () => ({ ...(game.config ?? {}), ui: uiEls, parts: sd.parts }),
+      onSave: async silent => { try { await sd.flush(); game.config = { ...(game.config ?? {}), ui: uiEls, parts: sd.parts }; await studio.save(game); if (silent === true) { const c = document.createElement('div'); c.className = 'autosave'; c.textContent = t('st_autosave'); $('game').append(c); setTimeout(() => c.remove(), 1800) } else { showTitle(t('st_saved'), 1600); sfx.click() } } catch (e) { if (silent !== true) showTitle(e.message, 3000) } },
       onExit: () => onExit() })
     showTitle(t('st_help'), 7000)
+    const autoTimer = setInterval(() => { if (editing() && !paused && !document.hidden) sd.save?.(true) }, 60_000)
+    studioCleanup.push(() => clearInterval(autoTimer))
     studioCleanup.push(() => { sd.dispose(); g.classList.remove('studio', 'tool-ui'); $('studio-bar').classList.add('hidden'); $('ui-inspector').classList.add('hidden') })
   }
 

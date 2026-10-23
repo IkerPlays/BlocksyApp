@@ -36,7 +36,7 @@ const SHAPES = ['Block', 'Ball', 'Cylinder'], MATERIALS = ['Plastic', 'Neon', 'G
 const SKIES = ['day', 'sunset', 'night', 'space']
 
 export function createStudio(ctx) {
-  const { game, cfg, api, PALETTE, key, index, statics, setBlock, removeBlock, me, pick, scene, camera, canvas, rbx, showTitle, sys, sfx, burst, selectKind, onEnv, onTestToggle, onSave, onExit, onScript, onAddText, setUiTool, getHover } = ctx
+  const { game, cfg, api, PALETTE, key, index, statics, setBlock, removeBlock, me, pick, scene, camera, canvas, rbx, showTitle, sys, sfx, burst, selectKind, onEnv, onTestToggle, onSave, onExit, onScript, onAddText, setUiTool, getHover, getConfig } = ctx
   const g = document.getElementById('game'), bar = document.getElementById('studio-bar')
   const state = { tool: 'place', mode: 'fill', shape: 'sphere', sym: 'off', grid: 0.5, prefab: 'house', rot: 0, a: null, region: null, clip: null }
   const undoS = [], redoS = []
@@ -124,7 +124,21 @@ export function createStudio(ctx) {
   }
 
   // ---------- piezas (Part): guardadas en config.parts ----------
-  const refreshParts = () => { cfg.parts = parts; game.config = { ...(game.config ?? {}), parts }; rbx.reset(); rbx.spawnStatic(parts); updateSelBox() }
+  const refreshParts = () => { cfg.parts = parts; game.config = { ...(game.config ?? {}), parts }; rbx.reset(); rbx.spawnStatic(parts); updateSelBox(); paintExplorer() }
+  // explorador: lista de piezas del juego (clic = seleccionar)
+  const explorer = h('div', { id: 'studio-explorer', class: 'hidden' }); g.append(explorer)
+  function paintExplorer() {
+    if (explorer.classList.contains('hidden')) return
+    const groups = [...new Set(parts.map(p => p.group).filter(Boolean))]
+    explorer.replaceChildren(h('b', { text: `${t('st_explorer')} (${parts.length})` }), ...parts.map((p, i) => h('button', { type: 'button', class: 'ex-row' + (i === selPart ? ' on' : ''), onclick: () => { selPart = i; setTool('part'); updateSelBox(); openPartInspector(); paintExplorer() } }, h('span', { text: p.type === 'spawn' ? 'S' : p.shape === 'Ball' ? 'O' : '[]' }), h('span', { text: p.name }), p.group ? h('small', { text: '#' + p.group }) : null)), !parts.length ? h('small', { text: t('no_games') }) : null, groups.length ? h('small', { text: groups.map(x => '#' + x).join(' ') }) : null)
+  }
+  const toggleExplorer = () => { explorer.classList.toggle('hidden'); paintExplorer() }
+  // exportar el juego entero (.json) para guardarlo o pasarlo a otro juego (se importa desde Crear)
+  function exportGame() {
+    const blocks = []; for (const [k, e] of index) { const [x, y, z] = k.split(',').map(Number); blocks.push([x, y, z, e.kind]) }
+    const d = { format: 'blocksy-game-1', name: game.name, description: game.description ?? '', mode: game.mode, hue: game.hue, max_players: game.max_players, config: getConfig(), script: game.script ?? '', blocks }
+    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(d)], { type: 'application/json' })); a.download = `${String(game.name).replace(/[^\w-]+/g, '_')}.blocksy.json`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); showTitle(t('st_done_n', { n: blocks.length }), 1600)
+  }
   function updateSelBox() {
     const o = selPart >= 0 ? rbx.partAt(selPart) : null
     if (!o) { if (state.tool === 'part' || selPart < 0) selWire.visible = false; return }
@@ -210,7 +224,7 @@ export function createStudio(ctx) {
     const items = TOOLS.map(([k, ic]) => { const b = mkBtn('st-' + k, ic, t('st_' + k), () => setTool(k), k === 'place' ? 'on' : ''); btnFor[k] = b; return b })
     const symBtn = mkBtn('st-sym', 'mirror', t('st_sym'), () => { state.sym = { off: 'x', x: 'z', z: 'xz', xz: 'off' }[state.sym]; symBtn.classList.toggle('on', state.sym !== 'off'); symBtn.title = `${t('st_sym')}: ${state.sym}`; showTitle(`${t('st_sym')}: ${state.sym === 'off' ? t('st_sym_off') : state.sym.toUpperCase()}`, 1200) })
     undoBtn = mkBtn('st-undo', 'undo', t('st_undo'), undo); redoBtn = mkBtn('st-redo', 'redo', t('st_redo'), redo)
-    bar.replaceChildren(...items, h('i', { class: 'st-sep' }), mkBtn('st-addtext', 'chat', t('st_addtext'), () => { onAddText(); setTool('ui') }), symBtn, undoBtn, redoBtn, mkBtn('st-env', 'sliders', t('st_env'), openEnv), mkBtn('st-script', 'code', t('ed_script'), onScript),
+    bar.replaceChildren(...items, h('i', { class: 'st-sep' }), mkBtn('st-addtext', 'chat', t('st_addtext'), () => { onAddText(); setTool('ui') }), symBtn, undoBtn, redoBtn, mkBtn('st-explorer', 'menu', t('st_explorer'), toggleExplorer), mkBtn('st-export', 'send', t('st_export'), exportGame), mkBtn('st-env', 'sliders', t('st_env'), openEnv), mkBtn('st-script', 'code', t('ed_script'), onScript),
       h('i', { class: 'st-sep' }), mkBtn('st-test', 'play', t('st_test'), onTestToggle, 'lbl'), mkBtn('st-save', 'check', t('save'), onSave, 'primary lbl'), mkBtn('st-exit', 'back', t('close'), onExit, 'lbl'))
     paintHistory(); setTool('place')
   }
@@ -321,6 +335,6 @@ export function createStudio(ctx) {
   }
   function pointerUp() { if (!dragPart) return false; dragPart = null; refreshParts(); openPartInspector(); return true }
   refreshParts()
-  function dispose() { for (const o of [wire, stamp, selWire]) scene.remove(o); stampGeo.dispose(); stampMat.dispose(); stamp.dispose(); opts.remove(); partInsp.remove(); envBox.remove() }
-  return { interact, update, keydown, pointerDown, pointerMove, pointerUp, undo, redo, setTool, setTesting, dispose, flush, get tool() { return state.tool }, get parts() { return parts } }
+  function dispose() { for (const o of [wire, stamp, selWire]) scene.remove(o); stampGeo.dispose(); stampMat.dispose(); stamp.dispose(); opts.remove(); partInsp.remove(); envBox.remove(); explorer.remove() }
+  return { save: onSave, interact, update, keydown, pointerDown, pointerMove, pointerUp, undo, redo, setTool, setTesting, dispose, flush, get tool() { return state.tool }, get parts() { return parts } }
 }

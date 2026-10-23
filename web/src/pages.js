@@ -7,6 +7,7 @@ import { headshot, styleFor, EMOTES, createPreview, loadoutStyle, parseLoadout, 
 import { t, LANGS, langName, getPref, setLang, onLang } from './i18n.js'
 import { codeEditor } from './studio-ui.js'
 import { partyPanel, attachEmoticons } from './party-ui.js'
+import { TEMPLATES } from './templates.js'
 import { installApp, canInstall, isInstalled, askNotifications, checkForUpdate, applyUpdate, isUpdateReady, BUILD } from './pwa.js'
 
 const $ = id => document.getElementById(id)
@@ -392,15 +393,29 @@ export const pages = {
     if (arg) return editor(root, ctx, arg)
     const name = el('input', { placeholder: t('game_name'), minlength: 3, maxlength: 40 })
     const desc = el('input', { placeholder: t('game_desc'), maxlength: 200 })
-    let mode = 'build'
+    let mode = 'build', tpl = TEMPLATES[0]
+    const tplBox = el('div', { class: 'mode-pick' })
+    const drawTpl = () => setKids(tplBox, TEMPLATES.map(x => el('button', { type: 'button', class: `mode-card ${tpl === x ? 'on' : ''}`, onclick: () => { tpl = x; mode = x.mode; drawTpl(); drawModes() } }, el('b', { text: t(x.key) }), el('small', { text: t(x.key + '_d') }))))
     const modeBox = el('div', { class: 'mode-pick' })
     const drawModes = () => setKids(modeBox, MODES.map(m => el('button', { type: 'button', class: `mode-card ${mode === m ? 'on' : ''}`, onclick: () => { mode = m; drawModes() } },
       el('b', { text: modeLabel(m) }), el('small', { text: t(`mode_${m}_d`) }))))
-    drawModes()
+    drawModes(); drawTpl()
     const hue = el('input', { type: 'range', min: 0, max: 359, value: Math.floor(Math.random() * 360) })
     const prev = el('div', { class: 'thumb', style: 'width:120px;flex:none;--h:0' }, el('div', { class: 'cube' }))
     const setHue = () => prev.style.setProperty('--h', hue.value); hue.oninput = setHue; setHue()
     const mineBox = el('div')
+    // Importar un juego exportado desde el Studio (.json): crea un juego nuevo con sus bloques, reglas, script y piezas
+    const file = el('input', { type: 'file', accept: '.json,application/json', style: 'display:none' })
+    const importBtn = el('button', { type: 'button', class: 'btn', style: 'margin-left:8px', text: t('import_game'), onclick: () => file.click() })
+    file.onchange = async () => {
+      try {
+        const d = JSON.parse(await file.files[0].text()); if (d.format !== 'blocksy-game-1') throw new Error(t('import_bad'))
+        const id = await api.createGameRow(String(d.name || 'Juego').slice(0, 40), String(d.description || '').slice(0, 200), Number(d.hue) || 200, MODES.includes(d.mode) ? d.mode : 'build')
+        const g = await api.getGame(id); g.config = d.config ?? {}; g.script = String(d.script ?? '').slice(0, 20000); g.max_players = Number(d.max_players) || 20; await api.updateGameRow(g)
+        const bl = (d.blocks ?? []).slice(0, 20000); for (let i = 0; i < bl.length; i += 400) await api.placeBlocks(id, bl.slice(i, i + 400))
+        toast(t('game_created')); ctx.go(`create/${id}`)
+      } catch (e) { toast(e.message) } finally { file.value = '' }
+    }
     async function load() {
       const games = (await api.listGames()).filter(g => g.owner_id === ctx.profile.id)
       setKids(mineBox, games.length ? games.map(g => el('div', { class: 'person' },
@@ -415,11 +430,15 @@ export const pages = {
     setKids(root, el('h1', { class: 'page-title', text: t('create') }),
       el('form', { class: 'panel', onsubmit: async e => {
         e.preventDefault()
-        try { const id = await api.createGameRow(name.value.trim(), desc.value.trim(), Number(hue.value), mode); toast(t('game_created')); ctx.go(`create/${id}`) } catch (er) { toast(er.message) }
+        try {
+          const id = await api.createGameRow(name.value.trim(), desc.value.trim(), Number(hue.value), mode)
+          if (tpl.id !== 'blank') { const g = await api.getGame(id); g.mode = mode; g.config = { ...(g.config ?? {}), ...tpl.config }; g.script = tpl.script; await api.updateGameRow(g) }
+          toast(t('game_created')); ctx.go(`create/${id}`)
+        } catch (er) { toast(er.message) }
       } }, el('h3', { text: t('create_new'), style: 'margin-bottom:12px' }),
-        el('div', { class: 'form-row' }, name, desc), el('div', { class: 'section-s', text: t('mode') }), modeBox,
+        el('div', { class: 'form-row' }, name, desc), el('div', { class: 'section-s', text: t('templates') }), tplBox, el('div', { class: 'section-s', text: t('mode') }), modeBox,
         el('div', { class: 'form-row', style: 'align-items:center;margin-top:12px' }, prev, el('label', { class: 'field' }, t('cover_color'), hue)),
-        el('button', { class: 'btn primary', text: t('create_btn') })),
+        el('button', { class: 'btn primary', text: t('create_btn') }), importBtn),
       el('div', { class: 'section' }, el('h2', { text: t('my_games') })), el('div', { class: 'panel' }, mineBox))
     load()
   },
