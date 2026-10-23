@@ -3,6 +3,7 @@ import { EXTRA } from './i18n-extra.js'
 const D = {
   es: {
     lang_name: 'Español',
+    set_fpscap: 'Límite de fps', fps_none: 'Sin límite',
     install_banner: 'Instala Blocksy para abrirlo como una app', install_btn: 'Instalar',
     set_search: 'Buscar un ajuste…', set_export: 'Exportar ajustes', set_import: 'Importar ajustes', set_import_bad: 'Ese archivo no es de ajustes de Blocksy', set_reset_section: 'Restablecer',
     sf_all: 'Todo', sf_crate: 'Cofres', sf_hat: 'Sombreros', sf_face: 'Caras', sf_back: 'Espalda', sf_trail: 'Estelas', sf_pet: 'Mascotas', sf_title: 'Títulos', sf_owned: 'Solo lo que tengo', ss_default: 'Orden de la tienda', ss_price_asc: 'Precio: menor primero', ss_price_desc: 'Precio: mayor primero', ss_rarity: 'Rareza', pv_idle: 'Quieto', pv_wave: 'Saludar', pv_dance: 'Bailar', pv_walk: 'Caminar', pv_spin: 'Girar', buy_history: 'Historial de compras', buy_history_none: 'Aún no has comprado nada desde este dispositivo.',
@@ -112,6 +113,7 @@ const D = {
   },
   en: {
     lang_name: 'English',
+    set_fpscap: 'FPS limit', fps_none: 'No limit',
     install_banner: 'Install Blocksy to open it like an app', install_btn: 'Install',
     set_search: 'Search settings…', set_export: 'Export settings', set_import: 'Import settings', set_import_bad: 'That file is not a Blocksy settings file', set_reset_section: 'Reset',
     sf_all: 'All', sf_crate: 'Crates', sf_hat: 'Hats', sf_face: 'Faces', sf_back: 'Back', sf_trail: 'Trails', sf_pet: 'Pets', sf_title: 'Titles', sf_owned: 'Only what I own', ss_default: 'Shop order', ss_price_asc: 'Price: low to high', ss_price_desc: 'Price: high to low', ss_rarity: 'Rarity', pv_idle: 'Idle', pv_wave: 'Wave', pv_dance: 'Dance', pv_walk: 'Walk', pv_spin: 'Spin', buy_history: 'Purchase history', buy_history_none: 'You have not bought anything from this device yet.',

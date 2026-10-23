@@ -678,7 +678,7 @@ export const pages = {
           sel('theme', t('set_theme'), [['dark', t('theme_dark')], ['light', t('theme_light')], ['contrast', t('theme_contrast')]], applyTheme), el('label', { class: 'field' }, t('set_accent'), accent), sw('reduceMotion', t('set_motion'), applyTheme), installRow, el('div', { class: 'section-s', text: t('web_version') }), upd),
         el('div', { class: 'panel' }, el('h3', { text: t('set_quality') }),
           sel('quality', t('set_quality'), [['low', t('q_low')], ['med', t('q_med')], ['high', t('q_high')], ['ultra', t('q_ultra')]]),
-          rg('viewDistance', t('set_dist'), 30, 250, 10), rg('fov', t('set_fov'), 50, 100, 1), sw('dynRes', t('set_dynres')), sw('shadows', t('set_shadows')), sw('bloom', t('set_bloom')), sw('clouds', t('set_clouds'))),
+          sel('fpsCap', t('set_fpscap'), [[0, t('fps_none')], [30, '30 fps'], [60, '60 fps']], () => { settings.fpsCap = +settings.fpsCap; saveSettings() }), rg('viewDistance', t('set_dist'), 30, 250, 10), rg('fov', t('set_fov'), 50, 100, 1), sw('dynRes', t('set_dynres')), sw('shadows', t('set_shadows')), sw('bloom', t('set_bloom')), sw('clouds', t('set_clouds'))),
         el('div', { class: 'panel' }, el('h3', { text: t('voice_chat') }), rg('voiceVol', t('set_voice_vol'), 0, 2, 0.05, v => Math.round(v * 100) + '%'), sw('voiceProximity', t('set_voice_prox')), sel('voiceMode', t('set_voice_mode'), [['toggle', t('voice_mode_toggle')], ['ptt', t('voice_mode_ptt')]])),
         el('div', { class: 'panel' }, el('h3', { text: t('set_music') }),
           sw('music', t('set_music')), rg('musicVol', t('set_music_vol'), 0, 1, 0.05, v => Math.round(v * 100) + '%'), sw('shuffle', t('set_shuffle')),

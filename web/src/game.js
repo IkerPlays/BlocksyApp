@@ -903,7 +903,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
   let lastDraw = 0
   function frame() {
     raf = requestAnimationFrame(frame)
-    if (saverOn()) { const n0 = performance.now(); if (n0 - lastDraw < 30) return; lastDraw = n0 }
+    { const cap = saverOn() ? 30 : settings.fpsCap; if (cap) { const n0 = performance.now(); if (n0 - lastDraw < 1000 / cap - 2) return; lastDraw = n0 } }
     const dt = Math.min(clock.getDelta(), 0.05); tAnim += dt
     const w = canvas.clientWidth, h = canvas.clientHeight
     if (w && h && (canvas.width !== Math.floor(w * renderer.getPixelRatio()) || canvas.height !== Math.floor(h * renderer.getPixelRatio()))) size()

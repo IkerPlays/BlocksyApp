@@ -3,7 +3,9 @@ import { authDb } from './supabase.js'
 import * as auth from './auth.js'
 import * as api from './api.js'
 import { pages, toast, closeModal, stopPageTimers } from './pages.js'
-import { startGame } from './game.js'
+// game.js (three.js, Lua...) se carga cuando hace falta: la página de inicio abre antes
+let gameMod = null
+const loadGame = () => gameMod ?? (gameMod = import('./game.js'))
 import { setLastPlayed, applyTheme, onSettings } from './settings.js'
 import { applyAccess } from './access.js'
 import { applyIcons } from './icons.js'
@@ -121,11 +123,10 @@ function play(game, opts = {}) {
   showScreen('game')
   // lienzo nuevo en cada partida: reutilizar el de otro juego con un contexto WebGL ya usado puede dejar la pantalla en negro
   const old = $('view'), cv = document.createElement('canvas'); cv.id = 'view'; old.replaceWith(cv)
-  try {
+  loadGame().then(({ startGame }) => {
+    if (currentGame !== game) return
     stopGame = startGame({ game, profile, canvas: cv, onExit: opts.studio ? () => exitStudio(game) : exitGame, studio: opts.studio ? { save: g => api.updateGameRow(g), openScript: openScriptModal } : undefined, onInvite: g => { $('game').classList.add('hidden-for-modal'); openInvite(ctx, g) } })
-  } catch (e) {
-    console.error(e); toast(`${game.name}: ${e.message}`); exitGame()
-  }
+  }).catch(e => { console.error(e); toast(`${game.name}: ${e.message}`); exitGame() })
 }
 function exitStudio(game) {
   stopGame?.(); stopGame = null; currentGame = null
@@ -136,6 +137,7 @@ async function exitGame() {
   stopGame?.(); stopGame = null; currentGame = null
   auth.startPresence(() => null)
   showScreen('app'); route()
+  ;(window.requestIdleCallback ?? (f => setTimeout(f, 3000)))(() => loadGame().catch(() => {}))          // precarga el motor del juego mientras miras el inicio
   if (needsWelcome()) { markWelcomed(); setTimeout(() => import('./pages.js').then(m => m.showWelcome(ctx.go)), 800) }
   else if (isNewVersion()) setTimeout(() => import('./pages.js').then(m => m.showNews()), 1200)
 }

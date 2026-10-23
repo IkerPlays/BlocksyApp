@@ -2,10 +2,12 @@ export const DEFAULTS = {
   sensitivity: 1, syncMs: 100, voiceVol: 1, voiceProximity: true, voiceMode: 'toggle', viewDistance: 120, names: true, fov: 68, quality: 'high', dynRes: true, shadows: true, bloom: false, clouds: true,
   music: true, musicVol: 0.4, sfx: true, sfxVol: 0.6, shuffle: true,
   bubbles: true, minimap: true, compass: true, showFps: true, notifPopups: true, invertY: false, reduceMotion: false, touchSize: 1, leftHanded: false,
-  theme: 'dark', accent: '#3b6bff', colorblind: 'none', textScale: 1, subtitles: false, showClock: true, stamina: false, chatTime: false, dnd: false, nt: { message: true, friend_request: true, friend_accept: true, invite: true }, uiSounds: true, chatFilter: true, vibrate: true, batterySaver: 'auto', keymap: {},
+  theme: 'dark', accent: '#3b6bff', colorblind: 'none', textScale: 1, subtitles: false, fpsCap: 0, showClock: true, stamina: false, chatTime: false, dnd: false, nt: { message: true, friend_request: true, friend_accept: true, invite: true }, uiSounds: true, chatFilter: true, vibrate: true, batterySaver: 'auto', keymap: {},
 }
 let cur
 try { cur = { ...DEFAULTS, ...JSON.parse(localStorage.getItem('blocksy.settings') ?? '{}') } } catch { cur = { ...DEFAULTS } }
+// equipos lentos (pocos núcleos o poca memoria): primera vez, calidad media sin sombras
+try { if (!localStorage.getItem('blocksy.settings') && !localStorage.getItem('blocksy.perf')) { localStorage.setItem('blocksy.perf', '1'); if ((navigator.hardwareConcurrency ?? 8) <= 4 || (navigator.deviceMemory ?? 8) <= 2) { cur.quality = 'med'; cur.shadows = false; cur.viewDistance = 90; cur.lowEnd = true } } } catch {}
 export const settings = cur
 const subs = new Set()
 export const onSettings = f => { subs.add(f); return () => subs.delete(f) }

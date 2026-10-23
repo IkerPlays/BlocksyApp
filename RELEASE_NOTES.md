@@ -1,5 +1,5 @@
-Devbuild 47: installable app
-- More app shortcuts (Friends, Discover, Shop, Achievements, Screenshots) when you install Blocksy.
-- Share to Blocksy: share a Blocksy link or text from another app and it opens in Blocksy.
-- Install suggestion after your third visit (can be closed for good).
-- Offline page when there is no connection and nothing cached.
+Devbuild 48: performance
+- The game engine loads in the background after you open the app, so the home page appears sooner.
+- FPS limit setting (30 or 60) to save battery and heat.
+- First visit on a slow computer or phone starts with medium quality and no shadows.
+- Battery saver and the FPS limit share the same smoother frame pacing.
