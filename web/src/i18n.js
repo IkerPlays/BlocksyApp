@@ -3,6 +3,7 @@ import { EXTRA } from './i18n-extra.js'
 const D = {
   es: {
     lang_name: 'Español',
+    p_banner: 'Color del banner', p_banner_none: 'Quitar banner', p_share: 'Compartir perfil', p_nick: 'Apodo', p_nick_ask: 'Apodo para {name} (solo lo ves tú; vacío = quitarlo)', p_nick_is: 'Para ti: {nick}',
     trending: 'Tendencias ahora', related_games: 'Juegos parecidos', report_game: 'Denunciar este juego',
     random_game: 'Sorpréndeme', friends_playing: 'Amigos jugando ahora', no_one_playing: 'Nadie jugando ahora',
     pal_placeholder: 'Ir a una página, abrir un juego o cambiar el tema…', pal_foot: 'Ctrl+K abre esto · g y una letra: ir a una página (g h inicio, g d descubrir, g s tienda…)', pal_none: 'Nada coincide', offline_banner: 'Sin conexión: algunas cosas no funcionarán', retry: 'Reintentar', load_failed: 'No se pudo cargar esta página',
@@ -104,6 +105,7 @@ const D = {
   },
   en: {
     lang_name: 'English',
+    p_banner: 'Banner color', p_banner_none: 'No banner', p_share: 'Share profile', p_nick: 'Nickname', p_nick_ask: 'Nickname for {name} (only you see it; empty = remove)', p_nick_is: 'To you: {nick}',
     trending: 'Trending now', related_games: 'Similar games', report_game: 'Report this game',
     random_game: 'Surprise me', friends_playing: 'Friends playing now', no_one_playing: 'Nobody playing now',
     pal_placeholder: 'Go to a page, open a game or change the theme…', pal_foot: 'Ctrl+K opens this · g then a letter: go to a page (g h home, g d discover, g s shop…)', pal_none: 'No matches', offline_banner: 'You are offline: some things will not work', retry: 'Retry', load_failed: 'This page could not be loaded',

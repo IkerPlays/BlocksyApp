@@ -1,5 +1,4 @@
-Devbuild 39: discover
-- Search suggestions (game names, tags and your recent searches).
-- Trending now section with the games that have players right now.
-- Similar games on every game window.
-- Report a game (sent to the moderators as a report about its creator).
+Devbuild 40: profile
+- Bio character counter and a banner color for your profile (shown to everyone).
+- Share profile button that uses the system share sheet.
+- Friend nicknames: give a friend a private nickname that only you see.

@@ -66,6 +66,13 @@ export const avatarEl = (name, color, online) => {
   return a
 }
 const avatar = avatarEl
+// apodos de amigos (solo los ves tú, se guardan en este navegador) y color de banner del perfil (va escondido al principio de la biografía)
+const nickMap = () => { try { const o = JSON.parse(localStorage.getItem('blocksy.nicks') || '{}'); return o && typeof o === 'object' ? o : {} } catch { return {} } }
+const nickOf = name => nickMap()[String(name).toLowerCase()] || name
+const setNick = (name, v) => { const o = nickMap(); if (v) o[String(name).toLowerCase()] = v; else delete o[String(name).toLowerCase()]; try { localStorage.setItem('blocksy.nicks', JSON.stringify(o)) } catch {} }
+const BANNER_RE = /^\u2063b(#[0-9a-fA-F]{6})/
+const bannerOf = bio => BANNER_RE.exec(bio ?? '')?.[1] ?? ''
+const bioText = bio => String(bio ?? '').replace(BANNER_RE, '')
 const statusText = f => (f.is_online ? (f.current_game ? t('status_game') : t('status_online')) : t('status_offline'))
 const MODES = ['build', 'social', 'obby', 'arena']
 const modeLabel = m => t('mode_' + (m || 'build'))
@@ -155,7 +162,7 @@ export const pages = {
     social.myFavorites().then(s => { const fg = games.filter(g => s.has(g.id)); if (fg.length) setKids(favRow, el('div', { class: 'section' }, el('h2', { text: t('favorites') })), grid(fg, counts, open)) })
     const paintFriends = list => setKids(friendsRow, list.length
       ? el('div', { class: 'row-scroll' }, list.map(f => el('a', { class: 'friend', href: `/u/${encodeURIComponent(f.username)}` },
-          avatar(f.username, f.avatar_color, f.is_online), el('b', { text: f.username }), el('small', { text: statusText(f) }))))
+          avatar(f.username, f.avatar_color, f.is_online), el('b', { text: nickOf(f.username), title: f.username }), el('small', { text: statusText(f) }))))
       : el('div', { class: 'empty', text: t('home_no_friends') }))
     paintFriends(friends)
     // racha y recompensa diaria, "seguir jugando", amigos jugando y juego al azar
@@ -320,19 +327,27 @@ export const pages = {
         A.push(btn('', t(blocked ? 'unblock' : 'block'), async () => { if (blocked) await social.unblockUser(p.username); else if (confirm(t('block_confirm', { name: p.username }))) await social.blockUser(p.username); reload() }),
           btn('', t('report'), () => openReport(p.username)))
       }
-      A.push(btn('', t('p_copy'), async () => { const url = `${location.origin}/u/${p.username}`; try { await navigator.clipboard.writeText(url); toast(t('link_copied')) } catch { prompt(t('copy_link'), url) } }))
+      A.push(btn('', t('p_share'), async () => { const url = `${location.origin}/u/${p.username}`; if (navigator.share) { try { await navigator.share({ title: p.username + ' · Blocksy', url }); return } catch (e) { if (e?.name === 'AbortError') return } } try { await navigator.clipboard.writeText(url); toast(t('link_copied')) } catch { prompt(t('copy_link'), url) } }))
+      if (p.relation === 'friends') A.push(btn('', t('p_nick'), async () => { const v = prompt(t('p_nick_ask', { name: p.username }), nickMap()[p.username.toLowerCase()] ?? ''); if (v !== null) { setNick(p.username, v.trim().slice(0, 20)); reload() } }))
       setKids(actions, A)
     }
+    const banner = { value: '', cleared: false }
+    const bannerEl = el('div', { class: 'p-banner' })
+    const paintBanner = () => { const c = banner.cleared ? '' : banner.value || bannerOf(p.bio); bannerEl.style.background = c ? `linear-gradient(120deg, ${c}, ${c}66)` : ''; bannerEl.classList.toggle('on', !!c) }
     const paintBio = () => {
-      if (!self) return setKids(bioBox, el('p', { class: p.bio ? '' : 'muted', text: p.bio || t('p_no_bio') }))
-      const ta = el('textarea', { class: 'bio-edit', maxlength: 160, placeholder: t('p_bio_ph'), rows: 3 }); ta.value = p.bio || ''
-      setKids(bioBox, ta, el('button', { class: 'btn', style: 'margin-top:8px', text: t('save'), onclick: async () => { const { error: e } = await social.setBio(ctx.profile.id, ta.value.trim()); if (e) toast(e.message); else { p.bio = ta.value.trim(); toast(t('saved')) } } }))
+      if (!self) return setKids(bioBox, el('p', { class: bioText(p.bio) ? '' : 'muted', text: bioText(p.bio) || t('p_no_bio') }))
+      const ta = el('textarea', { class: 'bio-edit', maxlength: 150, placeholder: t('p_bio_ph'), rows: 3 }); ta.value = bioText(p.bio)
+      const count = el('small', { class: 'muted', text: `${ta.value.length}/150` }); ta.oninput = () => { count.textContent = `${ta.value.length}/150` }
+      const bn = el('input', { type: 'color', value: bannerOf(p.bio) || '#335fff' }); bn.oninput = () => { banner.value = bn.value; paintBanner() }
+      const noBn = el('button', { type: 'button', class: 'btn tiny', text: t('p_banner_none'), onclick: () => { banner.value = ''; banner.cleared = true; paintBanner() } })
+      setKids(bioBox, ta, el('div', { class: 'form-row', style: 'align-items:center;gap:8px' }, count, el('label', { class: 'chip-num' }, t('p_banner'), bn), noBn),
+        el('button', { class: 'btn', style: 'margin-top:8px', text: t('save'), onclick: async () => { const col = banner.cleared ? '' : (banner.value || bannerOf(p.bio)); const full = (col ? '\u2063b' + col : '') + ta.value.trim().slice(0, 150); const { error: e } = await social.setBio(ctx.profile.id, full); if (e) toast(e.message); else { p.bio = full; toast(t('saved')) } } }))
     }
     const status = self || p.relation === 'friends' ? (p.is_online ? (p.current_game ? t('status_game') : t('status_online')) : t('status_offline')) : ''
     setKids(root, el('div', { class: 'panel profile-card' },
-      el('div', { class: 'preview' }, canvas),
+      bannerEl, el('div', { class: 'preview' }, canvas),
       el('div', { class: 'profile-info' },
-        el('h1', { class: 'page-title', style: 'margin-bottom:4px', text: p.username }),
+        el('h1', { class: 'page-title', style: 'margin-bottom:4px', text: p.username }), p.relation === 'friends' && nickOf(p.username) !== p.username ? el('small', { class: 'muted', text: t('p_nick_is', { nick: nickOf(p.username) }) }) : null,
         titleBox,
         status ? el('div', { class: 'p-status' }, el('span', { class: `dot-i ${p.is_online ? 'on' : ''}` }), status) : null,
         el('small', { style: 'color:var(--muted)', text: self ? t('p_you') : t('p_joined', { date: new Date(p.created_at).toLocaleDateString() }) }),
@@ -342,7 +357,7 @@ export const pages = {
       self ? [el('div', { class: 'section' }, el('h2', { text: t('friends_n', { n: '' }).replace('()', '').trim() })), friendsBox] : null)
     const pv = createPreview(canvas, { ...styleFor(p.username, p.avatar_color), ...loadoutStyle({}, parseLoadout(packLoadout(p.equipped))) }); pv.setAnim('wave')
     if (p.equipped?.title) social.listShop().then(items => { const it = items.find(i => i.id === p.equipped.title); if (it) titleBox.textContent = it.data?.text ?? it.name }).catch(() => {})
-    paintBio(); paintActions()
+    paintBio(); paintBanner(); paintActions()
     social.profileExtra(p.username).then(x => { if (!x) return; if (x.look) pv.setStyle(loadoutStyle(styleFor(p.username, p.avatar_color), parseLoadout(packLoadout(p.equipped, x.look)))); const hrs = Math.floor(x.play_seconds / 3600), mins = Math.floor(x.play_seconds % 3600 / 60); const bd = [...(x.badges ?? []), ...(mine0.length ? ['creator'] : [])]
       setKids(extraBox, el('div', { class: 'badges' }, bd.map(b => el('span', { class: 'badge', title: t('badge_' + b + '_d'), text: t('badge_' + b) }))), el('small', { style: 'display:block;color:var(--muted);margin:6px 0', text: `${t('stat_time')}: ${hrs}h ${mins}m${x.last_seen && !p.is_online ? ` · ${t('last_seen')}: ${new Date(x.last_seen).toLocaleString()}` : ''}` })) })
     await social.myBlocked()
@@ -440,7 +455,7 @@ export const pages = {
     const row = (f, unread) => {
       const gname = f.is_online && f.current_game ? games[f.current_game]?.name : null
       return el('div', { class: 'person' }, avatar(f.username, f.avatar_color, f.is_online),
-        el('div', { class: 'grow' }, el('a', { href: `/u/${encodeURIComponent(f.username)}` }, el('b', { text: f.username })), el('small', { text: gname ? `${statusText(f)} · ${gname}` : statusText(f) })),
+        el('div', { class: 'grow' }, el('a', { href: `/u/${encodeURIComponent(f.username)}` }, el('b', { text: nickOf(f.username), title: f.username })), el('small', { text: gname ? `${statusText(f)} · ${gname}` : statusText(f) })),
         f.is_online && f.current_game && games[f.current_game] ? el('button', { class: 'btn primary', text: t('join'), onclick: () => ctx.play(games[f.current_game]) }) : null,
         el('button', { class: 'btn blue', html: icon('chat', 16) + (unread ? `<span class="count">${unread}</span>` : ''), title: t('chat'), onclick: async () => { const { openChat } = await import('./social-ui.js'); openChat(ctx, f) } }),
         el('button', { class: 'btn', html: icon('trash', 16), title: t('remove'), onclick: async () => { if (confirm(t('confirm_remove', { name: f.username }))) { await social.removeFriend(f.id); load() } } }))
