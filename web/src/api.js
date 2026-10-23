@@ -108,9 +108,11 @@ export const linkApprove = code => rpc('link_approve', { p_code: code })
 const rulesOf = g => ({ allow_build: g.config?.allow_build, allow_chat: g.config?.allow_chat })
 const syncRules = (id, mode, config) => rpc('upsert_game_rules', { p_game: id, p_mode: mode, p_config: { allow_build: config?.allow_build, allow_chat: config?.allow_chat } })
 
+// GAME ya no tiene create_game/update_game/delete_game (game/v3.sql los borra): sin STORE no se pueden crear ni editar juegos
+const needStore = async () => { if (!(await storeWriteOk())) throw new Error(storeStatus().why || 'STORE no está disponible: no se pueden crear ni editar juegos ahora mismo') }
 export const createGameRow = async (name, desc, hue, mode = 'build') => {
-  const viaStore = await storeWriteOk()
-  if (viaStore) {
+  if (HAS_STORE) await needStore()
+  if (HAS_STORE) {
     const id = await storeRpc('create_game', { p_name: name, p_desc: desc, p_hue: hue, p_mode: mode })
     await syncRules(id, mode, {})
     return id
@@ -123,18 +125,19 @@ export const createGameRow = async (name, desc, hue, mode = 'build') => {
     return r.data
   }
   if (error) throw error
-  if (HAS_STORE) addFb(data)
   return data
 }
 export const updateGameRow = async g => {
-  if (HAS_STORE && !fbIds().includes(g.id) && await storeWriteOk()) {
+  if (HAS_STORE) {
+    await needStore()
     await storeRpc('update_game', { p_game: g.id, p_name: g.name, p_desc: g.description, p_hue: g.hue, p_max: g.max_players, p_mode: g.mode, p_config: g.config ?? {}, p_script: g.script ?? '' })
     return syncRules(g.id, g.mode, g.config)
   }
   return rpc('update_game', { p_game: g.id, p_name: g.name, p_desc: g.description, p_hue: g.hue, p_max: g.max_players, p_mode: g.mode, p_config: g.config ?? {}, p_script: g.script ?? '' })
 }
 export const deleteGameRow = async id => {
-  if (HAS_STORE && !fbIds().includes(id) && await storeWriteOk()) { await storeRpc('delete_game', { p_game: id }); return rpc('delete_game_data', { p_game: id }) }
+  if (HAS_STORE) {
+    await needStore(); await storeRpc('delete_game', { p_game: id }); return rpc('delete_game_data', { p_game: id }) }
   return rpc('delete_game', { p_game: id })
 }
 
