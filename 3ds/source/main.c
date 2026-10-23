@@ -45,9 +45,24 @@ static float vy;
 static ChatLine hist[40]; static int nhist, hscroll; static bool chat_view;        // historial de chat de la partida (con scroll)
 static char game_alert[96]; static u64 game_alert_until;                          // aviso de amigos (solicitud, invitación, mensaje) sobre la partida
 
-typedef struct { enum { PLACE, BREAK, CHAT } type; int x, y, z, kind; char text[100]; } Action;
+typedef struct { enum { PLACE, BREAK, CHAT, EVT } type; int x, y, z, kind; char text[100]; } Action;
 #define QMAX 16
 static Action queue[QMAX]; static int qn;
+// ---------- Bosque Oscuro: estado de la partida (lo tocan el hilo de red y el principal, siempre con `lock`) ----------
+static struct {
+	bool on, flash, live;            // live: ya se leyeron los eventos antiguos (a partir de ahi se avisa en pantalla)
+	int round, ngot, phase;          // phase 0 jugando, 1 ganasteis
+	bool got[8], reset;              // reset: empieza otra ronda (el principal te lleva a la cabaña)
+	float stun; u64 tele_at, win_at, win_next;
+	float mx, mz, mry, mtx, mtz, mtry; bool mwalk, mmoving, host; u64 remote_ok;
+	float dist, walk_ph; char note[48];
+} hr;
+static long ev_last = -1;
+static void hr_apply(const GEvent *e, const char *me) {      // con `lock` cogido
+	if (!strcmp(e->kind, "orb")) { if (e->i >= 0 && e->i < world.norbs && !hr.got[e->i]) { hr.got[e->i] = true; hr.ngot++; if (hr.live && strcmp(e->name, me)) snprintf(hr.note, sizeof hr.note, "%s: fragmento %d/%d", e->name, hr.ngot, world.norbs); } }
+	else if (!strcmp(e->kind, "win")) { if (e->round == hr.round && hr.phase == 0) { hr.phase = 1; hr.win_at = osGetTime(); if (hr.live) snprintf(hr.note, sizeof hr.note, "Escapasteis del bosque!"); } }
+	else if (!strcmp(e->kind, "round")) { if (e->n > hr.round) { hr.round = e->n; memset(hr.got, 0, sizeof hr.got); hr.ngot = 0; hr.phase = 0; hr.reset = true; if (hr.live) snprintf(hr.note, sizeof hr.note, "Nueva ronda"); } }
+}
 static void push_action(Action a) { LightLock_Lock(&lock); if (qn < QMAX) queue[qn++] = a; LightLock_Unlock(&lock); }
 
 static void net_thread(void *arg) {
@@ -65,6 +80,7 @@ static void net_thread(void *arg) {
 		if (have) {
 			if (a.type == PLACE) net_place_block(&sess, a.x, a.y, a.z, a.kind);
 			else if (a.type == BREAK) net_break_block(&sess, a.x, a.y, a.z);
+			else if (a.type == EVT) net_game_event(&sess, a.text, a.x);
 			else net_say(&sess, a.text);
 		}
 		net_send_state(&sess, x, y, z, ry, anim);
@@ -82,6 +98,19 @@ static void net_thread(void *arg) {
 			if (c > 0) { LightLock_Lock(&lock); for (int i = 0; i < c && nchat_new < 8; i++) chat_new[nchat_new++] = cm[i]; LightLock_Unlock(&lock); }
 			last_chat = now;
 		}
+		if (world.type == 5) {                                                  // bosque: eventos de la partida y monstruo
+			GEvent ge[12]; int c, it = 0;
+			do { c = net_fetch_events(ev_last, ge, 12, &ev_last); if (c > 0) { LightLock_Lock(&lock); for (int i = 0; i < c; i++) hr_apply(&ge[i], sess.username); LightLock_Unlock(&lock); } } while (c == 12 && ++it < 12);
+			if (c >= 0) { LightLock_Lock(&lock); hr.live = true; LightLock_Unlock(&lock); }
+			NpcState ns;
+			if (net_npc_get(&sess, &ns)) {
+				if (ns.have && ns.remote_fresh) { LightLock_Lock(&lock); hr.mtx = ns.x; hr.mtz = ns.z; hr.mtry = ns.ry; hr.mwalk = ns.walk; hr.remote_ok = now; hr.host = false; LightLock_Unlock(&lock); }
+				else {
+					LightLock_Lock(&lock); float tx_ = hr.mx, tz_ = hr.mz, tr_ = hr.mry; bool tw = hr.mmoving; LightLock_Unlock(&lock);
+					bool h = net_npc_tick(&sess, tx_, tz_, tr_, tw); LightLock_Lock(&lock); hr.host = h; LightLock_Unlock(&lock);
+				}
+			}
+		}
 		if (sess.refresh[0] && now - last_token > 2700000) {   // renueva el token de la cuenta (caduca a la hora)
 			if (net_refresh(&sess, true)) ui_save_session(&sess);
 			last_token = now;
@@ -96,6 +125,7 @@ static void net_thread(void *arg) {
 		svcSleepThread((qn ? 30 : (long long)app_sync_ms()) * 1000000LL);   // pausa entre envíos/lecturas: ajuste "Sincronizacion" (por defecto 100 ms)
 	}
 	// Al salir (en este hilo, que ya tiene la conexión TLS abierta): dejar la partida
+	if (world.type == 5 && hr.host) net_npc_release(&sess);
 	net_leave(&sess);
 	if (want_offline) net_offline(&sess);
 	net_thread_cleanup();
@@ -151,16 +181,17 @@ static bool project(float x, float y, float z, float *sx, float *sy, float *dept
 }
 
 typedef struct { float depth; float x, y, z, w, h; u32 color; int av; } Box;   // av: -1 bloque, 0 yo, 1+i jugador remoto i
-static Box draw_list[MAX_LOCAL + MAX_PLAYERS * 2 + 4];
+static Box draw_list[MAX_LOCAL + MAX_PLAYERS * 2 + 4 + 700];
 
 static u32 shade(u32 c, float f) {
 	u32 r = (c & 0xFF) * f, g = ((c >> 8) & 0xFF) * f, b = ((c >> 16) & 0xFF) * f;
 	return C2D_Color32(r > 255 ? 255 : r, g > 255 ? 255 : g, b > 255 ? 255 : b, 255);
 }
 // Niebla: lo lejano se funde con el color del horizonte (da sensación de profundidad)
-#define SKY_R 0xD8
-#define SKY_G 0xEC
-#define SKY_B 0xFF
+static int g_sky[3] = {0xD8, 0xEC, 0xFF};      // color del horizonte / niebla (el bosque es de noche)
+#define SKY_R g_sky[0]
+#define SKY_G g_sky[1]
+#define SKY_B g_sky[2]
 static u32 fogged(u32 c, float depth) {
 	float t = (depth - fog_near) / (fog_far - fog_near); if (t <= 0) return c; if (t > 1) t = 1;
 	float r = (c & 0xFF) * (1 - t) + SKY_R * t, g = ((c >> 8) & 0xFF) * (1 - t) + SKY_G * t, b = ((c >> 16) & 0xFF) * (1 - t) + SKY_B * t;
@@ -216,6 +247,58 @@ static bool emote_menu;                     // selector de emotes abierto en la 
 static int tx, tz, place_y = -1, break_y = -1; static bool overlap;     // bloque al que apuntas
 static u64 now_ms, t_start;
 
+// ---------- Bosque Oscuro: monstruo, fragmentos y linterna (lado cliente; el estado compartido va por eventos) ----------
+static float lit_depth(float dx, float dz, float fx, float fz, float d) {                   // linterna: lo que ilumina el cono se ve de mas lejos
+	float dist = hypotf(dx, dz); if (!hr.flash || dist < 0.5f || dist > 26) return d;
+	return (dx * fx + dz * fz) / dist > 0.82f ? cam_dist + (d - cam_dist) * 0.5f : d;
+}
+static void hr_teleport(void) { px = world.spawn[0]; py = world.spawn[1]; pz = world.spawn[2]; rsp_x = px; rsp_y = py; rsp_z = pz; vy = 0; cx_ = px; cy_ = py + 1; cz_ = pz; }
+static void mon_sim(float dt) {
+	float best = 1e9f, gx = 0, gz = 0; bool any = false;
+	for (int i = -1; i < nr; i++) {
+		float x = i < 0 ? px : rem[i].x, z = i < 0 ? pz : rem[i].z;
+		if (hypotf(x, z) < world.safe) continue;
+		float d = hypotf(x - hr.mx, z - hr.mz); if (d < best) { best = d; gx = x; gz = z; any = true; }
+	}
+	hr.mmoving = false; if (!any || hr.stun > 0) return;
+	float ang = atan2f(gx - hr.mx, gz - hr.mz); static const float offs[6] = {0, 0.7f, -0.7f, 1.4f, -1.4f, 2.2f};
+	for (int k = 0; k < 6; k++) {                                              // rodea los arboles
+		float a = ang + offs[k], nx = hr.mx + sinf(a) * 4.3f * dt, nz = hr.mz + cosf(a) * 4.3f * dt; int ix = (int)floorf(nx), iz = (int)floorf(nz); float r = hypotf(nx, nz);
+		if (!solid_at(ix, 0, iz) && !solid_at(ix, 1, iz) && !solid_at(ix, 2, iz) && r < world.radius - 1 && r > world.safe) { hr.mx = nx; hr.mz = nz; hr.mry = a; hr.mmoving = true; break; }
+	}
+}
+// Un frame de la partida del bosque (despues de mover al jugador)
+static void forest_frame(float dt, u64 now, u32 down) {
+	if (down & KEY_X) hr.flash = !hr.flash;
+	bool host; float k = fminf(1, dt * 6);
+	LightLock_Lock(&lock);
+	if (hr.reset) { hr.reset = false; hr_teleport(); }
+	host = hr.host;
+	if (hr.note[0]) { snprintf(big_msg, sizeof big_msg, "%s", hr.note); big_until = now + 2500; hr.note[0] = 0; }
+	if (!host) {                                                                // el monstruo lo mueve otro jugador: se interpola
+		float dx = hr.mtx - hr.mx, dz = hr.mtz - hr.mz; hr.mx += dx * k; hr.mz += dz * k;
+		float dyaw = fmodf(hr.mtry - hr.mry + 3 * (float)M_PI, 2 * (float)M_PI) - (float)M_PI; hr.mry += dyaw * fminf(1, dt * 8);
+		hr.mmoving = now - hr.remote_ok < 1500 && hypotf(dx, dz) > 0.05f;
+	}
+	LightLock_Unlock(&lock);
+	if (host && hr.phase == 0) mon_sim(dt);
+	hr.walk_ph += dt * (hr.mmoving ? 8 : 1.5f);
+	float d = hypotf(hr.mx - px, hr.mz - pz); hr.dist = d;
+	if (hr.stun > 0) hr.stun -= dt;
+	for (int i = 0; i < world.norbs && hr.stun <= 0 && hr.phase == 0; i++) {   // recoger fragmentos
+		if (hr.got[i] || hypotf(world.orb[i][0] - px, world.orb[i][2] - pz) > 1.5f || fabsf(py - world.orb[i][1]) > 2.5f) continue;
+		LightLock_Lock(&lock); hr.got[i] = true; int n = ++hr.ngot, rd = hr.round; LightLock_Unlock(&lock);
+		push_action((Action){.type = EVT, .x = i, .text = "orb"}); snprintf(big_msg, sizeof big_msg, "Fragmento %d/%d", n, world.norbs); big_until = now + 1600;
+		if (n >= world.norbs) push_action((Action){.type = EVT, .x = rd, .text = "win"});
+	}
+	if (hr.stun <= 0 && hr.phase == 0 && d < 1.15f && hypotf(px, pz) > world.safe) {       // te atrapa
+		hr.stun = 2.2f; hr.tele_at = now + 900; snprintf(big_msg, sizeof big_msg, "Te atrapo!"); big_until = now + 2200; push_action((Action){.type = EVT, .text = "caught"});
+	}
+	if (hr.tele_at && now >= hr.tele_at) { hr.tele_at = 0; hr_teleport(); }
+	float rr = hypotf(px, pz); if (rr > world.radius - 0.5f) { px *= (world.radius - 0.5f) / rr; pz *= (world.radius - 0.5f) / rr; }
+	if (hr.phase == 1 && now - hr.win_at > 9000 && now > hr.win_next) { hr.win_next = now + 20000; push_action((Action){.type = EVT, .x = hr.round + 1, .text = "round"}); }
+}
+
 // Dibuja un frame completo: mundo 3D arriba y panel táctil abajo
 static void render_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 	u64 now = now_ms;
@@ -223,9 +306,33 @@ static void render_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 	static const int caps[3] = {150, 250, 320}, radii[3] = {7, 8, 9};
 	int lvl = app_draw_level(), cap = caps[lvl], R = radii[lvl];
 	fog_near = 12 + lvl * 4; fog_far = 26 + lvl * 8;
+	bool night = world.type == 5;
+	if (night) { g_sky[0] = 0x04; g_sky[1] = 0x07; g_sky[2] = 0x10; fog_near = cam_dist + 1.5f; fog_far = cam_dist + 15 + lvl * 3; R = 7; }
+	else { g_sky[0] = 0xD8; g_sky[1] = 0xEC; g_sky[2] = 0xFF; }
+	float fdx = -sinf(cam_yaw), fdz = -cosf(cam_yaw);                                       // hacia donde mira la camara (la linterna)
+	#define NIGHT_D(X, Z, D) (night ? lit_depth((X) - px, (Z) - pz, fdx, fdz, (D)) : (D))
 	int nd = 0; float sx, sy, d;
 	for (int i = 0; i < nl; i++) if (project(local[i].x + .5f, local[i].y + .5f, local[i].z + .5f, &sx, &sy, &d) && d < fog_far + 6)
-		draw_list[nd++] = (Box){d, local[i].x, local[i].y, local[i].z, 1, 1, fogged(shade(local[i].kind < 0 ? local[i].color : PALETTE[local[i].kind % NPALETTE], ((local[i].x * 7 + local[i].y * 13 + local[i].z * 5) & 3) == 0 ? 0.93f : 1.0f), d), -1};
+		draw_list[nd++] = (Box){d, local[i].x, local[i].y, local[i].z, 1, 1, fogged(shade(local[i].kind < 0 ? local[i].color : PALETTE[local[i].kind % NPALETTE], (night ? 0.62f : 1.0f) * (((local[i].x * 7 + local[i].y * 13 + local[i].z * 5) & 3) == 0 ? 0.93f : 1.0f)), NIGHT_D(local[i].x + .5f, local[i].z + .5f, d)), -1};
+	if (night) {                                                                           // arboles (tronco + copa en 3 capas), fragmentos y monstruo
+		static const u32 WOOD = 0xFF345E8B;
+		float camx = cx_ + sinf(cam_yaw) * cosf(cam_pitch) * cam_dist, camz = cz_ + cosf(cam_yaw) * cosf(cam_pitch) * cam_dist, camy = cy_ + sinf(cam_pitch) * cam_dist;
+		for (int i = 0; i < world.ntrees; i++) {
+			float tx0 = world.tree[i][0] + .5f, tz0 = world.tree[i][1] + .5f; if (!project(tx0, 3.0f, tz0, &sx, &sy, &d) || d > fog_far + 8) continue;
+			float de = NIGHT_D(tx0, tz0, d); int X = world.tree[i][0], Z = world.tree[i][1];
+			draw_list[nd++] = (Box){d + 0.4f, X, 0, Z, 1, 3, fogged(shade(WOOD, 0.62f), de), -1};
+			if (camy < 8.0f) {                                                                       // la copa no tapa la camara ni al jugador
+				float sx_ = px - camx, sz_ = pz - camz, l2 = sx_ * sx_ + sz_ * sz_ + 1e-4f, t = ((tx0 - camx) * sx_ + (tz0 - camz) * sz_) / l2; t = t < 0 ? 0 : t > 1 ? 1 : t;
+				if (hypotf(tx0 - (camx + sx_ * t), tz0 - (camz + sz_ * t)) < 3.6f) continue;
+			}
+			draw_list[nd++] = (Box){d, X - 2, 3, Z - 2, 5, 1, fogged(shade(0xFF3F8F2F, 0.5f), de), -1};
+			draw_list[nd++] = (Box){d - 0.2f, X - 1, 4, Z - 1, 3, 1, fogged(shade(0xFF47A33A, 0.5f), de), -1};
+			draw_list[nd++] = (Box){d - 0.4f, X, 5, Z, 1, 1, fogged(shade(0xFF47A33A, 0.5f), de), -1};
+		}
+		for (int i = 0; i < world.norbs; i++) if (!hr.got[i] && project(world.orb[i][0], world.orb[i][1] + 0.3f, world.orb[i][2], &sx, &sy, &d))
+			draw_list[nd++] = (Box){d - 0.5f, world.orb[i][0] - 0.25f, world.orb[i][1] + 0.1f + 0.12f * sinf(now / 400.0f + i), world.orb[i][2] - 0.25f, 0.5f, 0.5f, 0, -10 - i};
+		if (project(hr.mx, 1.5f, hr.mz, &sx, &sy, &d)) draw_list[nd++] = (Box){d, hr.mx - 0.45f, 0, hr.mz - 0.45f, 0.9f, 3.0f, 0, -2};
+	}
 	if (project(px, py + .9f, pz, &sx, &sy, &d)) draw_list[nd++] = (Box){d, px, py, pz, 0, 0, 0, 0};
 	for (int i = 0; i < nr; i++) if (project(rem[i].x, rem[i].y + .9f, rem[i].z, &sx, &sy, &d))
 		draw_list[nd++] = (Box){d, rem[i].x, rem[i].y, rem[i].z, 0, 0, 0, 1 + i};
@@ -235,9 +342,15 @@ static void render_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 	C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
 	C2D_TargetClear(top, C2D_Color32(SKY_R, SKY_G, SKY_B, 255));
 	C2D_SceneBegin(top);
-	C2D_DrawRectangle(0, 0, 0, 400, 150, C2D_Color32(0x4F, 0x9F, 0xE8, 255), C2D_Color32(0x4F, 0x9F, 0xE8, 255), C2D_Color32(SKY_R, SKY_G, SKY_B, 255), C2D_Color32(SKY_R, SKY_G, SKY_B, 255));   // cielo
+	if (night) { u32 t0 = C2D_Color32(0x02, 0x03, 0x0A, 255), t1 = C2D_Color32(0x0C, 0x14, 0x26, 255); C2D_DrawRectangle(0, 0, 0, 400, 150, t0, t0, t1, t1); }
+	else C2D_DrawRectangle(0, 0, 0, 400, 150, C2D_Color32(0x4F, 0x9F, 0xE8, 255), C2D_Color32(0x4F, 0x9F, 0xE8, 255), C2D_Color32(SKY_R, SKY_G, SKY_B, 255), C2D_Color32(SKY_R, SKY_G, SKY_B, 255));   // cielo
+	if (night) {                                                                           // luna y estrellas que giran con la camara
+		float yawo = cam_yaw * 90.0f, mxp = fmodf(250 - yawo + 4000.0f, 560.0f) - 80;
+		C2D_DrawEllipseSolid(mxp - 16, 20, 0, 32, 32, C2D_Color32(0xBF, 0xD0, 0xF0, 40)); C2D_DrawEllipseSolid(mxp - 9, 27, 0, 18, 18, C2D_Color32(0xE8, 0xEE, 0xFF, 255));
+		for (int i = 0; i < 40; i++) { unsigned h = (unsigned)i * 2654435761u; float x = fmodf((h >> 8 & 1023) * 0.55f - yawo * 1.2f + 4000.0f, 400.0f), y = (h >> 18 & 255) * 0.45f; C2D_DrawRectSolid(x, y, 0, 1.5f, 1.5f, C2D_Color32(255, 255, 255, 150 + (h & 63))); }
+	}
 	// Sol y nubes que se desplazan con el viento y con el giro de la cámara (parallax)
-	{
+	if (!night) {
 		float t = (now - t_start) / 1000.0f, yawo = cam_yaw * 90.0f;
 		float sxp = fmodf(300 - yawo + 4000.0f, 560.0f) - 80;
 		C2D_DrawEllipseSolid(sxp - 22, 18, 0, 44, 44, C2D_Color32(0xFF, 0xF1, 0xB0, 90)); C2D_DrawEllipseSolid(sxp - 14, 26, 0, 28, 28, C2D_Color32(0xFF, 0xF6, 0xC8, 255));
@@ -257,8 +370,8 @@ static void render_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 			bool plaza = world.type == 1 && abs(ax) <= world.plaza_n && abs(az) <= world.plaza_n; float gy = plaza ? 1.0f : 0.0f;
 			for (int k = 0; k < 4; k++) { ok &= project(ax + cs4[k][0], gy, az + cs4[k][1], &p[k][0], &p[k][1], &dd); dm += dd; }
 			if (!ok) continue;
-			u32 base = plaza ? world_plaza_color(ax, az) : (((ax + az) & 1) ? C2D_Color32(0x5F, 0xAE, 0x5A, 255) : C2D_Color32(0x52, 0x9E, 0x4E, 255));
-			u32 c = fogged(base, dm / 4);
+			u32 base = plaza ? world_plaza_color(ax, az) : night ? (((ax + az) & 1) ? C2D_Color32(0x1E, 0x35, 0x25, 255) : C2D_Color32(0x1A, 0x2E, 0x21, 255)) : (((ax + az) & 1) ? C2D_Color32(0x5F, 0xAE, 0x5A, 255) : C2D_Color32(0x52, 0x9E, 0x4E, 255));
+			u32 c = fogged(base, NIGHT_D(ax + .5f, az + .5f, dm / 4));
 			C2D_DrawTriangle(p[0][0], p[0][1], c, p[1][0], p[1][1], c, p[2][0], p[2][1], c, 0);
 			C2D_DrawTriangle(p[0][0], p[0][1], c, p[2][0], p[2][1], c, p[3][0], p[3][1], c, 0);
 		}
@@ -269,30 +382,44 @@ static void render_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 	// sombras redondas bajo los jugadores
 	for (int i = -1; i < nr; i++) {
 		float ex = i < 0 ? px : rem[i].x, ey = i < 0 ? py : rem[i].y, ez = i < 0 ? pz : rem[i].z; float gx, gy, gd;
-		if (world.floor && project(ex, floorf(ey) + 0.02f, ez, &gx, &gy, &gd) && gd < fog_far) { float r = 120.0f / (gd + 2.0f); C2D_DrawEllipseSolid(gx - r, gy - r * 0.35f, 0, r * 2, r * 0.7f, C2D_Color32(0, 0, 0, 70)); }
+		if (world.floor && !night && project(ex, floorf(ey) + 0.02f, ez, &gx, &gy, &gd) && gd < fog_far) { float r = 120.0f / (gd + 2.0f); C2D_DrawEllipseSolid(gx - r, gy - r * 0.35f, 0, r * 2, r * 0.7f, C2D_Color32(0, 0, 0, 70)); }
 	}
 	// citro2d tiene un límite de objetos por frame: se descartan los más lejanos
 	int first = nd > cap ? nd - cap : 0;
 	AvCam cam = {cx_, cy_, cz_, cam_yaw, cam_pitch, cam_dist, FOV, TOP_W / 2.0f, TOP_H / 2.0f};
-	self_style = av_style(sess.username, sess.color);
+	self_style = av_style(sess.username, sess.color); self_style.hat = av_hat_index(g_my_hat);
 	for (int i = first; i < nd; i++) {
 		const Box *b = &draw_list[i];
-		if (b->av < 0) draw_box(b->x, b->y, b->z, b->w, b->h, b->color);
+		if (b->av <= -10) {                                                                 // fragmento de luz: brilla aunque haya niebla
+			float gx, gy, gd; if (project(b->x + 0.25f, b->y + 0.25f, b->z + 0.25f, &gx, &gy, &gd)) { float r = 260.0f / gd; C2D_DrawCircleSolid(gx, gy, 0, r * 2.2f, C2D_Color32(0x7F, 0xDC, 0xFF, 40)); C2D_DrawCircleSolid(gx, gy, 0, r * 1.3f, C2D_Color32(0x7F, 0xDC, 0xFF, 90)); }
+			draw_box(b->x, b->y, b->z, 0.5f, 0.5f, C2D_Color32(0xB9, 0xF3, 0xFF, 255));
+		} else if (b->av == -2) {                                                              // monstruo: alto, negro, ojos rojos
+			float leg = hr.mmoving ? sinf(hr.walk_ph) * 0.25f : 0; draw_box(b->x + leg * 0.3f, 0, b->z, b->w, 1.3f, C2D_Color32(0x12, 0x14, 0x1a, 255)); draw_box(b->x, 1.3f, b->z, b->w, 1.5f, C2D_Color32(0x1a, 0x1c, 0x24, 255)); draw_box(b->x + 0.1f, 2.8f, b->z + 0.1f, 0.7f, 0.7f, C2D_Color32(0x16, 0x18, 0x20, 255));
+			float ex = sinf(hr.mry), ez = cosf(hr.mry), cx = hr.mx + ex * 0.4f, cz = hr.mz + ez * 0.4f, rx = ez * 0.16f, rz = -ex * 0.16f, ax, ay, ad;
+			for (int e = -1; e <= 1; e += 2) if (project(cx + rx * e, 3.12f, cz + rz * e, &ax, &ay, &ad)) C2D_DrawRectSolid(ax - 2.5f, ay - 1.5f, 0, 5, 3, C2D_Color32(0xFF, 0x2A, 0x2A, 255));
+		} else if (b->av < 0) draw_box(b->x, b->y, b->z, b->w, b->h, b->color);
 		else if (b->av == 0) av_draw(&cam, px, py, pz, self_yaw, &self_style, &pose_self, fog_near, fog_far);       // avatares 3D (modelo con partes)
-		else { int j = b->av - 1; rem_style[j] = av_style(rem[j].name, rem[j].color); av_draw(&cam, rem[j].x, rem[j].y, rem[j].z, rem[j].ry, &rem_style[j], &rem_pose[j], fog_near, fog_far); }
+		else { int j = b->av - 1; rem_style[j] = av_style(rem[j].name, rem[j].color); rem_style[j].hat = av_hat_index(rem[j].hat); av_draw(&cam, rem[j].x, rem[j].y, rem[j].z, rem[j].ry, &rem_style[j], &rem_pose[j], fog_near, fog_far); }
 	}
 	// contorno: blanco = lo que romperá Y; del color elegido = dónde pondrá X
-	if (break_y >= 0) draw_outline(tx, break_y, tz, C2D_Color32(255, 255, 255, 255));
-	else if (place_y >= 0 && !overlap) draw_outline(tx, place_y, tz, PALETTE[kind]);
+	if (can_build && break_y >= 0) draw_outline(tx, break_y, tz, C2D_Color32(255, 255, 255, 255));
+	else if (can_build && place_y >= 0 && !overlap) draw_outline(tx, place_y, tz, PALETTE[kind]);
 	// nombres sobre los jugadores
 	for (int i = 0; i < nr; i++) if (project(rem[i].x, rem[i].y + 2.05f, rem[i].z, &sx, &sy, &d) && d < 26) {
 		ui_text(sx + 1, sy - 11, 0.34f, C2D_Color32(0, 0, 0, 200), C2D_AlignCenter, rem[i].name);
 		ui_text(sx, sy - 12, 0.34f, C2D_Color32(255, 255, 255, 255), C2D_AlignCenter, rem[i].name);
 	}
 	// ---- HUD ----
-	ui_rrect(8, 8, 74, 26, 8, C2D_Color32(0, 0, 0, 130));
-	ui_rrect(14, 12, 24, 18, 5, PALETTE[kind]);
-	char hb[24]; snprintf(hb, sizeof hb, "%d/%d", kind + 1, NPALETTE); ui_text(46, 11, 0.42f, COL_TEXT, 0, hb);
+	if (night) {                                                                              // sombra de miedo cuando el monstruo esta cerca
+		float fear = hr.stun > 0 ? 0.8f : fmaxf(0, 1 - hr.dist / 22); int a = (int)(fear * 80);
+		if (a > 4) { ui_rect(0, 0, 400, 240, C2D_Color32(0x60, 0, 0, a / 2)); ui_rect(0, 0, 40, 240, C2D_Color32(0x40, 0, 0, a)); ui_rect(360, 0, 40, 240, C2D_Color32(0x40, 0, 0, a)); ui_rect(0, 0, 400, 24, C2D_Color32(0x40, 0, 0, a)); ui_rect(0, 216, 400, 24, C2D_Color32(0x40, 0, 0, a)); }
+		char hb[64]; snprintf(hb, sizeof hb, "Fragmentos %d/%d   Linterna %s (X)", hr.ngot, world.norbs, hr.flash ? "ON" : "OFF");
+		float w = ui_text_width(hb, 0.42f) + 18; ui_rrect(8, 8, w, 22, 8, C2D_Color32(0, 0, 0, 150)); ui_text(8 + w / 2, 11, 0.42f, COL_TEXT, C2D_AlignCenter, hb);
+	} else if (can_build) {
+		ui_rrect(8, 8, 74, 26, 8, C2D_Color32(0, 0, 0, 130));
+		ui_rrect(14, 12, 24, 18, 5, PALETTE[kind]);
+		char hb[24]; snprintf(hb, sizeof hb, "%d/%d", kind + 1, NPALETTE); ui_text(46, 11, 0.42f, COL_TEXT, 0, hb);
+	}
 	char pc[24]; snprintf(pc, sizeof pc, "%d jugando", nr + 1);
 	float pw = ui_text_width(pc, 0.4f) + 16; ui_rrect(392 - pw, 8, pw, 22, 8, C2D_Color32(0, 0, 0, 130)); ui_text(392 - pw / 2, 11, 0.4f, COL_TEXT, C2D_AlignCenter, pc);
 	int shown = 0; for (int i = 0; i < 4; i++) if (chat[i].until > now) shown++;
@@ -319,7 +446,7 @@ static void render_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 	}
 	if (now - t_start < 9000) {                                               // ayuda de controles los primeros segundos
 		ui_rrect(70, 206, 260, 22, 9, C2D_Color32(0, 0, 0, 150));
-		ui_text(200, 209, 0.38f, COL_TEXT, C2D_AlignCenter, "A saltar  B correr  X poner  Y romper  +/- color");
+		ui_text(200, 209, 0.38f, COL_TEXT, C2D_AlignCenter, can_build ? "A saltar  B correr  X poner  Y romper  +/- color" : night ? "A saltar  B correr  X linterna  Huye del monstruo" : "A saltar  B correr  L/R camara");
 	}
 	C2D_TargetClear(bot, C2D_Color32(0x23, 0x25, 0x27, 255));
 	C2D_SceneBegin(bot);
@@ -333,10 +460,13 @@ static bool play_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 	nblocks = nremotes = qn = nchat_new = 0; pry = 0; vy = 0; grounded = false; moving = 0; running = true; want_offline = false;
 	world_build(&world, cur_game.world, cur_game.seed);                         // mundo base (plaza, carrera...) igual que en la web
 	px = world.spawn[0]; py = world.spawn[1]; pz = world.spawn[2]; rsp_x = px; rsp_y = py; rsp_z = pz;
-	can_build = !strcmp(cur_game.owner_id, sess.user_id) || (cur_game.allow_build >= 0 ? cur_game.allow_build > 0 : !strcmp(cur_game.mode, "build"));
+	can_build = cur_game.allow_build >= 0 ? cur_game.allow_build > 0 : !strcmp(cur_game.mode, "build");   // solo los juegos de bloques dejan construir
+	ui_build_ui = can_build;
 	jump_v = cur_game.jump > 1 ? cur_game.jump : 8.6f; memset(&race, 0, sizeof race); big_msg[0] = 0; big_until = 0;
 	cam_yaw = 0; cam_pitch = 0.5f; cam_dist = 9; cx_ = px; cy_ = py + 1; cz_ = pz;
 	net_set_game(cur_game.id);
+	memset(&hr, 0, sizeof hr); ev_last = -1; hr.on = world.type == 5; hr.flash = true; hr.mx = hr.mtx = world.mon_start[0]; hr.mz = hr.mtz = world.mon_start[2]; hr.dist = 99;
+	if (hr.on) { snprintf(big_msg, sizeof big_msg, "Recoge %d fragmentos y huye", world.norbs); big_until = osGetTime() + 5000; }
 	s32 prio = 0; svcGetThreadPriority(&prio, CUR_THREAD_HANDLE);
 	Thread th = threadCreate(net_thread, NULL, 256 * 1024, prio + 1, 0, false);   // prioridad menor que la UI
 
@@ -362,13 +492,13 @@ static bool play_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 		if (abs(cs.dy) > 20) cam_pitch = fminf(1.4f, fmaxf(0.05f, cam_pitch - cs.dy / 156.0f * 1.6f * dt));
 		if (held & KEY_DUP) cam_dist = fmaxf(4, cam_dist - 6 * dt);
 		if (held & KEY_DDOWN) cam_dist = fminf(20, cam_dist + 6 * dt);
-		if (down & KEY_DRIGHT) kind = (kind + 1) % NPALETTE;
-		if (down & KEY_DLEFT) kind = (kind + NPALETTE - 1) % NPALETTE;
+		if (can_build && (down & KEY_DRIGHT)) kind = (kind + 1) % NPALETTE;
+		if (can_build && (down & KEY_DLEFT)) kind = (kind + NPALETTE - 1) % NPALETTE;
 		if (down & KEY_SELECT) do_chat();
 		if (down & KEY_TOUCH) {
 			touchPosition tp; hidTouchRead(&tp);
 			int act = ui_game_touch(tp.px, tp.py, emote_menu, chat_view);
-			if (act >= UI_COLOR0 && act < UI_COLOR0 + NPALETTE) kind = act;
+			if (can_build && act >= UI_COLOR0 && act < UI_COLOR0 + NPALETTE) kind = act;
 			else if (act >= UI_EMOTE0 && act < UI_EMOTE0 + NEMOTES) { if (grounded && !moving) snprintf(emote, sizeof emote, "%s", AV_EMOTE_ID[act - UI_EMOTE0]); emote_menu = false; }
 			else if (act == UI_EMOTE_MENU) emote_menu = !emote_menu;
 			else if (act == UI_CHAT) do_chat();
@@ -421,7 +551,7 @@ static bool play_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 		float mz = -cosf(cam_yaw) * f - sinf(cam_yaw) * s;
 		float len = sqrtf(mx * mx + mz * mz);
 		if (len > 0.001f) { mx /= len; mz /= len; }
-		float speed = ((held & KEY_B) ? 9.0f : 6.0f) * mag;
+		float speed = ((held & KEY_B) ? 9.0f : 6.0f) * mag * (hr.on && hr.stun > 0 ? 0 : 1);
 		moving = mag > 0.05f;
 		if (moving) pry = atan2f(mx, mz);
 		float nx = px + mx * speed * dt, nz = pz + mz * speed * dt;
@@ -453,13 +583,13 @@ static bool play_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 		  float dyaw = fmodf(pry - self_yaw + 3 * (float)M_PI, 2 * (float)M_PI) - (float)M_PI; self_yaw += dyaw * fminf(1, dt * 14);
 		  av_pose_update(&pose_self, an, dt, now / 1000.0f); }
 
+		if (hr.on) forest_frame(dt, now, down);
 		// ---- bloque al que apuntas (el de delante): X pone, Y rompe ----
 		tx = (int)floorf(px + sinf(pry) * 1.1f); tz = (int)floorf(pz + cosf(pry) * 1.1f); int ty = (int)floorf(py + 0.05f);
 		place_y = break_y = -1;
 		for (int dy = 0; dy < 4 && place_y < 0; dy++) if (!solid_at(tx, ty + dy, tz)) place_y = ty + dy;      // primer hueco libre (apila si hay bloque)
 		for (int dy = 0; dy < 3 && break_y < 0; dy++) if (breakable(tx, ty + dy, tz)) break_y = ty + dy;        // el bloque más bajo (solo los de jugadores)
 		overlap = place_y >= 0 && fabsf(px - (tx + .5f)) < 0.8f && fabsf(pz - (tz + .5f)) < 0.8f && py < place_y + 1 && py + 1.8f > place_y;
-		if (!can_build && (down & (KEY_X | KEY_Y))) { snprintf(big_msg, sizeof big_msg, "Aqui no se puede construir"); big_until = now + 1500; }
 		if (can_build && (down & KEY_X) && place_y >= 0 && !overlap && nblocks < MAX_BLOCKS) {
 			push_action((Action){.type = PLACE, .x = tx, .y = place_y, .z = tz, .kind = kind});
 			LightLock_Lock(&lock); if (nblocks < MAX_BLOCKS) blocks[nblocks++] = (Block){tx, place_y, tz, kind}; LightLock_Unlock(&lock);
@@ -512,10 +642,10 @@ int main(int argc, char **argv) {
 #ifdef BLOCKSY_PREVIEW
 // Solo para generar capturas en el ordenador (3ds/preview): un mundo de ejemplo
 void game_preview(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
-	{ const char *pw = getenv("BLOCKSY_PREVIEW_WORLD"); world_build(&world, pw ? pw : "", 0); can_build = true; }
+	{ const char *pw = getenv("BLOCKSY_PREVIEW_WORLD"); world_build(&world, pw ? pw : "", 0); can_build = true; ui_build_ui = true; }
 	snprintf(sess.username, sizeof sess.username, "IkerPlays"); sess.color = 0xFF439FFF; snprintf(cur_game.name, sizeof cur_game.name, "Spawn Plaza");
 	nl = 0;
-	if (getenv("BLOCKSY_PREVIEW_WORLD")) { for (int i = 0; i < world.ncells; i++) local[nl++] = world.cells[i]; ht_build(local, nl); local_blocks = local; nr = 0; px = world.spawn[0]; py = world.spawn[1]; pz = world.spawn[2]; pry = 0.3f; cam_yaw = 0.2f; cam_pitch = 0.45f; cam_dist = 9; cx_ = px; cy_ = py + 1; cz_ = pz; now_ms = 20000; t_start = 0; self_yaw = 0.3f; kind = 2; tx = 0; tz = 0; break_y = place_y = -1; overlap = false; pose_self.legY = 0.74f; render_game(top, bot); return; }
+	if (getenv("BLOCKSY_PREVIEW_WORLD")) { memset(&hr, 0, sizeof hr); hr.on = world.type == 5; hr.flash = true; hr.mx = -9; hr.mz = -7; hr.mry = 0.7f; hr.dist = 8; hr.ngot = 2; hr.got[0] = hr.got[1] = true; for (int i = 0; i < world.ncells; i++) local[nl++] = world.cells[i]; ht_build(local, nl); local_blocks = local; nr = 0; px = world.spawn[0]; py = world.spawn[1]; pz = world.spawn[2]; if (world.type == 5) { px = 3; pz = 7; hr.mx = -3; hr.mz = -1; hr.mry = 0.4f; hr.dist = 6; } pry = 0.3f; cam_yaw = 0.2f; cam_pitch = 0.45f; cam_dist = 9; cx_ = px; cy_ = py + 1; cz_ = pz; now_ms = 20000; t_start = 0; self_yaw = 0.3f; kind = 2; tx = 0; tz = 0; break_y = place_y = -1; overlap = false; pose_self.legY = 0.74f; render_game(top, bot); return; }
 	for (int x = -6; x <= 6; x++) for (int z = -6; z <= 6; z++) if ((x + z) % 4 == 0) local[nl++] = (Block){x, 0, z, 4};
 	for (int y = 0; y < 3; y++) for (int i = -5; i <= 5; i++) { local[nl++] = (Block){i, y, -5, 1}; local[nl++] = (Block){-5, y, i, 2}; if (i % 2) local[nl++] = (Block){i, y, 5, 3}; }
 	for (int y = 0; y < 5; y++) local[nl++] = (Block){4, y, 2, 5};

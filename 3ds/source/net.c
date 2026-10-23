@@ -207,6 +207,8 @@ static void set_err(const char *what) {
 #endif
 #define HAS_STORE (sizeof(STORE_URL) > 1)
 static char g_store_secret[48];
+char net_why[96];   // motivo del ultimo fallo de compra (para mostrarlo en pantalla)
+static void why(const char *stage) { snprintf(net_why, sizeof net_why, "%s %d %.60s", stage, last_status, last_err); }
 static bool store_open(const Session *s) {
 	static char sbody[1800]; snprintf(sbody, sizeof sbody, "{\"token\":\"%s\"}", s->token);
 	char *r = http(M_POST, STORE_URL "/functions/v1/game-session", STORE_ANON_KEY, STORE_ANON_KEY, sbody, NULL);
@@ -382,9 +384,16 @@ static void clean(char *dst, size_t n, const char *src) {   // quita comillas y 
 	dst[i] = 0;
 }
 
+static char g_hat[32]; static int g_hat_ok = 1;      // g_hat_ok: 1 = el servidor acepta p_hat (GAME v4), 0 = no (se usa la version antigua)
+void net_set_hat(const char *id) { snprintf(g_hat, sizeof g_hat, "%s", id ? id : ""); }
 bool net_send_state(const Session *s, float x, float y, float z, float ry, const char *anim) {
-	char a[256];
+	char a[300];
 	snprintf(a, sizeof a, "\"p_game\":\"%s\",\"p_x\":%.3f,\"p_y\":%.3f,\"p_z\":%.3f,\"p_ry\":%.3f,\"p_anim\":\"%s\",\"p_platform\":\"3ds\"", g_game, x, y, z, ry, anim);
+	if (g_hat_ok) {
+		char b[360]; snprintf(b, sizeof b, "%s,\"p_hat\":\"%s\"", a, g_hat);
+		if (rpc(s, "move", b)) return true;
+		if (last_status == 404 || last_status == 400) g_hat_ok = 0; else return false;      // GAME v4 sin aplicar: se manda sin sombrero
+	}
 	return rpc(s, "move", a);
 }
 bool net_say(const Session *s, const char *text) {
@@ -395,8 +404,9 @@ bool net_say(const Session *s, const char *text) {
 
 int net_fetch_players(const Session *s, Remote *out, int max) {
 	char url[360];
-	snprintf(url, sizeof url, GAME_URL "/rest/v1/player_state?game_id=eq.%s&select=player_id,username,color,platform,anim,x,y,z,ry,updated_at&order=updated_at.desc&limit=40", g_game);
+	snprintf(url, sizeof url, GAME_URL "/rest/v1/player_state?game_id=eq.%s&select=player_id,username,color,platform,anim,x,y,z,ry,updated_at%s&order=updated_at.desc&limit=40", g_game, g_hat_ok ? ",hat" : "");
 	char *r = http(M_GET, url, GAME_ANON_KEY, NULL, NULL, NULL);
+	if (!r && g_hat_ok && last_status == 400) { g_hat_ok = 0; return net_fetch_players(s, out, max); }
 	if (!r) return -1;
 	char newest[40] = ""; { const char *e = r + strlen(r); jstr(r, e, "updated_at", newest, sizeof newest); }     // la primera fila es la más reciente
 	time_t nt = parse_iso(newest);
@@ -409,6 +419,7 @@ int net_fetch_players(const Session *s, Remote *out, int max) {
 		if (!jstr(start, end, "username", o->name, sizeof o->name)) strcpy(o->name, "?");
 		jstr(start, end, "color", col, sizeof col); o->color = parse_color(col);
 		jstr(start, end, "platform", plat, sizeof plat); o->is3ds = strcmp(plat, "3ds") == 0;
+		o->hat[0] = 0; jstr(start, end, "hat", o->hat, sizeof o->hat);
 		o->anim[0] = 0; jstr(start, end, "anim", o->anim, sizeof o->anim); if (!o->anim[0]) strcpy(o->anim, "idle");
 		o->x = jnum(start, end, "x"); o->y = jnum(start, end, "y"); o->z = jnum(start, end, "z"); o->ry = jnum(start, end, "ry");
 		n++;
@@ -458,6 +469,50 @@ int net_fetch_chat(long since, ChatMsg *out, int max, long *last) {
 		n++;
 	}
 	free(r); return n;
+}
+
+// ---------- Bosque oscuro ----------
+int net_fetch_events(long since, GEvent *out, int max, long *last) {
+	char url[300]; snprintf(url, sizeof url, GAME_URL "/rest/v1/interactions?game_id=eq.%s&kind=in.(orb,win,round,caught)&id=gt.%ld&select=id,username,kind,payload&order=id.asc&limit=%d", g_game, since < 0 ? 0 : since, max);
+	char *r = http(M_GET, url, GAME_ANON_KEY, NULL, NULL, NULL);
+	if (!r) return -1;
+	int n = 0; const char *p = r, *end;
+	while (n < max && (p = next_obj(p, &end))) {
+		const char *st = p; p = end + 1; GEvent *e = &out[n]; memset(e, 0, sizeof *e);
+		e->id = (long)jnum(st, end, "id"); if (e->id > *last) *last = e->id;
+		jstr(st, end, "kind", e->kind, sizeof e->kind); if (!jstr(st, end, "username", e->name, sizeof e->name)) strcpy(e->name, "?");
+		e->i = (int)jnum(st, end, "i"); e->n = (int)jnum(st, end, "n"); e->round = (int)jnum(st, end, "round"); n++;
+	}
+	free(r); return n;
+}
+bool net_game_event(const Session *s, const char *kind, int a) {
+	char args[160];
+	if (!strcmp(kind, "orb")) snprintf(args, sizeof args, "\"p_game\":\"%s\",\"p_kind\":\"orb\",\"p_payload\":{\"i\":%d}", g_game, a);
+	else if (!strcmp(kind, "win")) snprintf(args, sizeof args, "\"p_game\":\"%s\",\"p_kind\":\"win\",\"p_payload\":{\"round\":%d}", g_game, a);
+	else if (!strcmp(kind, "round")) snprintf(args, sizeof args, "\"p_game\":\"%s\",\"p_kind\":\"round\",\"p_payload\":{\"n\":%d}", g_game, a);
+	else snprintf(args, sizeof args, "\"p_game\":\"%s\",\"p_kind\":\"caught\",\"p_payload\":{}", g_game);
+	return rpc(s, "game_event", args);
+}
+bool net_npc_get(const Session *s, NpcState *o) {
+	char url[300]; snprintf(url, sizeof url, GAME_URL "/rest/v1/npcs?game_id=eq.%s&id=eq.monster&select=x,z,ry,anim,host_id,updated_at&limit=1", g_game);
+	char *r = http(M_GET, url, GAME_ANON_KEY, NULL, NULL, NULL);
+	if (!r) return false;
+	memset(o, 0, sizeof *o); const char *e = r + strlen(r), *p = next_obj(r, &e);
+	if (p) {
+		char host[40] = "", up[40] = "", an[12] = ""; jstr(p, e, "host_id", host, sizeof host); jstr(p, e, "updated_at", up, sizeof up); jstr(p, e, "anim", an, sizeof an);
+		o->have = true; o->x = jnum(p, e, "x"); o->z = jnum(p, e, "z"); o->ry = jnum(p, e, "ry"); o->walk = !strcmp(an, "walk");
+		o->remote_fresh = strcmp(host, s->user_id) != 0 && fresh(up, parse_iso(up), 3);
+	}
+	free(r); return true;
+}
+bool net_npc_tick(const Session *s, float x, float z, float ry, bool walk) {
+	char url[96]; snprintf(url, sizeof url, GAME_URL "/rest/v1/rpc/npc_tick");
+	char body[360]; snprintf(body, sizeof body, "{\"p_secret\":\"%s\",\"p_game\":\"%s\",\"p_id\":\"monster\",\"p_x\":%.3f,\"p_y\":0,\"p_z\":%.3f,\"p_ry\":%.3f,\"p_anim\":\"%s\"}", s->secret, g_game, x, z, ry, walk ? "walk" : "idle");
+	char *r = http(M_POST, url, GAME_ANON_KEY, NULL, body, NULL);
+	bool host = r && strstr(r, "true"); free(r); return host;
+}
+void net_npc_release(const Session *s) {
+	char args[100]; snprintf(args, sizeof args, "\"p_game\":\"%s\",\"p_id\":\"monster\"", g_game); rpc(s, "npc_release", args);
 }
 
 // ---------- Lobby: juegos, amigos, avatar ----------
@@ -627,18 +682,21 @@ int net_shop_list(const Session *s, ShopItem *out, int max) {
 static int money_err(void) { return last_err[0] && strstr(last_err, "not enough") ? 1 : last_err[0] && strstr(last_err, "already") ? 2 : -1; }
 int net_buy(const Session *s, const char *id) {
 	if (HAS_STORE) {
-		Quote q; if (!store_quote(s, id, &q)) return -1;
-		char *r = store_redeem(s, &q); if (!r) return money_err(); free(r); return 0;
+		Quote q; net_why[0] = 0;
+		if (store_quote(s, id, &q)) {
+			char *r = store_redeem(s, &q); if (!r) { why("canje"); return money_err(); } free(r); return 0;
+		}
+		why("tienda");                                                    // la tienda nueva no responde: probamos la antigua (AUTH)
 	}
 	char body[80]; snprintf(body, sizeof body, "{\"p_item\":\"%s\"}", id);
 	char *r = http(M_POST, AUTH_URL "/rest/v1/rpc/buy_item", AUTH_ANON_KEY, s->token, body, NULL);
-	if (!r) return money_err();
+	if (!r) { if (!HAS_STORE) why("compra"); return money_err(); }
 	free(r); return 0;
 }
 int net_open_crate(const Session *s, const char *id, char *item, size_t n, int *dup, int *refund) {
 	if (HAS_STORE) {
-		Quote q; if (!store_quote(s, id, &q)) return -1;
-		char *r = store_redeem(s, &q); if (!r) return money_err() == 1 ? 1 : -1;
+		Quote q; net_why[0] = 0; if (!store_quote(s, id, &q)) { why("tienda"); return -1; }
+		char *r = store_redeem(s, &q); if (!r) { why("canje"); return money_err() == 1 ? 1 : -1; }
 		const char *e = r + strlen(r); item[0] = 0; jstr(r, e, "item", item, n); *dup = jbool(r, e, "duplicate"); *refund = (int)jnum(r, e, "refund"); free(r); return 0;
 	}
 	char body[80]; snprintf(body, sizeof body, "{\"p_crate\":\"%s\"}", id);

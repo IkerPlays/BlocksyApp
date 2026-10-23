@@ -5,7 +5,7 @@
 #define MAX_PLAYERS 24
 #define MAX_BLOCKS  2048
 
-typedef struct { char id[40]; char name[24]; float x, y, z, ry; unsigned int color; int is3ds; char anim[12]; } Remote;
+typedef struct { char id[40]; char name[24]; float x, y, z, ry; unsigned int color; int is3ds; char anim[12]; char hat[24]; } Remote;
 typedef struct { int x, y, z, kind; unsigned int color; } Block;   // kind = -1: bloque fijo del mundo (color propio, no se rompe)
 
 typedef struct {
@@ -56,6 +56,7 @@ typedef struct { char id[32]; char kind[8]; char name[32]; int price; int rarity
 typedef struct { int bcoins, streak, can_claim, ninv; char inv[24][32]; char hat[32], title[32]; } Wallet;
 int  net_wallet(const Session *s, Wallet *w);                          // BCoins, inventario y equipado (0 ok, <0 error)
 int  net_shop_list(const Session *s, ShopItem *out, int max);
+extern char net_why[96];                                                   // motivo del ultimo fallo de compra
 int  net_buy(const Session *s, const char *id);                        // 0 ok, 1 sin monedas, 2 ya lo tienes, -1 error
 int  net_open_crate(const Session *s, const char *id, char *item, size_t n, int *dup, int *refund);   // 0 ok, 1 sin monedas, -1 error
 int  net_claim_daily(const Session *s);                                // BCoins recibidas; 0 = ya recogida; <0 error
@@ -70,12 +71,21 @@ bool net_remove_friend(const Session *s, const char *id);
 bool net_set_color(Session *s, const char *hex);
 
 typedef struct { long id; char name[24]; char text[100]; } ChatMsg;
+// Bosque oscuro: eventos de la partida (fragmentos, ganar, nueva ronda, atrapado) y el monstruo (anfitrion = quien guarda su posicion)
+typedef struct { long id; char kind[8]; char name[24]; int i, n, round; } GEvent;
+int  net_fetch_events(long since, GEvent *out, int max, long *last);   // kinds orb/win/round/caught; since < 0: desde el principio
+bool net_game_event(const Session *s, const char *kind, int a);        // orb {i}, win {round}, round {n}, caught
+typedef struct { bool have, remote_fresh; float x, z, ry; bool walk; } NpcState;
+bool net_npc_get(const Session *s, NpcState *o);                       // remote_fresh: lo mueve otro jugador (actualizado hace <3 s)
+bool net_npc_tick(const Session *s, float x, float z, float ry, bool walk);   // true: eres el anfitrion
+void net_npc_release(const Session *s);
 int net_fetch_chat(long since, ChatMsg *out, int max, long *last);   // since < 0: solo obtiene el último id
 
 // Juego (proyecto GAME): opera sobre el juego elegido con net_set_game()
 void net_set_game(const char *id);
 const char *net_game(void);
 bool net_say(const Session *s, const char *text);
+void net_set_hat(const char *id);                                           // sombrero equipado (se envia con la posicion)
 bool net_send_state(const Session *s, float x, float y, float z, float ry, const char *anim);
 int  net_fetch_players(const Session *s, Remote *out, int max);
 int  net_fetch_blocks(const Session *s, Block *out, int max);

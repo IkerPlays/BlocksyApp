@@ -469,6 +469,8 @@ void ui_message(C3D_RenderTarget *top, C3D_RenderTarget *bot, const char *title,
 // ---------- panel inferior en juego ----------
 enum { SW_Y = 126, SW_W = 40, SW_GAP = 8, BTN2_Y = 192, BTN2_H = 36, BTN2_W = 86, BTN2_GAP = 11, EM_Y = 44, EM_W = 88, EM_H = 44, EM_GAP = 8 };
 
+bool ui_build_ui = true;                                   // false: el juego no deja construir (se oculta la paleta y las ayudas)
+
 void ui_game_bottom(const Session *s, const Remote *rem, int nr, int kind, const char *game, const char *version, bool emote_menu, const ChatLine *hist, int nhist, int hscroll, bool chat_view) {
 	rect(0, 0, 320, 26, COL_PANEL);
 	rect(0, 26, 320, 1, COL_LINE);
@@ -508,10 +510,10 @@ void ui_game_bottom(const Session *s, const Remote *rem, int nr, int kind, const
 			if (rem[i].is3ds) { float bx = 30 + text_w(rem[i].name, 0.45f) + 8; rrect(bx, y + 1, 30, 13, 4, C(0xE6, 0x00, 0x12)); ui_text(bx + 15, y + 1, 0.32f, COL_TEXT, C2D_AlignCenter, "3DS"); }
 		}
 		ui_text(310, 52, 0.36f, COL_MUTED, C2D_AlignRight, "A saltar  B correr");
-		ui_text(310, 66, 0.36f, COL_MUTED, C2D_AlignRight, "X poner  Y romper");
+		if (ui_build_ui) ui_text(310, 66, 0.36f, COL_MUTED, C2D_AlignRight, "X poner  Y romper");
 		}
 
-		for (int i = 0; i < NPALETTE; i++) {
+		for (int i = 0; ui_build_ui && i < NPALETTE; i++) {
 			float x = F_X + (i % 6) * (SW_W + SW_GAP), y = SW_Y + (i / 6) * 30;
 			if (i == kind) rrect(x - 3, y - 3, SW_W + 6, 30, 7, COL_TEXT);
 			rrect(x, y, SW_W, 24, 5, ui_palette[i]);

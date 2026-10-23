@@ -4,8 +4,12 @@
 #include <stdbool.h>
 
 // Avatares 3D de Blocksy para la 3DS: mismo aspecto que la web (hash FNV-1a del nombre) y las mismas poses/emotes.
-typedef struct { u32 shirt, skin, hair, pants; int hair_style; } AvStyle;
+typedef struct { u32 shirt, skin, hair, pants; int hair_style; int hat; } AvStyle;   // hat: 0 ninguno, 1.. = AV_HAT_ID[hat-1]
 AvStyle av_style(const char *name, u32 shirt_abgr);
+
+#define NHATS 6
+extern const char *const AV_HAT_ID[NHATS];          // hat_cap hat_antenna hat_party hat_halo hat_top hat_crown (igual que web/src/avatar.js)
+int av_hat_index(const char *id);                    // 0 si no existe
 
 #define NEMOTES 5
 extern const char *const AV_EMOTE_ID[NEMOTES];      // wave dance cheer clap sit  (se envían tal cual como "anim")

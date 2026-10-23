@@ -31,7 +31,7 @@ static GameInfo g_games[MAX_GAMES]; static int g_ngames;
 static Person g_friends[MAX_PEOPLE]; static int g_nfriends;
 static FriendReq g_reqs[MAX_PEOPLE]; static int g_nreqs; static volatile int g_unread;
 static DmMsg g_dm[40]; static int g_ndm; static char g_dm_friend[40]; static volatile int g_dm_open; static volatile int g_dm_seq;
-static ShopItem g_shop[24]; static int g_nshop; static Wallet g_wallet;
+static ShopItem g_shop[24]; static int g_nshop; static Wallet g_wallet; char g_my_hat[32];
 static Notif g_notifs[16]; static int g_nnotifs; static volatile int g_notif_unread;
 static char g_alert[96]; static volatile int g_alert_seq;     // aviso nuevo (toast) generado por el hilo de red static char g_dm_friend[40]; static volatile int g_dm_open; static volatile int g_dm_seq;
 static volatile int g_account = 1;   // 0 = sesión por QR (sin token de Auth): no hay amigos ni avatar
@@ -77,7 +77,7 @@ static void refresh_all(void) {
 	int un = net_unread_total(W.s); if (un >= 0) g_unread = un;
 	{	// BCoins y tienda
 		static Wallet tw; static ShopItem ts[24];
-		if (net_wallet(W.s, &tw) == 0) { LightLock_Lock(&lk); g_wallet = tw; LightLock_Unlock(&lk); }
+		if (net_wallet(W.s, &tw) == 0) { LightLock_Lock(&lk); g_wallet = tw; LightLock_Unlock(&lk); snprintf(g_my_hat, sizeof g_my_hat, "%s", tw.hat); net_set_hat(tw.hat); }
 		if (!g_nshop) { int nsh = net_shop_list(W.s, ts, 24); if (nsh > 0) { LightLock_Lock(&lk); memcpy(g_shop, ts, sizeof(ShopItem) * nsh); g_nshop = nsh; LightLock_Unlock(&lk); } }
 	}
 	{	// avisos: lista + detección de novedades (solicitudes, invitaciones, mensajes) para el toast
@@ -139,7 +139,7 @@ static void worker_thread(void *arg) {
 				{ static DmMsg te[40]; int ne = net_fetch_dm(W.s, g_dm_friend, te, 40); if (ne >= 0) { LightLock_Lock(&lk); memcpy(g_dm, te, sizeof(DmMsg) * ne); g_ndm = ne; LightLock_Unlock(&lk); g_dm_seq++; } } break;
 			case RQ_DM_DEL: W.done_ok = net_delete_dm(W.s, atol(W.arg)); snprintf(W.msg, sizeof W.msg, "%s", W.done_ok ? tr2("Mensaje borrado", "Message deleted") : tr2("No se pudo borrar", "Could not delete"));
 				{ static DmMsg td[40]; int nd2 = net_fetch_dm(W.s, g_dm_friend, td, 40); if (nd2 >= 0) { LightLock_Lock(&lk); memcpy(g_dm, td, sizeof(DmMsg) * nd2); g_ndm = nd2; LightLock_Unlock(&lk); g_dm_seq++; } } break;
-			case RQ_BUY: { int rb = net_buy(W.s, W.arg); W.done_ok = rb == 0; snprintf(W.msg, sizeof W.msg, "%s", rb == 0 ? tr2("Comprado", "Purchased") : rb == 1 ? tr2("No tienes suficientes BCoins", "Not enough BCoins") : rb == 2 ? tr2("Ya lo tienes", "You already own it") : tr2("No se pudo comprar", "Could not buy")); refresh_all(); break; }
+			case RQ_BUY: { int rb = net_buy(W.s, W.arg); W.done_ok = rb == 0; snprintf(W.msg, sizeof W.msg, "%s", rb == 0 ? tr2("Comprado", "Purchased") : rb == 1 ? tr2("No tienes suficientes BCoins", "Not enough BCoins") : rb == 2 ? tr2("Ya lo tienes", "You already own it") : tr2("No se pudo comprar", "Could not buy")); if (rb < 0 && net_why[0]) { strncat(W.msg, ": ", sizeof W.msg - strlen(W.msg) - 1); strncat(W.msg, net_why, sizeof W.msg - strlen(W.msg) - 1); } refresh_all(); break; }
 			case RQ_CRATE: { char it[32] = ""; int dup = 0, rf = 0; int rc2 = net_open_crate(W.s, W.arg, it, sizeof it, &dup, &rf); W.done_ok = rc2 == 0;
 				if (rc2 == 0) { const char *nm = it; for (int i = 0; i < g_nshop; i++) if (!strcmp(g_shop[i].id, it)) nm = g_shop[i].name; if (dup) snprintf(W.msg, sizeof W.msg, tr2("%s (repetido, +%d BCoins)", "%s (duplicate, +%d BCoins)"), nm, rf); else snprintf(W.msg, sizeof W.msg, tr2("Conseguiste: %s", "You got: %s"), nm); }
 				else snprintf(W.msg, sizeof W.msg, "%s", rc2 == 1 ? tr2("No tienes suficientes BCoins", "Not enough BCoins") : tr2("No se pudo abrir", "Could not open")); refresh_all(); break; }
@@ -293,6 +293,14 @@ static int wrap(const char *src, float scale, float maxw, char lines[][96], int 
 	return nl;
 }
 static bool shop_owned(const ShopItem *it) { for (int i = 0; i < wallet.ninv; i++) if (!strcmp(wallet.inv[i], it->id)) return true; return false; }
+// Accesorios (sombrero / titulo) de la pagina Avatar: ids comprados por tipo, en el orden de la tienda; el primero es "ninguno"
+static int acc_list(const char *kind, const char **ids, const char **names) {
+	int n = 0; ids[n] = ""; names[n++] = tr2("Ninguno", "None");
+	for (int i = 0; i < nshop && n < 24; i++) if (!strcmp(shop[i].kind, kind)) for (int k = 0; k < wallet.ninv; k++) if (!strcmp(wallet.inv[k], shop[i].id)) { ids[n] = shop[i].id; names[n++] = shop[i].name; break; }
+	return n;
+}
+static int acc_cur(const char *kind, int n, const char **ids) { const char *e = !strcmp(kind, "hat") ? wallet.hat : wallet.title; for (int i = 0; i < n; i++) if (!strcmp(ids[i], e)) return i; return 0; }
+static const char *acc_name(const char *kind) { const char *ids[24], *nm[24]; int n = acc_list(kind, ids, nm); return nm[acc_cur(kind, n, ids)]; }
 static bool shop_equipped(const ShopItem *it) { return !strcmp(wallet.hat, it->id) || !strcmp(wallet.title, it->id); }
 static u32 rarity_col(int r) { return r == 2 ? C(0xC4, 0x6B, 0xFF) : r == 1 ? C(0x4D, 0x8D, 0xFF) : COL_MUTED; }
 static const char *status_of(const Person *p) { return p->in_game ? tr2("En un juego", "In a game") : p->online ? "Online" : tr2("Desconectado", "Offline"); }
@@ -337,7 +345,7 @@ static void avatar_preview(float cx, float cy, const Session *s, u32 shirt) {
 	if (prev_pose.legY == 0) prev_pose.legY = 0.74f;
 	av_pose_update(&prev_pose, prev_demo ? AV_EMOTE_ID[prev_demo - 1] : "idle", dt, now / 1000.0f);
 	AvCam cam = {0, 1.0f, 0, 0, 0.12f, 3.5f, 190, cx, cy};
-	AvStyle st = av_style(s->username, shirt);
+	AvStyle st = av_style(s->username, shirt); st.hat = av_hat_index(wallet.hat);
 	av_set_z(0.35f);                                            // por encima del panel (los rectángulos de la UI están en z=0.2)
 	av_draw(&cam, 0, 0, 0, now / 1000.0f * 0.9f, &st, &prev_pose, 0, 0);
 	av_set_z(0);
@@ -377,15 +385,16 @@ static void page_top(const Ui *u, const Session *s) {
 		ui_rrect(26, 78, 112, 136, 10, C(0x2E, 0x31, 0x38));
 		avatar_preview(82, 152, s, parse_hex(AVATAR_COLORS[u->swatch]));
 		ui_text(156, 80, 0.7f, COL_TEXT, 0, s->username);
-		ui_text(156, 104, 0.4f, COL_MUTED, 0, "Elige el color de tu camiseta. Tu avatar");
-		ui_text(156, 118, 0.4f, COL_MUTED, 0, "es igual en la web y en la 3DS.");
-		{ char dm[48]; snprintf(dm, sizeof dm, "X: probar emote%s%s", prev_demo ? "  (" : "", prev_demo ? AV_EMOTE_LABEL[prev_demo - 1] : ""); if (prev_demo) strncat(dm, ")", sizeof dm - strlen(dm) - 1); ui_text(156, 211, 0.38f, COL_ACCENT, 0, dm); }
+		if (!g_account) ui_text(156, 104, 0.38f, COL_RED, 0, "Entra con email y contrasena para guardar.");
+		else ui_text(156, 104, 0.4f, COL_MUTED, 0, tr2("Igual en la web y en la 3DS.", "Same on the web and on the 3DS."));
+		{ char dm[48]; snprintf(dm, sizeof dm, "X: %s%s%s", tr2("probar emote", "try emote"), prev_demo ? "  (" : "", prev_demo ? AV_EMOTE_LABEL[prev_demo - 1] : ""); if (prev_demo) strncat(dm, ")", sizeof dm - strlen(dm) - 1); ui_text(156, 118, 0.38f, COL_ACCENT, 0, dm); }
+		{ char l[64], f[64]; snprintf(l, sizeof l, "%s: %s", tr2("Sombrero", "Hat"), acc_name("hat")); fit(f, sizeof f, l, 0.42f, 226); ui_text(156, 134, 0.42f, COL_TEXT, 0, f);
+		  snprintf(l, sizeof l, "%s: %s", tr2("Titulo", "Title"), acc_name("title")); fit(f, sizeof f, l, 0.42f, 226); ui_text(156, 150, 0.42f, COL_TEXT, 0, f); }
 		for (int i = 0; i < 10; i++) {
-			float x = 156 + (i % 5) * 44, y = 146 + (i / 5) * 36; u32 c = parse_hex(AVATAR_COLORS[i]);
-			if (i == u->swatch) ui_rrect(x - 3, y - 3, 38, 32, 8, COL_TEXT);
-			ui_rrect(x, y, 32, 26, 6, c);
+			float x = 156 + (i % 5) * 44, y = 170 + (i / 5) * 28; u32 c = parse_hex(AVATAR_COLORS[i]);
+			if (i == u->swatch) ui_rrect(x - 3, y - 3, 38, 26, 8, COL_TEXT);
+			ui_rrect(x, y, 32, 20, 6, c);
 		}
-		if (!g_account) ui_text(156, 204, 0.38f, COL_RED, 0, "Entra con email y contrasena para guardar.");
 		break; }
 	case P_FRIENDS: {
 		PRow rows[MAX_PEOPLE * 2 + 2]; int n = build_people(s, rows);
@@ -628,14 +637,20 @@ static void pane(const Ui *u, const Session *s) {
 		}
 		break; }
 	case P_AVATAR: {
-		ui_text(PANE_X, 30, 0.4f, COL_MUTED, 0, "Elige un color:");
+		ui_text(PANE_X, 28, 0.4f, COL_MUTED, 0, tr2("Color de camiseta:", "Shirt color:"));
 		for (int i = 0; i < 10; i++) {
-			float x = PANE_X + 2 + (i % 5) * 40, y = 52 + (i / 5) * 40; u32 c = parse_hex(AVATAR_COLORS[i]);
-			if (i == u->swatch) ui_rrect(x - 3, y - 3, 38, 38, 8, COL_TEXT);
-			ui_rrect(x, y, 32, 32, 6, c);
+			float x = PANE_X + 2 + (i % 5) * 40, y = 44 + (i / 5) * 34; u32 c = parse_hex(AVATAR_COLORS[i]);
+			if (i == u->swatch) ui_rrect(x - 3, y - 3, 38, 31, 8, COL_TEXT);
+			ui_rrect(x, y, 32, 25, 6, c);
 		}
-		ui_button(PANE_X + 2, 150, PANE_W - 6, 40, g_account ? COL_GREEN : COL_PANEL2, false, "Guardar", 0.55f);
-		if (!g_account) ui_text(PANE_X, 200, 0.34f, COL_RED, 0, "Requiere entrar con email y contrasena.");
+		for (int k = 0; k < 2; k++) {                                   // sombrero y titulo: < nombre >
+			const char *kind = k ? "title" : "hat"; float y = 116 + k * 36;
+			char l[48], f[48]; snprintf(l, sizeof l, "%s: %s", k ? tr2("Titulo", "Title") : tr2("Sombrero", "Hat"), acc_name(kind)); fit(f, sizeof f, l, 0.4f, PANE_W - 96);
+			ui_button(PANE_X + 2, y, 36, 30, COL_PANEL2, false, "<", 0.5f); ui_button(PANE_X + PANE_W - 40, y, 36, 30, COL_PANEL2, false, ">", 0.5f);
+			ui_text(PANE_X + PANE_W / 2 - 2, y + 8, 0.4f, COL_TEXT, C2D_AlignCenter, f);
+		}
+		ui_button(PANE_X + 2, 192, PANE_W - 6, 38, g_account ? COL_GREEN : COL_PANEL2, false, tr2("Guardar color", "Save color"), 0.5f);
+		if (!g_account) ui_text(PANE_X, 232, 0.3f, COL_RED, 0, tr2("Requiere entrar con email.", "Needs an email login."));
 		break; }
 	case P_UPDATE: {
 		char l1[64], l2[64], l3[64];
@@ -744,6 +759,15 @@ static void request(Req r, const char *a, const char *b, int n) {
 	snprintf(W.arg, sizeof W.arg, "%s", a ? a : ""); snprintf(W.arg2, sizeof W.arg2, "%s", b ? b : ""); W.n = n; W.req = r;
 }
 
+static bool acc_cycle(const char *kind, int dir) {         // false: no tienes ninguno (compralos en la tienda)
+	const char *ids[24], *nm[24]; int n = acc_list(kind, ids, nm);
+	if (n <= 1) return false;
+	int c = (acc_cur(kind, n, ids) + dir + n) % n; request(RQ_EQUIP, ids[c], kind, 0);
+	if (!strcmp(kind, "hat")) { snprintf(g_my_hat, sizeof g_my_hat, "%s", ids[c]); net_set_hat(ids[c]); wallet.hat[0] = 0; snprintf(wallet.hat, sizeof wallet.hat, "%s", ids[c]); }
+	else snprintf(wallet.title, sizeof wallet.title, "%s", ids[c]);
+	return true;
+}
+
 AppResult app_lobby(C3D_RenderTarget *top, C3D_RenderTarget *bot, Session *s, GameInfo *chosen, const char *version) {
 	LightLock_Init(&lk);
 	load_settings();
@@ -818,8 +842,9 @@ AppResult app_lobby(C3D_RenderTarget *top, C3D_RenderTarget *bot, Session *s, Ga
 				else if (t.py >= 186) act_row = 202;
 				touching = false;
 			} else if (u.page == P_AVATAR) {
-				for (int i = 0; i < 10; i++) { int x = PANE_X + 2 + (i % 5) * 40, y = 52 + (i / 5) * 40; if (t.px >= x - 3 && t.px < x + 35 && t.py >= y - 3 && t.py < y + 35) u.swatch = i; }
-				if (t.py >= 150 && t.py < 190) act_row = 100;
+				for (int i = 0; i < 10; i++) { int x = PANE_X + 2 + (i % 5) * 40, y = 44 + (i / 5) * 34; if (t.px >= x - 3 && t.px < x + 35 && t.py >= y - 3 && t.py < y + 28) u.swatch = i; }
+				for (int k = 0; k < 2; k++) { int y = 116 + k * 36; if (t.py >= y && t.py < y + 30) { if (t.px < PANE_X + 40) act_row = 101 + k * 2; else if (t.px >= PANE_X + PANE_W - 44) act_row = 102 + k * 2; } }
+				if (t.py >= 192 && t.py < 230) act_row = 100;
 				touching = false;
 			} else if (u.page == P_DISCOVER && t.py < 26 && t.px > PANE_X + 70) {
 				prompt(u.search, sizeof u.search, "Buscar juegos"); u.cur = 0; u.scroll = 0; touching = false;
@@ -900,7 +925,9 @@ AppResult app_lobby(C3D_RenderTarget *top, C3D_RenderTarget *bot, Session *s, Ga
 					}
 				}
 				break;
-			case P_AVATAR: if (act_row == 100 || (down & KEY_A)) { if (g_account) request(RQ_COLOR, AVATAR_COLORS[u.swatch], NULL, 0); else toast(&u, "Entra con email para guardar"); } break;
+			case P_AVATAR:
+				if (act_row >= 101 && act_row <= 104) { const char *k = act_row <= 102 ? "hat" : "title"; if (!g_account) toast(&u, tr2("Entra con email", "Log in with email")); else if (!acc_cycle(k, (act_row & 1) ? -1 : 1)) toast(&u, tr2("No tienes ninguno: compralos en la Tienda", "You own none: buy them in the Shop")); break; }
+				if (act_row == 100 || (down & KEY_A)) { if (g_account) request(RQ_COLOR, AVATAR_COLORS[u.swatch], NULL, 0); else toast(&u, "Entra con email para guardar"); } break;
 			case P_NOTIF:
 				if (act_row == 0) { if (nnotifs) request(RQ_NOTIF_CLEAR, NULL, NULL, 0); }
 				else if (act_row - 1 < nnotifs) {

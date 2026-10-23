@@ -27,7 +27,10 @@ unsigned world_plaza_color(int x, int z) {
 	if ((x == 0 || z == 0) && az >= 5 && az <= 12) return hexc("#e6d28c");
 	return ((x + z) & 1) ? hexc("#d5d9de") : hexc("#c3c8cf");
 }
-bool world_floor_solid(const World *w, int x, int y, int z) { return w->type == 1 && y == 0 && abs(x) <= w->plaza_n && abs(z) <= w->plaza_n; }
+bool world_floor_solid(const World *w, int x, int y, int z) {
+	if (w->type == 5) return y >= 0 && y <= 2 && abs(x) <= 50 && abs(z) <= 50 && w->tgrid[(x + 50) * 101 + z + 50];     // troncos del bosque
+	return w->type == 1 && y == 0 && abs(x) <= w->plaza_n && abs(z) <= w->plaza_n;
+}
 
 static void build_plaza(World *w) {
 	w->type = 1; w->floor = true; w->plaza_n = 18; w->void_y = -1000;
@@ -69,12 +72,37 @@ static void build_obby(World *w, int seed) {
 	w->has_fin = true; w->fin[0] = x + 0.5f; w->fin[1] = y + 1; w->fin[2] = z + 2.5f; w->fin_r = 2.6f;
 }
 
+// Bosque oscuro: misma generacion que forest() de web/src/world.js (mismo orden de llamadas al generador)
+static void build_forest(World *w, int seed) {
+	const int R = 46; w->type = 5; w->floor = true; w->void_y = -1000; w->night = true; w->radius = R; w->safe = 5;
+	w->spawn[0] = 0.5f; w->spawn[1] = 1.2f; w->spawn[2] = 0.5f; w->mon_start[0] = -26; w->mon_start[1] = 0.01f; w->mon_start[2] = -26;
+	rng_seed((uint32_t)seed);
+	for (int tries = 0; w->ntrees < 150 && tries < 3000; tries++) {
+		int x = jsround((rnd() * 2 - 1) * (R - 3)); int z = jsround((rnd() * 2 - 1) * (R - 3)); double d = hypot(x, z);
+		if (d < 9 || d > R - 3) continue;
+		bool near = false; for (int i = 0; i < w->ntrees; i++) if (hypot(w->tree[i][0] - x, w->tree[i][1] - z) < 4) { near = true; break; }
+		if (near) continue;
+		w->tree[w->ntrees][0] = (short)x; w->tree[w->ntrees][1] = (short)z; w->ntrees++; w->tgrid[(x + 50) * 101 + z + 50] = 1;
+	}
+	for (int tries = 0; w->norbs < 5 && tries < 6000; tries++) {
+		double a = rnd() * 3.14159265358979323846 * 2, d = 16 + rnd() * (R - 26); int x = jsround(cos(a) * d), z = jsround(sin(a) * d);
+		bool bad = false;
+		for (int i = 0; i < w->ntrees && !bad; i++) if (hypot(w->tree[i][0] - x, w->tree[i][1] - z) < 3) bad = true;
+		for (int i = 0; i < w->norbs && !bad; i++) if (hypot(w->orb[i][0] - x, w->orb[i][2] - z) < 16) bad = true;
+		if (bad) continue;
+		w->orb[w->norbs][0] = x + 0.5f; w->orb[w->norbs][1] = 1.2f; w->orb[w->norbs][2] = z + 0.5f; w->norbs++;
+	}
+	unsigned wood = hexc("#8b5e34");     // sin tejado: la camara 3D lo atravesaria                                                  // cabaña de refugio (puerta hacia +z)
+	for (int i = -3; i <= 3; i++) for (int y = 0; y < 3; y++) { add(w, i, y, -3, wood); if (i > -3 && i < 3) { add(w, -3, y, i, wood); add(w, 3, y, i, wood); } if (abs(i) > 1 || y > 1) add(w, i, y, 3, wood); }
+}
+
 void world_build(World *w, const char *name, int seed) {
 	memset(w, 0, sizeof *w);
 	w->floor = true; w->void_y = -1000; w->spawn[0] = 0.5f; w->spawn[1] = 3; w->spawn[2] = 0.5f;
 	if (!name || !name[0] || !seed) seed = 1337;
 	if (name && !strcmp(name, "plaza")) build_plaza(w);
 	else if (name && !strcmp(name, "obby")) build_obby(w, seed);
+	else if (name && !strcmp(name, "forest")) build_forest(w, seed);
 	else if (name && !strcmp(name, "checker")) { w->type = 3; for (int x = -20; x <= 20; x++) for (int z = -20; z <= 20; z++) if (WORLD_MAX_CELLS > w->ncells + 0 && abs(x) < 12 && abs(z) < 12) add(w, x, 0, z, ((x + z) & 1) ? hexc("#ffffff") : hexc("#2b2f36")); w->spawn[1] = 1.2f; }
 	else if (name && !strcmp(name, "void")) { w->type = 4; w->floor = false; w->void_y = -30; plat(w, -2, 0, -2, 5, 5, hexc("#9aa0a8")); w->spawn[1] = 1.2f; }
 }

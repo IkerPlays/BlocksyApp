@@ -14,8 +14,12 @@ static const u32 PANTS[6] = {RGB(0x34, 0x49, 0x5e), RGB(0x2c, 0x3e, 0x50), RGB(0
 AvStyle av_style(const char *name, u32 shirt) {
 	u32 h = 0x811c9dc5u;
 	for (const unsigned char *p = (const unsigned char *)name; *p; p++) { h ^= *p; h *= 0x01000193u; }
-	return (AvStyle){shirt, SKIN[h % 6], HAIR[(h >> 8) % 8], PANTS[(h >> 16) % 6], (int)((h >> 24) % 3)};
+	return (AvStyle){shirt, SKIN[h % 6], HAIR[(h >> 8) % 8], PANTS[(h >> 16) % 6], (int)((h >> 24) % 3), 0};
 }
+
+const char *const AV_HAT_ID[NHATS] = {"hat_cap", "hat_antenna", "hat_party", "hat_halo", "hat_top", "hat_crown"};
+int av_hat_index(const char *id) { if (id) for (int i = 0; i < NHATS; i++) if (!strcmp(id, AV_HAT_ID[i])) return i + 1; return 0; }
+static const u32 HAT_COL[NHATS] = {RGB(0xe7, 0x4c, 0x3c), RGB(0x7e, 0xd6, 0xff), RGB(0xff, 0x6b, 0x9d), RGB(0xf5, 0xc5, 0x42), RGB(0x2b, 0x2f, 0x36), RGB(0xf1, 0xc4, 0x0f)};
 
 const char *const AV_EMOTE_ID[NEMOTES] = {"wave", "dance", "cheer", "clap", "sit"};
 const char *const AV_EMOTE_LABEL[NEMOTES] = {"Saludar", "Bailar", "Celebrar", "Aplaudir", "Sentarse"};
@@ -86,7 +90,7 @@ static int cmp_part(const void *a, const void *b) { float d = ((const Part *)b)-
 
 void av_draw(const AvCam *c, float x, float y, float z, float yaw, const AvStyle *st, const AvPose *pose, float fog_near, float fog_far) {
 	const u32 DARK = RGB(0x1b, 0x1b, 0x1b);
-	Part P[20]; int n = 0;
+	Part P[32]; int n = 0;
 #define PART(PX, PY, PZ, OX, OY, OZ, W, H, D, RX, RZ, BODY, COL) P[n++] = (Part){PX, PY, PZ, OX, OY, OZ, W, H, D, RX, RZ, BODY, COL, 0}
 	PART(-0.16f, pose->legY, 0, 0, -0.37f, 0, 0.30f, 0.74f, 0.32f, pose->legL, 0, 0, st->pants);
 	PART(0.16f, pose->legY, 0, 0, -0.37f, 0, 0.30f, 0.74f, 0.32f, pose->legR, 0, 0, st->pants);
@@ -103,6 +107,19 @@ void av_draw(const AvCam *c, float x, float y, float z, float yaw, const AvStyle
 	if (st->hair_style == 1) { PART(0, 1.78f, 0, 0, 0.12f, -0.23f, 0.56f, 0.22f, 0.10f, pose->headX, 0, 1, st->hair); PART(0, 1.78f, 0, -0.27f, 0.05f, -0.02f, 0.10f, 0.30f, 0.50f, pose->headX, 0, 1, st->hair); PART(0, 1.78f, 0, 0.27f, 0.05f, -0.02f, 0.10f, 0.30f, 0.50f, pose->headX, 0, 1, st->hair); }
 	else if (st->hair_style == 2) { for (int i = -1; i <= 1; i++) PART(0, 1.78f, 0, 0.18f * i, 0.40f, 0, 0.10f, 0.18f, 0.10f, pose->headX, 0, 1, st->hair); }
 	else PART(0, 1.78f, 0, 0, 0.18f, 0.24f, 0.56f, 0.12f, 0.10f, pose->headX, 0, 1, st->hair);
+	if (st->hat > 0) {                                                                                       // sombrero: mismas medidas que addHat de la web (sobre la cabeza)
+#define HP(OX, OY, OZ, W, H, D, COL) PART(0, 1.78f, 0, OX, OY, OZ, W, H, D, pose->headX, 0, 1, COL)
+		u32 hc = HAT_COL[st->hat - 1];
+		switch (st->hat) {
+		case 1: HP(0, 0.37f, -0.01f, 0.58f, 0.14f, 0.58f, hc); HP(0, 0.31f, 0.4f, 0.5f, 0.04f, 0.3f, RGB(0xc0, 0x39, 0x2b)); break;
+		case 2: HP(0, 0.5f, 0, 0.04f, 0.34f, 0.04f, RGB(0x9a, 0xa0, 0xa8)); HP(0, 0.74f, 0, 0.12f, 0.12f, 0.12f, hc); break;
+		case 3: HP(0, 0.40f, 0, 0.38f, 0.14f, 0.38f, hc); HP(0, 0.54f, 0, 0.26f, 0.14f, 0.26f, hc); HP(0, 0.68f, 0, 0.14f, 0.14f, 0.14f, hc); HP(0, 0.80f, 0, 0.08f, 0.08f, 0.08f, RGB(0xff, 0xff, 0xff)); break;
+		case 4: HP(0, 0.62f, -0.28f, 0.60f, 0.06f, 0.06f, hc); HP(0, 0.62f, 0.28f, 0.60f, 0.06f, 0.06f, hc); HP(-0.28f, 0.62f, 0, 0.06f, 0.06f, 0.50f, hc); HP(0.28f, 0.62f, 0, 0.06f, 0.06f, 0.50f, hc); break;
+		case 5: HP(0, 0.34f, 0, 0.68f, 0.05f, 0.68f, hc); HP(0, 0.58f, 0, 0.40f, 0.42f, 0.40f, hc); HP(0, 0.45f, 0, 0.42f, 0.07f, 0.42f, RGB(0xc0, 0x39, 0x2b)); break;
+		case 6: HP(0, 0.40f, 0, 0.52f, 0.12f, 0.52f, hc); HP(-0.2f, 0.54f, -0.2f, 0.1f, 0.16f, 0.1f, hc); HP(0.2f, 0.54f, -0.2f, 0.1f, 0.16f, 0.1f, hc); HP(-0.2f, 0.54f, 0.2f, 0.1f, 0.16f, 0.1f, hc); HP(0.2f, 0.54f, 0.2f, 0.1f, 0.16f, 0.1f, hc); HP(0, 0.54f, 0, 0.1f, 0.16f, 0.1f, hc); break;
+		}
+#undef HP
+	}
 #undef PART
 	// profundidad de cada parte -> orden de atrás hacia delante
 	for (int i = 0; i < n; i++) {
