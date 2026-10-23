@@ -72,6 +72,7 @@ bool net_set_color(Session *s, const char *hex);
 
 typedef struct { long id; char name[24]; char text[100]; } ChatMsg;
 // Bosque oscuro: eventos de la partida (fragmentos, ganar, nueva ronda, atrapado) y el monstruo (anfitrion = quien guarda su posicion)
+int  net_submit_time(const Session *s, int ms);                        // guarda tu tiempo de carrera y devuelve tu puesto (0 si falla)
 typedef struct { long id; char kind[8]; char name[24]; int i, n, round; } GEvent;
 int  net_fetch_events(long since, GEvent *out, int max, long *last);   // kinds orb/win/round/caught; since < 0: desde el principio
 bool net_game_event(const Session *s, const char *kind, int a);        // orb {i}, win {round}, round {n}, caught

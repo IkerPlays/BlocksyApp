@@ -261,6 +261,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
       if (fin && !race.done && Math.hypot(p.x - fin.pos[0], p.z - fin.pos[2]) < fin.radius && Math.abs(p.y - fin.pos[1]) < 3) {
         race.done = true; const ms = Date.now() - (race.start || Date.now()); const prev = bestTime(game.id, null); const best = bestTime(game.id, ms)
         social.missionAdd('obby_win'); social.earnCoins(20, 'obby').then(n => { if (n) sys(t('coins_earned', { n })) }); sfx.win(); showTitle(`${t('finish', { t: raceTime(ms) })}${prev && best !== ms ? ` · ${t('best')} ${raceTime(prev)}` : ''}`, 4500)
+        if (ms >= 1500) api.submitTime(game.id, ms).then(r => { if (!r?.top.length) return; sys(t('top_times') + ': ' + r.top.map((x, i) => `${i + 1}. ${x.username} ${raceTime(x.ms)}`).join('  ·  ')); if (r.rank) sys(t('your_rank', { n: r.rank })) })
         setTimeout(() => { teleport(...world.spawn); respawn.pos = world.spawn.slice(); race = { start: 0, cp: 0, done: false } }, 4500)
       }
     }

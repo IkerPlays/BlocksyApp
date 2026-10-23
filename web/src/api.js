@@ -69,6 +69,14 @@ export async function placeBlocks(game, list) {
   await Promise.all([worker(), worker(), worker(), worker()])
 }
 export const breakBlock = (game, x, y, z) => rpc('break_block', { p_game: game, p_x: x, p_y: y, p_z: z })
+// Mejores tiempos compartidos (GAME v5): devuelve tu puesto y el top 5. Si el servidor aún no lo tiene, devuelve null.
+export async function submitTime(game, ms) {
+  try {
+    const rank = await rpc('submit_time', { p_game: game, p_ms: Math.round(ms) })
+    const { data } = await gameDb.from('best_times').select('username,ms').eq('game_id', game).order('ms').limit(5)
+    return { rank: Number(rank) || 0, top: data ?? [] }
+  } catch { return null }
+}
 export const say = (game, text) => rpc('say', { p_game: game, p_text: text })
 export const leave = () => rpc('leave', {})
 export const linkApprove = code => rpc('link_approve', { p_code: code })

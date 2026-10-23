@@ -45,7 +45,7 @@ static float vy;
 static ChatLine hist[40]; static int nhist, hscroll; static bool chat_view;        // historial de chat de la partida (con scroll)
 static char game_alert[96]; static u64 game_alert_until;                          // aviso de amigos (solicitud, invitación, mensaje) sobre la partida
 
-typedef struct { enum { PLACE, BREAK, CHAT, EVT } type; int x, y, z, kind; char text[100]; } Action;
+typedef struct { enum { PLACE, BREAK, CHAT, EVT, TIME } type; int x, y, z, kind; char text[100]; } Action;
 #define QMAX 16
 static Action queue[QMAX]; static int qn;
 // ---------- Bosque Oscuro: estado de la partida (lo tocan el hilo de red y el principal, siempre con `lock`) ----------
@@ -58,6 +58,7 @@ static struct {
 	float dist, walk_ph; char note[48];
 } hr;
 static long ev_last = -1;
+static volatile int race_rank;                       // puesto en el top de tiempos (lo escribe el hilo de red)
 static void hr_apply(const GEvent *e, const char *me) {      // con `lock` cogido
 	if (!strcmp(e->kind, "orb")) { if (e->i >= 0 && e->i < world.norbs && !hr.got[e->i]) { hr.got[e->i] = true; hr.ngot++; if (hr.live && strcmp(e->name, me)) snprintf(hr.note, sizeof hr.note, "%s: fragmento %d/%d", e->name, hr.ngot, world.norbs); } }
 	else if (!strcmp(e->kind, "win")) { if (e->round == hr.round && hr.phase == 0) { hr.phase = 1; hr.win_at = osGetTime(); if (hr.live) snprintf(hr.note, sizeof hr.note, "Escapasteis del bosque!"); } }
@@ -81,6 +82,7 @@ static void net_thread(void *arg) {
 			if (a.type == PLACE) net_place_block(&sess, a.x, a.y, a.z, a.kind);
 			else if (a.type == BREAK) net_break_block(&sess, a.x, a.y, a.z);
 			else if (a.type == EVT) net_game_event(&sess, a.text, a.x);
+			else if (a.type == TIME) { int rk = net_submit_time(&sess, a.x); if (rk > 0) race_rank = rk; }
 			else net_say(&sess, a.text);
 		}
 		net_send_state(&sess, x, y, z, ry, anim);
@@ -568,13 +570,14 @@ static bool play_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 			px = rsp_x; py = rsp_y; pz = rsp_z; vy = 0; cx_ = px; cy_ = py + 1; cz_ = pz;
 			snprintf(big_msg, sizeof big_msg, "Has caido"); big_until = now + 1200;
 		}
+		if (race_rank > 0 && race.done) { int rk = race_rank; race_rank = 0; snprintf(big_msg, sizeof big_msg, "Puesto %d en el top", rk); big_until = now + 4000; }
 		if (world.ncp || world.has_fin) {                                      // carrera: cronómetro, puntos de control y meta
 			if (!race.start && moving) race.start = now;
 			for (int i = 0; i < world.ncp; i++) if (world.cp[i].id > race.cp && hypotf(px - world.cp[i].x, pz - world.cp[i].z) < 2.2f && fabsf(py - world.cp[i].y) < 2.5f) {
 				race.cp = world.cp[i].id; rsp_x = world.cp[i].x; rsp_y = world.cp[i].y; rsp_z = world.cp[i].z; snprintf(big_msg, sizeof big_msg, "Punto de control %d", race.cp); big_until = now + 1400;
 			}
 			if (world.has_fin && !race.done && hypotf(px - world.fin[0], pz - world.fin[2]) < world.fin_r && fabsf(py - world.fin[1]) < 3) {
-				race.done = true; unsigned ms = (unsigned)(now - (race.start ? race.start : now)); snprintf(big_msg, sizeof big_msg, "Meta! %u:%05.2f", ms / 60000, (ms % 60000) / 1000.0f); big_until = now + 5000;
+				race.done = true; unsigned ms = (unsigned)(now - (race.start ? race.start : now)); if (ms >= 1500) push_action((Action){.type = TIME, .x = (int)ms}); snprintf(big_msg, sizeof big_msg, "Meta! %u:%05.2f", ms / 60000, (ms % 60000) / 1000.0f); big_until = now + 5000;
 			}
 			if (race.done && now > big_until - 500) { px = world.spawn[0]; py = world.spawn[1]; pz = world.spawn[2]; rsp_x = px; rsp_y = py; rsp_z = pz; vy = 0; cx_ = px; cy_ = py + 1; cz_ = pz; memset(&race, 0, sizeof race); }
 		}

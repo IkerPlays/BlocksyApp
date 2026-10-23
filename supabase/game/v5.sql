@@ -23,3 +23,32 @@ begin
   end loop;
 end $$;
 grant execute on function public.place_blocks(uuid, uuid, jsonb) to anon, authenticated;
+
+-- ---------- Mejores tiempos compartidos (obby / carreras) ----------
+create table if not exists public.best_times (
+  game_id    uuid not null,
+  player_id  uuid not null,
+  username   text not null,
+  ms         int  not null check (ms between 1000 and 3600000),
+  updated_at timestamptz not null default now(),
+  primary key (game_id, player_id)
+);
+alter table public.best_times enable row level security;
+drop policy if exists "read best_times" on public.best_times;
+create policy "read best_times" on public.best_times for select to anon, authenticated using (true);
+revoke insert, update, delete on public.best_times from anon, authenticated;
+create index if not exists best_times_rank_idx on public.best_times (game_id, ms);
+
+-- Guarda tu mejor tiempo y devuelve tu puesto (1 = el mejor)
+create or replace function public.submit_time(p_secret uuid, p_game uuid, p_ms int)
+returns int language plpgsql security definer set search_path = public as $$
+declare s public.sessions := public._me(p_secret); rank int;
+begin
+  if p_ms < 1000 or p_ms > 3600000 then return 0; end if;
+  if not exists (select 1 from game_rules where game_id = p_game) then return 0; end if;
+  insert into best_times (game_id, player_id, username, ms) values (p_game, s.player_id, s.username, p_ms)
+  on conflict (game_id, player_id) do update set ms = least(best_times.ms, excluded.ms), username = excluded.username, updated_at = now();
+  select count(*) + 1 into rank from best_times where game_id = p_game and ms < (select ms from best_times where game_id = p_game and player_id = s.player_id);
+  return rank;
+end $$;
+grant execute on function public.submit_time(uuid, uuid, int) to anon, authenticated;

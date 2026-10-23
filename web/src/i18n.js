@@ -3,6 +3,7 @@ import { EXTRA } from './i18n-extra.js'
 const D = {
   es: {
     lang_name: 'Español',
+    top_times: 'Mejores tiempos', your_rank: 'Tu puesto: {n}',
     st_paint: 'Pintar', st_pick: 'Cuentagotas', st_box: 'Caja', st_select: 'Seleccionar', st_stamp: 'Estructuras', st_part: 'Piezas', st_undo: 'Deshacer', st_redo: 'Rehacer', st_env: 'Entorno',
     st_mode_fill: 'Rellenar', st_mode_hollow: 'Hueco', st_mode_erase: 'Vaciar', st_copy: 'Copiar', st_cut: 'Cortar', st_fillsel: 'Rellenar', st_clear: 'Vaciar', st_rotate: 'Girar (R)', st_add_part: 'Añadir pieza', st_add_spawn: 'Punto de aparición',
     st_dup: 'Duplicar', st_del_part: 'Borrar pieza', st_part_name: 'Nombre (para Lua)', st_size3: 'Tamaño', st_rot: 'Giro', st_shape: 'Forma', st_material: 'Material', st_anchored: 'Fija', st_collide: 'Sólida', st_transp: 'Transparencia',
@@ -67,6 +68,7 @@ const D = {
   },
   en: {
     lang_name: 'English',
+    top_times: 'Best times', your_rank: 'Your rank: {n}',
     st_paint: 'Paint', st_pick: 'Eyedropper', st_box: 'Box', st_select: 'Select', st_stamp: 'Structures', st_part: 'Parts', st_undo: 'Undo', st_redo: 'Redo', st_env: 'Environment',
     st_mode_fill: 'Fill', st_mode_hollow: 'Hollow', st_mode_erase: 'Clear', st_copy: 'Copy', st_cut: 'Cut', st_fillsel: 'Fill', st_clear: 'Clear', st_rotate: 'Rotate (R)', st_add_part: 'Add part', st_add_spawn: 'Spawn point',
     st_dup: 'Duplicate', st_del_part: 'Delete part', st_part_name: 'Name (for Lua)', st_size3: 'Size', st_rot: 'Rotation', st_shape: 'Shape', st_material: 'Material', st_anchored: 'Anchored', st_collide: 'Solid', st_transp: 'Transparency',

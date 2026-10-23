@@ -471,6 +471,11 @@ int net_fetch_chat(long since, ChatMsg *out, int max, long *last) {
 	free(r); return n;
 }
 
+int net_submit_time(const Session *s, int ms) {
+	char body[200]; snprintf(body, sizeof body, "{\"p_secret\":\"%s\",\"p_game\":\"%s\",\"p_ms\":%d}", s->secret, g_game, ms);
+	char *r = http(M_POST, GAME_URL "/rest/v1/rpc/submit_time", GAME_ANON_KEY, NULL, body, NULL);
+	if (!r) return 0; int rk = atoi(r); free(r); return rk;
+}
 // ---------- Bosque oscuro ----------
 int net_fetch_events(long since, GEvent *out, int max, long *last) {
 	char url[300]; snprintf(url, sizeof url, GAME_URL "/rest/v1/interactions?game_id=eq.%s&kind=in.(orb,win,round,caught)&id=gt.%ld&select=id,username,kind,payload&order=id.asc&limit=%d", g_game, since < 0 ? 0 : since, max);
