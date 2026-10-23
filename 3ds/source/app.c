@@ -11,7 +11,7 @@
 #include <sys/stat.h>
 
 static int s_lang;   // 0 español, 1 English, 2 Portugues (ajuste guardado)
-static int s_forest = 1, s_steps = 1, s_showdev;                 // s_showdev: ofrecer devbuilds aunque se use una version estable
+static int s_forest = 1, s_steps = 1, s_showdev, s_ach;     // s_ach: logros conseguidos (bits)                 // s_showdev: ofrecer devbuilds aunque se use una version estable
 static int s_notif_on = 1;                                      // avisos emergentes
 static int s_sync = 2;                                          // nivel de sincronización (índice en SYNC_MS)
 static const int SYNC_MS[6] = {40, 70, 100, 160, 250, 400};     // pausa entre envíos/lecturas de posiciones en la partida
@@ -321,6 +321,7 @@ static void load_settings(void) {
 		else if (!strncmp(line, "dist=", 5)) s_dist = atoi(line + 5) % 3;
 		else if (!strncmp(line, "auto=", 5)) s_auto = atoi(line + 5) != 0;
 		else if (!strncmp(line, "forest=", 7)) { int v = atoi(line + 7); s_forest = v < 0 || v > 2 ? 1 : v; }
+		else if (!strncmp(line, "ach=", 4)) s_ach = atoi(line + 4);
 		else if (!strncmp(line, "showdev=", 8)) s_showdev = atoi(line + 8) ? 1 : 0;
 		else if (!strncmp(line, "steps=", 6)) s_steps = atoi(line + 6) ? 1 : 0;
 		else if (!strncmp(line, "lang=", 5)) { int lg = atoi(line + 5); s_lang = lg < 0 || lg > 2 ? 0 : lg; }
@@ -332,7 +333,7 @@ static void load_settings(void) {
 static void save_settings(void) {
 	mkdir("sdmc:/3ds", 0777); mkdir("sdmc:/3ds/blocksy", 0777);
 	FILE *f = fopen(SETTINGS_FILE, "w"); if (!f) return;
-	fprintf(f, "last_game=%s\ndist=%d\nauto=%d\nlang=%d\nsync=%d\nnotif=%d\nforest=%d\nsteps=%d\nshowdev=%d\n", s_last_game, s_dist, s_auto, s_lang, s_sync, s_notif_on, s_forest, s_steps, s_showdev); fclose(f);
+	fprintf(f, "last_game=%s\ndist=%d\nauto=%d\nlang=%d\nsync=%d\nnotif=%d\nforest=%d\nsteps=%d\nshowdev=%d\nach=%d\n", s_last_game, s_dist, s_auto, s_lang, s_sync, s_notif_on, s_forest, s_steps, s_showdev, s_ach); fclose(f);
 }
 
 // ---------- estado de la interfaz ----------
@@ -375,7 +376,8 @@ static int build_view(const Ui *u, const Session *s, int *view) {
 		for (int i = 0; i < ngames; i++) view[n++] = i;
 		for (int i = 1; i < n; i++) { int v = view[i], j = i - 1; while (j >= 0 && (games[view[j]].fav < games[v].fav || (games[view[j]].fav == games[v].fav && games[view[j]].players < games[v].players))) { view[j + 1] = view[j]; j--; } view[j + 1] = v; }
 	} else if (u->page == P_DISCOVER) {
-		for (int i = 0; i < ngames; i++) {
+		for (int pass = 0; pass < 2; pass++) for (int i = 0; i < ngames; i++) {
+			if ((pass == 0) != (games[i].fav != 0)) continue;                                      // favoritos primero
 			if (u->search[0]) {
 				char a[160], b[48]; snprintf(a, sizeof a, "%s %s", games[i].name, games[i].desc); snprintf(b, sizeof b, "%s", u->search);
 				for (char *c = a; *c; c++) if (*c >= 'A' && *c <= 'Z') *c += 32;
@@ -528,7 +530,7 @@ static void page_top(const Ui *u, const Session *s) {
 		avatar_preview(82, 152, s, parse_hex(AVATAR_COLORS[u->swatch]));
 		ui_text(156, 80, 0.7f, COL_TEXT, 0, s->username);
 		if (!g_account) ui_text(156, 104, 0.38f, COL_RED, 0, "Entra con email y contrasena para guardar.");
-		if (g_account) { char pf[80]; snprintf(pf, sizeof pf, "%d BCoins  |  %s: %d  |  %s: %d", wallet.bcoins, tr2("racha", "streak"), wallet.streak, tr2("amigos", "friends"), nfriends); ui_text(156, 104, 0.36f, COL_ACCENT, 0, pf); }
+		if (g_account) { char pf[96]; int na = 0; for (int i = 0; i < 5; i++) na += (s_ach >> i) & 1; snprintf(pf, sizeof pf, "%d BC | %s %d | %s %d | %s %d/5", wallet.bcoins, tr2("racha", "streak"), wallet.streak, tr2("amigos", "friends"), nfriends, tr2("logros", "ach."), na); ui_text(156, 104, 0.36f, COL_ACCENT, 0, pf); }
 		{ char dm[48]; snprintf(dm, sizeof dm, "X: %s%s%s", tr2("probar emote", "try emote"), prev_demo ? "  (" : "", prev_demo ? AV_EMOTE_LABEL[prev_demo - 1] : ""); if (prev_demo) strncat(dm, ")", sizeof dm - strlen(dm) - 1); ui_text(156, 118, 0.38f, COL_ACCENT, 0, dm); }
 		{ char l[64], f[64]; snprintf(l, sizeof l, "%s: %s", tr2("Sombrero", "Hat"), acc_name("hat")); fit(f, sizeof f, l, 0.42f, 226); ui_text(156, 134, 0.42f, COL_TEXT, 0, f);
 		  snprintf(l, sizeof l, "%s: %s", tr2("Titulo", "Title"), acc_name("title")); fit(f, sizeof f, l, 0.42f, 226); ui_text(156, 150, 0.42f, COL_TEXT, 0, f); }
@@ -937,6 +939,11 @@ AppResult app_lobby(C3D_RenderTarget *top, C3D_RenderTarget *bot, Session *s, Ga
 		u32 down = hidKeysDown(), held = hidKeysHeld(), up = hidKeysUp();
 		if (u.seen_seq != W.seq) { u.seen_seq = W.seq; sync_data(); }
 		if (W.msg[0] && !W.busy) { toast(&u, W.msg); W.msg[0] = 0; }
+		if (g_account && W.seq > 0 && (wallet.bcoins || wallet.ninv || nfriends)) {         // logros de la 3DS (se guardan en la tarjeta SD)
+			static const char *const AN[5] = {"Rico: 1000 BCoins", "Primera compra", "Coleccionista: 5 objetos", "Sociable: 3 amigos", "Racha de 3 dias"};
+			int bits = (wallet.bcoins >= 1000) | (wallet.ninv >= 1) << 1 | (wallet.ninv >= 5) << 2 | (nfriends >= 3) << 3 | (wallet.streak >= 3) << 4, nw = bits & ~s_ach;
+			if (nw) { for (int i = 0; i < 5; i++) if (nw & (1 << i)) { char m[64]; snprintf(m, sizeof m, "%s: %s", tr2("Logro", "Achievement"), AN[i]); toast(&u, m); break; } s_ach |= nw; save_settings(); }
+		}
 		if (g_upd_announce) { g_upd_announce = 0; char m[64]; snprintf(m, sizeof m, "Hay una version nueva: %s", g_upd.stable.newer ? g_upd.stable.tag : g_upd.dev.tag); toast(&u, m); }
 		if (down & KEY_START) { res = APP_QUIT; break; }
 		if (u.dm >= 0 && g_dm_seq != u.seen_dm) { u.seen_dm = g_dm_seq; sync_data(); if (u.dm_sel >= ndm) u.dm_sel = -1; }

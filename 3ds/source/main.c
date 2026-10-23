@@ -42,7 +42,7 @@ static bool grounded;
 static volatile int moving;
 static char send_anim[12] = "idle";            // animación que se envía a los demás: idle / walk / jump / un emote
 static float vy;
-static ChatLine hist[40]; static int nhist, hscroll; static bool chat_view;        // historial de chat de la partida (con scroll)
+static ChatLine hist[120]; static int nhist, hscroll; static bool chat_view;        // historial de chat de la partida (con scroll)
 static char game_alert[96]; static u64 game_alert_until;                          // aviso de amigos (solicitud, invitación, mensaje) sobre la partida
 
 typedef struct { enum { PLACE, BREAK, CHAT, EVT, TIME } type; int x, y, z, kind; char text[100]; } Action;
@@ -529,7 +529,12 @@ static bool play_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 		if (can_build && (down & KEY_DRIGHT)) kind = (kind + 1) % NPALETTE;
 		if (can_build && (down & KEY_DLEFT)) kind = (kind + NPALETTE - 1) % NPALETTE;
 		if (((held & KEY_L) && (held & KEY_R)) && (down & (KEY_L | KEY_R))) { photo_mode = !photo_mode; snprintf(big_msg, sizeof big_msg, "%s", photo_mode ? "Modo foto (L+R)" : "Modo foto off"); big_until = now + 1200; }
-		if (down & KEY_SELECT) do_chat();
+		{                                                                        // SELECT: toque = chat; mantener 1 s = volver al punto de inicio
+			static u64 sel_at; static bool sel_used;
+			if (down & KEY_SELECT) { sel_at = now; sel_used = false; }
+			if ((held & KEY_SELECT) && !sel_used && now - sel_at >= 900) { sel_used = true; px = rsp_x; py = rsp_y; pz = rsp_z; vy = 0; cx_ = px; cy_ = py + 1; cz_ = pz; snprintf(big_msg, sizeof big_msg, "Al punto de inicio"); big_until = now + 1200; }
+			if ((hidKeysUp() & KEY_SELECT) && !sel_used) do_chat();
+		}
 		if (down & KEY_TOUCH) {
 			touchPosition tp; hidTouchRead(&tp);
 			int act = ui_game_touch(tp.px, tp.py, emote_menu, chat_view);
@@ -557,7 +562,7 @@ static bool play_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 		for (int i = 0; i < nchat_new; i++) {                       // mensajes nuevos -> lista visible 10 s
 			memmove(&chat[0], &chat[1], sizeof chat[0] * 3);
 			snprintf(chat[3].name, sizeof chat[3].name, "%s", chat_new[i].name); snprintf(chat[3].text, sizeof chat[3].text, "%s", chat_new[i].text); chat[3].until = now + 10000;
-			if (nhist == 40) { memmove(&hist[0], &hist[1], sizeof hist[0] * 39); nhist = 39; }
+			if (nhist == 120) { memmove(&hist[0], &hist[1], sizeof hist[0] * 119); nhist = 119; }
 			snprintf(hist[nhist].name, sizeof hist[nhist].name, "%s", chat_new[i].name); snprintf(hist[nhist].text, sizeof hist[nhist].text, "%s", chat_new[i].text); nhist++; if (hscroll > 0 && hscroll < nhist - 5) hscroll++;
 		}
 		nchat_new = 0;
