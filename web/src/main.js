@@ -13,6 +13,8 @@ import { initNotifications, openInvite } from './social-ui.js'
 import { openScriptModal } from './studio-ui.js'
 import { registerSW, applyUpdate } from './pwa.js'
 import { installErrorLog, isNewVersion } from './about.js'
+import { sfx } from './sfx.js'
+import { settings } from './settings.js'
 import * as social from './social.js'
 import { icon } from './icons.js'
 
@@ -63,6 +65,7 @@ async function route() {
   if (page === 'profile' && !arg) arg = profile.username
   const name = pages[page] && !(page === 'create' && !api.canCreate()) ? page : 'home'
   if (name !== page) history.replaceState(null, '', '/home')
+  { const pg = $("page"); pg.classList.remove("pg-in"); void pg.offsetWidth; pg.classList.add("pg-in") }
   const navName = name === 'profile' && arg?.toLowerCase() !== profile.username.toLowerCase() ? '' : name
   document.querySelectorAll('#sidebar a').forEach(a => a.classList.toggle('active', a.dataset.page === navName))
   $('sidebar').classList.remove('open')
@@ -156,6 +159,7 @@ new MutationObserver(() => { if ($('modal').classList.contains('hidden')) $('gam
 $('search').addEventListener('submit', e => { e.preventDefault(); const q = $('search-input').value.trim(); navigate(q ? `/discover/${encodeURIComponent(q)}` : '/discover') })
 window.addEventListener('beforeunload', () => { api.leaveBeacon() })
 installErrorLog()
+document.addEventListener('click', e => { if (settings.uiSounds && e.target.closest?.('.btn, #sidebar a, .tab, .card, .game-card, .person, .shop-card button')) sfx.click() }, true)
 registerSW(() => { $('update-bar').classList.remove('hidden') })
 $('update-reload').onclick = () => applyUpdate()
 $('update-later').onclick = () => $('update-bar').classList.add('hidden')

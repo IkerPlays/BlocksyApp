@@ -30,6 +30,7 @@ export function el(tag, props = {}, ...kids) {
 }
 // Como replaceChildren pero acepta arrays anidados y descarta null/false
 export function setKids(node, ...kids) { node.replaceChildren(...kids.flat(Infinity).filter(k => k != null && k !== false)) }
+const pageSkel = () => [el('div', { class: 'skel', style: 'height:34px;width:38%;margin-bottom:16px' }), skeletons(6)]
 export function showNews() {
   const m = $('modal'); setKids($('modal-card'), el('div', { class: 'detail-col' }, el('h2', { text: t('whats_new') + ' · ' + APP_VERSION }), el('ul', { class: 'news-list' }, whatsNew().map(x => el('li', { text: x }))), el('button', { class: 'btn wide primary', text: t('close'), onclick: closeModal })))
   m.classList.remove('hidden'); markSeen()
@@ -198,7 +199,7 @@ export const pages = {
 
   // Tienda: BCoins, sombreros, títulos y cofres de botín
   async shop(root, ctx) {
-    setKids(root, el('h1', { class: 'page-title', text: t('loading') }))
+    setKids(root, pageSkel())
     const [items, w0] = await Promise.all([social.listShop(), social.loadWallet()])
     const canvas = el('canvas', { class: 'avatar-3d' }), coins = el('b', { class: 'coin-big' }), daily = el('div'), body = el('div')
     let pv = null, tryOn = null
@@ -256,7 +257,7 @@ export const pages = {
 
   // Perfil: /profile (el tuyo) o /u/<usuario>
   async profile(root, ctx, name) {
-    setKids(root, el('h1', { class: 'page-title', text: t('loading') }))
+    setKids(root, pageSkel())
     const { data: p, error } = await social.getProfile(name, ctx.profile.id)
     if (error || !p) return setKids(root, el('h1', { class: 'page-title', text: t('nav_profile') }), el('div', { class: 'empty', text: error ? `${t('err_generic')}: ${error.message}` : t('p_not_found') }))
     const self = p.relation === 'self', canvas = el('canvas', { class: 'avatar-3d' })
@@ -551,7 +552,7 @@ export const pages = {
     setKids(root, el('h1', { class: 'page-title', text: t('settings') }),
       el('div', { class: 'settings-grid' },
         el('div', { class: 'panel' }, el('h3', { text: t('set_language') }), el('label', { class: 'field' }, t('set_language'), langSel), el('p', { class: 'msg', style: 'text-align:left', text: t('lang_hint') }),
-          sel('theme', t('set_theme'), [['dark', t('theme_dark')], ['light', t('theme_light')]], applyTheme), el('label', { class: 'field' }, t('set_accent'), accent), sw('reduceMotion', t('set_motion'), applyTheme), installRow, el('div', { class: 'section-s', text: t('web_version') }), upd),
+          sel('theme', t('set_theme'), [['dark', t('theme_dark')], ['light', t('theme_light')], ['contrast', t('theme_contrast')]], applyTheme), el('label', { class: 'field' }, t('set_accent'), accent), sw('reduceMotion', t('set_motion'), applyTheme), installRow, el('div', { class: 'section-s', text: t('web_version') }), upd),
         el('div', { class: 'panel' }, el('h3', { text: t('set_quality') }),
           sel('quality', t('set_quality'), [['low', t('q_low')], ['med', t('q_med')], ['high', t('q_high')], ['ultra', t('q_ultra')]]),
           rg('viewDistance', t('set_dist'), 30, 250, 10), rg('fov', t('set_fov'), 50, 100, 1), sw('dynRes', t('set_dynres')), sw('shadows', t('set_shadows')), sw('bloom', t('set_bloom')), sw('clouds', t('set_clouds'))),
@@ -571,7 +572,7 @@ export const pages = {
             el('button', { class: 'btn primary', text: t('report_bug'), onclick: () => window.open(reportUrl(), '_blank', 'noopener') }))),
         el('div', { class: 'panel' }, el('h3', { text: t('set_access') }),
           sel('colorblind', t('set_colorblind'), [['none', t('cb_none')], ['protanopia', t('cb_prot')], ['deuteranopia', t('cb_deut')], ['tritanopia', t('cb_trit')]]),
-          rg('textScale', t('set_text_size'), 0.9, 1.5, 0.05, v => Math.round(v * 100) + '%'), sw('subtitles', t('set_subtitles')), sw('chatFilter', t('set_chat_filter')), sw('vibrate', t('set_vibrate')), sel('batterySaver', t('set_saver'), [['auto', t('saver_auto')], ['on', t('saver_on')], ['off', t('saver_off')]])),
+          rg('textScale', t('set_text_size'), 0.9, 1.5, 0.05, v => Math.round(v * 100) + '%'), sw('subtitles', t('set_subtitles')), sw('uiSounds', t('set_ui_sounds')), sw('chatFilter', t('set_chat_filter')), sw('vibrate', t('set_vibrate')), sel('batterySaver', t('set_saver'), [['auto', t('saver_auto')], ['on', t('saver_on')], ['off', t('saver_off')]])),
         el('div', { class: 'panel' }, el('h3', { text: t('set_keys') }), ...keyRows(),
           el('button', { class: 'btn', text: t('keys_reset'), onclick: () => { settings.keymap = {}; saveSettings(); pages.settings(root, ctx) } })),
         el('div', { class: 'panel' }, el('h3', { text: t('blocked_users') }), blockedBox),
@@ -585,7 +586,7 @@ export const pages = {
 const TERRAINS = ['flat', 'hills', 'islands', 'plaza', 'checker', 'void', 'obby']
 const SKIES = ['day', 'sunset', 'night', 'space']
 async function editor(root, ctx, id) {
-  setKids(root, el('h1', { class: 'page-title', text: t('loading') }))
+  setKids(root, pageSkel())
   const g = await api.getGame(id)
   if (!g || g.owner_id !== ctx.profile.id) return ctx.go('create')
   g.config = { allow_chat: true, allow_emotes: true, ...(g.config ?? {}) }

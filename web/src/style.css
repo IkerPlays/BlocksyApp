@@ -392,3 +392,10 @@ html.big-text .page, html.big-text #chat-log, html.big-text #chat-form, html.big
 .news-list { margin: 8px 0 14px; padding-left: 18px; line-height: 1.5; } .news-list li { margin-bottom: 6px; }
 .err-log { max-height: 240px; overflow: auto; background: #0006; padding: 10px; border-radius: 8px; font-size: 12px; white-space: pre-wrap; word-break: break-word; }
 .row-btns { display: flex; flex-wrap: wrap; gap: 8px; }
+
+:root[data-theme=contrast] { color-scheme: dark; --bg:#000; --panel:#000; --panel2:#0d0d0d; --line:#fff; --fg:#fff; --muted:#e6e6e6; --accent:#ffe600; --accent2:#ffe600; --green:#00ff7f; --red:#ff5a5a; }
+:root[data-theme=contrast] .panel, :root[data-theme=contrast] .btn, :root[data-theme=contrast] .shop-card, :root[data-theme=contrast] .ach, :root[data-theme=contrast] input, :root[data-theme=contrast] select { border: 2px solid #fff; }
+:root[data-theme=contrast] .btn.primary, :root[data-theme=contrast] .btn.blue, :root[data-theme=contrast] .tab.active { color: #000; background: #ffe600; }
+:root[data-theme=contrast] a:focus-visible, :root[data-theme=contrast] button:focus-visible { outline: 3px solid #ffe600; outline-offset: 2px; }
+#page.pg-in { animation: pgin .22s ease-out; } @keyframes pgin { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.reduce-motion #page.pg-in { animation: none; }

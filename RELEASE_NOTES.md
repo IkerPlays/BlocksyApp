@@ -1,4 +1,5 @@
-Devbuild 23: about and favorites
-- What's new window (shown once after each update) and Credits.
-- Error log (last 20 errors on this device) and Report a problem, which opens a prefilled GitHub issue.
-- 3DS: favorites. Press X on a game card to add or remove it; favorites are shared with the web and listed first (needs an email login).
+Devbuild 24: polish
+- Page transitions (fade and slide, off with Reduce motion).
+- Skeleton loaders while the shop, profile and other pages load.
+- High contrast theme (Settings > Theme).
+- Interface click sounds (setting).
