@@ -1,5 +1,5 @@
-Devbuild 33: script editor
-- Code snippets menu (PlayerAdded, Touched, Tween, RemoteEvent, DataStore...).
-- Autocomplete for the Roblox-style API and the words in your script (Tab accepts).
-- Find and replace with Ctrl+F.
-- Script console: shows what your script prints and its errors; click an error to jump to its line.
+Devbuild 34: Studio versions
+- Versions panel: a snapshot is saved every time you save (last 10, on this device) and you can save one by hand.
+- Restore a version: blocks, parts, script and settings go back (block changes can be undone with Ctrl+Z).
+- Draft mode: a game marked as draft is hidden from everyone but you.
+- The toolbar shows when the game was last saved.

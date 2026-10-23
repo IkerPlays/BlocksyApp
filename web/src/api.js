@@ -157,7 +157,12 @@ export async function getGame(id) {
   const { data } = await gameDb.from('games').select('*').eq('id', id).maybeSingle()
   return data
 }
-export async function listGames() {
+// Los juegos en borrador (config.draft) solo los ve su dueño
+let myIdCache = null
+const myId = async () => myIdCache ?? (myIdCache = (await authDb.auth.getSession()).data.session?.user?.id ?? null)
+const visibleGames = async list => { const me = await myId(); return list.filter(g => !g.config?.draft || g.owner_id === me) }
+export async function listGames() { return visibleGames(await listGamesAll()) }
+async function listGamesAll() {
   if (!(await storeReadOk())) { const { data } = await gameDb.from('games').select('*').order('created_at'); return data ?? [] }
   const { data } = await storeDb.from('games').select('*').order('created_at')
   const out = data ?? [], ids = fbIds().filter(i => !out.some(g => g.id === i))

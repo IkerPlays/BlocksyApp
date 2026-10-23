@@ -224,10 +224,47 @@ export function createStudio(ctx) {
     const tr = h('select', { onchange: e => { c.track = e.target.value; cfg.track = c.track } }, h('option', { value: '', text: t('track_any') })); music.listTracks().then(l => l.forEach(x => tr.append(h('option', { value: x.file, text: x.title, selected: c.track === x.file }))))
     const wel = h('input', { value: c.welcome ?? '', maxlength: 120, placeholder: t('env_welcome') }); wel.oninput = () => { c.welcome = wel.value; cfg.welcome = wel.value }
     envBox.replaceChildren(h('b', { text: t('st_env') }), h('label', {}, t('ed_sky'), sky), numf('gravity', t('env_gravity'), 24, 1, 0, 80), numf('speed', t('env_speed'), 6, 0.5, 1, 30), numf('jump', t('env_jump'), 8.6, 0.5, 1, 30), numf('fog', t('env_fog'), 1, 0.1, 0.25, 2), h('label', {}, t('env_weather'), wx), h('label', {}, t('env_track'), tr), h('label', {}, t('env_welcome'), wel),
-      bool('allow_chat', t('env_chat'), true), bool('allow_emotes', t('env_emotes'), true), bool('allow_fly', t('env_fly'), true), bool('allow_build', t('env_build'), false), bool('double_jump', t('env_dj'), false), bool('allow_crouch', t('env_crouch'), true))
+      bool('allow_chat', t('env_chat'), true), bool('allow_emotes', t('env_emotes'), true), bool('allow_fly', t('env_fly'), true), bool('allow_build', t('env_build'), false), bool('double_jump', t('env_dj'), false), bool('allow_crouch', t('env_crouch'), true), bool('draft', t('env_draft'), false))
     envBox.classList.remove('hidden')
   }
 
+  // ---------- versiones (instantáneas locales) e indicador de guardado ----------
+  const SNAP_KEY = `blocksy.snaps.${game.id}`, MAX_SNAPS = 10
+  const readSnaps = () => { try { const l = JSON.parse(localStorage.getItem(SNAP_KEY) || '[]'); return Array.isArray(l) ? l : [] } catch { return [] } }
+  const writeSnaps = l => { for (;;) { try { localStorage.setItem(SNAP_KEY, JSON.stringify(l)); return true } catch { if (l.length <= 1) return false; l.shift() } } }          // si no cabe, se descartan las más viejas
+  function takeSnapshot(label) {
+    const blocks = []; for (const [k, e] of index) { const [x, y, z] = k.split(',').map(Number); blocks.push([x, y, z, e.kind]) }
+    const { ui, parts: _p, ...conf } = game.config ?? {}
+    const l = readSnaps(); l.push({ at: Date.now(), label, blocks: blocks.length <= 12000 ? blocks : null, nb: blocks.length, parts: parts.map(p => ({ ...p })), config: conf, script: game.script ?? '' })
+    while (l.length > MAX_SNAPS) l.shift()
+    writeSnaps(l); paintVersions()
+  }
+  function restoreSnapshot(i) {
+    const s = readSnaps()[i]; if (!s) return
+    takeSnapshot(t('st_snap_before')); paintVersions()
+    if (s.blocks) {
+      const want = new Map(s.blocks.map(([x, y, z, k]) => [key(x, y, z), [x, y, z, k]])), ops = []
+      for (const [k, e] of index) { const w = want.get(k); if (!w) { const [x, y, z] = k.split(',').map(Number); ops.push({ x, y, z, to: -1 }) } else if (w[3] !== e.kind) ops.push({ x: w[0], y: w[1], z: w[2], to: w[3] }) }
+      for (const [k, w] of want) if (!index.has(k)) ops.push({ x: w[0], y: w[1], z: w[2], to: w[3] })
+      const saveSym = state.sym; state.sym = 'off'; commit(ops); state.sym = saveSym
+    }
+    game.script = s.script; game.config = { ...s.config, ui: game.config?.ui, parts: game.config?.parts }
+    parts.length = 0; parts.push(...s.parts.map(p => ({ ...p }))); selPart = -1; multi.clear(); refreshParts(); partInsp.classList.add('hidden')
+    showTitle(t('st_snap_restored'), 1800)
+  }
+  const versionsBox = h('div', { id: 'studio-versions', class: 'hidden' }); g.append(versionsBox)
+  function paintVersions() {
+    if (versionsBox.classList.contains('hidden')) return
+    const l = readSnaps()
+    versionsBox.replaceChildren(h('b', { text: t('st_versions') }), h('button', { type: 'button', class: 'btn tiny primary', text: '+ ' + t('st_snap_new'), onclick: () => { takeSnapshot(t('st_snap_manual')); sfx.click() } }),
+      ...l.map((s, i) => ({ s, i })).reverse().map(({ s, i }) => h('div', { class: 'ver-row' }, h('div', { class: 'grow' }, h('span', { text: s.label }), h('small', { text: `${new Date(s.at).toLocaleString()} · ${s.nb} ${t('st_blocks')}${s.blocks ? '' : ' (' + t('st_snap_noblocks') + ')'} · ${s.parts.length} ${t('st_parts')}` })),
+        h('button', { type: 'button', class: 'btn tiny', text: t('st_snap_restore'), onclick: () => restoreSnapshot(i) }), h('button', { type: 'button', class: 'btn tiny danger', text: '×', onclick: () => { const q = readSnaps(); q.splice(i, 1); writeSnaps(q); paintVersions() } }))),
+      !l.length ? h('small', { class: 'muted', text: t('st_snap_none') }) : null)
+  }
+  const toggleVersions = () => { versionsBox.classList.toggle('hidden'); paintVersions() }
+  let lastSaved = 0, savedEl
+  const paintSaved = () => { if (!savedEl) return; savedEl.textContent = lastSaved ? `✓ ${new Date(lastSaved).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : t('st_unsaved'); savedEl.classList.toggle('dirty', !lastSaved) }
+  const doSave = async silent => { const ok = await onSave(silent); if (ok) { lastSaved = Date.now(); paintSaved(); if (silent !== true) takeSnapshot(t('st_snap_save')) } return ok }
   // ---------- barra de herramientas ----------
   const TOOLS = [['place', 'plus'], ['erase', 'trash'], ['paint', 'edit'], ['pick', 'search'], ['box', 'box'], ['shape', 'sphere'], ['line', 'line'], ['replace', 'replace'], ['select', 'select'], ['stamp', 'cube'], ['part', 'part'], ['measure', 'ruler'], ['ui', 'chat']]
   const opts = h('div', { id: 'studio-opts', class: 'hidden' }); g.append(opts)
@@ -262,8 +299,8 @@ export function createStudio(ctx) {
     const items = TOOLS.map(([k, ic]) => { const b = mkBtn('st-' + k, ic, t('st_' + k), () => setTool(k), k === 'place' ? 'on' : ''); btnFor[k] = b; return b })
     const symBtn = mkBtn('st-sym', 'mirror', t('st_sym'), () => { state.sym = { off: 'x', x: 'z', z: 'xz', xz: 'off' }[state.sym]; symBtn.classList.toggle('on', state.sym !== 'off'); symBtn.title = `${t('st_sym')}: ${state.sym}`; showTitle(`${t('st_sym')}: ${state.sym === 'off' ? t('st_sym_off') : state.sym.toUpperCase()}`, 1200) })
     undoBtn = mkBtn('st-undo', 'undo', t('st_undo'), undo); redoBtn = mkBtn('st-redo', 'redo', t('st_redo'), redo)
-    bar.replaceChildren(...items, h('i', { class: 'st-sep' }), mkBtn('st-addtext', 'chat', t('st_addtext'), () => { onAddText(); setTool('ui') }), symBtn, undoBtn, redoBtn, mkBtn('st-grid', 'grid', t('st_gridview'), () => { gridHelper.visible = !gridHelper.visible; document.getElementById('st-grid')?.classList.toggle('on', gridHelper.visible) }), mkBtn('st-explorer', 'menu', t('st_explorer'), toggleExplorer), mkBtn('st-export', 'send', t('st_export'), exportGame), mkBtn('st-env', 'sliders', t('st_env'), openEnv), mkBtn('st-script', 'code', t('ed_script'), onScript), mkBtn('st-help', 'search', t('st_shortcuts'), () => helpBox.classList.toggle('hidden')),
-      h('i', { class: 'st-sep' }), mkBtn('st-test', 'play', t('st_test'), onTestToggle, 'lbl'), mkBtn('st-save', 'check', t('save'), onSave, 'primary lbl'), mkBtn('st-exit', 'back', t('close'), onExit, 'lbl'))
+    bar.replaceChildren(...items, h('i', { class: 'st-sep' }), mkBtn('st-addtext', 'chat', t('st_addtext'), () => { onAddText(); setTool('ui') }), symBtn, undoBtn, redoBtn, mkBtn('st-grid', 'grid', t('st_gridview'), () => { gridHelper.visible = !gridHelper.visible; document.getElementById('st-grid')?.classList.toggle('on', gridHelper.visible) }), mkBtn('st-explorer', 'menu', t('st_explorer'), toggleExplorer), mkBtn('st-versions', 'undo', t('st_versions'), toggleVersions), mkBtn('st-export', 'send', t('st_export'), exportGame), mkBtn('st-env', 'sliders', t('st_env'), openEnv), mkBtn('st-script', 'code', t('ed_script'), onScript), mkBtn('st-help', 'search', t('st_shortcuts'), () => helpBox.classList.toggle('hidden')),
+      h('i', { class: 'st-sep' }), mkBtn('st-test', 'play', t('st_test'), onTestToggle, 'lbl'), mkBtn('st-save', 'check', t('save'), () => doSave(), 'primary lbl'), (savedEl = h('span', { class: 'st-saved dirty', text: t('st_unsaved') })), mkBtn('st-exit', 'back', t('close'), onExit, 'lbl'))
     paintHistory(); setTool('place')
   }
   buildBar()
@@ -418,6 +455,6 @@ export function createStudio(ctx) {
   }
   function pointerUp() { if (!dragPart) return false; dragPart = null; refreshParts(); openPartInspector(); return true }
   refreshParts()
-  function dispose() { for (const o of [wire, stamp, selWire, gridHelper, measureLine, ...extraWires]) scene.remove(o); helpBox.remove(); stampGeo.dispose(); stampMat.dispose(); stamp.dispose(); opts.remove(); partInsp.remove(); envBox.remove(); explorer.remove() }
-  return { save: onSave, interact, update, keydown, pointerDown, pointerMove, pointerUp, undo, redo, setTool, setTesting, dispose, flush, get tool() { return state.tool }, get parts() { return parts } }
+  function dispose() { for (const o of [wire, stamp, selWire, gridHelper, measureLine, ...extraWires]) scene.remove(o); helpBox.remove(); stampGeo.dispose(); stampMat.dispose(); stamp.dispose(); opts.remove(); partInsp.remove(); envBox.remove(); explorer.remove(); versionsBox.remove() }
+  return { save: doSave, interact, update, keydown, pointerDown, pointerMove, pointerUp, undo, redo, setTool, setTesting, dispose, flush, get tool() { return state.tool }, get parts() { return parts } }
 }

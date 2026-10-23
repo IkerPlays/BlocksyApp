@@ -411,3 +411,6 @@ html.rainbow { animation: rainbow 2s linear infinite; } @keyframes rainbow { to 
 .find-bar { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-bottom: 6px; } .find-bar input { width: 140px; padding: 5px 8px; }
 .script-console { margin-top: 10px; max-height: 160px; overflow: auto; background: #0005; border-radius: 8px; padding: 8px; font-size: 12px; font-family: ui-monospace, monospace; }
 .con-row { display: flex; gap: 8px; padding: 2px 0; } .con-row.error { color: #ff8f8f; cursor: pointer; } .con-row.error:hover { background: #ff000018; } .con-row small { margin-left: auto; opacity: .7; }
+#studio-versions { position: absolute; left: 16px; top: 120px; width: 320px; max-height: 70vh; overflow: auto; background: #000d; color: #fff; padding: 12px; border-radius: 12px; z-index: 40; display: flex; flex-direction: column; gap: 8px; }
+.ver-row { display: flex; gap: 6px; align-items: center; background: #ffffff10; border-radius: 8px; padding: 6px 8px; } .ver-row .grow { display: flex; flex-direction: column; min-width: 0; } .ver-row small { opacity: .7; font-size: 11px; }
+.st-saved { align-self: center; font-size: 12px; color: #7be39b; padding: 0 6px; white-space: nowrap; } .st-saved.dirty { color: #ffb86b; }
