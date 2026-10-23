@@ -1,3 +1,4 @@
-Devbuild 29: 3DS hats
-- 3DS: the 6 new hats (wizard, cowboy, chef, beanie, helmet, flower) are now drawn on the 3DS, so every hat you wear on the web shows there too.
-- 3DS: the shop only loads hats, titles and crates, and has room for the whole catalog.
+Devbuild 30: Studio selection tools
+- Rotate the selected blocks 90 degrees and flip them on X or Z (with undo).
+- Move the selection with Shift+arrows (PageUp and PageDown for height).
+- Select several parts with Shift+click; move, copy and delete them together.

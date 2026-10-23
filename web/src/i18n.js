@@ -3,6 +3,7 @@ import { EXTRA } from './i18n-extra.js'
 const D = {
   es: {
     lang_name: 'Español',
+    st_multi_n: '{n} piezas seleccionadas (Mayús+clic para añadir)', st_rot90: 'Girar 90°', st_flipx: 'Voltear X', st_flipz: 'Voltear Z',
     tut_move: 'Muévete con W A S D', tut_jump: 'Salta con Espacio', tut_look: 'Arrastra el ratón o el dedo para girar la cámara', tut_chat: 'Pulsa Enter o / para abrir el chat', tut_emote: 'Pulsa G para ver los emotes', tut_done: '¡Listo! Ya sabes jugar.', egg_konami: '¡Modo arcoíris!', egg_party: '¡Fiesta!', welcome_title: '¡Bienvenido a Blocksy!', welcome_text: 'Tres pasos para empezar:', welcome_avatar: 'Crea tu avatar', welcome_play: 'Elige un juego', welcome_shop: 'Mira la tienda', my_game_stats: 'Has jugado aquí {n} veces ({m} min)',
     theme_contrast: 'Alto contraste', set_ui_sounds: 'Sonidos de la interfaz',
     about: 'Acerca de', whats_new: 'Novedades', credits: 'Créditos', error_log: 'Registro de errores', report_bug: 'Informar de un fallo', no_errors: 'No hay errores registrados.', clear: 'Borrar',
@@ -94,6 +95,7 @@ const D = {
   },
   en: {
     lang_name: 'English',
+    st_multi_n: '{n} parts selected (Shift+click to add)', st_rot90: 'Rotate 90°', st_flipx: 'Flip X', st_flipz: 'Flip Z',
     tut_move: 'Move with W A S D', tut_jump: 'Jump with Space', tut_look: 'Drag the mouse or your finger to turn the camera', tut_chat: 'Press Enter or / to open the chat', tut_emote: 'Press G to see the emotes', tut_done: 'Done! You know how to play.', egg_konami: 'Rainbow mode!', egg_party: 'Party time!', welcome_title: 'Welcome to Blocksy!', welcome_text: 'Three steps to get started:', welcome_avatar: 'Make your avatar', welcome_play: 'Pick a game', welcome_shop: 'Check out the shop', my_game_stats: 'You have played here {n} times ({m} min)',
     theme_contrast: 'High contrast', set_ui_sounds: 'Interface sounds',
     about: 'About', whats_new: 'What\'s new', credits: 'Credits', error_log: 'Error log', report_bug: 'Report a problem', no_errors: 'No errors recorded.', clear: 'Clear',

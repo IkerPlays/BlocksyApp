@@ -12,3 +12,4 @@ export const clearGameSession = () => {}, openGameSession = () => Promise.resolv
 export const placeBlocks = ok, submitTime = () => Promise.resolve(null)
 export const npcTick = () => Promise.resolve(true), npcRelease = ok, gameEvent = ok
 export const storeRpc = () => Promise.resolve(null), openStoreSession = () => Promise.resolve({})
+export const storeReadOk = () => Promise.resolve(false), storeWriteOk = () => Promise.resolve(false), storeStatus = () => ({ read: false, write: false, why: '' })
