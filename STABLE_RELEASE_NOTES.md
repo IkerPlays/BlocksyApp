@@ -16,6 +16,7 @@ Blocksy is a multiplayer block-building game for the web and the Nintendo 3DS (h
 - Studio: own structure library, structure import and export, game thumbnails and a compact toolbar.
 - Command palette, g-shortcuts, offline banner and retry on failed page loads.
 - Home: continue playing card, friends playing now, streak and daily reward, and a random game button.
+- Discover: search suggestions, trending, similar games and report a game.
 
 ## Installing
 - Install `Blocksy.cia` with FBI, or copy `Blocksy.3dsx` to the `3ds` folder of the SD card and run it from the Homebrew Launcher.

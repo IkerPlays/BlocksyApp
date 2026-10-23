@@ -102,7 +102,7 @@ const grid = (games, counts, onOpen) => games.length
   : el('div', { class: 'empty', text: t('no_games') })
 
 export function openGameModal(g, counts, onPlay) {
-  const m = $('modal'), card = $('modal-card'), n = counts[g.id] ?? 0
+  const m = $('modal'), card = $('modal-card'), n = counts[g.id] ?? 0, related = el('div')
   setKids(card, el('div', { class: 'detail' },
     el('div', { class: 'thumb', style: `--h:${g.hue ?? hueOf(g.id)}` }, el('div', { class: 'cube' })),
     el('div', {}, el('h2', { text: g.name }),
@@ -117,8 +117,11 @@ export function openGameModal(g, counts, onPlay) {
       voteBox(g),
       favBtn(g),
       roomBox(g, onPlay),
+      related,
+      g.owner_name && g.owner_name !== 'Blocksy' ? el('button', { class: 'btn wide ghost', text: t('report_game'), onclick: () => openReport(g.owner_name, `Juego: ${g.name} (${g.id})`) }) : null,
       el('button', { class: 'btn wide', text: t('close'), onclick: closeModal }))))
   m.classList.remove('hidden')
+  api.listGames().then(all => { const tags = new Set(Array.isArray(g.config?.tags) ? g.config.tags : []); const rel = all.filter(x => x.id !== g.id && ((x.mode ?? 'build') === (g.mode ?? 'build') || (Array.isArray(x.config?.tags) && x.config.tags.some(tg => tags.has(tg))))).slice(0, 3); if (rel.length) setKids(related, el('div', { class: 'section-s', text: t('related_games') }), el('div', { class: 'chips' }, rel.map(x => el('button', { class: 'chip', text: x.name, onclick: () => openGameModal(x, counts, onPlay) })))) }).catch(() => {})
 }
 const skeletons = n => el('div', { class: 'grid' }, Array.from({ length: n }, () => el('div', {}, el('div', { class: 'skel card' }), el('div', { class: 'skel line' }))))
 export const closeModal = () => $('modal').classList.add('hidden')
@@ -128,12 +131,12 @@ let refreshTimer = null
 const every = (fn, ms) => { clearInterval(refreshTimer); refreshTimer = setInterval(() => { if (!document.hidden) fn() }, ms) }
 export const stopPageTimers = () => clearInterval(refreshTimer)
 
-function openReport(name) {
+function openReport(name, extra = '') {
   const reasons = ['spam', 'abuse', 'cheating', 'inappropriate', 'other']
   const sel = el('select', {}, reasons.map(r => el('option', { value: r, text: t('rep_' + r) })))
   const det = el('textarea', { class: 'bio-edit', rows: 3, maxlength: 300, placeholder: t('rep_details') })
   setKids($('modal-card'), el('div', { class: 'detail-col' }, el('h2', { text: t('report') + ': ' + name }), el('label', { class: 'field' }, t('rep_reason'), sel), det,
-    el('div', { class: 'form-row' }, el('button', { class: 'btn danger', text: t('report'), onclick: async () => { try { await social.reportUser(name, sel.value, det.value); toast(t('rep_sent')); closeModal() } catch (e) { toast(e.message) } } }), el('button', { class: 'btn', text: t('cancel'), onclick: closeModal }))))
+    el('div', { class: 'form-row' }, el('button', { class: 'btn danger', text: t('report'), onclick: async () => { try { await social.reportUser(name, sel.value, (extra ? extra + ' | ' : '') + det.value); toast(t('rep_sent')); closeModal() } catch (e) { toast(e.message) } } }), el('button', { class: 'btn', text: t('cancel'), onclick: closeModal }))))
   $('modal').classList.remove('hidden')
 }
 export { openReport }
@@ -195,13 +198,21 @@ export const pages = {
     const sortEl = el('select', { onchange: e => { sortSel = e.target.value; draw() } }, ['popular', 'newest', 'az', 'liked'].map(k => el('option', { value: k, text: t('sort_' + k) })))
     const chips = el('div', { class: 'chips' })
     const out = el('div')
-    const draw = () => {
+    let draw = () => {
       const q = input.value.trim().toLowerCase()
       setKids(chips, el('button', { class: `chip ${modeSel === '' ? 'on' : ''}`, text: t('see_all'), onclick: () => { modeSel = ''; draw() } }), MODES.map(m => el('button', { class: `chip ${modeSel === m ? 'on' : ''}`, text: modeLabel(m), onclick: () => { modeSel = m; draw() } })))
       setKids(out, grid((sortSel === 'newest' ? [...games].reverse() : [...games].sort(sortBy[sortSel])).filter(g => (!modeSel || (g.mode ?? 'build') === modeSel) && (!tagSel || tagsOf(g).includes(tagSel)) && (!q || g.name.toLowerCase().includes(q) || (g.description || '').toLowerCase().includes(q))), counts, g => openGameModal(g, counts, ctx.play)))
     }
+    // sugerencias de búsqueda: nombres de juegos, etiquetas y búsquedas recientes
+    const RS = 'blocksy.searches'; let recents = []; try { recents = JSON.parse(localStorage.getItem(RS) || '[]') } catch {}
+    const dl = el('datalist', { id: 'disc-sugg' }, [...new Set([...recents, ...games.map(g => g.name), ...allTags.map(x => '#' + x)])].slice(0, 40).map(v => el('option', { value: v })))
+    input.setAttribute('list', 'disc-sugg')
+    input.onchange = () => { const v = input.value.trim(); if (v.length >= 2) { recents = [v, ...recents.filter(x => x !== v)].slice(0, 6); try { localStorage.setItem(RS, JSON.stringify(recents)) } catch {} } }
+    const trend = el('div')
+    const paintTrend = () => { const hot = [...games].filter(g => (counts[g.id] ?? 0) > 0).sort((a, b) => (counts[b.id] ?? 0) - (counts[a.id] ?? 0)).slice(0, 4); setKids(trend, hot.length && !input.value.trim() && !modeSel && !tagSel ? [el('div', { class: 'section' }, el('h2', { text: t('trending') })), grid(hot, counts, g => openGameModal(g, counts, ctx.play))] : null) }
+    const drawAll = draw; draw = () => { drawAll(); paintTrend() }
     input.oninput = draw; draw()
-    setKids(root, el('h1', { class: 'page-title', text: t('discover') }), el('div', { class: 'form-row', style: 'margin-bottom:12px' }, input, sortEl), chips, allTags.length ? el('div', { class: 'chips tags' }, allTags.map(tg => el('button', { class: 'chip', text: '#' + tg, onclick: e => { tagSel = tagSel === tg ? '' : tg; e.target.parentNode.querySelectorAll('.chip').forEach(c => c.classList.toggle('on', c.textContent === '#' + tagSel)); draw() } }))) : null, out)
+    setKids(root, el('h1', { class: 'page-title', text: t('discover') }), el('div', { class: 'form-row', style: 'margin-bottom:12px' }, input, dl, sortEl), chips, allTags.length ? el('div', { class: 'chips tags' }, allTags.map(tg => el('button', { class: 'chip', text: '#' + tg, onclick: e => { tagSel = tagSel === tg ? '' : tg; e.target.parentNode.querySelectorAll('.chip').forEach(c => c.classList.toggle('on', c.textContent === '#' + tagSel)); draw() } }))) : null, trend, out)
   },
 
   // Logros y ranking de BCoins
