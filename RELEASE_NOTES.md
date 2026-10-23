@@ -1,5 +1,5 @@
-Devbuild 53: 3DS extras
-- 3DS achievements (rich, first purchase, collector, sociable, 3-day streak) with a pop-up and a counter on the Avatar page.
-- Longer in-game chat history (120 lines).
-- Favorites are listed first in Discover.
-- Hold SELECT for one second to return to your starting point (a quick tap still opens the chat).
+Devbuild 54: creators
+- Studio tutorial for your first time (place a block, box, part, environment, save) that you can skip.
+- Before publishing checklist: spawn point, name, description, thumbnail, tags, welcome message, content, draft and script errors.
+- Studio tips that pop up from time to time.
+- My games shows live players, likes, dislikes and your own plays for each game, and marks drafts.

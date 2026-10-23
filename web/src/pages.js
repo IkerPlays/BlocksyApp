@@ -627,9 +627,11 @@ export const pages = {
     }
     async function load() {
       const games = (await api.listGames()).filter(g => g.owner_id === ctx.profile.id)
+      const [votes, cnt] = await Promise.all([social.gameVotes().catch(() => ({})), api.playerCounts().catch(() => ({}))])
       setKids(mineBox, games.length ? games.map(g => el('div', { class: 'person' },
         el('div', { class: 'thumb', style: `width:56px;--h:${g.hue}` }, el('div', { class: 'cube' })),
-        el('div', { class: 'grow' }, el('b', { text: g.name }), el('small', { text: `${modeLabel(g.mode)} · ${g.description || ''}` })),
+        el('div', { class: 'grow' }, el('b', { text: g.name }), g.config?.draft ? el('span', { class: 'rarity common', text: t('draft_tag') }) : null, el('small', { text: `${modeLabel(g.mode)} · ${g.description || ''}` }),
+          el('small', { class: 'gstats', text: t('game_stats_line', { n: cnt[g.id] ?? 0, up: votes[g.id]?.up ?? 0, down: votes[g.id]?.down ?? 0, v: gameStat(g.id).visits, m: Math.round(gameStat(g.id).secs / 60) }) })),
         el('button', { class: 'btn', text: t('play'), onclick: () => ctx.play(g) }),
         el('button', { class: 'btn', html: icon('code', 16), title: t('st_open'), onclick: () => ctx.go(`studio/${g.id}`) }),
         el('button', { class: 'btn blue', html: icon('edit', 16), title: t('edit'), onclick: () => ctx.go(`create/${g.id}`) }),
