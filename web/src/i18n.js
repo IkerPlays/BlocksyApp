@@ -2,6 +2,10 @@
 const D = {
   es: {
     lang_name: 'Español',
+    block: 'Bloquear', unblock: 'Desbloquear', block_confirm: '¿Bloquear a {name}? Se quitarán vuestras amistades y no podrá escribirte.', report: 'Reportar', rep_reason: 'Motivo', rep_details: 'Cuéntanos qué pasó (opcional)', rep_sent: 'Reporte enviado. Gracias.',
+    rep_spam: 'Spam', rep_abuse: 'Insultos o acoso', rep_cheating: 'Trampas', rep_inappropriate: 'Contenido inapropiado', rep_other: 'Otro', blocked_users: 'Usuarios bloqueados', blocked_none: 'No has bloqueado a nadie.',
+    missions: 'Misiones diarias', mis_place_50: 'Coloca 50 bloques', mis_play_10: 'Juega 10 minutos', mis_obby_win: 'Termina una carrera', mis_chat_5: 'Escribe 5 mensajes', mis_friend_1: 'Haz un amigo', mis_done: 'Hecho', lang_auto: 'Automático (idioma del navegador)',
+    acc_none: 'Ninguno', acc_get: 'Consigue accesorios en la tienda',
     ed_script_help_lua: 'Código Lua (se ejecuta aislado). on("join", fn) (tú entras), on("playerjoin", fn) (entra otro), on("chat", fn), on("tick", fn), command("nombre", fn). Acciones: game.say, game.title, game.teleport, game.setSpeed, game.setJump, game.setGravity, game.emote, game.sky, game.sound, ui.setText(id, texto).',
     st_place: 'Colocar', st_erase: 'Borrar', st_ui: 'Mover texto', st_addtext: 'Añadir texto', st_test: 'Probar', st_stop: 'Detener', st_saved: 'Juego guardado', st_text_ph: 'Texto (usa {players}, {name}, {time})', st_size: 'Tamaño', st_color: 'Color', st_delete: 'Borrar texto', st_id: 'Identificador (para Lua)', st_help: 'Studio: WASD volar, Espacio/Mayús subir/bajar, arrastra para girar, rueda zoom. Clic coloca o borra según la herramienta.', st_open: 'Abrir Studio', st_lang: 'Lenguaje del script', st_unsaved: '¿Salir sin guardar?',
     voice_chat: 'Chat de voz', voice_on: 'Chat de voz activado (V para silenciar)', voice_off: 'Has salido del chat de voz', voice_err: 'No se pudo usar el micrófono', voice_muted: 'Micrófono silenciado', voice_unmuted: 'Micrófono activado', voice_ptt: 'Mantén V para hablar', voice_leave: 'Salir del chat de voz', set_voice_vol: 'Volumen de voces', set_voice_prox: 'Voz por proximidad', set_voice_mode: 'Modo del micrófono', voice_mode_toggle: 'Activar / silenciar', voice_mode_ptt: 'Pulsar para hablar (V)',
@@ -51,6 +55,10 @@ const D = {
   },
   en: {
     lang_name: 'English',
+    block: 'Block', unblock: 'Unblock', block_confirm: 'Block {name}? Your friendship is removed and they cannot message you.', report: 'Report', rep_reason: 'Reason', rep_details: 'Tell us what happened (optional)', rep_sent: 'Report sent. Thank you.',
+    rep_spam: 'Spam', rep_abuse: 'Abuse or harassment', rep_cheating: 'Cheating', rep_inappropriate: 'Inappropriate content', rep_other: 'Other', blocked_users: 'Blocked users', blocked_none: "You haven't blocked anyone.",
+    missions: 'Daily missions', mis_place_50: 'Place 50 blocks', mis_play_10: 'Play for 10 minutes', mis_obby_win: 'Finish an obby', mis_chat_5: 'Send 5 messages', mis_friend_1: 'Make a friend', mis_done: 'Done', lang_auto: 'Automatic (browser language)',
+    acc_none: 'None', acc_get: 'Get accessories in the shop',
     ed_script_help_lua: 'Lua code (sandboxed). on("join", fn) (you enter), on("playerjoin", fn) (someone enters), on("chat", fn), on("tick", fn), command("name", fn). Actions: game.say, game.title, game.teleport, game.setSpeed, game.setJump, game.setGravity, game.emote, game.sky, game.sound, ui.setText(id, text).',
     st_place: 'Place', st_erase: 'Erase', st_ui: 'Move text', st_addtext: 'Add text', st_test: 'Test', st_stop: 'Stop', st_saved: 'Game saved', st_text_ph: 'Text (use {players}, {name}, {time})', st_size: 'Size', st_color: 'Color', st_delete: 'Delete text', st_id: 'Identifier (for Lua)', st_help: 'Studio: WASD fly, Space/Shift up/down, drag to turn, wheel to zoom. Click places or erases depending on the tool.', st_open: 'Open Studio', st_lang: 'Script language', st_unsaved: 'Leave without saving?',
     voice_chat: 'Voice chat', voice_on: 'Voice chat on (V to mute)', voice_off: 'You left voice chat', voice_err: 'Could not use the microphone', voice_muted: 'Microphone muted', voice_unmuted: 'Microphone on', voice_ptt: 'Hold V to talk', voice_leave: 'Leave voice chat', set_voice_vol: 'Voices volume', set_voice_prox: 'Proximity voice', set_voice_mode: 'Microphone mode', voice_mode_toggle: 'Toggle / mute', voice_mode_ptt: 'Push to talk (V)',
@@ -146,21 +154,102 @@ const D = {
     create: 'Erstellen', settings: 'Einstellungen', set_language: 'Sprache', set_sens: 'Kameraempfindlichkeit', set_dist: 'Sichtweite', set_names: 'Namen über Spielern anzeigen', set_music: 'Musik in Spielen', set_music_vol: 'Musiklautstärke',
     paused: 'Pause', resume: 'Weiter', leave_game: 'Spiel verlassen', invite_friends: 'Freunde einladen', place: 'Setzen', break: 'Abbauen', jump: 'Springen', welcome_to: 'Willkommen in {name}', joined: '{name} ist beigetreten', left: '{name} ist gegangen', players_n: '{n} spielen', you: '(du)',
   },
+  it: {
+    lang_name: 'Italiano',
+    nav_home: 'Home', nav_discover: 'Scopri', nav_avatar: 'Avatar', nav_friends: 'Amici', nav_link: 'Collega 3DS', nav_create: 'Crea', nav_settings: 'Impostazioni', nav_logout: 'Esci', nav_profile: 'Profilo', nav_shop: 'Negozio',
+    search_games: 'Cerca giochi', loading: 'Caricamento...', see_all: 'Vedi tutto', close: 'Chiudi', cancel: 'Annulla', save: 'Salva', saved: 'Salvato', delete: 'Elimina', play: 'Gioca', back: 'Indietro', send: 'Invia',
+    tagline: 'Costruisci, esplora e gioca con gli amici sul web e sul tuo 3DS.', login: 'Accedi', signup: 'Crea account', username: 'Nome utente', email: 'Email', password: 'Password',
+    hello: 'Ciao, {name}!', friends_n: 'Amici ({n})', continue: 'Continua', popular: 'Popolari ora', newest: 'Nuovi', no_games: 'Ancora nessun gioco.', playing_n: '{n} in gioco', by: 'di {name}',
+    status_game: 'In un gioco', status_online: 'Online', status_offline: 'Offline', discover: 'Scopri', friends: 'Amici', add_friend: 'Aggiungi amico', friend_ph: 'Nome utente esatto', friend_add_btn: 'Invia richiesta',
+    accept: 'Accetta', decline: 'Rifiuta', remove: 'Rimuovi', chat: 'Chat', invite: 'Invita', join: 'Entra', notifications: 'Notifiche', create: 'Crea', settings: 'Impostazioni', set_language: 'Lingua',
+    set_sens: 'Sensibilità della camera', set_dist: 'Distanza visiva', set_music: 'Musica nei giochi', set_music_vol: 'Volume musica', paused: 'Pausa', resume: 'Riprendi', leave_game: 'Esci dal gioco',
+    shop_buy: 'Compra', shop_open: 'Apri', shop_equip: 'Equipaggia', shop_unequip: 'Rimuovi', shop_owned: 'Posseduto', shop_daily: 'Ricompensa giornaliera', shop_claim: 'Ritira', block: 'Blocca', unblock: 'Sblocca', report: 'Segnala',
+    welcome_to: 'Benvenuto in {name}', joined: '{name} è entrato', left: '{name} è uscito', players_n: '{n} in gioco', you: '(tu)', place: 'Metti', break: 'Rompi', jump: 'Salta', lang_auto: 'Automatica (lingua del browser)',
+  },
+  pl: {
+    lang_name: 'Polski',
+    nav_home: 'Start', nav_discover: 'Odkrywaj', nav_avatar: 'Awatar', nav_friends: 'Znajomi', nav_link: 'Połącz 3DS', nav_create: 'Twórz', nav_settings: 'Ustawienia', nav_logout: 'Wyloguj', nav_profile: 'Profil', nav_shop: 'Sklep',
+    search_games: 'Szukaj gier', loading: 'Wczytywanie...', see_all: 'Zobacz wszystko', close: 'Zamknij', cancel: 'Anuluj', save: 'Zapisz', saved: 'Zapisano', delete: 'Usuń', play: 'Graj', back: 'Wstecz', send: 'Wyślij',
+    tagline: 'Buduj, odkrywaj i graj ze znajomymi w sieci i na 3DS.', login: 'Zaloguj', signup: 'Utwórz konto', username: 'Nazwa użytkownika', email: 'E-mail', password: 'Hasło',
+    hello: 'Cześć, {name}!', friends_n: 'Znajomi ({n})', continue: 'Kontynuuj', popular: 'Popularne teraz', newest: 'Nowe', no_games: 'Brak gier.', playing_n: '{n} gra', by: 'od {name}',
+    status_game: 'W grze', status_online: 'Online', status_offline: 'Offline', discover: 'Odkrywaj', friends: 'Znajomi', add_friend: 'Dodaj znajomego', friend_ph: 'Dokładna nazwa użytkownika', friend_add_btn: 'Wyślij zaproszenie',
+    accept: 'Akceptuj', decline: 'Odrzuć', remove: 'Usuń', chat: 'Czat', invite: 'Zaproś', join: 'Dołącz', notifications: 'Powiadomienia', create: 'Twórz', settings: 'Ustawienia', set_language: 'Język',
+    set_sens: 'Czułość kamery', set_dist: 'Zasięg widzenia', set_music: 'Muzyka w grach', set_music_vol: 'Głośność muzyki', paused: 'Pauza', resume: 'Wznów', leave_game: 'Opuść grę',
+    shop_buy: 'Kup', shop_open: 'Otwórz', shop_equip: 'Załóż', shop_unequip: 'Zdejmij', shop_owned: 'Posiadane', shop_daily: 'Nagroda dzienna', shop_claim: 'Odbierz', block: 'Zablokuj', unblock: 'Odblokuj', report: 'Zgłoś',
+    welcome_to: 'Witaj w {name}', joined: '{name} dołączył', left: '{name} wyszedł', players_n: '{n} gra', you: '(ty)', place: 'Połóż', break: 'Zniszcz', jump: 'Skok', lang_auto: 'Automatyczny (język przeglądarki)',
+  },
+  ru: {
+    lang_name: 'Русский',
+    nav_home: 'Главная', nav_discover: 'Обзор', nav_avatar: 'Аватар', nav_friends: 'Друзья', nav_link: 'Привязать 3DS', nav_create: 'Создать', nav_settings: 'Настройки', nav_logout: 'Выйти', nav_profile: 'Профиль', nav_shop: 'Магазин',
+    search_games: 'Поиск игр', loading: 'Загрузка...', see_all: 'Показать все', close: 'Закрыть', cancel: 'Отмена', save: 'Сохранить', saved: 'Сохранено', delete: 'Удалить', play: 'Играть', back: 'Назад', send: 'Отправить',
+    tagline: 'Строй, исследуй и играй с друзьями в браузере и на 3DS.', login: 'Войти', signup: 'Создать аккаунт', username: 'Имя пользователя', email: 'Email', password: 'Пароль',
+    hello: 'Привет, {name}!', friends_n: 'Друзья ({n})', continue: 'Продолжить', popular: 'Популярное сейчас', newest: 'Новые', no_games: 'Пока нет игр.', playing_n: '{n} играют', by: 'от {name}',
+    status_game: 'В игре', status_online: 'Онлайн', status_offline: 'Не в сети', discover: 'Обзор', friends: 'Друзья', add_friend: 'Добавить друга', friend_ph: 'Точное имя пользователя', friend_add_btn: 'Отправить запрос',
+    accept: 'Принять', decline: 'Отклонить', remove: 'Удалить', chat: 'Чат', invite: 'Пригласить', join: 'Присоединиться', notifications: 'Уведомления', create: 'Создать', settings: 'Настройки', set_language: 'Язык',
+    set_sens: 'Чувствительность камеры', set_dist: 'Дальность прорисовки', set_music: 'Музыка в играх', set_music_vol: 'Громкость музыки', paused: 'Пауза', resume: 'Продолжить', leave_game: 'Выйти из игры',
+    shop_buy: 'Купить', shop_open: 'Открыть', shop_equip: 'Надеть', shop_unequip: 'Снять', shop_owned: 'Есть', shop_daily: 'Ежедневная награда', shop_claim: 'Забрать', block: 'Заблокировать', unblock: 'Разблокировать', report: 'Пожаловаться',
+    welcome_to: 'Добро пожаловать в {name}', joined: '{name} зашёл', left: '{name} вышел', players_n: '{n} играют', you: '(вы)', place: 'Поставить', break: 'Сломать', jump: 'Прыжок', lang_auto: 'Автоматически (язык браузера)',
+  },
+  ja: {
+    lang_name: '日本語',
+    nav_home: 'ホーム', nav_discover: '探す', nav_avatar: 'アバター', nav_friends: 'フレンド', nav_link: '3DSを連携', nav_create: '作る', nav_settings: '設定', nav_logout: 'ログアウト', nav_profile: 'プロフィール', nav_shop: 'ショップ',
+    search_games: 'ゲームを検索', loading: '読み込み中...', see_all: 'すべて見る', close: '閉じる', cancel: 'キャンセル', save: '保存', saved: '保存しました', delete: '削除', play: 'プレイ', back: '戻る', send: '送信',
+    tagline: 'ウェブと3DSで、友だちと建てて、探検して、遊ぼう。', login: 'ログイン', signup: 'アカウント作成', username: 'ユーザー名', email: 'メール', password: 'パスワード',
+    hello: 'こんにちは、{name}！', friends_n: 'フレンド ({n})', continue: '続ける', popular: '人気', newest: '新着', no_games: 'まだゲームがありません。', playing_n: '{n}人プレイ中', by: '作者: {name}',
+    status_game: 'ゲーム中', status_online: 'オンライン', status_offline: 'オフライン', discover: '探す', friends: 'フレンド', add_friend: 'フレンドを追加', friend_ph: 'ユーザー名（完全一致）', friend_add_btn: 'リクエストを送る',
+    accept: '承認', decline: '拒否', remove: '削除', chat: 'チャット', invite: '招待', join: '参加', notifications: '通知', create: '作る', settings: '設定', set_language: '言語',
+    set_sens: 'カメラ感度', set_dist: '描画距離', set_music: 'ゲーム内の音楽', set_music_vol: '音楽の音量', paused: '一時停止', resume: '再開', leave_game: 'ゲームを終了',
+    shop_buy: '購入', shop_open: '開ける', shop_equip: '装備', shop_unequip: '外す', shop_owned: '所持', shop_daily: 'デイリー報酬', shop_claim: '受け取る', block: 'ブロック', unblock: 'ブロック解除', report: '通報',
+    welcome_to: '{name}へようこそ', joined: '{name}が参加しました', left: '{name}が退出しました', players_n: '{n}人プレイ中', you: '(あなた)', place: '置く', break: '壊す', jump: 'ジャンプ', lang_auto: '自動（ブラウザの言語）',
+  },
+  zh: {
+    lang_name: '中文',
+    nav_home: '首页', nav_discover: '发现', nav_avatar: '形象', nav_friends: '好友', nav_link: '绑定 3DS', nav_create: '创作', nav_settings: '设置', nav_logout: '退出', nav_profile: '个人主页', nav_shop: '商店',
+    search_games: '搜索游戏', loading: '加载中...', see_all: '查看全部', close: '关闭', cancel: '取消', save: '保存', saved: '已保存', delete: '删除', play: '开始', back: '返回', send: '发送',
+    tagline: '在网页和 3DS 上与好友一起建造、探索和游戏。', login: '登录', signup: '注册', username: '用户名', email: '邮箱', password: '密码',
+    hello: '你好，{name}！', friends_n: '好友 ({n})', continue: '继续', popular: '当前热门', newest: '最新', no_games: '还没有游戏。', playing_n: '{n} 人在玩', by: '作者 {name}',
+    status_game: '游戏中', status_online: '在线', status_offline: '离线', discover: '发现', friends: '好友', add_friend: '添加好友', friend_ph: '准确的用户名', friend_add_btn: '发送请求',
+    accept: '接受', decline: '拒绝', remove: '移除', chat: '聊天', invite: '邀请', join: '加入', notifications: '通知', create: '创作', settings: '设置', set_language: '语言',
+    set_sens: '镜头灵敏度', set_dist: '视距', set_music: '游戏内音乐', set_music_vol: '音乐音量', paused: '暂停', resume: '继续', leave_game: '退出游戏',
+    shop_buy: '购买', shop_open: '打开', shop_equip: '装备', shop_unequip: '卸下', shop_owned: '已拥有', shop_daily: '每日奖励', shop_claim: '领取', block: '屏蔽', unblock: '取消屏蔽', report: '举报',
+    welcome_to: '欢迎来到 {name}', joined: '{name} 加入了', left: '{name} 离开了', players_n: '{n} 人在玩', you: '(你)', place: '放置', break: '破坏', jump: '跳跃', lang_auto: '自动（浏览器语言）',
+  },
+  ko: {
+    lang_name: '한국어',
+    nav_home: '홈', nav_discover: '탐색', nav_avatar: '아바타', nav_friends: '친구', nav_link: '3DS 연결', nav_create: '만들기', nav_settings: '설정', nav_logout: '로그아웃', nav_profile: '프로필', nav_shop: '상점',
+    search_games: '게임 검색', loading: '불러오는 중...', see_all: '모두 보기', close: '닫기', cancel: '취소', save: '저장', saved: '저장됨', delete: '삭제', play: '플레이', back: '뒤로', send: '보내기',
+    tagline: '웹과 3DS에서 친구와 함께 짓고, 탐험하고, 즐기세요.', login: '로그인', signup: '계정 만들기', username: '사용자 이름', email: '이메일', password: '비밀번호',
+    hello: '안녕하세요, {name}님!', friends_n: '친구 ({n})', continue: '이어하기', popular: '지금 인기', newest: '신규', no_games: '아직 게임이 없어요.', playing_n: '{n}명 플레이 중', by: '제작: {name}',
+    status_game: '게임 중', status_online: '온라인', status_offline: '오프라인', discover: '탐색', friends: '친구', add_friend: '친구 추가', friend_ph: '정확한 사용자 이름', friend_add_btn: '요청 보내기',
+    accept: '수락', decline: '거절', remove: '삭제', chat: '채팅', invite: '초대', join: '참가', notifications: '알림', create: '만들기', settings: '설정', set_language: '언어',
+    set_sens: '카메라 감도', set_dist: '시야 거리', set_music: '게임 음악', set_music_vol: '음악 볼륨', paused: '일시정지', resume: '계속', leave_game: '게임 나가기',
+    shop_buy: '구매', shop_open: '열기', shop_equip: '장착', shop_unequip: '해제', shop_owned: '보유', shop_daily: '일일 보상', shop_claim: '받기', block: '차단', unblock: '차단 해제', report: '신고',
+    welcome_to: '{name}에 오신 것을 환영합니다', joined: '{name}님이 입장', left: '{name}님이 퇴장', players_n: '{n}명 플레이 중', you: '(나)', place: '놓기', break: '부수기', jump: '점프', lang_auto: '자동 (브라우저 언어)',
+  },
 }
 export const LANGS = Object.keys(D)
 export const langName = l => D[l].lang_name
-const detect = () => { const n = (navigator.language || 'es').slice(0, 2).toLowerCase(); return D[n] ? n : 'en' }
-let lang
-try { lang = localStorage.getItem('blocksy.lang') } catch {}
-if (!D[lang]) lang = detect()
+// Idioma automático: el primero de navigator.languages que tengamos (pt-BR -> pt, zh-TW -> zh...); si no hay ninguno, inglés
+const detect = () => {
+  const list = navigator.languages?.length ? navigator.languages : [navigator.language || 'es']
+  for (const raw of list) { const base = String(raw).toLowerCase().slice(0, 2); if (D[base]) return base }
+  return 'en'
+}
+let pref = null                                  // 'auto' o un idioma elegido a mano
+try { pref = localStorage.getItem('blocksy.lang') } catch {}
+let lang = pref && pref !== 'auto' && D[pref] ? pref : detect()
 const subs = new Set()
 export const getLang = () => lang
+export const getPref = () => (pref && pref !== 'auto' && D[pref] ? pref : 'auto')
 export function setLang(l) {
-  if (!D[l]) return
-  lang = l; try { localStorage.setItem('blocksy.lang', l) } catch {}
-  document.documentElement.lang = l
+  if (l !== 'auto' && !D[l]) return
+  pref = l; try { localStorage.setItem('blocksy.lang', l) } catch {}
+  lang = l === 'auto' ? detect() : l
+  document.documentElement.lang = lang
   applyStatic(); subs.forEach(f => f())
 }
+// Si el navegador cambia de idioma y estás en automático, se actualiza solo
+window.addEventListener('languagechange', () => { if (getPref() === 'auto') setLang('auto') })
 export const onLang = f => { subs.add(f); return () => subs.delete(f) }
 export function t(key, vars) {
   let s = D[lang][key] ?? D.en[key] ?? D.es[key] ?? key

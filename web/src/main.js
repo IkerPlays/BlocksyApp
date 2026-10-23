@@ -7,7 +7,7 @@ import { startGame } from './game.js'
 import { setLastPlayed, applyTheme } from './settings.js'
 import { applyIcons } from './icons.js'
 import { headshot } from './avatar.js'
-import { t, applyStatic, setLang, getLang, LANGS, langName, onLang } from './i18n.js'
+import { t, applyStatic, setLang, getPref, LANGS, langName, onLang } from './i18n.js'
 import { initNotifications, openInvite } from './social-ui.js'
 import { openScriptModal } from './studio-ui.js'
 import { registerSW, applyUpdate } from './pwa.js'
@@ -138,7 +138,7 @@ $('auth-form').addEventListener('submit', async e => {
 })
 $('logout').onclick = async () => { stopNotif?.(); stopNotif = null; await auth.signOut(); profile = null; showCreate(false); showScreen('auth') }
 function buildLangSelect() {
-  const s = $('auth-lang'); s.replaceChildren(...LANGS.map(l => { const o = document.createElement('option'); o.value = l; o.textContent = langName(l); o.selected = l === getLang(); return o }))
+  const s = $('auth-lang'); s.replaceChildren(...['auto', ...LANGS].map(l => { const o = document.createElement('option'); o.value = l; o.textContent = l === 'auto' ? t('lang_auto') : langName(l); o.selected = l === getPref(); return o }))
   s.onchange = () => setLang(s.value)
 }
 

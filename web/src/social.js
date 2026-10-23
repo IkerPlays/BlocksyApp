@@ -6,7 +6,7 @@ const rpc = async (fn, args) => { const { data, error } = await authDb.rpc(fn, a
 const ERR = { 'user not found': 'user_not_found', 'cannot add yourself': 'cant_self' }
 export const errKey = e => ERR[(e.message || '').toLowerCase()] ?? null
 
-export const sendRequest = name => rpc('send_friend_request', { p_username: name })      // 'sent' | 'accepted' | 'already_friends' | 'already_sent'
+export const sendRequest = async name => { const r = await rpc('send_friend_request', { p_username: name }); if (r === 'sent' || r === 'accepted') missionAdd('friend_1'); return r }      // 'sent' | 'accepted' | 'already_friends' | 'already_sent'
 export const respondRequest = (id, accept) => rpc('respond_friend_request', { p_id: id, p_accept: accept })
 export const cancelRequest = id => rpc('cancel_friend_request', { p_id: id })
 export const removeFriend = id => rpc('remove_friend', { p_friend: id })
@@ -106,3 +106,19 @@ export async function openCrate(id) {
 }
 export async function equipItem(id) { const r = await rpc('equip_item', { p_item: id }); setWallet({ equipped: r }); return r }
 export async function unequipSlot(kind) { const r = await rpc('unequip_slot', { p_kind: kind }); setWallet({ equipped: r }); return r }
+
+// ---------- Moderación y misiones (AUTH extras.sql) ----------
+let blockedCache = null
+export async function myBlocked(force = false) { if (!blockedCache || force) { try { blockedCache = (await rpc('my_blocked')) ?? [] } catch { blockedCache = [] } } return blockedCache }
+export const blockUser = async name => { const r = await rpc('block_user', { p_username: name }); await myBlocked(true); return r }
+export const unblockUser = async name => { const r = await rpc('unblock_user', { p_username: name }); await myBlocked(true); return r }
+export const reportUser = (name, reason, details = '') => rpc('report_user', { p_username: name, p_reason: reason, p_details: details })
+export const isBlockedName = name => !!blockedCache?.some(b => b.username.toLowerCase() === String(name).toLowerCase())
+export const getMissions = async () => (await rpc('my_missions')) ?? []
+export const claimMission = async key => { const r = await rpc('mission_claim', { p_key: key }); await loadWallet(); return r }
+// Suma progreso a una misión (en lotes pequeños para no saturar el servidor)
+const pend = {}
+export function missionAdd(key, n = 1) {
+  pend[key] = (pend[key] ?? 0) + n
+  clearTimeout(missionAdd.t); missionAdd.t = setTimeout(async () => { const p = { ...pend }; for (const k in pend) delete pend[k]; for (const [k, v] of Object.entries(p)) { try { await rpc('mission_add', { p_key: k, p_add: v }) } catch {} } }, 4000)
+}

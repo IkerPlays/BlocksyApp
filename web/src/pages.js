@@ -4,7 +4,7 @@ import * as social from './social.js'
 import { settings, saveSettings, resetSettings, lastPlayed, getStats, applyTheme } from './settings.js'
 import { icon } from './icons.js'
 import { headshot, styleFor, EMOTES, createPreview, hatStyle } from './avatar.js'
-import { t, LANGS, langName, getLang, setLang, onLang } from './i18n.js'
+import { t, LANGS, langName, getPref, setLang, onLang } from './i18n.js'
 import { codeEditor } from './studio-ui.js'
 import { installApp, canInstall, isInstalled, askNotifications, checkForUpdate, applyUpdate, isUpdateReady, BUILD } from './pwa.js'
 
@@ -75,6 +75,16 @@ export const closeModal = () => $('modal').classList.add('hidden')
 let refreshTimer = null
 const every = (fn, ms) => { clearInterval(refreshTimer); refreshTimer = setInterval(() => { if (!document.hidden) fn() }, ms) }
 export const stopPageTimers = () => clearInterval(refreshTimer)
+
+function openReport(name) {
+  const reasons = ['spam', 'abuse', 'cheating', 'inappropriate', 'other']
+  const sel = el('select', {}, reasons.map(r => el('option', { value: r, text: t('rep_' + r) })))
+  const det = el('textarea', { class: 'bio-edit', rows: 3, maxlength: 300, placeholder: t('rep_details') })
+  setKids($('modal-card'), el('div', { class: 'detail-col' }, el('h2', { text: t('report') + ': ' + name }), el('label', { class: 'field' }, t('rep_reason'), sel), det,
+    el('div', { class: 'form-row' }, el('button', { class: 'btn danger', text: t('report'), onclick: async () => { try { await social.reportUser(name, sel.value, det.value); toast(t('rep_sent')); closeModal() } catch (e) { toast(e.message) } } }), el('button', { class: 'btn', text: t('cancel'), onclick: closeModal }))))
+  $('modal').classList.remove('hidden')
+}
+export { openReport }
 
 // ---------- páginas ----------
 // ctx = { profile, play(game), go(hash), refreshProfile() }
@@ -159,9 +169,17 @@ export const pages = {
       const sec = (title, kind) => { const l = items.filter(i => i.kind === kind); return l.length ? [el('div', { class: 'section' }, el('h2', { text: title })), el('div', { class: 'shop-grid' }, l.map(card))] : null }
       setKids(body, sec(t('shop_crates'), 'crate'), sec(t('shop_hats'), 'hat'), sec(t('shop_titles'), 'title'))
     }
-    setKids(root, el('div', { class: 'section' }, el('h1', { class: 'page-title', text: t('nav_shop') }), coins), daily,
+    const missionsBox = el('div')
+    const paintMissions = async () => {
+      let ms = []; try { ms = await social.getMissions() } catch {}
+      setKids(missionsBox, ms.length ? [el('div', { class: 'section' }, el('h2', { text: t('missions') })), el('div', { class: 'panel' }, ms.map(m => el('div', { class: 'person' },
+        el('div', { class: 'grow' }, el('b', { text: t('mis_' + m.key) }), el('div', { class: 'prog' }, el('i', { style: `width:${Math.round(m.n / m.goal * 100)}%` })), el('small', { text: `${m.n}/${m.goal}` })),
+        el('span', { class: 'price', html: icon('coin', 16) + ' ' + m.reward }),
+        m.claimed ? el('span', { class: 'owned', text: t('mis_done') }) : el('button', { class: 'btn primary', text: t('shop_claim'), disabled: m.n < m.goal, onclick: () => run(async () => { await social.claimMission(m.key); toast(t('shop_got', { n: m.reward })); paintMissions() }) }))))] : null)
+    }
+    setKids(root, el('div', { class: 'section' }, el('h1', { class: 'page-title', text: t('nav_shop') }), coins), daily, missionsBox,
       el('div', { class: 'shop-layout' }, el('div', { class: 'preview' }, canvas), body))
-    pv = createPreview(canvas, style()); draw()
+    pv = createPreview(canvas, style()); draw(); paintMissions()
   },
 
   // Perfil: /profile (el tuyo) o /u/<usuario>
@@ -186,6 +204,11 @@ export const pages = {
         A.push(btn('primary', t('accept'), async () => { await social.respondRequest(p.request_id, true); reload() }), btn('', t('decline'), async () => { await social.respondRequest(p.request_id, false); reload() }))
       } else if (p.relation === 'pending_out') A.push(btn('', t('cancel_req'), async () => { await social.cancelRequest(p.request_id); reload() }))
       else A.push(btn('blue', t('add_friend'), async () => { const r = await social.sendRequest(p.username); toast(t(r === 'sent' ? 'req_sent' : r === 'accepted' ? 'req_accepted' : r === 'already_sent' ? 'req_already' : 'req_friends', { name: p.username })); reload() }))
+      if (!self) {
+        const blocked = social.isBlockedName(p.username)
+        A.push(btn('', t(blocked ? 'unblock' : 'block'), async () => { if (blocked) await social.unblockUser(p.username); else if (confirm(t('block_confirm', { name: p.username }))) await social.blockUser(p.username); reload() }),
+          btn('', t('report'), () => openReport(p.username)))
+      }
       A.push(btn('', t('p_copy'), async () => { const url = `${location.origin}/u/${p.username}`; try { await navigator.clipboard.writeText(url); toast(t('link_copied')) } catch { prompt(t('copy_link'), url) } }))
       setKids(actions, A)
     }
@@ -209,6 +232,7 @@ export const pages = {
     const pv = createPreview(canvas, { ...styleFor(p.username, p.avatar_color), hat: hatStyle(p.equipped?.hat) }); pv.setAnim('wave')
     if (p.equipped?.title) social.listShop().then(items => { const it = items.find(i => i.id === p.equipped.title); if (it) titleBox.textContent = it.data?.text ?? it.name }).catch(() => {})
     paintBio(); paintActions()
+    await social.myBlocked()
     const [all, counts] = await Promise.all([api.listGames(), api.playerCounts()])
     const mine = all.filter(g => g.owner_id === p.id); mine0 = mine
     setKids(games, mine.length ? grid(mine, counts, g => openGameModal(g, counts, ctx.play)) : el('div', { class: 'empty', text: t('p_no_games') }))
@@ -231,10 +255,25 @@ export const pages = {
     }
     custom.oninput = () => { sel = custom.value; pv?.setStyle(style()) }
     const emotes = el('div', { class: 'emote-row' }, EMOTES.map(e => el('button', { class: 'btn', text: t('emote_' + e.id), onclick: () => pv?.setAnim(e.id) })), el('button', { class: 'btn secondary', text: t('still'), onclick: () => pv?.setAnim('idle') }))
+    // Accesorios: sombreros y títulos que ya tienes (se compran en la tienda)
+    const shopItems = await social.listShop().catch(() => [])
+    const accBox = el('div')
+    const paintAcc = () => {
+      const w = social.getWallet() ?? {}, have = new Set(w.inventory ?? []), eq = w.equipped ?? {}
+      const group = (kind, title) => {
+        const list = shopItems.filter(i => i.kind === kind && have.has(i.id))
+        return [el('div', { class: 'section-s', text: title }), el('div', { class: 'acc-row' },
+          el('button', { class: `acc-chip ${!eq[kind] ? 'on' : ''}`, text: t('acc_none'), onclick: async () => { try { await social.unequipSlot(kind) } catch (e) { toast(e.message) } paintAcc(); pv?.setStyle(style()) } }),
+          list.map(i => el('button', { class: `acc-chip ${eq[kind] === i.id ? 'on' : ''}`, text: i.name, onclick: async () => { try { await social.equipItem(i.id) } catch (e) { toast(e.message) } paintAcc(); pv?.setStyle(style()) } })),
+          !list.length ? el('a', { href: '/shop', class: 'acc-link', text: t('acc_get') }) : null)]
+      }
+      setKids(accBox, group('hat', t('shop_hats')), group('title', t('shop_titles')))
+    }
+    paintAcc()
     setKids(root, el('h1', { class: 'page-title', text: t('avatar') }),
       el('div', { class: 'panel avatar-edit' }, el('div', { class: 'preview' }, canvas), el('div', {},
         el('h3', { text: ctx.profile.username }), el('p', { style: 'color:var(--muted)', text: t('avatar_help') }),
-        sw, el('div', { class: 'section-s', text: t('try_emotes') }), emotes,
+        sw, accBox, el('div', { class: 'section-s', text: t('try_emotes') }), emotes,
         el('button', { class: 'btn primary', style: 'margin-top:16px', text: t('save'), onclick: async () => {
           try { await auth.saveColor(ctx.profile.id, sel); await ctx.refreshProfile(); toast(t('avatar_saved')) } catch (e) { toast(e.message) } } }))))
     pv = createPreview(canvas, style()); paint()
@@ -359,7 +398,7 @@ export const pages = {
     const rg = (key, label, min, max, step, fmt = v => v) => { const o = el('output', { text: fmt(settings[key]) }); const i = el('input', { type: 'range', min, max, step, value: settings[key] }); i.oninput = () => { settings[key] = +i.value; o.textContent = fmt(settings[key]); saveSettings() }; return el('label', { class: 'field' }, el('span', {}, label, ' ', o), i) }
     const sel = (key, label, opts, after) => { const s = el('select', {}, opts.map(([v, l]) => el('option', { value: v, text: l, selected: settings[key] === v }))); s.onchange = () => { settings[key] = s.value; saveSettings(); after?.() }; return el('label', { class: 'field' }, label, s) }
     const accent = el('input', { type: 'color', value: settings.accent }); accent.oninput = () => { settings.accent = accent.value; saveSettings(); applyTheme() }
-    const langSel = el('select', {}, LANGS.map(l => el('option', { value: l, text: langName(l), selected: l === getLang() }))); langSel.onchange = () => { setLang(langSel.value) }
+    const langSel = el('select', {}, ['auto', ...LANGS].map(l => el('option', { value: l, text: l === 'auto' ? t('lang_auto') : langName(l), selected: l === getPref() }))); langSel.onchange = () => { setLang(langSel.value) }
     const st = getStats(), hrs = Math.floor(st.time / 3600), mins = Math.floor((st.time % 3600) / 60)
     const stat = (k, v) => el('div', { class: 'stat' }, el('b', { text: String(v) }), el('small', { text: t(k) }))
     const installRow = el('div')
@@ -367,6 +406,9 @@ export const pages = {
       : canInstall() ? el('button', { class: 'btn blue', html: icon('device', 16) + ' ' + t('set_install'), onclick: async () => { await installApp(); paintInstall() } }) : null,
       'Notification' in window && Notification.permission !== 'granted' ? el('button', { class: 'btn', style: 'margin-left:8px', html: icon('bell', 16) + ' ' + t('set_notif_perm'), onclick: async () => { await askNotifications(); paintInstall() } }) : null)
     paintInstall()
+    const blockedBox = el('div')
+    const paintBlocked = async () => { const l = await social.myBlocked(true); setKids(blockedBox, l.length ? l.map(b => el('div', { class: 'person' }, el('div', { class: 'grow' }, el('b', { text: b.username })), el('button', { class: 'btn', text: t('unblock'), onclick: async () => { await social.unblockUser(b.username); paintBlocked() } }))) : el('div', { class: 'empty', text: t('blocked_none') })) }
+    paintBlocked()
     const upd = el('div', { class: 'upd-row' }), updMsg = el('small', { style: 'color:var(--muted)' })
     const paintUpd = () => setKids(upd, el('div', {}, el('b', { text: t('web_version') }), ' ', el('code', { text: BUILD })), updMsg,
       isUpdateReady() ? el('button', { class: 'btn primary', text: t('update_now'), onclick: applyUpdate })
@@ -387,6 +429,7 @@ export const pages = {
           rg('sensitivity', t('set_sens'), 0.3, 2.5, 0.1), rg('syncMs', t('set_sync'), 40, 400, 10, v => v + ' ms'), sw('invertY', t('set_invert')), sw('names', t('set_names')), sw('bubbles', t('set_bubbles')),
           sw('minimap', t('set_minimap')), sw('showFps', t('set_fps')), sw('notifPopups', t('set_notif')),
           rg('touchSize', t('set_touch_size'), 0.7, 1.5, 0.1), sw('leftHanded', t('set_left'))),
+        el('div', { class: 'panel' }, el('h3', { text: t('blocked_users') }), blockedBox),
         el('div', { class: 'panel' }, el('h3', { text: t('set_stats') }),
           el('div', { class: 'stats-row' }, stat('stat_time', `${hrs}h ${mins}m`), stat('stat_placed', st.placed), stat('stat_broken', st.broken), stat('stat_games', st.games.length), stat('stat_msgs', st.msgs)),
           el('button', { class: 'btn danger', style: 'margin-top:14px', text: t('set_reset'), onclick: () => { resetSettings(); applyTheme(); pages.settings(root, ctx) } }))))

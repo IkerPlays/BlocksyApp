@@ -6,7 +6,7 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js'
 import { gameDb } from './supabase.js'
 import * as api from './api.js'
 import { settings, saveSettings, onSettings, bump, visited, bestTime } from './settings.js'
-import { buildAvatar, poseAvatar, styleFor, EMOTES, headshot } from './avatar.js'
+import { buildAvatar, poseAvatar, styleFor, EMOTES, headshot, hatStyle } from './avatar.js'
 import { t, onLang } from './i18n.js'
 import { createSky } from './sky.js'
 import { buildWorld } from './world.js'
@@ -140,8 +140,8 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
 
   // ---------- avatares (modelo 3D + cartel con el nombre + burbuja de chat) ----------
   const tagSprites = []
-  function makeAvatar(color, name) {
-    const g = buildAvatar(styleFor(name, color))
+  function makeAvatar(color, name, hat = '') {
+    const g = buildAvatar({ ...styleFor(name, color), hat: hatStyle(hat) })
     const c = document.createElement('canvas'); c.width = 256; c.height = 64
     const ctx = c.getContext('2d'); ctx.font = 'bold 34px system-ui, sans-serif'; ctx.textAlign = 'center'
     ctx.lineWidth = 6; ctx.strokeStyle = '#000'; ctx.strokeText(name, 128, 44); ctx.fillStyle = '#fff'; ctx.fillText(name, 128, 44)
@@ -168,18 +168,21 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
   const animateAvatar = poseAvatar
 
   const me = { pos: new THREE.Vector3(...world.spawn), vel: new THREE.Vector3(), ry: 0, grounded: false, anim: 'idle', kind: 1, emote: null, fly: false }
-  const meAvatar = makeAvatar(profile.avatar_color, profile.username)
+  social.myBlocked()
+  const myHat = () => social.getWallet()?.equipped?.hat ?? ''
+  const meAvatar = makeAvatar(profile.avatar_color, profile.username, myHat())
   const others = new Map()          // player_id -> { avatar, target, ry, seen, name, platform, color, anim }
 
   function upsertOther(row) {
     if (row.player_id === profile.id || row.game_id !== game.id) return
     let o = others.get(row.player_id)
     if (!o) {
-      o = { avatar: makeAvatar(row.color, row.username), target: new THREE.Vector3(row.x, row.y, row.z), ry: row.ry, name: row.username, color: row.color, anim: 'idle', id: row.player_id }
+      o = { hat: row.hat || '', avatar: makeAvatar(row.color, row.username, row.hat || ''), target: new THREE.Vector3(row.x, row.y, row.z), ry: row.ry, name: row.username, color: row.color, anim: 'idle', id: row.player_id }
       o.avatar.position.copy(o.target); others.set(row.player_id, o)
       sys(t('joined', { name: row.username })); sfx.join()
       runner.fire('playerjoin', { data: { name: row.username }, who: row.username })
     }
+    if ((row.hat || '') !== o.hat) { const pos = o.avatar.position.clone(), rot = o.avatar.rotation.y; scene.remove(o.avatar); o.hat = row.hat || ''; o.avatar = makeAvatar(row.color, row.username, o.hat); o.avatar.position.copy(pos); o.avatar.rotation.y = rot }       // cambió de sombrero
     o.target.set(row.x, row.y, row.z); o.ry = row.ry; o.seen = Date.now(); o.platform = row.platform; o.anim = row.anim || 'idle'
   }
   function dropOther(id) {
@@ -254,7 +257,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
       const fin = world.finish
       if (fin && !race.done && Math.hypot(p.x - fin.pos[0], p.z - fin.pos[2]) < fin.radius && Math.abs(p.y - fin.pos[1]) < 3) {
         race.done = true; const ms = Date.now() - (race.start || Date.now()); const prev = bestTime(game.id, null); const best = bestTime(game.id, ms)
-        social.earnCoins(20, 'obby').then(n => { if (n) sys(t('coins_earned', { n })) }); sfx.win(); showTitle(`${t('finish', { t: raceTime(ms) })}${prev && best !== ms ? ` · ${t('best')} ${raceTime(prev)}` : ''}`, 4500)
+        social.missionAdd('obby_win'); social.earnCoins(20, 'obby').then(n => { if (n) sys(t('coins_earned', { n })) }); sfx.win(); showTitle(`${t('finish', { t: raceTime(ms) })}${prev && best !== ms ? ` · ${t('best')} ${raceTime(prev)}` : ''}`, 4500)
         setTimeout(() => { teleport(...world.spawn); respawn.pos = world.spawn.slice(); race = { start: 0, cp: 0, done: false } }, 4500)
       }
     }
@@ -387,7 +390,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
       return
     }
     if (!cfg.allow_chat) return sys(t('chat_off'))
-    bump('msgs'); api.say(game.id, tx).then(() => {}, err => sys(err.message))
+    bump('msgs'); social.missionAdd('chat_5'); api.say(game.id, tx).then(() => {}, err => sys(err.message))
     chatLine(profile.username, tx, profile.id); chatSeenLocal.add(tx + '|' + Math.floor(Date.now() / 4000))
   }
   const chatSeenLocal = new Set()
@@ -524,7 +527,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
     } else {
       const [x, y, z] = h.place
       if (y < 0 || y > 255 || solid(x, y, z) || overlapsMe(x, y, z)) return
-      setBlock(x, y, z, me.kind); sfx.place(); bump('placed')
+      setBlock(x, y, z, me.kind); sfx.place(); bump('placed'); social.missionAdd('place_50')
       api.placeBlock(game.id, x, y, z, me.kind).catch(err => sys(err.message))
     }
   }
@@ -611,7 +614,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
     const changed = last.x !== me.pos.x || last.y !== me.pos.y || last.z !== me.pos.z || last.ry !== me.ry || last.anim !== me.anim
     if (sending || (!changed && now - lastSent < 1000)) return
     sending = true; lastSent = now
-    last = { x: me.pos.x, y: me.pos.y, z: me.pos.z, ry: me.ry, anim: me.anim }
+    last = { x: me.pos.x, y: me.pos.y, z: me.pos.z, ry: me.ry, anim: me.anim, hat: myHat() }
     api.move(game.id, last).catch(() => {}).finally(() => (sending = false))
   }
 
@@ -619,7 +622,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
   const onChatRow = row => {
     if (!row || row.kind !== 'chat' || chatSeen.has(row.id)) return
     chatSeen.add(row.id); chatSince = row.created_at
-    if (row.player_id === profile.id) return                      // mis mensajes ya se enseñaron al enviarlos
+    if (row.player_id === profile.id || social.isBlockedName(row.username)) return                      // mis mensajes ya se enseñaron al enviarlos
     chatLine(row.username, row.payload?.text ?? '', row.player_id)
   }
   const channel = gameDb.channel(`game:${game.id}`)
@@ -670,6 +673,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
   const rosterTimer = setInterval(() => { if (!roster.classList.contains('hidden') || paused) drawRoster() }, 1500)
   const tickTimer = setInterval(() => runner.fire('tick', { data: { players: others.size + 1 } }), 1000)
   const timeTimer = setInterval(() => bump('time', 5), 5000)
+  const missionTimer = setInterval(() => social.missionAdd('play_10', 1), 60_000)
   const coinTimer = setInterval(async () => { const n = await social.earnCoins(10, 'play'); if (n) sys(t('coins_earned', { n })) }, 300_000)       // BCoins por jugar (tope diario en el servidor)
 
   // ---------- música ----------
@@ -779,7 +783,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
   if (game.script && !ST) setTimeout(() => runner.fire('join', { data: { name: profile.username }, who: profile.username }), 600)
 
   return function stop() {
-    cancelAnimationFrame(raf); for (const i of [sendTimer, pruneTimer, syncTimer, pollTimer, rosterTimer, tickTimer, timeTimer, coinTimer]) clearInterval(i)
+    cancelAnimationFrame(raf); for (const i of [sendTimer, pruneTimer, syncTimer, pollTimer, rosterTimer, tickTimer, timeTimer, coinTimer, missionTimer]) clearInterval(i)
     window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); window.removeEventListener('resize', onResize)
     window.removeEventListener('pointermove', pmove); window.removeEventListener('pointerup', pup); window.removeEventListener('pointercancel', pup)
     canvas.removeEventListener('pointerdown', pdown); canvas.removeEventListener('wheel', wheel); canvas.removeEventListener('contextmenu', noMenu); canvas.removeEventListener('pointerleave', pleave)

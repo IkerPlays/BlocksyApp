@@ -49,8 +49,14 @@ async function rpc(fn, args, retry = true) {
   if (error) throw error
 }
 
-export const move = (game, p, platform = 'web') =>
-  rpc('move', { p_game: game, p_x: p.x, p_y: p.y, p_z: p.z, p_ry: p.ry, p_anim: p.anim, p_platform: platform })
+let hatOk = true      // GAME con v4.sql acepta p_hat; si no, se envía sin sombrero
+export const move = async (game, p, platform = 'web') => {
+  const base = { p_game: game, p_x: p.x, p_y: p.y, p_z: p.z, p_ry: p.ry, p_anim: p.anim, p_platform: platform }
+  if (hatOk && p.hat) {
+    try { return await rpc('move', { ...base, p_hat: p.hat }) } catch (e) { if (/p_hat|could not find|schema cache/i.test(e.message)) hatOk = false; else throw e }
+  }
+  return rpc('move', base)
+}
 export const placeBlock = (game, x, y, z, kind) => rpc('place_block', { p_game: game, p_x: x, p_y: y, p_z: z, p_kind: kind })
 export const breakBlock = (game, x, y, z) => rpc('break_block', { p_game: game, p_x: x, p_y: y, p_z: z })
 export const say = (game, text) => rpc('say', { p_game: game, p_text: text })
@@ -115,3 +121,13 @@ export async function playerCounts() {
   for (const r of data ?? []) out[r.game_id] = (out[r.game_id] ?? 0) + 1
   return out
 }
+
+// Eventos de partida (recoger fragmentos, ser atrapado...) y NPC anfitrión (GAME v4.sql)
+export const gameEvent = (game, kind, payload = {}) => rpc('game_event', { p_game: game, p_kind: kind, p_payload: payload })
+export async function npcTick(game, id, p) {
+  if (!session) await openGameSession()
+  const { data, error } = await gameDb.rpc('npc_tick', { p_secret: session.secret, p_game: game, p_id: id, p_x: p.x, p_y: p.y, p_z: p.z, p_ry: p.ry, p_anim: p.anim ?? 'idle' })
+  if (error) throw error
+  return data === true
+}
+export const npcRelease = (game, id) => rpc('npc_release', { p_game: game, p_id: id })
