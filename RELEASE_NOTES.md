@@ -1,4 +1,5 @@
-Devbuild 32: Studio navigation
-- Visible grid around you (toggle in the toolbar) and a Measure tool that shows distance and X/Y/Z offsets.
-- Camera bookmarks: Alt+Shift+1..4 saves, Alt+1..4 goes there.
-- Ctrl+D duplicates parts, Ctrl+A selects them all, and a shortcuts cheat sheet opens with F1.
+Devbuild 33: script editor
+- Code snippets menu (PlayerAdded, Touched, Tween, RemoteEvent, DataStore...).
+- Autocomplete for the Roblox-style API and the words in your script (Tab accepts).
+- Find and replace with Ctrl+F.
+- Script console: shows what your script prints and its errors; click an error to jump to its line.

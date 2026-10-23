@@ -407,3 +407,7 @@ html.rainbow { animation: rainbow 2s linear infinite; } @keyframes rainbow { to 
 .pi-row.wrap { flex-wrap: wrap; gap: 4px; }
 #studio-help { position: absolute; right: 16px; top: 120px; width: 300px; max-height: 70vh; overflow: auto; background: #000d; color: #fff; padding: 12px; border-radius: 12px; z-index: 40; display: flex; flex-direction: column; gap: 6px; }
 #studio-help .sc-row { display: flex; gap: 8px; align-items: center; font-size: 12px; } #studio-help kbd { background: #333; border-radius: 4px; padding: 1px 6px; min-width: 96px; text-align: center; font-size: 11px; }
+.code-sugg { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: 4px; } .code-sugg small { color: var(--muted); }
+.find-bar { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-bottom: 6px; } .find-bar input { width: 140px; padding: 5px 8px; }
+.script-console { margin-top: 10px; max-height: 160px; overflow: auto; background: #0005; border-radius: 8px; padding: 8px; font-size: 12px; font-family: ui-monospace, monospace; }
+.con-row { display: flex; gap: 8px; padding: 2px 0; } .con-row.error { color: #ff8f8f; cursor: pointer; } .con-row.error:hover { background: #ff000018; } .con-row small { margin-left: auto; opacity: .7; }

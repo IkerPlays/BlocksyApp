@@ -20,6 +20,7 @@ import { createHorror } from './horror.js'
 import { createScripted } from './scene-parts.js'
 import { createStudio } from './studio-tools.js'
 import { createWeather } from './weather.js'
+import { scriptConsole } from './script-console.js'
 import { createTutorial } from './onboarding.js'
 import { filterWords, isMuted, toggleMute, createLimiter } from './moderation.js'
 import { checkAchievements } from './achievements.js'
@@ -464,12 +465,12 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
   let remoteTokens = 10, remoteAt = performance.now()
   const uiText = {}                                          // textos de interfaz cambiados por el script (Lua: ui.setText)
   function startRunner() {
-    runner.dispose(); rbx.reset()
+    runner.dispose(); rbx.reset(); scriptConsole.clear()
     const lua = cfg.script_lang === 'lua', hasCode = !!game.script?.trim()
     if (!(lua && hasCode)) rbx.spawnStatic(cfg.parts)                      // piezas del Studio: con script Lua las crea el propio script (para que las encuentre por nombre)
     runner = createRunner(game.script, { name: profile.username }, (type, a) => {
       switch (type) {
-        case 'print': sys('› ' + a[0]); break
+        case 'print': sys('› ' + a[0]); scriptConsole.push('print', a[0]); break
         case 'team': setTeam(String(a[0]), a[1] ? `rgb(${[1, 2, 3].map(i => Math.round(Number(String(a[1]).slice(2).split(',')[i - 1]) * 255)).join(',')})` : ''); break
         case 'cmd': scriptCmds.add(String(a[0])); break
         case 'weather': weather.setKind(String(a[0])); break
@@ -489,7 +490,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
         case 'uitext': uiText[a[0]] = String(a[1]); drawUi(); break
         default: rbx.apply(type, a)
       }
-    }, msg => sys('script: ' + msg), lua ? 'lua' : 'js', { parts: cfg.parts ?? [], ds: loadDataStore(game.parentId ?? game.id) })
+    }, msg => { sys('script: ' + msg); scriptConsole.push('error', msg) }, lua ? 'lua' : 'js', { parts: cfg.parts ?? [], ds: loadDataStore(game.parentId ?? game.id) })
   }
   if (!ST) startRunner()
 
