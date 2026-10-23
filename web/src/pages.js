@@ -10,6 +10,7 @@ import { t, LANGS, langName, getPref, setLang, onLang } from './i18n.js'
 import { codeEditor } from './studio-ui.js'
 import { partyPanel, attachEmoticons } from './party-ui.js'
 import { TEMPLATES } from './templates.js'
+import { APP_VERSION, whatsNew, markSeen, CREDITS, errorLog, clearErrors, reportUrl } from './about.js'
 import { installApp, canInstall, isInstalled, askNotifications, checkForUpdate, applyUpdate, isUpdateReady, BUILD } from './pwa.js'
 
 const $ = id => document.getElementById(id)
@@ -29,6 +30,21 @@ export function el(tag, props = {}, ...kids) {
 }
 // Como replaceChildren pero acepta arrays anidados y descarta null/false
 export function setKids(node, ...kids) { node.replaceChildren(...kids.flat(Infinity).filter(k => k != null && k !== false)) }
+export function showNews() {
+  const m = $('modal'); setKids($('modal-card'), el('div', { class: 'detail-col' }, el('h2', { text: t('whats_new') + ' · ' + APP_VERSION }), el('ul', { class: 'news-list' }, whatsNew().map(x => el('li', { text: x }))), el('button', { class: 'btn wide primary', text: t('close'), onclick: closeModal })))
+  m.classList.remove('hidden'); markSeen()
+}
+function showCredits() {
+  setKids($('modal-card'), el('div', { class: 'detail-col' }, el('h2', { text: t('credits') }), el('ul', { class: 'news-list' }, CREDITS.map(([a, b]) => el('li', {}, el('b', { text: a + ' ' }), b))), el('button', { class: 'btn wide', text: t('close'), onclick: closeModal })))
+  $('modal').classList.remove('hidden')
+}
+function showErrors() {
+  const l = errorLog()
+  setKids($('modal-card'), el('div', { class: 'detail-col' }, el('h2', { text: t('error_log') }),
+    l.length ? el('pre', { class: 'err-log', text: l.map(e => `${e.at.slice(11, 19)} ${e.msg}`).join('\n') }) : el('p', { class: 'muted', text: t('no_errors') }),
+    el('button', { class: 'btn wide', text: t('clear'), onclick: () => { clearErrors(); showErrors() } }), el('button', { class: 'btn wide primary', text: t('close'), onclick: closeModal })))
+  $('modal').classList.remove('hidden')
+}
 export function toast(msg) {
   const tt = $('toast'); tt.textContent = msg; tt.classList.remove('hidden')
   clearTimeout(toast.t); toast.t = setTimeout(() => tt.classList.add('hidden'), 2800)
@@ -547,6 +563,12 @@ export const pages = {
           rg('sensitivity', t('set_sens'), 0.3, 2.5, 0.1), rg('syncMs', t('set_sync'), 40, 400, 10, v => v + ' ms'), sw('invertY', t('set_invert')), sw('names', t('set_names')), sw('bubbles', t('set_bubbles')),
           sw('minimap', t('set_minimap')), sw('compass', t('set_compass')), sw('showFps', t('set_fps')), sw('notifPopups', t('set_notif')),
           rg('touchSize', t('set_touch_size'), 0.7, 1.5, 0.1), sw('leftHanded', t('set_left'))),
+        el('div', { class: 'panel' }, el('h3', { text: t('about') }), el('p', { class: 'muted', text: `Blocksy ${APP_VERSION} · ${BUILD}` }),
+          el('div', { class: 'row-btns' },
+            el('button', { class: 'btn', text: t('whats_new'), onclick: () => showNews() }),
+            el('button', { class: 'btn', text: t('credits'), onclick: () => showCredits() }),
+            el('button', { class: 'btn', text: t('error_log'), onclick: () => showErrors() }),
+            el('button', { class: 'btn primary', text: t('report_bug'), onclick: () => window.open(reportUrl(), '_blank', 'noopener') }))),
         el('div', { class: 'panel' }, el('h3', { text: t('set_access') }),
           sel('colorblind', t('set_colorblind'), [['none', t('cb_none')], ['protanopia', t('cb_prot')], ['deuteranopia', t('cb_deut')], ['tritanopia', t('cb_trit')]]),
           rg('textScale', t('set_text_size'), 0.9, 1.5, 0.05, v => Math.round(v * 100) + '%'), sw('subtitles', t('set_subtitles')), sw('chatFilter', t('set_chat_filter')), sw('vibrate', t('set_vibrate')), sel('batterySaver', t('set_saver'), [['auto', t('saver_auto')], ['on', t('saver_on')], ['off', t('saver_off')]])),

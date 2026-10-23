@@ -126,6 +126,13 @@ static const char *const PT_TR[][2] = {
 	{"and add friends (not available with QR).", "e adicione amigos (nao disponivel com QR)."},
 	{"request", "pedido"},
 	{"streak", "sequencia"},
+	{"Added to favorites", "Adicionado aos favoritos"},
+	{"Removed from favorites", "Removido dos favoritos"},
+	{"Favorites need an email login", "Favoritos exigem login com email"},
+	{"unfavorite", "remover favorito"},
+	{"favorite", "favorito"},
+	{"play", "jogar"},
+	{"close", "fechar"},
 	{"Forest difficulty", "Dificuldade da floresta"},
 	{"Easy", "Facil"},
 	{"Hard", "Dificil"},
@@ -172,7 +179,7 @@ static bool cur_is_dev(void) { return strstr(g_upd.cur, "-dev") != NULL || !strc
 // ¿Hay algo nuevo? Una estable nueva siempre; una devbuild nueva solo si se usa una devbuild
 static bool upd_available(void) { return g_upd_have && (g_upd.stable.newer || (g_upd.dev.newer && cur_is_dev())); }
 
-typedef enum { RQ_NONE, RQ_REFRESH, RQ_ADD, RQ_REMOVE, RQ_COLOR, RQ_UPD_CHECK, RQ_UPD_INSTALL, RQ_ACCEPT, RQ_DM_SEND, RQ_DM_FETCH, RQ_DM_EDIT, RQ_DM_DEL, RQ_NOTIF_READ, RQ_NOTIF_CLEAR, RQ_BUY, RQ_CRATE, RQ_CLAIM, RQ_EQUIP } Req;
+typedef enum { RQ_NONE, RQ_REFRESH, RQ_ADD, RQ_REMOVE, RQ_COLOR, RQ_UPD_CHECK, RQ_UPD_INSTALL, RQ_ACCEPT, RQ_DM_SEND, RQ_DM_FETCH, RQ_DM_EDIT, RQ_DM_DEL, RQ_NOTIF_READ, RQ_NOTIF_CLEAR, RQ_BUY, RQ_CRATE, RQ_CLAIM, RQ_EQUIP, RQ_FAV } Req;
 typedef struct {
 	volatile int req, busy, quit, offline, seq, done_ok;
 	char arg[48], arg2[104]; int n;
@@ -196,7 +203,7 @@ static u32 parse_hex(const char *hex) {
 static void refresh_all(void) {
 	static GameInfo tg[MAX_GAMES]; static Person tf[MAX_PEOPLE]; static FriendReq tr[MAX_PEOPLE];
 	int ng = net_list_games(tg, MAX_GAMES);
-	if (ng >= 0) { net_player_counts(tg, ng); LightLock_Lock(&lk); memcpy(g_games, tg, sizeof(GameInfo) * ng); g_ngames = ng; LightLock_Unlock(&lk); }
+	if (ng >= 0) { net_player_counts(tg, ng); { static char fid[64][40]; int nfv = net_favorites(W.s, fid, 64); for (int i = 0; i < ng; i++) { tg[i].fav = 0; for (int k = 0; k < nfv; k++) if (!strcmp(tg[i].id, fid[k])) tg[i].fav = 1; } } LightLock_Lock(&lk); memcpy(g_games, tg, sizeof(GameInfo) * ng); g_ngames = ng; LightLock_Unlock(&lk); }
 	else snprintf(W.msg, sizeof W.msg, "%s", net_login_error());
 	int nf = net_list_friends(W.s, tf, MAX_PEOPLE), nr = net_list_requests(W.s, tr, MAX_PEOPLE);
 	int un = net_unread_total(W.s); if (un >= 0) g_unread = un;
@@ -268,6 +275,7 @@ static void worker_thread(void *arg) {
 			case RQ_CRATE: { char it[32] = ""; int dup = 0, rf = 0; int rc2 = net_open_crate(W.s, W.arg, it, sizeof it, &dup, &rf); W.done_ok = rc2 == 0;
 				if (rc2 == 0) { const char *nm = it; for (int i = 0; i < g_nshop; i++) if (!strcmp(g_shop[i].id, it)) nm = g_shop[i].name; if (dup) snprintf(W.msg, sizeof W.msg, tr2("%s (repetido, +%d BCoins)", "%s (duplicate, +%d BCoins)"), nm, rf); else snprintf(W.msg, sizeof W.msg, tr2("Conseguiste: %s", "You got: %s"), nm); }
 				else snprintf(W.msg, sizeof W.msg, "%s", rc2 == 1 ? tr2("No tienes suficientes BCoins", "Not enough BCoins") : tr2("No se pudo abrir", "Could not open")); refresh_all(); break; }
+			case RQ_FAV: { int fv = net_toggle_favorite(W.s, W.arg); W.done_ok = fv >= 0; snprintf(W.msg, sizeof W.msg, "%s", fv < 0 ? tr2("Entra con email para usar favoritos", "Favorites need an email login") : fv ? tr2("Anadido a favoritos", "Added to favorites") : tr2("Quitado de favoritos", "Removed from favorites")); refresh_all(); break; }
 			case RQ_CLAIM: { int ca = net_claim_daily(W.s); W.done_ok = ca > 0; if (ca > 0) snprintf(W.msg, sizeof W.msg, "+%d BCoins", ca); else snprintf(W.msg, sizeof W.msg, "%s", ca == 0 ? tr2("Ya la recogiste hoy", "Already claimed today") : tr2("Error", "Error")); refresh_all(); break; }
 			case RQ_EQUIP: W.done_ok = net_equip(W.s, W.arg, W.arg2); snprintf(W.msg, sizeof W.msg, "%s", W.done_ok ? tr2("Hecho", "Done") : "Error"); refresh_all(); break;
 			case RQ_NOTIF_READ: net_notifs_read(W.s); refresh_all(); break;
@@ -358,7 +366,7 @@ static int build_view(const Ui *u, const Session *s, int *view) {
 	int n = 0;
 	if (u->page == P_HOME) {                                   // populares primero
 		for (int i = 0; i < ngames; i++) view[n++] = i;
-		for (int i = 1; i < n; i++) { int v = view[i], j = i - 1; while (j >= 0 && games[view[j]].players < games[v].players) { view[j + 1] = view[j]; j--; } view[j + 1] = v; }
+		for (int i = 1; i < n; i++) { int v = view[i], j = i - 1; while (j >= 0 && (games[view[j]].fav < games[v].fav || (games[view[j]].fav == games[v].fav && games[view[j]].players < games[v].players))) { view[j + 1] = view[j]; j--; } view[j + 1] = v; }
 	} else if (u->page == P_DISCOVER) {
 		for (int i = 0; i < ngames; i++) {
 			if (u->search[0]) {
@@ -649,7 +657,7 @@ static void modal_top(const Ui *u) {
 	ui_text(310, 104, 0.4f, COL_TEXT, 0, "Web + 3DS"); ui_text(310, 120, 0.34f, COL_MUTED, 0, "plataformas");
 	static char lines[3][96]; int nl = wrap(g->desc[0] ? g->desc : "Sin descripcion.", 0.42f, 180, lines, 3);
 	for (int i = 0; i < nl; i++) ui_text(184, 142 + i * 15, 0.42f, COL_MUTED, 0, lines[i]);
-	ui_text(200, 196, 0.38f, COL_MUTED, 0, "A: jugar     B: cerrar");
+	{ char hint[64]; snprintf(hint, sizeof hint, "A: %s     X: %s     B: %s", tr2("jugar", "play"), g->fav ? tr2("quitar favorito", "unfavorite") : tr2("favorito", "favorite"), tr2("cerrar", "close")); ui_text(200, 196, 0.38f, COL_MUTED, C2D_AlignCenter, hint); }
 }
 
 // ================= PANTALLA INFERIOR =================
@@ -939,6 +947,7 @@ AppResult app_lobby(C3D_RenderTarget *top, C3D_RenderTarget *bot, Session *s, Ga
 		} else if (u.modal >= 0) {                                       // ficha de juego abierta
 			if (down & KEY_A) act_row = -2;                              // jugar
 			if (down & KEY_B) do_back = true;
+			if (down & KEY_X) act_row = -3;                              // favorito
 		} else {
 			int step = (u.page == P_DISCOVER) ? 5 : 1;
 			if (down & KEY_DDOWN) u.cur += step;
@@ -1011,6 +1020,7 @@ AppResult app_lobby(C3D_RenderTarget *top, C3D_RenderTarget *bot, Session *s, Ga
 		if (u.scroll < 0) u.scroll = 0;
 
 		// ---- acciones ----
+		if (act_row == -3 && u.modal >= 0) request(RQ_FAV, games[u.modal].id, NULL, 0);
 		if (act_row == -2 && u.modal >= 0) {                              // jugar
 			*chosen = games[u.modal]; snprintf(s_last_game, sizeof s_last_game, "%s", chosen->id); save_settings();
 			res = APP_PLAY; break;

@@ -647,6 +647,20 @@ int net_unread_total(const Session *s) {
 	int total = 0; for (const char *p = r; (p = strchr(p, ':')); p++) total += atoi(p + 1);
 	free(r); return total;
 }
+int net_favorites(const Session *s, char (*ids)[40], int max) {
+	if (!s->token[0]) return -2;
+	char *r = http(M_POST, AUTH_URL "/rest/v1/rpc/my_favorites", AUTH_ANON_KEY, s->token, "{}", NULL);
+	if (!r) return -1;
+	int n = 0; const char *p = r;
+	while (n < max && (p = strchr(p, '"'))) { const char *e = strchr(p + 1, '"'); if (!e) break; size_t l = (size_t)(e - p - 1); if (l > 0 && l < 40) { memcpy(ids[n], p + 1, l); ids[n][l] = 0; n++; } p = e + 1; }
+	free(r); return n;
+}
+int net_toggle_favorite(const Session *s, const char *game_id) {
+	if (!s->token[0]) return -1;
+	char body[100]; snprintf(body, sizeof body, "{\"p_game\":\"%s\"}", game_id);
+	char *r = http(M_POST, AUTH_URL "/rest/v1/rpc/toggle_favorite", AUTH_ANON_KEY, s->token, body, NULL);
+	if (!r) return -1; int on = strstr(r, "true") != NULL; free(r); return on;
+}
 int net_fetch_dm(const Session *s, const char *fid, DmMsg *out, int max) {
 	if (!s->token[0]) return -2;
 	char url[420]; snprintf(url, sizeof url, AUTH_URL "/rest/v1/messages?select=id,from_id,body,edited_at&or=(and(from_id.eq.%s,to_id.eq.%s),and(from_id.eq.%s,to_id.eq.%s))&order=id.desc&limit=%d", s->user_id, fid, fid, s->user_id, max);

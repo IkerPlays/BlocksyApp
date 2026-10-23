@@ -12,6 +12,7 @@ import { t, applyStatic, setLang, getPref, LANGS, langName, onLang } from './i18
 import { initNotifications, openInvite } from './social-ui.js'
 import { openScriptModal } from './studio-ui.js'
 import { registerSW, applyUpdate } from './pwa.js'
+import { installErrorLog, isNewVersion } from './about.js'
 import * as social from './social.js'
 import { icon } from './icons.js'
 
@@ -121,6 +122,7 @@ async function exitGame() {
   stopGame?.(); stopGame = null; currentGame = null
   auth.startPresence(() => null)
   showScreen('app'); route()
+  if (isNewVersion()) setTimeout(() => import('./pages.js').then(m => m.showNews()), 1200)
 }
 
 // ---------- auth UI ----------
@@ -153,6 +155,7 @@ $('modal').addEventListener('click', e => { if (e.target.id === 'modal') closeMo
 new MutationObserver(() => { if ($('modal').classList.contains('hidden')) $('game').classList.remove('hidden-for-modal') }).observe($('modal'), { attributes: true, attributeFilter: ['class'] })
 $('search').addEventListener('submit', e => { e.preventDefault(); const q = $('search-input').value.trim(); navigate(q ? `/discover/${encodeURIComponent(q)}` : '/discover') })
 window.addEventListener('beforeunload', () => { api.leaveBeacon() })
+installErrorLog()
 registerSW(() => { $('update-bar').classList.remove('hidden') })
 $('update-reload').onclick = () => applyUpdate()
 $('update-later').onclick = () => $('update-bar').classList.add('hidden')

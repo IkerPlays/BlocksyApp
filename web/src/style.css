@@ -388,3 +388,7 @@ html.big-text .page, html.big-text #chat-log, html.big-text #chat-form, html.big
 
 #pause-rules { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 10px; } #pause-rules span { font-size: 12px; padding: 2px 8px; border-radius: 10px; background: #0004; } #pause-rules .ok { color: #7be39b; } #pause-rules .no { color: #ff9a9a; }
 .mute-btn { background: none; border: 0; color: #9aa0a8; cursor: pointer; padding: 2px 4px; } .mute-btn.on { color: #ff6b6b; }
+
+.news-list { margin: 8px 0 14px; padding-left: 18px; line-height: 1.5; } .news-list li { margin-bottom: 6px; }
+.err-log { max-height: 240px; overflow: auto; background: #0006; padding: 10px; border-radius: 8px; font-size: 12px; white-space: pre-wrap; word-break: break-word; }
+.row-btns { display: flex; flex-wrap: wrap; gap: 8px; }

@@ -1,5 +1,4 @@
-Devbuild 22: 3DS
-- Photo mode on the 3DS: press L+R together to hide the interface.
-- Footstep dust puffs while walking and running (Settings: Footstep dust).
-- Dark Forest difficulty setting (Easy, Normal, Hard) changes the monster speed when you host it.
-- Settings list now scrolls through the new rows.
+Devbuild 23: about and favorites
+- What's new window (shown once after each update) and Credits.
+- Error log (last 20 errors on this device) and Report a problem, which opens a prefilled GitHub issue.
+- 3DS: favorites. Press X on a game card to add or remove it; favorites are shared with the web and listed first (needs an email login).

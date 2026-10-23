@@ -39,7 +39,7 @@ export default defineConfig({
     { find: /^os$/, replacement: fileURLToPath(new URL('./src/os-shim.js', import.meta.url)) },
     { find: /^\.\/(liolib|loslib|loadlib|ldblib)\.js$/, replacement: fileURLToPath(new URL('./src/lua-stub.js', import.meta.url)) },     // fengari: sin librerías de Node
   ] },
-  define: { __BUILD__: JSON.stringify(BUILD) },
+  define: { __BUILD__: JSON.stringify(BUILD), __APP_VERSION__: JSON.stringify(existsSync(new URL('../VERSION', import.meta.url)) ? readFileSync(new URL('../VERSION', import.meta.url), 'utf8').trim() : 'dev') },
   plugins: [playlistPlugin(), stampSW()],
   build: { chunkSizeWarningLimit: 1200 },
 })
