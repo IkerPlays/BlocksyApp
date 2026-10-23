@@ -603,8 +603,9 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
   const up = e => { keys[e.code] = false; { const kn = keyName(e.code); if (kn && !typing()) runner.fire('key', { data: { k: kn, down: false } }); rbx.onKey(e.code, false) } if (e.code === 'KeyV' && settings.voiceMode === 'ptt' && voice.active) voice.setMuted(true) }
   let drag = null
   let touchBreak = false
-  const pdown = e => { if (drag) return; drag = { id: e.pointerId, x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY, moved: false }; try { canvas.setPointerCapture(e.pointerId) } catch {} }
+  const pdown = e => { if (drag) return; if (ST && editing() && sd?.pointerDown(e)) return; drag = { id: e.pointerId, x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY, moved: false }; try { canvas.setPointerCapture(e.pointerId) } catch {} }
   const pmove = e => {
+    if (ST && sd?.pointerMove(e)) return
     hoverPt = { x: e.clientX, y: e.clientY }
     if (!drag || drag.id !== e.pointerId || paused) return
     const dx = e.clientX - drag.x, dy = e.clientY - drag.y
@@ -613,6 +614,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
     drag.x = e.clientX; drag.y = e.clientY
   }
   const pup = e => {
+    if (ST && sd?.pointerUp(e)) return
     if (!drag || drag.id !== e.pointerId) return
     if (!drag.moved && !paused && !(ST && sd?.tool === 'ui' && editing()) && !(runner.has() && rbx.click(new THREE.Vector2(((e.clientX - canvas.getBoundingClientRect().left) / canvas.clientWidth) * 2 - 1, -((e.clientY - canvas.getBoundingClientRect().top) / canvas.clientHeight) * 2 + 1), camera))) interact(e, IS_TOUCH ? touchBreak : e.button === 2)
     drag = null

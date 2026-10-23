@@ -1,1 +1,1 @@
-Dev build 8: Studio gets spheres and cylinders, a line tool, replace color and a symmetry mode (X, Z or both).
+Dev build 9: drag parts with the mouse in Studio (Shift moves up and down), groups of parts, copy and paste parts, and a configurable grid.

@@ -38,10 +38,13 @@ const SKIES = ['day', 'sunset', 'night', 'space']
 export function createStudio(ctx) {
   const { game, cfg, api, PALETTE, key, index, statics, setBlock, removeBlock, me, pick, scene, camera, canvas, rbx, showTitle, sys, sfx, burst, selectKind, onEnv, onTestToggle, onSave, onExit, onScript, onAddText, setUiTool, getHover } = ctx
   const g = document.getElementById('game'), bar = document.getElementById('studio-bar')
-  const state = { tool: 'place', mode: 'fill', shape: 'sphere', sym: 'off', prefab: 'house', rot: 0, a: null, region: null, clip: null }
+  const state = { tool: 'place', mode: 'fill', shape: 'sphere', sym: 'off', grid: 0.5, prefab: 'house', rot: 0, a: null, region: null, clip: null }
   const undoS = [], redoS = []
   const parts = cfg.parts = Array.isArray(cfg.parts) ? cfg.parts.slice(0, MAX_PARTS).map(p => ({ ...p })) : []
-  let selPart = -1
+  let selPart = -1, partClip = null, dragPart = null
+  const snap = v => (state.grid > 0 ? Math.round(v / state.grid) * state.grid : v)
+  const groupOf = i => { const g = parts[i]?.group; return g ? parts.map((p, k) => (p.group === g ? k : -1)).filter(k => k >= 0) : [i] }
+  const movePart = (i, dx, dy, dz) => { for (const k of groupOf(i)) { const q = parts[k]; q.x = +(q.x + dx).toFixed(3); q.y = +(q.y + dy).toFixed(3); q.z = +(q.z + dz).toFixed(3) } }
 
   // ---------- operaciones con bloques (todas pasan por aquí: local al instante, servidor en lotes, con deshacer) ----------
   const kindAt = (x, y, z) => { const k = key(x, y, z); if (statics.has(k)) return 'S'; return index.get(k)?.kind ?? -1 }
@@ -140,15 +143,16 @@ export function createStudio(ctx) {
   function openPartInspector() {
     const p = parts[selPart]; if (!p || state.tool !== 'part') return partInsp.classList.add('hidden')
     const num = (k, step = 0.5, w = 62) => { const i = h('input', { type: 'number', step, value: +(+p[k]).toFixed(3) }); i.style.width = w + 'px'; i.oninput = () => { if (i.value !== '' && Number.isFinite(+i.value)) { p[k] = +i.value; refreshParts() } }; return i }
-    const nudge = (k, d) => h('button', { type: 'button', class: 'btn tiny', text: d > 0 ? '+' : '−', onclick: () => { p[k] = +(p[k] + d).toFixed(3); refreshParts(); openPartInspector() } })
+    const nudge = (k, d) => h('button', { type: 'button', class: 'btn tiny', text: d > 0 ? '+' : '−', onclick: () => { const s = d * (state.grid || 1); movePart(selPart, k === 'x' ? s : 0, k === 'y' ? s : 0, k === 'z' ? s : 0); refreshParts(); openPartInspector() } })
     const row = (label, ...c) => h('div', { class: 'pi-row' }, h('span', { text: label }), ...c)
     const sel = (k, list, lab = x => x) => { const s = h('select', {}, list.map(v => h('option', { value: v, text: lab(v), selected: p[k] === v }))); s.onchange = () => { p[k] = s.value; refreshParts() }; return s }
     const chk = k => { const i = h('input', { type: 'checkbox', checked: p[k] !== false }); i.onchange = () => { p[k] = i.checked; refreshParts() }; return i }
     const name = h('input', { value: p.name, maxlength: 24 }); name.oninput = () => { p.name = name.value.replace(/[^\w ]/g, '').slice(0, 24) }
+    const grp = h('input', { value: p.group ?? '', maxlength: 16, placeholder: t('st_group_ph') }); grp.oninput = () => { p.group = grp.value.replace(/[^\w]/g, '').slice(0, 16) }
     const col = h('input', { type: 'color', value: p.color || '#a3a2a5' }); col.oninput = () => { p.color = col.value; refreshParts() }
     const tr = h('input', { type: 'range', min: 0, max: 1, step: 0.05, value: p.transparency || 0 }); tr.oninput = () => { p.transparency = +tr.value; refreshParts() }
     partInsp.replaceChildren(
-      h('b', { text: p.type === 'spawn' ? t('st_add_spawn') : 'Part' }), row(t('st_part_name'), name),
+      h('b', { text: p.type === 'spawn' ? t('st_add_spawn') : 'Part' }), row(t('st_part_name'), name), row(t('st_group'), grp),
       row('X', num('x'), nudge('x', -1), nudge('x', 1)), row('Y', num('y'), nudge('y', -1), nudge('y', 1)), row('Z', num('z'), nudge('z', -1), nudge('z', 1)),
       row(t('st_size3'), num('sx', 0.5, 48), num('sy', 0.5, 48), num('sz', 0.5, 48)), row(t('st_rot'), num('ry', 15, 62)),
       row(t('st_shape'), sel('shape', SHAPES)), row(t('st_material'), sel('material', MATERIALS)), row(t('st_color'), col), row(t('st_transp'), tr),
@@ -187,7 +191,7 @@ export function createStudio(ctx) {
       L.push(s, h('button', { type: 'button', class: 'chip', text: t('st_rotate'), onclick: () => (state.rot = (state.rot + 1) % 4) }))
     }
     if (state.tool === 'select') L.push(h('button', { type: 'button', class: 'chip', text: t('st_copy') + ' (Ctrl+C)', onclick: copySel }), h('button', { type: 'button', class: 'chip', text: t('st_cut'), onclick: () => { copySel(); clearSel() } }), h('button', { type: 'button', class: 'chip', text: t('st_fillsel'), onclick: fillSel }), h('button', { type: 'button', class: 'chip', text: t('st_clear') + ' (Del)', onclick: clearSel }))
-    if (state.tool === 'part') L.push(h('button', { type: 'button', class: 'chip on', text: '+ ' + t('st_add_part'), onclick: () => newPart('part') }), h('button', { type: 'button', class: 'chip', text: '+ ' + t('st_add_spawn'), onclick: () => newPart('spawn') }))
+    if (state.tool === 'part') L.push(h('select', { onchange: e => { state.grid = Number(e.target.value) } }, [0, 0.25, 0.5, 1].map(v => h('option', { value: v, text: `${t('st_grid')}: ${v || t('st_sym_off')}`, selected: state.grid === v }))), h('button', { type: 'button', class: 'chip on', text: '+ ' + t('st_add_part'), onclick: () => newPart('part') }), h('button', { type: 'button', class: 'chip', text: '+ ' + t('st_add_spawn'), onclick: () => newPart('spawn') }))
     L.push(h('span', { class: 'hint', text: t('st_hint_' + state.tool) }))
     opts.replaceChildren(...L); opts.classList.remove('hidden'); requestAnimationFrame(() => { opts.style.top = Math.round(bar.getBoundingClientRect().bottom + 8) + 'px' })
   }
@@ -279,20 +283,44 @@ export function createStudio(ctx) {
     const ctrl = e.ctrlKey || e.metaKey
     if (ctrl && e.code === 'KeyZ') { e.preventDefault(); e.shiftKey ? redo() : undo(); return true }
     if (ctrl && e.code === 'KeyY') { e.preventDefault(); redo(); return true }
+    if (ctrl && e.code === 'KeyC' && state.tool === 'part' && selPart >= 0) { e.preventDefault(); partClip = groupOf(selPart).map(k => ({ ...parts[k] })); showTitle(t('st_done_n', { n: partClip.length }), 1000); return true }
+    if (ctrl && e.code === 'KeyV' && partClip?.length) { e.preventDefault(); for (const q of partClip) { if (parts.length >= MAX_PARTS) break; parts.push({ ...q, name: q.name.replace(/\d*$/, '') + (parts.length + 1), x: q.x + 1, z: q.z + 1 }) } partClip = partClip.map(q => ({ ...q, x: q.x + 1, z: q.z + 1 })); selPart = parts.length - 1; refreshParts(); openPartInspector(); sfx.place(); return true }
     if (ctrl && e.code === 'KeyC') { e.preventDefault(); copySel(); return true }
     if (ctrl && e.code === 'KeyV') { e.preventDefault(); if (state.clip) { state.prefab = 'clip'; setTool('stamp') } return true }
     if (e.code === 'Delete' || e.code === 'Backspace') { if (state.tool === 'part' && selPart >= 0) { parts.splice(selPart, 1); selPart = -1; refreshParts(); partInsp.classList.add('hidden') } else clearSel(); return true }
     if (e.code === 'KeyR' && state.tool === 'stamp') { state.rot = (state.rot + 1) % 4; return true }
     if (e.altKey && selPart >= 0 && state.tool === 'part' && e.code.startsWith('Arrow')) {
-      const p = parts[selPart], yaw = Math.round(((Math.atan2(camera.position.x - me.pos.x, camera.position.z - me.pos.z)) / (Math.PI / 2))); const d = e.shiftKey ? 0.25 : 1
+      const yaw = Math.round(((Math.atan2(camera.position.x - me.pos.x, camera.position.z - me.pos.z)) / (Math.PI / 2))); const d = e.shiftKey ? 0.25 : 1
       const f = [[0, -1], [-1, 0], [0, 1], [1, 0]][((-yaw % 4) + 4) % 4]
-      if (e.code === 'ArrowUp') { p.x += f[0] * d; p.z += f[1] * d } else if (e.code === 'ArrowDown') { p.x -= f[0] * d; p.z -= f[1] * d } else if (e.code === 'ArrowLeft') { p.x += f[1] * d; p.z -= f[0] * d } else { p.x -= f[1] * d; p.z += f[0] * d }
+      if (e.code === 'ArrowUp') movePart(selPart, f[0] * d, 0, f[1] * d); else if (e.code === 'ArrowDown') movePart(selPart, -f[0] * d, 0, -f[1] * d); else if (e.code === 'ArrowLeft') movePart(selPart, f[1] * d, 0, -f[0] * d); else movePart(selPart, -f[1] * d, 0, f[0] * d)
       refreshParts(); openPartInspector(); e.preventDefault(); return true
     }
     return false
   }
   function setTesting(on) { bar.classList.toggle('testing', on); if (on) { opts.classList.add('hidden'); partInsp.classList.add('hidden'); envBox.classList.add('hidden'); wire.visible = stamp.visible = selWire.visible = false } else { paintOpts(); if (state.tool === 'part') openPartInspector(); rbx.reset(); rbx.spawnStatic(parts) } }
+  // arrastrar piezas con el ratón (Mayús = subir y bajar); el grupo entero se mueve a la vez
+  const dragRay = new THREE.Raycaster(), dragPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), hitPt = new THREE.Vector3()
+  const ndcOf = e => { const r = canvas.getBoundingClientRect(); return new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1) }
+  let dragAt = 0
+  function pointerDown(e) {
+    if (state.tool !== 'part' || e.button !== 0) return false
+    const i = rbx.pickPart(ndcOf(e), camera); if (i < 0) return false
+    selPart = i; updateSelBox(); openPartInspector()
+    const p = parts[i]; dragPlane.constant = -p.y; dragRay.setFromCamera(ndcOf(e), camera)
+    if (!dragRay.ray.intersectPlane(dragPlane, hitPt)) hitPt.set(p.x, p.y, p.z)
+    dragPart = { i, ox: p.x - hitPt.x, oz: p.z - hitPt.z, sy: e.clientY, y0: p.y }; return true
+  }
+  function pointerMove(e) {
+    if (!dragPart) return false
+    const p = parts[dragPart.i]; if (!p) return true
+    let nx = p.x, ny = p.y, nz = p.z
+    if (e.shiftKey) ny = snap(dragPart.y0 + (dragPart.sy - e.clientY) * 0.04)
+    else { dragRay.setFromCamera(ndcOf(e), camera); dragPlane.constant = -p.y; if (dragRay.ray.intersectPlane(dragPlane, hitPt)) { nx = snap(hitPt.x + dragPart.ox); nz = snap(hitPt.z + dragPart.oz) } }
+    if (nx !== p.x || ny !== p.y || nz !== p.z) { movePart(dragPart.i, nx - p.x, ny - p.y, nz - p.z); const now = performance.now(); if (now - dragAt > 40) { dragAt = now; refreshParts() } }
+    return true
+  }
+  function pointerUp() { if (!dragPart) return false; dragPart = null; refreshParts(); openPartInspector(); return true }
   refreshParts()
   function dispose() { for (const o of [wire, stamp, selWire]) scene.remove(o); stampGeo.dispose(); stampMat.dispose(); stamp.dispose(); opts.remove(); partInsp.remove(); envBox.remove() }
-  return { interact, update, keydown, undo, redo, setTool, setTesting, dispose, flush, get tool() { return state.tool }, get parts() { return parts } }
+  return { interact, update, keydown, pointerDown, pointerMove, pointerUp, undo, redo, setTool, setTesting, dispose, flush, get tool() { return state.tool }, get parts() { return parts } }
 }
