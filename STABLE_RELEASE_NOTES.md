@@ -10,6 +10,8 @@ Blocksy is a multiplayer block-building game for the web and the Nintendo 3DS (h
 - **3DS build controls.** Games without building (Dark Forest, Plaza, Obby, Arena) no longer show the block palette, the outline or the build hints on the 3DS.
 - **3DS shop.** If a purchase fails, the 3DS shows the real reason; it also falls back to the old shop when the new server is not reachable.
 - **Safety.** Block and report players, daily missions with BCoin rewards, and 14 languages on the web chosen automatically from your browser.
+- **Best times.** Obby and race finish times are saved on the server and everyone sees the top 5 and their rank (web and 3DS; supabase/game/v5.sql).
+- **More languages.** Portuguese, French, German and Italian are fully translated on the web (Russian, Polish, Japanese, Chinese and Korean cover the main screens); the language follows your browser unless you pick one.
 - **Bulk edits.** The server accepts many blocks at once (supabase/game/v5.sql), so Studio boxes and structures are fast.
 
 ## Installing

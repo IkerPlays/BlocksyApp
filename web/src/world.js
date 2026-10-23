@@ -150,7 +150,6 @@ function forest(seed) {
   for (let a = 0; a < Math.PI * 2; a += 0.9 / R) { const x = Math.round(Math.cos(a) * R), z = Math.round(Math.sin(a) * R); for (let y = 0; y < 5; y++) cells.push([x, y, z, y > 3 ? COL.leaves2 : COL.leaves]) }
   // cabaña de refugio (puerta hacia +z)
   for (let i = -3; i <= 3; i++) for (let y = 0; y < 3; y++) { cells.push([i, y, -3, COL.wood], [-3, y, i, COL.wood], [3, y, i, COL.wood]); if (Math.abs(i) > 1 || y > 1) cells.push([i, y, 3, COL.wood]) }
-  for (let x = -3; x <= 3; x++) for (let z = -3; z <= 3; z++) cells.push([x, 3, z, COL.dark])
   return { cells, floor: true, spawn: [0.5, 1.2, 0.5], voidY: null, orbs, monsterStart: [-26, 0.01, -26], radius: R, safe: 5, groundTint: '#26402b' }
 }
 
