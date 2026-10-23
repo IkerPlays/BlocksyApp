@@ -3,7 +3,7 @@ import * as api from './api.js'
 import * as social from './social.js'
 import { ACHIEVEMENTS, unlockedIds, progress, checkAchievements, wishlist, toggleWish } from './achievements.js'
 import { KEY_ACTIONS, keyLabel } from './access.js'
-import { settings, saveSettings, resetSettings, lastPlayed, recentGames, getStats, applyTheme } from './settings.js'
+import { DEFAULTS, settings, saveSettings, resetSettings, lastPlayed, recentGames, getStats, applyTheme } from './settings.js'
 import { icon } from './icons.js'
 import { headshot, styleFor, EMOTES, createPreview, loadoutStyle, parseLoadout, packLoadout, PALETTES, defaultLook, randomLook } from './avatar.js'
 import { t, LANGS, langName, getPref, setLang, onLang } from './i18n.js'
@@ -39,6 +39,34 @@ export function showWelcome(go) {
     step('1', 'welcome_avatar', 'avatar'), step('2', 'welcome_play', 'discover'), step('3', 'welcome_shop', 'shop'),
     el('button', { class: 'btn wide primary', text: t('close'), onclick: closeModal })))
   $('modal').classList.remove('hidden')
+}
+// Ajustes: buscador, secciones plegables, restablecer por sección y exportar/importar
+function decorateSettings(root, ctx) {
+  const grid = root.querySelector('.settings-grid'); if (!grid) return
+  const COL = 'blocksy.set.collapsed'; let collapsed = []; try { collapsed = JSON.parse(localStorage.getItem(COL) || '[]') } catch {}
+  const panels = [...grid.querySelectorAll(':scope > .panel')]
+  for (const p of panels) {
+    const h3 = p.querySelector('h3'); if (!h3) continue
+    const id = h3.textContent, keys = [...p.querySelectorAll('[data-key]')].map(x => x.dataset.key)
+    h3.classList.add('collapsible'); const fold = () => { p.classList.toggle('collapsed'); const l = new Set(collapsed); p.classList.contains('collapsed') ? l.add(id) : l.delete(id); collapsed = [...l]; try { localStorage.setItem(COL, JSON.stringify(collapsed)) } catch {} }
+    h3.onclick = fold; if (collapsed.includes(id)) p.classList.add('collapsed')
+    if (keys.length) { const r = el('button', { type: 'button', class: 'link-btn sec-reset', text: t('set_reset_section'), onclick: e => { e.stopPropagation(); for (const k of keys) settings[k] = DEFAULTS[k] ?? settings[k]; saveSettings(); applyTheme(); pages.settings(root, ctx) } }); h3.after(r) }
+  }
+  const search = el('input', { type: 'search', class: 'set-search', placeholder: t('set_search') })
+  search.oninput = () => {
+    const q = search.value.trim().toLowerCase()
+    for (const p of panels) {
+      const fields = [...p.querySelectorAll('label.field')]; let any = !q || (p.querySelector('h3')?.textContent ?? '').toLowerCase().includes(q)
+      for (const f of fields) { const m = !q || f.textContent.toLowerCase().includes(q); f.classList.toggle('hidden', !m && !any); if (m) any = true }
+      p.classList.toggle('hidden', !any); if (q && any) p.classList.remove('collapsed')
+    }
+  }
+  const exp = el('button', { type: 'button', class: 'btn tiny', text: t('set_export'), onclick: () => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify({ format: 'blocksy-settings-1', settings }, null, 1)], { type: 'application/json' })); a.download = 'blocksy-settings.json'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000) } })
+  const imp = el('button', { type: 'button', class: 'btn tiny', text: t('set_import'), onclick: () => {
+    const f = el('input', { type: 'file', accept: '.json,application/json' })
+    f.onchange = async () => { try { const d = JSON.parse(await f.files[0].text()); if (d.format !== 'blocksy-settings-1') throw new Error('format'); for (const k of Object.keys(DEFAULTS)) if (k in d.settings && typeof d.settings[k] === typeof DEFAULTS[k]) settings[k] = d.settings[k]; saveSettings(); applyTheme(); toast(t('saved')); pages.settings(root, ctx) } catch { toast(t('set_import_bad')) } }
+    f.click() } })
+  grid.before(el('div', { class: 'form-row', style: 'align-items:center;gap:8px;margin-bottom:12px' }, search, exp, imp))
 }
 export function showNews() {
   const m = $('modal'); setKids($('modal-card'), el('div', { class: 'detail-col' }, el('h2', { text: t('whats_new') + ' · ' + APP_VERSION }), el('ul', { class: 'news-list' }, whatsNew().map(x => el('li', { text: x }))), el('button', { class: 'btn wide primary', text: t('close'), onclick: closeModal })))
@@ -612,9 +640,9 @@ export const pages = {
   },
 
   settings(root, ctx) {
-    const sw = (key, label, after) => { const i = el('input', { type: 'checkbox' }); i.checked = !!settings[key]; i.onchange = () => { settings[key] = i.checked; saveSettings(); after?.() }; return el('label', { class: 'field check' }, i, label) }
-    const rg = (key, label, min, max, step, fmt = v => v) => { const o = el('output', { text: fmt(settings[key]) }); const i = el('input', { type: 'range', min, max, step, value: settings[key] }); i.oninput = () => { settings[key] = +i.value; o.textContent = fmt(settings[key]); saveSettings() }; return el('label', { class: 'field' }, el('span', {}, label, ' ', o), i) }
-    const sel = (key, label, opts, after) => { const s = el('select', {}, opts.map(([v, l]) => el('option', { value: v, text: l, selected: settings[key] === v }))); s.onchange = () => { settings[key] = s.value; saveSettings(); after?.() }; return el('label', { class: 'field' }, label, s) }
+    const sw = (key, label, after) => { const i = el('input', { type: 'checkbox' }); i.dataset.key = key; i.checked = !!settings[key]; i.onchange = () => { settings[key] = i.checked; saveSettings(); after?.() }; return el('label', { class: 'field check' }, i, label) }
+    const rg = (key, label, min, max, step, fmt = v => v) => { const o = el('output', { text: fmt(settings[key]) }); const i = el('input', { type: 'range', min, max, step, value: settings[key] }); i.dataset.key = key; i.oninput = () => { settings[key] = +i.value; o.textContent = fmt(settings[key]); saveSettings() }; return el('label', { class: 'field' }, el('span', {}, label, ' ', o), i) }
+    const sel = (key, label, opts, after) => { const s = el('select', {}, opts.map(([v, l]) => el('option', { value: v, text: l, selected: settings[key] === v }))); s.dataset.key = key; s.onchange = () => { settings[key] = s.value; saveSettings(); after?.() }; return el('label', { class: 'field' }, label, s) }
     const keyRows = () => Object.keys(KEY_ACTIONS).map(a => {
       const b = el('button', { class: 'btn small keybind', text: keyLabel(settings.keymap?.[a] ?? KEY_ACTIONS[a]) })
       b.onclick = () => {
@@ -675,6 +703,7 @@ export const pages = {
         el('div', { class: 'panel' }, el('h3', { text: t('set_stats') }),
           el('div', { class: 'stats-row' }, stat('stat_time', `${hrs}h ${mins}m`), stat('stat_placed', st.placed), stat('stat_broken', st.broken), stat('stat_games', st.games.length), stat('stat_msgs', st.msgs)),
           el('button', { class: 'btn danger', style: 'margin-top:14px', text: t('set_reset'), onclick: () => { resetSettings(); applyTheme(); pages.settings(root, ctx) } }))))
+    decorateSettings(root, ctx)
   },
 }
 

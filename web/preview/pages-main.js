@@ -11,4 +11,4 @@ document.getElementById('chip-name').textContent = ctx.profile.username
 document.getElementById('chip-avatar').style.setProperty('--img', `url(${headshot(ctx.profile.username, ctx.profile.avatar_color)})`)
 document.body.dataset.ready = '0'
 applyStatic(); applyIcons()
-pages[name](document.getElementById('page'), ctx, q.get('arg') || undefined).then(() => (document.body.dataset.ready = '1'))
+Promise.resolve(pages[name](document.getElementById('page'), ctx, q.get('arg') || undefined)).then(() => (document.body.dataset.ready = '1'))

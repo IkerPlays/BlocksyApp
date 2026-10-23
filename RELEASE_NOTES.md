@@ -1,4 +1,4 @@
-Devbuild 45: shop
-- Filter the shop by type and show only what you own; sort by price or rarity.
-- Purchase history (what you bought from this device).
-- Preview: choose the animation (idle, wave, dance, walk), pause the spin and zoom with the mouse wheel.
+Devbuild 46: settings
+- Search box that filters the settings.
+- Collapsible sections (remembered) and a Reset button for each section.
+- Export your settings to a file and import them on another device.
