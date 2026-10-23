@@ -20,6 +20,7 @@ import { createHorror } from './horror.js'
 import { createScripted } from './scene-parts.js'
 import { createStudio } from './studio-tools.js'
 import { createWeather } from './weather.js'
+import { addShot } from './gallery.js'
 import { scriptConsole } from './script-console.js'
 import { createTutorial } from './onboarding.js'
 import { filterWords, isMuted, toggleMute, createLimiter } from './moderation.js'
@@ -358,15 +359,20 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
     const e = $('big-title'); e.textContent = text; e.classList.remove('hidden'); e.classList.remove('show'); void e.offsetWidth; e.classList.add('show')
     clearTimeout(showTitle.t); showTitle.t = setTimeout(() => e.classList.add('hidden'), ms)
   }
+  let rosterSort = 'name'
   function drawRoster() {
-    const all = [{ name: profile.username, color: profile.avatar_color, platform: 'web', me: true }, ...[...others.values()]]
-    roster.replaceChildren(...all.map(o => {
+    const dist = o => (o.me ? 0 : Math.hypot(o.target.x - me.pos.x, o.target.z - me.pos.z))
+    const all = [{ name: profile.username, color: profile.avatar_color, platform: 'web', me: true }, ...[...others.values()]].sort((a, b) => (a.me ? -1 : b.me ? 1 : rosterSort === 'dist' ? dist(a) - dist(b) : a.name.localeCompare(b.name)))
+    const head = document.createElement('li'); head.className = 'roster-head'
+    for (const k of ['name', 'dist']) { const b = document.createElement('button'); b.type = 'button'; b.textContent = t('rsort_' + k); b.className = rosterSort === k ? 'on' : ''; b.onclick = ev => { ev.stopPropagation(); rosterSort = k; drawRoster() }; head.append(b) }
+    roster.replaceChildren(head, ...all.map(o => {
       const li = document.createElement('li'); const a = document.createElement('span'); a.className = 'avatar'; a.style.setProperty('--c', o.color); a.style.setProperty('--img', `url(${headshot(o.name, o.color)})`)
       const n = document.createElement('span'); n.textContent = o.name + (o.me ? ' ' + t('you') : ''); n.style.flex = '1'; li.append(a, n)
       const vm = o.me ? (voiceSt.active ? { speaking: voiceSt.selfSpeaking && !voiceSt.muted, muted: voiceSt.muted } : null) : voiceSt.members.find(m => m.id === o.id)
       if (vm && !o.me) { const sl = document.createElement('input'); sl.type = 'range'; sl.min = 0; sl.max = 2; sl.step = 0.1; sl.value = voice.getPeerVolume(o.id); sl.title = t('voice_peer_vol'); sl.className = 'peer-vol'; sl.onclick = ev => ev.stopPropagation(); sl.oninput = () => voice.setPeerVolume(o.id, +sl.value); li.append(sl) }
       if (vm) { const mic = document.createElement('span'); mic.className = 'vmic' + (vm.speaking ? ' on' : ''); mic.innerHTML = icon(vm.muted ? 'micoff' : 'mic', 14); li.append(mic) }
       if (o.platform === '3ds') { const tg = document.createElement('span'); tg.className = 'tag'; tg.textContent = '3DS'; li.append(tg) }
+      if (!o.me) { const rb = document.createElement('button'); rb.className = 'mute-btn'; rb.innerHTML = icon('flag', 14); rb.title = t('report'); rb.onclick = ev => { ev.stopPropagation(); import('./pages.js').then(m => m.openReport(o.name, `Partida: ${game.name} (${game.id})`)) }; li.append(rb) }
       if (!o.me) { const mb = document.createElement('button'); mb.className = 'mute-btn' + (isMuted(o.name) ? ' on' : ''); mb.innerHTML = icon('mute', 14); mb.title = t('mute_player'); mb.onclick = ev => { ev.stopPropagation(); const on = toggleMute(o.name); mb.classList.toggle('on', on); sys(t(on ? 'muted_player' : 'unmuted_player', { name: o.name })) }; li.append(mb) }
       if (!o.me) { li.classList.add('tp'); li.onclick = () => { teleport(o.target.x + 1.2, o.target.y + 0.2, o.target.z); roster.classList.add('hidden') } }
       return li
@@ -944,7 +950,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
     updateHover(); if (ST && editing()) sd?.update()
     if (composer) composer.render(dt); else renderer.render(scene, camera)
     if (thumbReq) { const res = thumbReq; thumbReq = null; try { const c = document.createElement('canvas'); c.width = 256; c.height = 144; const x = c.getContext('2d'), r = canvas.width / canvas.height, w = 256, h = 144; let sw = canvas.width, sh = canvas.height, sx = 0, sy = 0; if (r > w / h) { sw = canvas.height * w / h; sx = (canvas.width - sw) / 2 } else { sh = canvas.width * h / w; sy = (canvas.height - sh) / 2 } x.drawImage(canvas, sx, sy, sw, sh, 0, 0, w, h); res(c.toDataURL('image/jpeg', 0.6)) } catch { res(null) } }
-    if (shotPending) { shotPending = false; canvas.toBlob(b => { if (!b) return; const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = `blocksy-${Date.now()}.png`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); sys(t('screenshot_saved')); sfx.click() }) }
+    if (shotPending) { shotPending = false; addShot(canvas, game.name); canvas.toBlob(b => { if (!b) return; const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = `blocksy-${Date.now()}.png`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); sys(t('screenshot_saved')); sfx.click() }) }
     frames++; const now = performance.now()
     if (now - mmAt > 120) { mmAt = now; drawMinimap() }
     if (now - fpsAt > 700) { fps = Math.round(frames * 1000 / (now - fpsAt)); frames = 0; fpsAt = now
@@ -954,7 +960,8 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
         if (resScale !== prev) size()
       }
       const race$ = race.start && !race.done ? `  ${raceTime(Date.now() - race.start)}` : ''
-      $('stats').textContent = `${t('players_n', { n: others.size + 1 })} · ${fps} fps · ${ping ? ping + ' ms · ' : ''}(${c.x.toFixed(0)}, ${c.y.toFixed(0)}, ${c.z.toFixed(0)})${race$}` }
+      const hh = sky.state.hour ?? 12, clock$ = settings.showClock ? ` · ${String(Math.floor(hh) % 24).padStart(2, '0')}:${String(Math.floor((hh % 1) * 60)).padStart(2, '0')}` : ''
+      $('stats').textContent = `${t('players_n', { n: others.size + 1 })}${clock$} · ${fps} fps · ${ping ? ping + ' ms · ' : ''}(${c.x.toFixed(0)}, ${c.y.toFixed(0)}, ${c.z.toFixed(0)})${race$}` }
   }
   frame()
   sys(t('welcome_to', { name: game.name }))
