@@ -1,5 +1,5 @@
 -- ============================================================
--- GAME v3: la lista de juegos pasa al proyecto STORE. GAME solo guarda una copia mínima de las reglas (game_rules)
+-- GAME v3 (requiere haber ejecutado v2.sql antes): la lista de juegos pasa al proyecto STORE. GAME solo guarda una copia mínima de las reglas (game_rules)
 -- para validar construir / chatear sin depender de STORE en cada acción. Ejecutar en el SQL Editor de GAME. Es seguro repetirlo.
 -- ============================================================
 create table if not exists public.game_rules (
