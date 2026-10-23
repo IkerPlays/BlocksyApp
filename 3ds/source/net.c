@@ -77,6 +77,16 @@ static bool fresh(const char *updated_at, time_t newest, int max_age) {
 	return now - t <= max_age;
 }
 
+// Ajustes de red copiados del reproductor Iker's Tube (el mismo que ya funciona bien en la 3DS): buffer de recepcion mayor,
+// keep-alive para detectar conexiones muertas y corte si la velocidad cae por debajo de 1 KB/s durante 20 s.
+#include <sys/socket.h>
+static int sock_opts(void *ud, curl_socket_t fd, curlsocktype purpose) { (void)ud; (void)purpose; static const int sz = 0x8000; setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &sz, sizeof sz); return CURL_SOCKOPT_OK; }
+static void tune(CURL *c) {
+	curl_easy_setopt(c, CURLOPT_SOCKOPTFUNCTION, sock_opts);
+	curl_easy_setopt(c, CURLOPT_TCP_KEEPALIVE, 1L);
+	curl_easy_setopt(c, CURLOPT_LOW_SPEED_LIMIT, 1024L); curl_easy_setopt(c, CURLOPT_LOW_SPEED_TIME, 20L);
+	curl_easy_setopt(c, CURLOPT_FORBID_REUSE, 0L);
+}
 static char *http(Method m, const char *url, const char *apikey, const char *bearer,
                   const char *body, const char *prefer) {
 	last_status = 0; last_err[0] = 0;
@@ -104,7 +114,7 @@ static char *http(Method m, const char *url, const char *apikey, const char *bea
 	curl_easy_setopt(c, CURLOPT_WRITEFUNCTION, write_cb);
 	curl_easy_setopt(c, CURLOPT_WRITEDATA, &b);
 	curl_easy_setopt(c, CURLOPT_ERRORBUFFER, errbuf);
-	curl_easy_setopt(c, CURLOPT_HEADERFUNCTION, hdr_cb);
+	curl_easy_setopt(c, CURLOPT_HEADERFUNCTION, hdr_cb); tune(c);
 
 	CURLcode rc = curl_easy_perform(c);
 	long code = 0; curl_easy_getinfo(c, CURLINFO_RESPONSE_CODE, &code);
@@ -136,7 +146,7 @@ char *net_get_text(const char *url, char *err, size_t en) {
 	curl_easy_setopt(c, CURLOPT_FOLLOWLOCATION, 1L); curl_easy_setopt(c, CURLOPT_MAXREDIRS, 5L);
 	curl_easy_setopt(c, CURLOPT_CONNECTTIMEOUT, 20L); curl_easy_setopt(c, CURLOPT_TIMEOUT, 45L); curl_easy_setopt(c, CURLOPT_ACCEPT_ENCODING, ""); curl_easy_setopt(c, CURLOPT_NOSIGNAL, 1L);
 	curl_easy_setopt(c, CURLOPT_USERAGENT, "blocksy-3ds/" BLOCKSY_VERSION);
-	curl_easy_setopt(c, CURLOPT_WRITEFUNCTION, write_cb); curl_easy_setopt(c, CURLOPT_WRITEDATA, &b); curl_easy_setopt(c, CURLOPT_ERRORBUFFER, errbuf);
+	curl_easy_setopt(c, CURLOPT_WRITEFUNCTION, write_cb); curl_easy_setopt(c, CURLOPT_WRITEDATA, &b); curl_easy_setopt(c, CURLOPT_ERRORBUFFER, errbuf); tune(c);
 	CURLcode rc = curl_easy_perform(c);
 	long code = 0; curl_easy_getinfo(c, CURLINFO_RESPONSE_CODE, &code);
 	curl_slist_free_all(h);
@@ -175,7 +185,8 @@ bool net_download(const char *url, NetSink sink, void *ud, volatile int *pct, ch
 	curl_easy_setopt(c, CURLOPT_USERAGENT, "blocksy-3ds/" BLOCKSY_VERSION);
 	curl_easy_setopt(c, CURLOPT_WRITEFUNCTION, dl_write); curl_easy_setopt(c, CURLOPT_WRITEDATA, &ctx);
 	curl_easy_setopt(c, CURLOPT_NOPROGRESS, 0L); curl_easy_setopt(c, CURLOPT_XFERINFOFUNCTION, dl_progress); curl_easy_setopt(c, CURLOPT_XFERINFODATA, &ctx);
-	curl_easy_setopt(c, CURLOPT_ERRORBUFFER, errbuf);
+	curl_easy_setopt(c, CURLOPT_ERRORBUFFER, errbuf); tune(c);
+	curl_easy_setopt(c, CURLOPT_LOW_SPEED_LIMIT, 1024L); curl_easy_setopt(c, CURLOPT_LOW_SPEED_TIME, 30L);
 	CURLcode rc = curl_easy_perform(c);
 	long code = 0; curl_easy_getinfo(c, CURLINFO_RESPONSE_CODE, &code);
 	if (ctx.sink_failed) { snprintf(err, en, "No se pudo escribir la descarga"); return false; }

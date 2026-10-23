@@ -3,15 +3,36 @@ import { authDb, gameDb, GAME_URL, GAME_KEY, storeDb, STORE_URL, STORE_KEY, HAS_
 
 let session = null // { secret, player_id, username, color }
 
+// ---- STORE: estado y modo de emergencia ----
+// "Failed to fetch" = el navegador no pudo ni hablar con el servidor (proyecto pausado, función sin desplegar o sin CORS).
+// Si STORE no responde, la web usa el modo anterior (tienda en AUTH, juegos en GAME) en vez de romperse.
+const isNet = e => /failed to fetch|networkerror|load failed|network request failed|fetch failed/i.test(String(e?.message ?? e))
+const authHeaders = key => (/^eyJ/.test(key) ? { apikey: key, Authorization: `Bearer ${key}` } : { apikey: key })      // las claves nuevas (sb_publishable_) no son JWT: no van en Authorization
+let storeState = { at: 0, read: true, write: true, why: '' }
+export const storeStatus = () => storeState
+async function probeStore(force = false) {
+  if (!HAS_STORE) return storeState = { at: Date.now(), read: false, write: false, why: '' }
+  if (!force && Date.now() - storeState.at < 60_000) return storeState
+  let read = true, write = true, why = ''
+  try { await fetch(`${STORE_URL}/rest/v1/games?select=id&limit=1`, { headers: authHeaders(STORE_KEY) }) } catch { read = false; write = false; why = 'STORE no responde (proyecto pausado o URL incorrecta)' }
+  if (read && !storeSession) { try { await openStoreSession() } catch (e) { write = false; why = e.message } }
+  return storeState = { at: Date.now(), read, write, why }
+}
+export const storeReadOk = async () => HAS_STORE && (await probeStore()).read
+export const storeWriteOk = async () => HAS_STORE && (await probeStore()).write
+const FB_KEY = 'blocksy.fbGames'     // juegos creados en GAME mientras STORE no estaba disponible (solo este dispositivo)
+const fbIds = () => { try { return JSON.parse(localStorage.getItem(FB_KEY) || '[]') } catch { return [] } }
+const addFb = id => { try { localStorage.setItem(FB_KEY, JSON.stringify([...new Set([...fbIds(), id])])) } catch {} }
+
 export async function openGameSession() {
   const { data: { session: s } } = await authDb.auth.getSession()
   if (!s) throw new Error('No hay sesión')
   const r = await fetch(`${GAME_URL}/functions/v1/game-session`, {
     method: 'POST',
     // Authorization con la clave anon: el gateway de Supabase la acepta aunque "Verify JWT" esté activado
-    headers: { 'Content-Type': 'application/json', apikey: GAME_KEY, Authorization: `Bearer ${GAME_KEY}` },
+    headers: { 'Content-Type': 'application/json', ...authHeaders(GAME_KEY) },
     body: JSON.stringify({ token: s.access_token }),
-  })
+  }).catch(e => { throw new Error(isNet(e) ? 'No se pudo conectar con el servidor GAME (¿proyecto pausado o función game-session sin desplegar?)' : e.message) })
   const j = await r.json().catch(() => ({}))
   if (!r.ok) throw new Error(`No se pudo abrir la sesión de juego (${r.status}): ${j.error || j.message || j.msg || 'sin detalle'}`)
   session = j
@@ -25,9 +46,9 @@ export async function openStoreSession() {
   const { data: { session: s } } = await authDb.auth.getSession()
   if (!s) throw new Error('No hay sesión')
   const r = await fetch(`${STORE_URL}/functions/v1/game-session`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json', apikey: STORE_KEY, Authorization: `Bearer ${STORE_KEY}` },
+    method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders(STORE_KEY) },
     body: JSON.stringify({ token: s.access_token }),
-  })
+  }).catch(e => { throw new Error(isNet(e) ? 'La función game-session de STORE no responde: despliégala en STORE con Verify JWT desactivado (supabase/README.md, paso 3)' : e.message) })
   const j = await r.json().catch(() => ({}))
   if (!r.ok) throw new Error(`No se pudo abrir la sesión de la tienda (${r.status}): ${j.error || j.message || 'sin detalle'}`)
   return (storeSession = j)
@@ -88,7 +109,8 @@ const rulesOf = g => ({ allow_build: g.config?.allow_build, allow_chat: g.config
 const syncRules = (id, mode, config) => rpc('upsert_game_rules', { p_game: id, p_mode: mode, p_config: { allow_build: config?.allow_build, allow_chat: config?.allow_chat } })
 
 export const createGameRow = async (name, desc, hue, mode = 'build') => {
-  if (HAS_STORE) {
+  const viaStore = await storeWriteOk()
+  if (viaStore) {
     const id = await storeRpc('create_game', { p_name: name, p_desc: desc, p_hue: hue, p_mode: mode })
     await syncRules(id, mode, {})
     return id
@@ -101,17 +123,18 @@ export const createGameRow = async (name, desc, hue, mode = 'build') => {
     return r.data
   }
   if (error) throw error
+  if (HAS_STORE) addFb(data)
   return data
 }
 export const updateGameRow = async g => {
-  if (HAS_STORE) {
+  if (HAS_STORE && !fbIds().includes(g.id) && await storeWriteOk()) {
     await storeRpc('update_game', { p_game: g.id, p_name: g.name, p_desc: g.description, p_hue: g.hue, p_max: g.max_players, p_mode: g.mode, p_config: g.config ?? {}, p_script: g.script ?? '' })
     return syncRules(g.id, g.mode, g.config)
   }
   return rpc('update_game', { p_game: g.id, p_name: g.name, p_desc: g.description, p_hue: g.hue, p_max: g.max_players, p_mode: g.mode, p_config: g.config ?? {}, p_script: g.script ?? '' })
 }
 export const deleteGameRow = async id => {
-  if (HAS_STORE) { await storeRpc('delete_game', { p_game: id }); return rpc('delete_game_data', { p_game: id }) }
+  if (HAS_STORE && !fbIds().includes(id) && await storeWriteOk()) { await storeRpc('delete_game', { p_game: id }); return rpc('delete_game_data', { p_game: id }) }
   return rpc('delete_game', { p_game: id })
 }
 
@@ -127,12 +150,16 @@ export function leaveBeacon() {
 
 // ---------- Lecturas ----------
 export async function getGame(id) {
-  const { data } = await (HAS_STORE ? storeDb : gameDb).from('games').select('*').eq('id', id).maybeSingle()
+  if (await storeReadOk()) { const { data } = await storeDb.from('games').select('*').eq('id', id).maybeSingle(); if (data) return data }
+  const { data } = await gameDb.from('games').select('*').eq('id', id).maybeSingle()
   return data
 }
 export async function listGames() {
-  const { data } = await (HAS_STORE ? storeDb : gameDb).from('games').select('*').order('created_at')
-  return data ?? []
+  if (!(await storeReadOk())) { const { data } = await gameDb.from('games').select('*').order('created_at'); return data ?? [] }
+  const { data } = await storeDb.from('games').select('*').order('created_at')
+  const out = data ?? [], ids = fbIds().filter(i => !out.some(g => g.id === i))
+  if (ids.length) { const r = await gameDb.from('games').select('*').in('id', ids); out.push(...(r.data ?? [])) }      // creados en modo de emergencia
+  return out
 }
 // { game_id: nº de jugadores activos }
 export async function playerCounts() {

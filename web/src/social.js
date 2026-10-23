@@ -1,6 +1,6 @@
 // Amigos, solicitudes, chat privado, notificaciones e invitaciones (proyecto AUTH)
 import { authDb, storeDb, HAS_STORE } from './supabase.js'
-import { storeRpc } from './api.js'
+import { storeRpc, storeReadOk, storeWriteOk } from './api.js'
 
 const rpc = async (fn, args) => { const { data, error } = await authDb.rpc(fn, args); if (error) throw error; return data }
 const ERR = { 'user not found': 'user_not_found', 'cannot add yourself': 'cant_self' }
@@ -92,17 +92,19 @@ export async function claimDaily() { const r = await rpc('claim_daily'); await l
 export async function earnCoins(amount, reason) { try { const n = await rpc('earn_coins', { p_amount: amount, p_reason: reason }); if (n > 0) await loadWallet(); return n } catch { return 0 } }
 export async function listShop() {
   if (shopCache) return shopCache
-  const { data } = await (HAS_STORE ? storeDb : authDb).from('shop_items').select('*').order('sort')
+  const { data } = await ((await storeReadOk()) ? storeDb : authDb).from('shop_items').select('*').order('sort')
   return (shopCache = data ?? [])
 }
 // Con STORE: se pide allí un presupuesto firmado (precio y, en un cofre, el objeto que toca) y se canjea en AUTH, que comprueba la firma
 const redeem = q => rpc('shop_redeem', { p_op: q.op, p_item: q.item, p_kind: q.kind, p_price: q.price, p_refund: q.refund, p_exp: q.exp, p_nonce: q.nonce, p_sig: q.sig })
+// Sin STORE se usa la compra antigua de AUTH; si ya está cerrada (store-lockdown.sql) se explica qué pasa
+const legacy = async f => { try { return await f() } catch (e) { if (/permission denied|not allowed|could not find|does not exist/i.test(e.message)) throw new Error('La tienda (STORE) no está disponible ahora mismo. Inténtalo más tarde.'); throw e } }
 export async function buyItem(id) {
-  const r = HAS_STORE ? await redeem(await storeRpc('shop_quote', { p_item: id })) : await rpc('buy_item', { p_item: id })
+  const r = (await storeWriteOk()) ? await redeem(await storeRpc('shop_quote', { p_item: id })) : await legacy(() => rpc('buy_item', { p_item: id }))
   await loadWallet(); return r
 }
 export async function openCrate(id) {
-  const r = HAS_STORE ? await redeem(await storeRpc('shop_quote', { p_item: id })) : await rpc('open_crate', { p_crate: id })
+  const r = (await storeWriteOk()) ? await redeem(await storeRpc('shop_quote', { p_item: id })) : await legacy(() => rpc('open_crate', { p_crate: id }))
   await loadWallet(); return r
 }
 export async function equipItem(id) { const r = await rpc('equip_item', { p_item: id }); setWallet({ equipped: r }); return r }
