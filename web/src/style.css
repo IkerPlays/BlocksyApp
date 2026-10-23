@@ -425,3 +425,7 @@ html.rainbow { animation: rainbow 2s linear infinite; } @keyframes rainbow { to 
 .pal-empty, .pal-foot { color: var(--muted); font-size: 12px; padding: 6px 8px; }
 #net-banner { position: fixed; left: 0; right: 0; top: 0; background: #b3541e; color: #fff; text-align: center; padding: 6px; z-index: 300; font-size: 13px; }
 .err-panel { margin: 20px 0; }
+.home-chips { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 4px 0 14px; } .chip-info { display: inline-flex; gap: 6px; align-items: center; background: var(--panel2); border-radius: 999px; padding: 5px 12px; font-size: 13px; }
+.hero { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; } .hero .btn { margin-left: auto; }
+.continue-card { display: flex; align-items: center; gap: 14px; background: linear-gradient(120deg, var(--panel), var(--panel2)); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; margin-bottom: 14px; } .continue-card .thumb.sm { width: 84px; flex: none; } .continue-card h3 { margin: 2px 0; }
+.friend.playing { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 110px; }

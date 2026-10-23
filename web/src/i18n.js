@@ -3,6 +3,7 @@ import { EXTRA } from './i18n-extra.js'
 const D = {
   es: {
     lang_name: 'Español',
+    random_game: 'Sorpréndeme', friends_playing: 'Amigos jugando ahora', no_one_playing: 'Nadie jugando ahora',
     pal_placeholder: 'Ir a una página, abrir un juego o cambiar el tema…', pal_foot: 'Ctrl+K abre esto · g y una letra: ir a una página (g h inicio, g d descubrir, g s tienda…)', pal_none: 'Nada coincide', offline_banner: 'Sin conexión: algunas cosas no funcionarán', retry: 'Reintentar', load_failed: 'No se pudo cargar esta página',
     st_struct_import: 'Importar estructura', st_struct_export: 'Exportar estructura', st_struct_bad: 'Ese archivo no es una estructura de Blocksy', st_pf_save: 'Guardar estructura', st_pf_name: 'Nombre de la estructura', st_pf_saved: 'Estructura «{name}» guardada (en este navegador)', st_pf_delete: 'Borrar esta estructura', st_storage_full: 'No cabe más en el navegador', st_thumb: 'Miniatura', st_thumb_ok: 'Miniatura lista: se guarda al guardar el juego', st_thumb_fail: 'No se pudo hacer la miniatura', st_compact: 'Barra compacta',
     st_terrain: 'Terreno', st_hint_terrain: 'Clic para levantar una colina (o cavar un hoyo)', st_terr_raise: 'Levantar', st_terr_lower: 'Cavar', st_radius: 'Radio', st_height: 'Altura', st_water: 'Agua', st_water_done: 'Agua añadida: se puede nadar', st_torch: 'Antorcha', st_lamp: 'Farola', st_light: 'Luz', st_time_slider: 'Hora del día', st_hour: 'Hora {h}', sky_dawn: 'Amanecer',
@@ -102,6 +103,7 @@ const D = {
   },
   en: {
     lang_name: 'English',
+    random_game: 'Surprise me', friends_playing: 'Friends playing now', no_one_playing: 'Nobody playing now',
     pal_placeholder: 'Go to a page, open a game or change the theme…', pal_foot: 'Ctrl+K opens this · g then a letter: go to a page (g h home, g d discover, g s shop…)', pal_none: 'No matches', offline_banner: 'You are offline: some things will not work', retry: 'Retry', load_failed: 'This page could not be loaded',
     st_struct_import: 'Import structure', st_struct_export: 'Export structure', st_struct_bad: 'That file is not a Blocksy structure', st_pf_save: 'Save structure', st_pf_name: 'Structure name', st_pf_saved: 'Structure “{name}” saved (in this browser)', st_pf_delete: 'Delete this structure', st_storage_full: 'The browser has no more room', st_thumb: 'Thumbnail', st_thumb_ok: 'Thumbnail ready: it is saved when you save the game', st_thumb_fail: 'Could not take the thumbnail', st_compact: 'Compact bar',
     st_terrain: 'Terrain', st_hint_terrain: 'Click to raise a hill (or dig a pit)', st_terr_raise: 'Raise', st_terr_lower: 'Dig', st_radius: 'Radius', st_height: 'Height', st_water: 'Water', st_water_done: 'Water added: you can swim in it', st_torch: 'Torch', st_lamp: 'Lamp', st_light: 'Light', st_time_slider: 'Time of day', st_hour: 'Hour {h}', sky_dawn: 'Dawn',

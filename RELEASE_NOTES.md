@@ -1,5 +1,5 @@
-Devbuild 37: navigation
-- Command palette (Ctrl+K): jump to any page, open a game by name or change the theme.
-- Navigation shortcuts: press g and then a letter (g h home, g d discover, g s shop, g f friends...).
-- Offline banner when the connection drops.
-- Pages that fail to load now show a Retry button instead of staying empty.
+Devbuild 38: home
+- Continue playing card with your last game, how many are playing now and a Play button.
+- Friends playing now: see which friends are in a game and join them.
+- Your streak, BCoins and the daily reward button right on the home page.
+- Surprise me button that opens a random game.

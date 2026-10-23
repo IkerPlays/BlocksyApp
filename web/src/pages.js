@@ -155,16 +155,33 @@ export const pages = {
           avatar(f.username, f.avatar_color, f.is_online), el('b', { text: f.username }), el('small', { text: statusText(f) }))))
       : el('div', { class: 'empty', text: t('home_no_friends') }))
     paintFriends(friends)
+    // racha y recompensa diaria, "seguir jugando", amigos jugando y juego al azar
+    const streakBox = el('div', { class: 'home-chips' }), playingRow = el('div')
+    social.loadWallet().then(w => {
+      const claim = w?.can_claim ? el('button', { class: 'btn primary tiny', text: t('shop_claim'), onclick: async () => { try { const r = await social.claimDaily(); toast(t('shop_got', { n: r.amount })); paintStreak() } catch (e) { toast(e.message) } } }) : null
+      const paintStreak = () => { const w2 = social.getWallet(); setKids(streakBox, el('span', { class: 'chip-info', html: icon('star', 14) + ' ' + t('shop_streak', { n: w2?.streak ?? 0 }) }), el('span', { class: 'chip-info', html: icon('coin', 14) + ' ' + (w2?.bcoins ?? 0) }), w2?.can_claim ? claim : null) }
+      paintStreak()
+    }).catch(() => {})
+    const random = el('button', { class: 'btn', html: icon('compass', 16) + ' ' + t('random_game'), onclick: () => { const pool = games.filter(g => g.id !== last?.id); const g = pool[Math.floor(Math.random() * pool.length)] ?? games[0]; if (g) open(g) } })
+    const paintPlaying = list => {
+      const rows = list.filter(f => f.is_online && f.current_game).map(f => ({ f, g: games.find(x => x.id === f.current_game) })).filter(x => x.g)
+      setKids(playingRow, rows.length ? [el('div', { class: 'section' }, el('h2', { text: t('friends_playing') })), el('div', { class: 'row-scroll' }, rows.map(({ f, g }) => el('div', { class: 'friend playing' }, avatar(f.username, f.avatar_color, true), el('b', { text: f.username }), el('small', { text: g.name }), el('button', { class: 'btn tiny primary', text: t('join'), onclick: () => ctx.play(g) }))))] : null)
+    }
+    paintPlaying(friends)
     setKids(root,
-      el('div', { class: 'hero' }, avatar(ctx.profile.username, ctx.profile.avatar_color), el('h1', { text: t('hello', { name: ctx.profile.username }) })),
+      el('div', { class: 'hero' }, avatar(ctx.profile.username, ctx.profile.avatar_color), el('h1', { text: t('hello', { name: ctx.profile.username }) }), random),
+      streakBox,
+      last ? el('div', { class: 'continue-card' }, el('div', { class: 'thumb sm' + (last.config?.thumb ? ' has-img' : ''), style: `--h:${last.hue ?? hueOf(last.id)}` + (last.config?.thumb ? `;background-image:url(${last.config.thumb})` : '') }, el('div', { class: 'cube' })),
+        el('div', { class: 'grow' }, el('small', { text: t('continue') }), el('h3', { text: last.name }), el('small', { text: (counts[last.id] ?? 0) ? t('playing_n', { n: counts[last.id] }) : t('no_one_playing') })),
+        el('button', { class: 'btn primary', html: icon('play', 16) + ' ' + t('play'), onclick: () => ctx.play(last) })) : null,
+      playingRow,
       el('div', { class: 'section' }, el('h2', { text: t('friends_n', { n: friends.length }) }), el('a', { href: '/friends', text: t('see_all') })), friendsRow,
-      last ? [el('div', { class: 'section' }, el('h2', { text: t('continue') })), grid([last], counts, open)] : null,
       recentRow, favRow,
       el('div', { class: 'section' }, el('h2', { text: t('popular') }), el('a', { href: '/discover', text: t('see_all') })),
       grid(popular.slice(0, 12), counts, open),
       el('div', { class: 'section' }, el('h2', { text: t('newest') })),
       grid([...games].reverse().slice(0, 12), counts, open))
-    every(async () => { paintFriends(await social.listFriends(ctx.profile.id)) }, 10_000)
+    every(async () => { const fl = await social.listFriends(ctx.profile.id); paintFriends(fl); paintPlaying(fl) }, 10_000)
   },
 
   async discover(root, ctx, query = '') {
