@@ -25,6 +25,9 @@ Blocksy is a multiplayer block-building game for the web and the Nintendo 3DS (h
 - **Custom looks.** Choose skin, hair, hairstyle and pants on the web Avatar page; other web players see your choice.
 - **Random avatar.** One button to roll a new look and shirt color.
 - **Saved outfits.** Save up to four outfits (look, shirt color and accessories) and wear them with one click.
+- **Studio shapes.** Spheres, hollow spheres and cylinders fitted inside a box.
+- **Studio line and replace.** Draw lines between two points and recolor every block of one color in one click.
+- **Studio symmetry.** A mirror mode (X, Z or both) copies everything you build to the other side.
 
 ## Installing
 - Install `Blocksy.cia` with FBI, or copy `Blocksy.3dsx` to the `3ds` folder of the SD card and run it from the Homebrew Launcher.

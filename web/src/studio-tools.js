@@ -38,7 +38,7 @@ const SKIES = ['day', 'sunset', 'night', 'space']
 export function createStudio(ctx) {
   const { game, cfg, api, PALETTE, key, index, statics, setBlock, removeBlock, me, pick, scene, camera, canvas, rbx, showTitle, sys, sfx, burst, selectKind, onEnv, onTestToggle, onSave, onExit, onScript, onAddText, setUiTool, getHover } = ctx
   const g = document.getElementById('game'), bar = document.getElementById('studio-bar')
-  const state = { tool: 'place', mode: 'fill', prefab: 'house', rot: 0, a: null, region: null, clip: null }
+  const state = { tool: 'place', mode: 'fill', shape: 'sphere', sym: 'off', prefab: 'house', rot: 0, a: null, region: null, clip: null }
   const undoS = [], redoS = []
   const parts = cfg.parts = Array.isArray(cfg.parts) ? cfg.parts.slice(0, MAX_PARTS).map(p => ({ ...p })) : []
   let selPart = -1
@@ -53,7 +53,15 @@ export function createStudio(ctx) {
     try { while (pending.size) { const batch = [...pending.values()].slice(0, SEND_CHUNK); for (const b of batch) pending.delete(key(b[0], b[1], b[2])); await api.placeBlocks(game.id, batch) } }
     catch (e) { sys(e.message) } finally { sendBusy = false }
   }
+  // simetría: copia cada cambio al otro lado del eje 0 (x o z)
+  const mirrorOps = ops => {
+    if (state.sym === 'off') return ops
+    const out = [...ops]
+    for (const o of ops) { if (state.sym !== 'z') out.push({ ...o, x: -o.x - 1 }); if (state.sym !== 'x') out.push({ ...o, z: -o.z - 1 }); if (state.sym === 'xz') out.push({ ...o, x: -o.x - 1, z: -o.z - 1 }) }
+    return out
+  }
   function commit(ops, record = true) {
+    if (record) ops = mirrorOps(ops)
     const real = []
     for (const o of ops) {
       if (o.y < 0 || o.y > 255 || Math.abs(o.x) > 4000 || Math.abs(o.z) > 4000) continue
@@ -76,6 +84,25 @@ export function createStudio(ctx) {
       if (mode === 'hollow' && x > x0 && x < x1 && y > y0 && y < y1 && z > z0 && z < z1) continue
       out.push({ x, y, z, to: mode === 'erase' ? -1 : kind })
     }
+    return out
+  }
+  // formas: esfera / esfera hueca / cilindro inscritos en la caja entre dos esquinas
+  const shapeCells = (a, b, mode, kind) => {
+    const x0 = Math.min(a[0], b[0]), x1 = Math.max(a[0], b[0]), y0 = Math.min(a[1], b[1]), y1 = Math.max(a[1], b[1]), z0 = Math.min(a[2], b[2]), z1 = Math.max(a[2], b[2])
+    if ((x1 - x0 + 1) * (y1 - y0 + 1) * (z1 - z0 + 1) > MAX_VOL) { showTitle(t('st_big', { n: MAX_VOL }), 2200); return [] }
+    const cx = (x0 + x1 + 1) / 2, cy = (y0 + y1 + 1) / 2, cz = (z0 + z1 + 1) / 2, rx = (x1 - x0 + 1) / 2, ry = (y1 - y0 + 1) / 2, rz = (z1 - z0 + 1) / 2, out = []
+    const d2 = (x, y, z, ax, ay, az) => ((x + 0.5 - cx) / ax) ** 2 + (ay ? ((y + 0.5 - cy) / ay) ** 2 : 0) + ((z + 0.5 - cz) / az) ** 2
+    for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++) for (let z = z0; z <= z1; z++) {
+      let on
+      if (mode === 'cylinder') on = d2(x, y, z, rx, 0, rz) <= 1
+      else { on = d2(x, y, z, rx, ry, rz) <= 1; if (on && mode === 'hollowsphere' && rx > 1.5 && ry > 1.5 && rz > 1.5) on = d2(x, y, z, rx - 1, ry - 1, rz - 1) > 1 }
+      if (on) out.push({ x, y, z, to: kind })
+    }
+    return out
+  }
+  const lineCells = (a, b, kind) => {
+    const n = Math.max(Math.abs(b[0] - a[0]), Math.abs(b[1] - a[1]), Math.abs(b[2] - a[2]), 1), out = []
+    for (let i = 0; i <= n && i <= 400; i++) out.push({ x: Math.round(a[0] + (b[0] - a[0]) * i / n), y: Math.round(a[1] + (b[1] - a[1]) * i / n), z: Math.round(a[2] + (b[2] - a[2]) * i / n), to: kind })
     return out
   }
   const prefabList = () => (state.prefab === 'clip' ? (state.clip ?? []) : PREFABS[state.prefab]?.(me.kind) ?? [])
@@ -147,13 +174,14 @@ export function createStudio(ctx) {
   }
 
   // ---------- barra de herramientas ----------
-  const TOOLS = [['place', 'plus'], ['erase', 'trash'], ['paint', 'edit'], ['pick', 'search'], ['box', 'box'], ['select', 'select'], ['stamp', 'cube'], ['part', 'part'], ['ui', 'chat']]
+  const TOOLS = [['place', 'plus'], ['erase', 'trash'], ['paint', 'edit'], ['pick', 'search'], ['box', 'box'], ['shape', 'sphere'], ['line', 'line'], ['replace', 'replace'], ['select', 'select'], ['stamp', 'cube'], ['part', 'part'], ['ui', 'chat']]
   const opts = h('div', { id: 'studio-opts', class: 'hidden' }); g.append(opts)
   const btnFor = {}
   function paintOpts() {
     const L = []
     const chip = (label, on, fn) => h('button', { type: 'button', class: 'chip' + (on ? ' on' : ''), text: label, onclick: fn })
     if (state.tool === 'box') for (const m of ['fill', 'hollow', 'erase']) L.push(chip(t('st_mode_' + m), state.mode === m, () => { state.mode = m; paintOpts() }))
+    if (state.tool === 'shape') for (const m of ['sphere', 'hollowsphere', 'cylinder']) L.push(chip(t('shape_' + m), state.shape === m, () => { state.shape = m; paintOpts() }))
     if (state.tool === 'stamp') {
       const s = h('select', {}, [...Object.keys(PREFABS), ...(state.clip ? ['clip'] : [])].map(k => h('option', { value: k, text: t('pf_' + k), selected: state.prefab === k }))); s.onchange = () => { state.prefab = s.value }
       L.push(s, h('button', { type: 'button', class: 'chip', text: t('st_rotate'), onclick: () => (state.rot = (state.rot + 1) % 4) }))
@@ -176,8 +204,9 @@ export function createStudio(ctx) {
   const mkBtn = (id, ic, label, fn, cls = '') => { const b = h('button', { id, class: 'st-btn ' + cls, title: label, onclick: fn, html: icon(ic, 18) + `<span>${label}</span>` }); return b }
   function buildBar() {
     const items = TOOLS.map(([k, ic]) => { const b = mkBtn('st-' + k, ic, t('st_' + k), () => setTool(k), k === 'place' ? 'on' : ''); btnFor[k] = b; return b })
+    const symBtn = mkBtn('st-sym', 'mirror', t('st_sym'), () => { state.sym = { off: 'x', x: 'z', z: 'xz', xz: 'off' }[state.sym]; symBtn.classList.toggle('on', state.sym !== 'off'); symBtn.title = `${t('st_sym')}: ${state.sym}`; showTitle(`${t('st_sym')}: ${state.sym === 'off' ? t('st_sym_off') : state.sym.toUpperCase()}`, 1200) })
     undoBtn = mkBtn('st-undo', 'undo', t('st_undo'), undo); redoBtn = mkBtn('st-redo', 'redo', t('st_redo'), redo)
-    bar.replaceChildren(...items, h('i', { class: 'st-sep' }), mkBtn('st-addtext', 'chat', t('st_addtext'), () => { onAddText(); setTool('ui') }), undoBtn, redoBtn, mkBtn('st-env', 'sliders', t('st_env'), openEnv), mkBtn('st-script', 'code', t('ed_script'), onScript),
+    bar.replaceChildren(...items, h('i', { class: 'st-sep' }), mkBtn('st-addtext', 'chat', t('st_addtext'), () => { onAddText(); setTool('ui') }), symBtn, undoBtn, redoBtn, mkBtn('st-env', 'sliders', t('st_env'), openEnv), mkBtn('st-script', 'code', t('ed_script'), onScript),
       h('i', { class: 'st-sep' }), mkBtn('st-test', 'play', t('st_test'), onTestToggle, 'lbl'), mkBtn('st-save', 'check', t('save'), onSave, 'primary lbl'), mkBtn('st-exit', 'back', t('close'), onExit, 'lbl'))
     paintHistory(); setTool('place')
   }
@@ -218,6 +247,17 @@ export function createStudio(ctx) {
         const here = state.mode === 'erase' ? (hit.floor ? null : hit.cell) : place; if (!here) return true
         if (!state.a) { state.a = here; setWire(here, here); return true }
         const n = commit(boxCells(state.a, here, state.mode, me.kind)); state.a = null; wire.visible = false; if (n) { sfx.place(); showTitle(t('st_done_n', { n }), 1200) } return true }
+      case 'shape': {
+        if (!state.a) { state.a = place; setWire(place, place); return true }
+        const n = commit(shapeCells(state.a, place, state.shape, me.kind)); state.a = null; wire.visible = false; if (n) { sfx.place(); showTitle(t('st_done_n', { n }), 1200) } return true }
+      case 'line': {
+        if (!state.a) { state.a = place; setWire(place, place); return true }
+        const n = commit(lineCells(state.a, place, me.kind)); state.a = null; wire.visible = false; if (n) { sfx.place(); showTitle(t('st_done_n', { n }), 1200) } return true }
+      case 'replace': {
+        if (hit.floor) return true
+        const from = kindAt(...hit.cell); if (typeof from !== 'number' || from < 0 || from === me.kind) return true
+        const ops = []; for (const [k, e] of index) if (e.kind === from && ops.length < MAX_VOL) { const [x, y, z] = k.split(',').map(Number); ops.push({ x, y, z, to: me.kind }) }
+        const n = commit(ops); if (n) { sfx.place(); showTitle(t('st_done_n', { n }), 1200) } return true }
       case 'select': {
         const here = hit.floor ? place : hit.cell
         if (!state.a) { state.a = here; state.region = null; setWire(here, here); return true }
@@ -232,7 +272,7 @@ export function createStudio(ctx) {
   function update() {
     const hp = getHover(); const tool = state.tool
     if (tool === 'stamp' && hp) { const hit = pick(hp.x, hp.y); if (hit) showStamp(hit.place); else stamp.visible = false }
-    else if ((tool === 'box' || tool === 'select') && state.a && hp) { const hit = pick(hp.x, hp.y); if (hit) { const here = (tool === 'box' && state.mode !== 'erase') || hit.floor ? hit.place : hit.cell; setWire(state.a, here); wire.material.color.set(tool === 'box' && state.mode === 'erase' ? 0xff6b6b : 0x4dd0ff) } }
+    else if ((tool === 'box' || tool === 'select' || tool === 'shape' || tool === 'line') && state.a && hp) { const hit = pick(hp.x, hp.y); if (hit) { const here = ((tool === 'box' && state.mode !== 'erase') || tool === 'shape' || tool === 'line') || hit.floor ? hit.place : hit.cell; setWire(state.a, here); wire.material.color.set(tool === 'box' && state.mode === 'erase' ? 0xff6b6b : 0x4dd0ff) } }
   }
   // atajos (devuelve true si los consume)
   function keydown(e) {

@@ -42,6 +42,10 @@ const P = {
   select: '<path d="M5 9V5h4M15 5h4v4M19 15v4h-4M9 19H5v-4"/><path d="M10 10h4v4h-4z"/>',
   cube: '<path d="M12 3.5 20 8v8l-8 4.5L4 16V8z"/><path d="M12 12 4 8M12 12l8-4M12 12v8.5"/>',
   part: '<rect x="4" y="9" width="16" height="7" rx="1.5"/><path d="M8 9V6.5h8V9"/>',
+  sphere: '<circle cx="12" cy="12" r="8"/><path d="M4 12c2.5 2.5 13.5 2.5 16 0M12 4c-3 3-3 13 0 16"/>',
+  line: '<path d="M5 19 19 5"/><circle cx="5" cy="19" r="2"/><circle cx="19" cy="5" r="2"/>',
+  replace: '<path d="M5 8h11l-3-3M19 16H8l3 3"/>',
+  mirror: '<path d="M12 3v18M4 7l5 5-5 5zM20 7l-5 5 5 5z"/>',
   star: '<path d="m12 3.5 2.6 5.4 5.9.8-4.3 4.1 1 5.9L12 17l-5.2 2.7 1-5.9L3.5 9.7l5.9-.8z"/>',
 };
 export function icon(name, size = 20) {

@@ -1,1 +1,1 @@
-Dev build 7: choose skin, hair, hairstyle and pants, a random avatar button and four saved outfits. Run supabase/auth/v14.sql (AUTH); v7.sql (GAME) now allows 96 characters. The 3DS keeps the look derived from the username.
+Dev build 8: Studio gets spheres and cylinders, a line tool, replace color and a symmetry mode (X, Z or both).

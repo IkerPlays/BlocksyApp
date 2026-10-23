@@ -3,6 +3,8 @@ import { EXTRA } from './i18n-extra.js'
 const D = {
   es: {
     lang_name: 'Español',
+    st_shape_tool: 'Formas', st_line: 'Línea', st_replace: 'Reemplazar color', st_sym: 'Simetría', st_sym_off: 'apagada', shape_sphere: 'Esfera', shape_hollowsphere: 'Esfera hueca', shape_cylinder: 'Cilindro',
+    st_hint_shape: 'Clic en dos esquinas: la forma queda dentro de esa caja', st_hint_line: 'Clic en dos puntos para trazar una línea', st_hint_replace: 'Clic en un bloque: todos los de su color pasan al color elegido',
     look_skin: 'Piel', look_hair: 'Pelo', look_style: 'Peinado', look_pants: 'Pantalón', look_random: 'Aleatorio', look_reset: 'Restablecer', hairstyle_0: 'Corto', hairstyle_1: 'Flequillo', hairstyle_2: 'Pinchos', outfits: 'Atuendos guardados', outfit: 'Atuendo', outfit_saved: 'Atuendo guardado', outfit_worn: 'Atuendo puesto',
     shop_faces: 'Gafas y máscaras', shop_backs: 'Espalda', shop_trails: 'Estelas', shop_pets: 'Mascotas',
     like: 'Me gusta', dislike: 'No me gusta', recent: 'Jugados hace poco', sort_popular: 'Más populares', sort_newest: 'Más nuevos', sort_az: 'A-Z', sort_liked: 'Más valorados', ed_tags: 'Etiquetas (hasta 5, separadas por comas)', ed_tags_ph: 'aventura, amigos, carrera',
@@ -78,6 +80,8 @@ const D = {
   },
   en: {
     lang_name: 'English',
+    st_shape_tool: 'Shapes', st_line: 'Line', st_replace: 'Replace color', st_sym: 'Symmetry', st_sym_off: 'off', shape_sphere: 'Sphere', shape_hollowsphere: 'Hollow sphere', shape_cylinder: 'Cylinder',
+    st_hint_shape: 'Click two corners: the shape fits inside that box', st_hint_line: 'Click two points to draw a line', st_hint_replace: 'Click a block: every block of its color becomes the chosen color',
     look_skin: 'Skin', look_hair: 'Hair', look_style: 'Hairstyle', look_pants: 'Pants', look_random: 'Random', look_reset: 'Reset', hairstyle_0: 'Short', hairstyle_1: 'Bangs', hairstyle_2: 'Spikes', outfits: 'Saved outfits', outfit: 'Outfit', outfit_saved: 'Outfit saved', outfit_worn: 'Outfit worn',
     shop_faces: 'Glasses and masks', shop_backs: 'Back items', shop_trails: 'Trails', shop_pets: 'Pets',
     like: 'Like', dislike: 'Dislike', recent: 'Recently played', sort_popular: 'Most popular', sort_newest: 'Newest', sort_az: 'A-Z', sort_liked: 'Top rated', ed_tags: 'Tags (up to 5, comma separated)', ed_tags_ph: 'adventure, friends, race',
