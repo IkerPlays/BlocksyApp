@@ -92,7 +92,7 @@ function favBtn(g) {
 }
 function gameCard(g, counts, onOpen) {
   const n = counts[g.id] ?? 0
-  const thumb = el('div', { class: 'thumb', style: `--h:${g.hue ?? hueOf(g.id)}` }, el('div', { class: 'cube' }),
+  const thumb = el('div', { class: 'thumb' + (g.config?.thumb ? ' has-img' : ''), style: `--h:${g.hue ?? hueOf(g.id)}` + (g.config?.thumb ? `;background-image:url(${g.config.thumb})` : '') }, el('div', { class: 'cube' }),
     n ? el('span', { class: 'live', text: t('playing_n', { n }) }) : null, el('span', { class: 'mode-tag', text: modeLabel(g.mode) }))
   return el('div', { class: 'gcard', onclick: () => onOpen(g) }, thumb,
     el('div', { class: 'gname', text: g.name }), el('div', { class: 'gmeta', text: t('by', { name: g.owner_name || 'Blocksy' }) }))

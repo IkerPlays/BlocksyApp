@@ -37,7 +37,7 @@ const SHAPES = ['Block', 'Ball', 'Cylinder'], MATERIALS = ['Plastic', 'Neon', 'G
 const SKIES = ['day', 'dawn', 'sunset', 'night', 'space']
 
 export function createStudio(ctx) {
-  const { game, cfg, api, PALETTE, key, index, statics, setBlock, removeBlock, me, pick, scene, camera, canvas, rbx, showTitle, sys, sfx, burst, selectKind, onEnv, onTestToggle, onSave, onExit, onScript, onAddText, setUiTool, getHover, getConfig } = ctx
+  const { game, cfg, api, PALETTE, key, index, statics, setBlock, removeBlock, me, pick, scene, camera, canvas, rbx, showTitle, sys, sfx, burst, selectKind, onEnv, onTestToggle, onSave, onExit, onScript, onAddText, setUiTool, getHover, getConfig, captureThumb } = ctx
   const g = document.getElementById('game'), bar = document.getElementById('studio-bar')
   const state = { terrR: 4, terrH: 4, terrMode: 'raise', tool: 'place', mode: 'fill', shape: 'sphere', sym: 'off', grid: 0.5, prefab: 'house', rot: 0, a: null, region: null, clip: null }
   const undoS = [], redoS = []
@@ -111,7 +111,10 @@ export function createStudio(ctx) {
     for (let i = 0; i <= n && i <= 400; i++) out.push({ x: Math.round(a[0] + (b[0] - a[0]) * i / n), y: Math.round(a[1] + (b[1] - a[1]) * i / n), z: Math.round(a[2] + (b[2] - a[2]) * i / n), to: kind })
     return out
   }
-  const prefabList = () => (state.prefab === 'clip' ? (state.clip ?? []) : PREFABS[state.prefab]?.(me.kind) ?? [])
+  const MY_KEY = 'blocksy.prefabs'
+  const myPrefabs = () => { try { const o = JSON.parse(localStorage.getItem(MY_KEY) || '{}'); return o && typeof o === 'object' ? o : {} } catch { return {} } }
+  const saveMyPrefabs = o => { try { localStorage.setItem(MY_KEY, JSON.stringify(o)) } catch { showTitle(t('st_storage_full'), 2000) } }
+  const prefabList = () => (state.prefab === 'clip' ? (state.clip ?? []) : state.prefab.startsWith('my:') ? (myPrefabs()[state.prefab.slice(3)] ?? []) : PREFABS[state.prefab]?.(me.kind) ?? [])
 
   // ---------- ayudas visuales: caja de región y vista previa de la estructura ----------
   const wire = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(1, 1, 1)), new THREE.LineBasicMaterial({ color: 0x4dd0ff, depthTest: false })); wire.visible = false; wire.renderOrder = 5; scene.add(wire)
@@ -268,7 +271,7 @@ export function createStudio(ctx) {
   }
   const toggleVersions = () => { versionsBox.classList.toggle('hidden'); paintVersions() }
   let lastSaved = 0, savedEl
-  const paintSaved = () => { if (!savedEl) return; savedEl.textContent = lastSaved ? `✓ ${new Date(lastSaved).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : t('st_unsaved'); savedEl.classList.toggle('dirty', !lastSaved) }
+  const paintSaved = () => { if (!savedEl) return; savedEl.textContent = lastSaved ? `✓ ${new Date(lastSaved).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : t('st_notsaved'); savedEl.classList.toggle('dirty', !lastSaved) }
   const doSave = async silent => { const ok = await onSave(silent); if (ok) { lastSaved = Date.now(); paintSaved(); if (silent !== true) takeSnapshot(t('st_snap_save')) } return ok }
   // ---------- barra de herramientas ----------
   const TOOLS = [['place', 'plus'], ['erase', 'trash'], ['paint', 'edit'], ['pick', 'search'], ['box', 'box'], ['shape', 'sphere'], ['line', 'line'], ['replace', 'replace'], ['select', 'select'], ['stamp', 'cube'], ['part', 'part'], ['terrain', 'mountain'], ['measure', 'ruler'], ['ui', 'chat']]
@@ -280,10 +283,10 @@ export function createStudio(ctx) {
     if (state.tool === 'box') for (const m of ['fill', 'hollow', 'erase']) L.push(chip(t('st_mode_' + m), state.mode === m, () => { state.mode = m; paintOpts() }))
     if (state.tool === 'shape') for (const m of ['sphere', 'hollowsphere', 'cylinder']) L.push(chip(t('shape_' + m), state.shape === m, () => { state.shape = m; paintOpts() }))
     if (state.tool === 'stamp') {
-      const s = h('select', {}, [...Object.keys(PREFABS), ...(state.clip ? ['clip'] : [])].map(k => h('option', { value: k, text: t('pf_' + k), selected: state.prefab === k }))); s.onchange = () => { state.prefab = s.value }
-      L.push(s, h('button', { type: 'button', class: 'chip', text: t('st_rotate'), onclick: () => (state.rot = (state.rot + 1) % 4) }))
+      const s = h('select', {}, [...Object.keys(PREFABS), ...(state.clip ? ['clip'] : []), ...Object.keys(myPrefabs()).map(n => 'my:' + n)].map(k => h('option', { value: k, text: k.startsWith('my:') ? '★ ' + k.slice(3) : t('pf_' + k), selected: state.prefab === k }))); s.onchange = () => { state.prefab = s.value }
+      L.push(s, h('button', { type: 'button', class: 'chip', text: t('st_rotate'), onclick: () => (state.rot = (state.rot + 1) % 4) }), state.prefab.startsWith('my:') ? h('button', { type: 'button', class: 'chip', text: t('st_pf_delete'), onclick: () => { const o = myPrefabs(); delete o[state.prefab.slice(3)]; saveMyPrefabs(o); state.prefab = 'house'; paintOpts() } }) : null, h('button', { type: 'button', class: 'chip', text: t('st_struct_import'), onclick: importStructure }))
     }
-    if (state.tool === 'select') L.push(h('button', { type: 'button', class: 'chip', text: t('st_copy') + ' (Ctrl+C)', onclick: copySel }), h('button', { type: 'button', class: 'chip', text: t('st_cut'), onclick: () => { copySel(); clearSel() } }), h('button', { type: 'button', class: 'chip', text: t('st_fillsel'), onclick: fillSel }), h('button', { type: 'button', class: 'chip', text: t('st_clear') + ' (Del)', onclick: clearSel }), h('button', { type: 'button', class: 'chip', text: t('st_rot90'), onclick: rotateSel }), h('button', { type: 'button', class: 'chip', text: t('st_flipx'), onclick: () => flipSel('x') }), h('button', { type: 'button', class: 'chip', text: t('st_flipz'), onclick: () => flipSel('z') }), h('button', { type: 'button', class: 'chip', text: t('st_water'), onclick: waterSel }))
+    if (state.tool === 'select') L.push(h('button', { type: 'button', class: 'chip', text: t('st_copy') + ' (Ctrl+C)', onclick: copySel }), h('button', { type: 'button', class: 'chip', text: t('st_cut'), onclick: () => { copySel(); clearSel() } }), h('button', { type: 'button', class: 'chip', text: t('st_fillsel'), onclick: fillSel }), h('button', { type: 'button', class: 'chip', text: t('st_clear') + ' (Del)', onclick: clearSel }), h('button', { type: 'button', class: 'chip', text: t('st_rot90'), onclick: rotateSel }), h('button', { type: 'button', class: 'chip', text: t('st_flipx'), onclick: () => flipSel('x') }), h('button', { type: 'button', class: 'chip', text: t('st_flipz'), onclick: () => flipSel('z') }), h('button', { type: 'button', class: 'chip', text: t('st_water'), onclick: waterSel }), h('button', { type: 'button', class: 'chip', text: t('st_pf_save'), onclick: savePrefab }), h('button', { type: 'button', class: 'chip', text: t('st_struct_export'), onclick: exportStructure }), h('button', { type: 'button', class: 'chip', text: t('st_struct_import'), onclick: importStructure }))
     if (state.tool === 'terrain') {
       for (const m of ['raise', 'lower']) L.push(chip(t('st_terr_' + m), state.terrMode === m, () => { state.terrMode = m; paintOpts() }))
       const num2 = (k, lab, min, max) => { const i = h('input', { type: 'number', min, max, value: state[k] }); i.style.width = '52px'; i.oninput = () => { state[k] = clampI(+i.value || min, min, max) }; return h('label', { class: 'chip-num' }, lab, i) }
@@ -305,12 +308,14 @@ export function createStudio(ctx) {
   let undoBtn, redoBtn
   function paintHistory() { if (undoBtn) { undoBtn.disabled = !undoS.length; redoBtn.disabled = !redoS.length } }
   const mkBtn = (id, ic, label, fn, cls = '') => { const b = h('button', { id, class: 'st-btn ' + cls, title: label, onclick: fn, html: icon(ic, 18) + `<span>${label}</span>` }); return b }
+  let compact = true; try { compact = localStorage.getItem('blocksy.studio.compact') !== '0' } catch {}
   function buildBar() {
     const items = TOOLS.map(([k, ic]) => { const b = mkBtn('st-' + k, ic, t('st_' + k), () => setTool(k), k === 'place' ? 'on' : ''); btnFor[k] = b; return b })
     const symBtn = mkBtn('st-sym', 'mirror', t('st_sym'), () => { state.sym = { off: 'x', x: 'z', z: 'xz', xz: 'off' }[state.sym]; symBtn.classList.toggle('on', state.sym !== 'off'); symBtn.title = `${t('st_sym')}: ${state.sym}`; showTitle(`${t('st_sym')}: ${state.sym === 'off' ? t('st_sym_off') : state.sym.toUpperCase()}`, 1200) })
     undoBtn = mkBtn('st-undo', 'undo', t('st_undo'), undo); redoBtn = mkBtn('st-redo', 'redo', t('st_redo'), redo)
-    bar.replaceChildren(...items, h('i', { class: 'st-sep' }), mkBtn('st-addtext', 'chat', t('st_addtext'), () => { onAddText(); setTool('ui') }), symBtn, undoBtn, redoBtn, mkBtn('st-grid', 'grid', t('st_gridview'), () => { gridHelper.visible = !gridHelper.visible; document.getElementById('st-grid')?.classList.toggle('on', gridHelper.visible) }), mkBtn('st-explorer', 'menu', t('st_explorer'), toggleExplorer), mkBtn('st-versions', 'undo', t('st_versions'), toggleVersions), mkBtn('st-export', 'send', t('st_export'), exportGame), mkBtn('st-env', 'sliders', t('st_env'), openEnv), mkBtn('st-script', 'code', t('ed_script'), onScript), mkBtn('st-help', 'search', t('st_shortcuts'), () => helpBox.classList.toggle('hidden')),
-      h('i', { class: 'st-sep' }), mkBtn('st-test', 'play', t('st_test'), onTestToggle, 'lbl'), mkBtn('st-save', 'check', t('save'), () => doSave(), 'primary lbl'), (savedEl = h('span', { class: 'st-saved dirty', text: t('st_unsaved') })), mkBtn('st-exit', 'back', t('close'), onExit, 'lbl'))
+    bar.classList.toggle('compact', compact)
+    bar.replaceChildren(mkBtn('st-compact', 'menu', t('st_compact'), () => { compact = !compact; try { localStorage.setItem('blocksy.studio.compact', compact ? '1' : '0') } catch {} buildBar() }, compact ? 'on' : ''), ...items, h('i', { class: 'st-sep' }), mkBtn('st-addtext', 'chat', t('st_addtext'), () => { onAddText(); setTool('ui') }), symBtn, undoBtn, redoBtn, mkBtn('st-grid', 'grid', t('st_gridview'), () => { gridHelper.visible = !gridHelper.visible; document.getElementById('st-grid')?.classList.toggle('on', gridHelper.visible) }), mkBtn('st-explorer', 'menu', t('st_explorer'), toggleExplorer), mkBtn('st-versions', 'undo', t('st_versions'), toggleVersions), mkBtn('st-export', 'send', t('st_export'), exportGame), mkBtn('st-thumb', 'camera', t('st_thumb'), async () => { const d = await captureThumb?.(); if (!d) return showTitle(t('st_thumb_fail'), 1800); game.config = { ...(game.config ?? {}), thumb: d }; cfg.thumb = d; showTitle(t('st_thumb_ok'), 1800); sfx.click() }), mkBtn('st-env', 'sliders', t('st_env'), openEnv), mkBtn('st-script', 'code', t('ed_script'), onScript), mkBtn('st-help', 'search', t('st_shortcuts'), () => helpBox.classList.toggle('hidden')),
+      h('i', { class: 'st-sep' }), mkBtn('st-test', 'play', t('st_test'), onTestToggle, 'lbl'), mkBtn('st-save', 'check', t('save'), () => doSave(), 'primary lbl'), (savedEl = h('span', { class: 'st-saved dirty', text: t('st_notsaved') })), mkBtn('st-exit', 'back', t('close'), onExit, 'lbl'))
     paintHistory(); setTool('place')
   }
   buildBar()
@@ -359,6 +364,28 @@ export function createStudio(ctx) {
       for (let k = 0; k < hgt; k++) { const y = baseY + k; if (state.terrMode === 'raise') ops.push({ x: cx + dx, y, z: cz + dz, to: k === hgt - 1 ? me.kind : 9 }); else if (baseY - k >= 0) ops.push({ x: cx + dx, y: baseY - 1 - k, z: cz + dz, to: -1 }) }
     }
     return commit(ops)
+  }
+  // estructuras propias: se guardan en este navegador y se pueden exportar/importar como archivo
+  function selectionCells() { copySel(); return state.clip ?? [] }
+  function savePrefab() {
+    const cells = selectionCells(); if (!cells.length) return
+    const name = (prompt(t('st_pf_name'), 'Mi estructura') ?? '').replace(/[^\w ñÑáéíóúÁÉÍÓÚ-]/g, '').trim().slice(0, 24); if (!name) return
+    const o = myPrefabs(); o[name] = cells; saveMyPrefabs(o); state.prefab = 'my:' + name; showTitle(t('st_pf_saved', { name }), 1500); paintOpts()
+  }
+  function exportStructure() {
+    const cells = selectionCells(); if (!cells.length) return
+    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify({ format: 'blocksy-structure-1', cells })], { type: 'application/json' })); a.download = 'structure.blocksy-structure.json'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000)
+  }
+  function importStructure() {
+    const inp = h('input', { type: 'file', accept: '.json,application/json' })
+    inp.onchange = async () => {
+      try {
+        const d = JSON.parse(await inp.files[0].text()); const cells = (d.cells ?? []).filter(c => Array.isArray(c) && c.length === 4 && c.every(Number.isFinite)).slice(0, 2500)
+        if (d.format !== 'blocksy-structure-1' || !cells.length) throw new Error('format')
+        state.clip = cells.map(c => c.map(Math.round)); state.prefab = 'clip'; setTool('stamp'); showTitle(t('st_done_n', { n: cells.length }), 1400)
+      } catch { showTitle(t('st_struct_bad'), 2200) }
+    }
+    inp.click()
   }
   const clearSel = () => { if (state.region) { const n = commit(boxCells(state.region[0], state.region[1], 'erase', 0)); if (n) showTitle(t('st_done_n', { n }), 1200) } }
   const fillSel = () => { if (state.region) { const n = commit(boxCells(state.region[0], state.region[1], 'fill', me.kind)); if (n) showTitle(t('st_done_n', { n }), 1200) } }

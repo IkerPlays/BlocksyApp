@@ -415,3 +415,6 @@ html.rainbow { animation: rainbow 2s linear infinite; } @keyframes rainbow { to 
 .ver-row { display: flex; gap: 6px; align-items: center; background: #ffffff10; border-radius: 8px; padding: 6px 8px; } .ver-row .grow { display: flex; flex-direction: column; min-width: 0; } .ver-row small { opacity: .7; font-size: 11px; }
 .st-saved { align-self: center; font-size: 12px; color: #7be39b; padding: 0 6px; white-space: nowrap; } .st-saved.dirty { color: #ffb86b; }
 .chip-num { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: #fff; }
+.thumb.has-img { background-size: cover; background-position: center; } .thumb.has-img .cube { display: none; }
+#studio-bar.compact { gap: 3px; padding: 4px; } #studio-bar.compact .st-btn { padding: 6px 8px; border-radius: 8px; } #studio-bar.compact .st-btn.lbl span { display: none; } #studio-bar.compact .st-sep { display: none; }
+#studio-bar.compact .st-btn svg { width: 16px; height: 16px; }

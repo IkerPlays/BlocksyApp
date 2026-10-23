@@ -1,5 +1,5 @@
-Devbuild 35: Studio world tools
-- Terrain brush: raise hills or dig pits with a chosen radius and height.
-- Fill a selection with water (a swimmable Water part).
-- Torches and lamps that really light up the area, and a Light field for any part.
-- Time of day slider and a new Dawn sky.
+Devbuild 36: Studio library
+- Save any selection as your own structure and place it from the Structure tool (kept in this browser).
+- Export a structure to a file and import it into any game.
+- Game thumbnail: take a picture from the editor and it shows on the game card.
+- Compact toolbar (on by default) so the editor takes less room.

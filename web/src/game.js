@@ -539,6 +539,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
         else if (k === 'fog') { scene.fog.far = settings.viewDistance * fogMul(); scene.fog.near = settings.viewDistance * 0.35 * fogMul() }
       },
       onScript: async () => { await studio.openScript(game) },
+      captureThumb: () => new Promise(res => { thumbReq = res }),
       onTestToggle: () => {
         testing = !testing
         $('st-test').querySelector('span').textContent = t(testing ? 'st_stop' : 'st_test'); $('st-test').classList.toggle('on', testing); sd.setTesting(testing)
@@ -850,7 +851,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
   if (horror) { sky.setPreset('night'); canvas.style.background = '#000' }
 
   // ---------- bucle ----------
-  const clock = new THREE.Clock(); let raf, stepAcc = 0, tAnim = 0, fps = 60, frames = 0, fpsAt = performance.now(), mmAt = 0, shotPending = false
+  const clock = new THREE.Clock(); let raf, stepAcc = 0, tAnim = 0, fps = 60, frames = 0, fpsAt = performance.now(), mmAt = 0, shotPending = false, thumbReq = null
   const camPos = new THREE.Vector3(), camLook = new THREE.Vector3(), want = new THREE.Vector3(), tgt = new THREE.Vector3()
   camPos.set(me.pos.x, me.pos.y + 6, me.pos.z + 9)
   paintStatic(); applyAll()
@@ -903,6 +904,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
     renderer.toneMappingExposure = sk.night ? 1.15 : 1.0
     updateHover(); if (ST && editing()) sd?.update()
     if (composer) composer.render(dt); else renderer.render(scene, camera)
+    if (thumbReq) { const res = thumbReq; thumbReq = null; try { const c = document.createElement('canvas'); c.width = 256; c.height = 144; const x = c.getContext('2d'), r = canvas.width / canvas.height, w = 256, h = 144; let sw = canvas.width, sh = canvas.height, sx = 0, sy = 0; if (r > w / h) { sw = canvas.height * w / h; sx = (canvas.width - sw) / 2 } else { sh = canvas.width * h / w; sy = (canvas.height - sh) / 2 } x.drawImage(canvas, sx, sy, sw, sh, 0, 0, w, h); res(c.toDataURL('image/jpeg', 0.6)) } catch { res(null) } }
     if (shotPending) { shotPending = false; canvas.toBlob(b => { if (!b) return; const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = `blocksy-${Date.now()}.png`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); sys(t('screenshot_saved')); sfx.click() }) }
     frames++; const now = performance.now()
     if (now - mmAt > 120) { mmAt = now; drawMinimap() }
