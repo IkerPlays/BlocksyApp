@@ -3,6 +3,7 @@ import { EXTRA } from './i18n-extra.js'
 const D = {
   es: {
     lang_name: 'Español',
+    like: 'Me gusta', dislike: 'No me gusta', recent: 'Jugados hace poco', sort_popular: 'Más populares', sort_newest: 'Más nuevos', sort_az: 'A-Z', sort_liked: 'Más valorados', ed_tags: 'Etiquetas (hasta 5, separadas por comas)', ed_tags_ph: 'aventura, amigos, carrera',
     room_title: 'Sala privada (solo entran quienes tengan el código)', room_code: 'Código de sala', room_new: 'Crear', room_join: 'Entrar', room_bad: 'El código necesita 3 o más letras o números', invite_all: 'Invitar a todos', invite_all_done: 'Invitaciones enviadas: {n}',
     party: 'Fiesta', party_help: 'Un chat de grupo temporal con tus amigos: crea un código y compártelo.', party_code: 'Código de fiesta', party_new: 'Crear', party_join: 'Unirse', party_members: 'En la fiesta', party_leave: 'Salir de la fiesta',
     badge_pioneer: 'Pionero', badge_pioneer_d: 'Se unió en la primera etapa', badge_regular: 'Habitual', badge_regular_d: 'Más de 1 hora jugada', badge_veteran: 'Veterano', badge_veteran_d: 'Más de 10 horas jugadas', badge_social: 'Sociable', badge_social_d: '5 o más amigos', badge_collector: 'Coleccionista', badge_collector_d: '5 o más objetos', badge_rich: 'Rico', badge_rich_d: '1000 BCoins o más', badge_creator: 'Creador', badge_creator_d: 'Ha creado un juego',
@@ -75,6 +76,7 @@ const D = {
   },
   en: {
     lang_name: 'English',
+    like: 'Like', dislike: 'Dislike', recent: 'Recently played', sort_popular: 'Most popular', sort_newest: 'Newest', sort_az: 'A-Z', sort_liked: 'Top rated', ed_tags: 'Tags (up to 5, comma separated)', ed_tags_ph: 'adventure, friends, race',
     room_title: 'Private room (only people with the code join)', room_code: 'Room code', room_new: 'Create', room_join: 'Join', room_bad: 'The code needs 3 or more letters or numbers', invite_all: 'Invite everyone', invite_all_done: 'Invitations sent: {n}',
     party: 'Party', party_help: 'A temporary group chat with your friends: create a code and share it.', party_code: 'Party code', party_new: 'Create', party_join: 'Join', party_members: 'In the party', party_leave: 'Leave the party',
     badge_pioneer: 'Pioneer', badge_pioneer_d: 'Joined in the first stage', badge_regular: 'Regular', badge_regular_d: 'Over 1 hour played', badge_veteran: 'Veteran', badge_veteran_d: 'Over 10 hours played', badge_social: 'Social', badge_social_d: '5 or more friends', badge_collector: 'Collector', badge_collector_d: '5 or more items', badge_rich: 'Rich', badge_rich_d: '1000 BCoins or more', badge_creator: 'Creator', badge_creator_d: 'Has created a game',

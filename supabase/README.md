@@ -91,3 +91,4 @@ Lua estilo Roblox: cada jugador ejecuta el script en su navegador (como un Local
 ## Hoja de ruta 1.2 (SQL nuevo, seguro de repetir)
 - **AUTH** `auth/v12.sql`: tiempo jugado, insignias del perfil, ultima conexion y juegos favoritos. Sin el SQL esas partes no se muestran.
 - **GAME** `game/v6.sql`: salas privadas (codigo de sala en la ficha de cada juego).
+- **AUTH** `auth/v13.sql`: me gusta / no me gusta en los juegos.

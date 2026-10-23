@@ -12,7 +12,8 @@ export const onSettings = f => { subs.add(f); return () => subs.delete(f) }
 export function saveSettings() { try { localStorage.setItem('blocksy.settings', JSON.stringify(settings)) } catch {} ; subs.forEach(f => f()) }
 export function resetSettings() { Object.assign(settings, DEFAULTS); saveSettings() }
 export function lastPlayed() { try { return localStorage.getItem('blocksy.last') } catch { return null } }
-export function setLastPlayed(id) { try { localStorage.setItem('blocksy.last', id) } catch {} }
+export function setLastPlayed(id) { try { localStorage.setItem('blocksy.last', id); const r = [id, ...recentGames().filter(x => x !== id)].slice(0, 8); localStorage.setItem('blocksy.recent', JSON.stringify(r)) } catch {} }
+export function recentGames() { try { const r = JSON.parse(localStorage.getItem('blocksy.recent') || '[]'); return Array.isArray(r) ? r : [] } catch { return [] } }
 
 // Tema y color de acento
 export function applyTheme() {

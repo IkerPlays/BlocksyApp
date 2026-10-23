@@ -121,6 +121,9 @@ const pend = {}
 // Tiempo jugado, insignias, última conexión y favoritos (AUTH v12). Si el SQL aún no está, todo falla en silencio.
 export const addPlaytime = sec => rpc('add_playtime', { p_seconds: sec }).catch(() => {})
 export const profileExtra = name => rpc('profile_extra', { p_username: name }).catch(() => null)
+let votes = null
+export async function gameVotes(force = false) { if (!votes || force) votes = Object.fromEntries((await rpc('game_votes_summary', {}).catch(() => []) ?? []).map(r => [r.game_id, { up: Number(r.up), down: Number(r.down), mine: r.mine }])); return votes }
+export async function voteGame(id, v) { const mine = await rpc('vote_game', { p_game: id, p_vote: v }); await gameVotes(true); return mine }
 let favs = null
 export async function myFavorites() { if (!favs) favs = new Set(await rpc('my_favorites', {}).catch(() => [])); return favs }
 export async function toggleFavorite(id) { const on = await rpc('toggle_favorite', { p_game: id }); const s = await myFavorites(); on ? s.add(id) : s.delete(id); return on }

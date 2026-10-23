@@ -17,6 +17,9 @@ Blocksy is a multiplayer block-building game for the web and the Nintendo 3DS (h
 - **Party chat.** A temporary group chat with a shareable code on the Friends page.
 - **Invite everyone.** One button invites every online friend, including to your private room.
 - **Emoticons.** A quick emoticon picker in private messages and party chat.
+- **Sorting and tags.** Discover can sort by popular, newest, A-Z or top rated and filter by tags; creators add up to 5 tags in the editor.
+- **Likes.** Like or dislike a game from its page.
+- **Recently played.** Home shows the last games you played.
 
 ## Installing
 - Install `Blocksy.cia` with FBI, or copy `Blocksy.3dsx` to the `3ds` folder of the SD card and run it from the Homebrew Launcher.

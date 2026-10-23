@@ -1,7 +1,7 @@
 import * as auth from './auth.js'
 import * as api from './api.js'
 import * as social from './social.js'
-import { settings, saveSettings, resetSettings, lastPlayed, getStats, applyTheme } from './settings.js'
+import { settings, saveSettings, resetSettings, lastPlayed, recentGames, getStats, applyTheme } from './settings.js'
 import { icon } from './icons.js'
 import { headshot, styleFor, EMOTES, createPreview, hatStyle } from './avatar.js'
 import { t, LANGS, langName, getPref, setLang, onLang } from './i18n.js'
@@ -49,6 +49,13 @@ function roomBox(g, onPlay) {
   return el('div', { class: 'room-box' }, el('small', { text: t('room_title') }), el('div', { class: 'form-row' }, input,
     el('button', { class: 'btn', text: t('room_new'), onclick: () => go(Math.random().toString(36).slice(2, 7).toUpperCase()) }), el('button', { class: 'btn', text: t('room_join'), onclick: () => go() })))
 }
+function voteBox(g) {
+  const up = el('button', { class: 'btn', text: '+' }), down = el('button', { class: 'btn', text: '-' }), box = el('div', { class: 'form-row vote-box' }, up, down)
+  const paint = v => { const x = v?.[g.id] ?? { up: 0, down: 0, mine: 0 }; up.textContent = `${t('like')} ${x.up}`; down.textContent = `${t('dislike')} ${x.down}`; up.classList.toggle('on', x.mine === 1); down.classList.toggle('on', x.mine === -1) }
+  social.gameVotes().then(paint)
+  for (const [b, v] of [[up, 1], [down, -1]]) b.onclick = async () => { try { await social.voteGame(g.id, v); paint(await social.gameVotes()) } catch (e) { toast(e.message) } }
+  return box
+}
 function favBtn(g) {
   const b = el('button', { class: 'btn wide', text: '...' }), paint = on => { b.textContent = t(on ? 'fav_remove' : 'fav_add'); b.classList.toggle('on', on) }
   social.myFavorites().then(s => paint(s.has(g.id)))
@@ -78,6 +85,7 @@ export function openGameModal(g, counts, onPlay) {
         el('div', {}, el('b', { text: 'Web + 3DS' }), el('small', { text: t('platforms') }))),
       el('p', { text: g.description || t('no_desc') }),
       el('button', { class: 'btn primary wide', text: t('play'), onclick: () => { closeModal(); onPlay(g) } }),
+      voteBox(g),
       favBtn(g),
       roomBox(g, onPlay),
       el('button', { class: 'btn wide', text: t('close'), onclick: closeModal }))))
@@ -110,7 +118,8 @@ export const pages = {
     const open = g => openGameModal(g, counts, ctx.play)
     const popular = [...games].sort((a, b) => (counts[b.id] ?? 0) - (counts[a.id] ?? 0))
     const last = games.find(g => g.id === lastPlayed())
-    const friendsRow = el('div'), favRow = el('div')
+    const friendsRow = el('div'), favRow = el('div'), recentRow = el('div')
+    { const rg = recentGames().map(id => games.find(g => g.id === id)).filter(Boolean).slice(0, 6); if (rg.length) setKids(recentRow, el('div', { class: 'section' }, el('h2', { text: t('recent') })), grid(rg, counts, open)) }
     social.myFavorites().then(s => { const fg = games.filter(g => s.has(g.id)); if (fg.length) setKids(favRow, el('div', { class: 'section' }, el('h2', { text: t('favorites') })), grid(fg, counts, open)) })
     const paintFriends = list => setKids(friendsRow, list.length
       ? el('div', { class: 'row-scroll' }, list.map(f => el('a', { class: 'friend', href: `/u/${encodeURIComponent(f.username)}` },
@@ -121,7 +130,7 @@ export const pages = {
       el('div', { class: 'hero' }, avatar(ctx.profile.username, ctx.profile.avatar_color), el('h1', { text: t('hello', { name: ctx.profile.username }) })),
       el('div', { class: 'section' }, el('h2', { text: t('friends_n', { n: friends.length }) }), el('a', { href: '/friends', text: t('see_all') })), friendsRow,
       last ? [el('div', { class: 'section' }, el('h2', { text: t('continue') })), grid([last], counts, open)] : null,
-      favRow,
+      recentRow, favRow,
       el('div', { class: 'section' }, el('h2', { text: t('popular') }), el('a', { href: '/discover', text: t('see_all') })),
       grid(popular.slice(0, 12), counts, open),
       el('div', { class: 'section' }, el('h2', { text: t('newest') })),
@@ -133,16 +142,20 @@ export const pages = {
     setKids(root, el('h1', { class: 'page-title', text: t('discover') }), skeletons(8))
     const [games, counts] = await Promise.all([api.listGames(), api.playerCounts()])
     const input = el('input', { placeholder: t('search_ph'), value: query })
-    let modeSel = ''
+    let modeSel = '', tagSel = '', sortSel = 'popular'; const votes = await social.gameVotes()
+    const tagsOf = g => (Array.isArray(g.config?.tags) ? g.config.tags : [])
+    const allTags = [...new Set(games.flatMap(tagsOf))].slice(0, 14)
+    const sortBy = { popular: (a, b) => (counts[b.id] ?? 0) - (counts[a.id] ?? 0), newest: () => 0, az: (a, b) => a.name.localeCompare(b.name), liked: (a, b) => ((votes[b.id]?.up ?? 0) - (votes[b.id]?.down ?? 0)) - ((votes[a.id]?.up ?? 0) - (votes[a.id]?.down ?? 0)) }
+    const sortEl = el('select', { onchange: e => { sortSel = e.target.value; draw() } }, ['popular', 'newest', 'az', 'liked'].map(k => el('option', { value: k, text: t('sort_' + k) })))
     const chips = el('div', { class: 'chips' })
     const out = el('div')
     const draw = () => {
       const q = input.value.trim().toLowerCase()
       setKids(chips, el('button', { class: `chip ${modeSel === '' ? 'on' : ''}`, text: t('see_all'), onclick: () => { modeSel = ''; draw() } }), MODES.map(m => el('button', { class: `chip ${modeSel === m ? 'on' : ''}`, text: modeLabel(m), onclick: () => { modeSel = m; draw() } })))
-      setKids(out, grid(games.filter(g => (!modeSel || (g.mode ?? 'build') === modeSel) && (!q || g.name.toLowerCase().includes(q) || (g.description || '').toLowerCase().includes(q))), counts, g => openGameModal(g, counts, ctx.play)))
+      setKids(out, grid((sortSel === 'newest' ? [...games].reverse() : [...games].sort(sortBy[sortSel])).filter(g => (!modeSel || (g.mode ?? 'build') === modeSel) && (!tagSel || tagsOf(g).includes(tagSel)) && (!q || g.name.toLowerCase().includes(q) || (g.description || '').toLowerCase().includes(q))), counts, g => openGameModal(g, counts, ctx.play)))
     }
     input.oninput = draw; draw()
-    setKids(root, el('h1', { class: 'page-title', text: t('discover') }), el('div', { style: 'margin-bottom:12px' }, input), chips, out)
+    setKids(root, el('h1', { class: 'page-title', text: t('discover') }), el('div', { class: 'form-row', style: 'margin-bottom:12px' }, input, sortEl), chips, allTags.length ? el('div', { class: 'chips tags' }, allTags.map(tg => el('button', { class: 'chip', text: '#' + tg, onclick: e => { tagSel = tagSel === tg ? '' : tg; e.target.parentNode.querySelectorAll('.chip').forEach(c => c.classList.toggle('on', c.textContent === '#' + tagSel)); draw() } }))) : null, out)
   },
 
   // Tienda: BCoins, sombreros, títulos y cofres de botín
@@ -477,10 +490,11 @@ async function editor(root, ctx, id) {
       const prev = el('div', { class: 'thumb', style: `width:120px;flex:none;--h:${g.hue}` }, el('div', { class: 'cube' }))
       const max = el('input', { type: 'number', min: 1, max: 50, value: g.max_players }); max.oninput = () => (g.max_players = +max.value || 20)
       const mp = el('div', { class: 'mode-pick' }, MODES.map(m => el('button', { type: 'button', class: `mode-card ${g.mode === m ? 'on' : ''}`, onclick: () => { g.mode = m; if (g.config.allow_build_touched !== true) g.config.allow_build = m === 'build'; draw() } }, el('b', { text: modeLabel(m) }), el('small', { text: t(`mode_${m}_d`) }))))
+      const tagsIn = el('input', { value: (g.config.tags ?? []).join(', '), maxlength: 60, placeholder: t('ed_tags_ph') }); tagsIn.oninput = () => (g.config.tags = tagsIn.value.split(',').map(x => x.trim().toLowerCase().replace(/[^a-z0-9]/g, '')).filter(Boolean).slice(0, 5))
       const welcome = el('input', { value: g.config.welcome ?? '', maxlength: 120, placeholder: t('ed_welcome') }); welcome.oninput = () => (g.config.welcome = welcome.value)
       return [el('div', { class: 'form-row' }, name, desc), el('div', { class: 'section-s', text: t('mode') }), mp,
         el('div', { class: 'form-row', style: 'align-items:center;margin-top:12px' }, prev, el('label', { class: 'field' }, t('cover_color'), hue), el('label', { class: 'field' }, t('ed_players'), max)),
-        el('label', { class: 'field' }, t('ed_welcome'), welcome)]
+        el('label', { class: 'field' }, t('ed_welcome'), welcome), el('label', { class: 'field' }, t('ed_tags'), tagsIn)]
     },
     rules: () => [
       el('label', { class: 'field check' }, (() => { const i = el('input', { type: 'checkbox' }); i.checked = !!g.config.allow_build; i.onchange = () => { g.config.allow_build = i.checked; g.config.allow_build_touched = true }; return i })(), t('ed_allow_build')),

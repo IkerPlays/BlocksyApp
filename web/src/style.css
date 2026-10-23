@@ -356,3 +356,5 @@ textarea.code { flex:1; border:0; outline:none; resize:none; background:transpar
 .room-box { margin-top: 10px; } .room-box small { color: var(--muted); display: block; margin-bottom: 6px; }
 .party { margin-bottom: 18px; } .party-log { max-height: 160px; overflow: auto; background: #00000022; border-radius: 10px; padding: 8px; margin: 8px 0; font-size: 14px; }
 .emo-row { display: flex; flex-wrap: wrap; gap: 4px; margin: 6px 0; } .emo-row .chip { padding: 2px 8px; font-size: 12px; }
+
+.vote-box .btn { flex: 1; } .chips.tags { margin-top: -4px; margin-bottom: 8px; }
