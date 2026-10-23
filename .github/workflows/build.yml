@@ -96,6 +96,8 @@ jobs:
           AUTH_KEY: ${{ secrets.AUTH_SUPABASE_ANON_KEY }}
           GAME_URL: ${{ secrets.GAME_SUPABASE_URL }}
           GAME_KEY: ${{ secrets.GAME_SUPABASE_ANON_KEY }}
+          STORE_URL: ${{ secrets.STORE_SUPABASE_URL }}
+          STORE_KEY: ${{ secrets.STORE_SUPABASE_ANON_KEY }}
         run: |
           {
             echo '#pragma once'
@@ -103,6 +105,8 @@ jobs:
             echo "#define AUTH_ANON_KEY \"$AUTH_KEY\""
             echo "#define GAME_URL \"$GAME_URL\""
             echo "#define GAME_ANON_KEY \"$GAME_KEY\""
+            echo "#define STORE_URL \"$STORE_URL\""
+            echo "#define STORE_ANON_KEY \"$STORE_KEY\""
             echo '#define GAME_ID "00000000-0000-0000-0000-000000000001"'
           } > 3ds/source/config.h
 

@@ -28,3 +28,4 @@ const rpcs = { my_requests: reqs, unread_counts: { f0: 2 }, get_profile: { id: '
 const ch = { on: () => ch, subscribe: () => ch }
 export const authDb = { from: aq, rpc: n => Promise.resolve({ data: rpcs[n] ?? null, error: null }), channel: () => ch, removeChannel: () => {}, auth: {} }
 export const GAME_URL = '', GAME_KEY = ''
+export const HAS_STORE = false, storeDb = null, STORE_URL = '', STORE_KEY = ''

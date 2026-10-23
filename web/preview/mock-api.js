@@ -9,3 +9,4 @@ export const listGames = () => Promise.resolve(games)
 export const getGame = id => Promise.resolve(games.find(g => g.id === id) ?? games[0])
 export const playerCounts = () => Promise.resolve({ g1: 3, g2: 5 })
 export const clearGameSession = () => {}, openGameSession = () => Promise.resolve({}), leaveBeacon = () => {}
+export const storeRpc = () => Promise.resolve(null), openStoreSession = () => Promise.resolve({})

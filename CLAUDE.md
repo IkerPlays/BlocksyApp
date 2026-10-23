@@ -34,3 +34,4 @@ Same release system as Iker's Tube.
 - 3DS worlds: `3ds/source/world.c` mirrors `web/src/world.js` (plaza, obby, checker, void; same RNG for obby). Keep them in sync.
 - PWA: `public/sw.js` is stamped with a build id by vite.config.js (`__BUILD__`); updates wait for the user (`applyUpdate()` in pwa.js).
 - 3DS toasts/modals: citro2d clips depth above 1.0 and ui_text adds +0.5, so never call `ui_set_depth` with more than ~0.45.
+- STORE (3rd Supabase project): shop catalog + games list (`supabase/store/schema.sql`). Wallet/inventory stay in AUTH; buying = `shop_quote` (STORE, HMAC-signed) -> `shop_redeem` (AUTH). GAME keeps only `game_rules` (`game/v3.sql`). Web env `VITE_STORE_SUPABASE_*`, 3DS `STORE_URL/STORE_ANON_KEY` (secrets `STORE_SUPABASE_URL/ANON_KEY`); without them the legacy paths (shop in AUTH, games in GAME) are used.

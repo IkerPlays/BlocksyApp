@@ -200,6 +200,47 @@ static void set_err(const char *what) {
 }
 
 // Sesión del proyecto GAME: la Edge Function valida el token de AUTH
+// ---- Proyecto STORE (catálogo de la tienda y lista de juegos). Sin STORE_URL en config.h se usa el modo anterior (tienda en AUTH, juegos en GAME) ----
+#ifndef STORE_URL
+#define STORE_URL ""
+#define STORE_ANON_KEY ""
+#endif
+#define HAS_STORE (sizeof(STORE_URL) > 1)
+static char g_store_secret[48];
+static bool store_open(const Session *s) {
+	static char sbody[1800]; snprintf(sbody, sizeof sbody, "{\"token\":\"%s\"}", s->token);
+	char *r = http(M_POST, STORE_URL "/functions/v1/game-session", STORE_ANON_KEY, STORE_ANON_KEY, sbody, NULL);
+	if (!r) return false;
+	bool ok = jstr(r, r + strlen(r), "secret", g_store_secret, sizeof g_store_secret); free(r); return ok;
+}
+// Copia el valor numérico (en texto) de una clave: los enteros grandes (hora Unix) no caben sin perder precisión en un float
+static void jraw(const char *obj, const char *end, const char *key, char *dst, size_t n) {
+	const char *p = json_find_from(obj, end, key); size_t i = 0; dst[0] = 0;
+	if (p && *p == '"') p++;
+	while (p && i + 1 < n && ((*p >= '0' && *p <= '9') || *p == '-')) dst[i++] = *p++;
+	dst[i] = 0;
+}
+typedef struct { char op[8], item[32], kind[8], nonce[40], sig[80], exp[24]; int price, refund; } Quote;
+static bool store_quote(const Session *s, const char *id, Quote *q) {
+	for (int attempt = 0; attempt < 2; attempt++) {
+		if (!g_store_secret[0] && !store_open(s)) return false;
+		char body[160]; snprintf(body, sizeof body, "{\"p_secret\":\"%s\",\"p_item\":\"%s\"}", g_store_secret, id);
+		char *r = http(M_POST, STORE_URL "/rest/v1/rpc/shop_quote", STORE_ANON_KEY, NULL, body, NULL);
+		if (!r) { if (attempt == 0 && last_err[0] && strstr(last_err, "invalid session")) { g_store_secret[0] = 0; continue; } return false; }
+		const char *e = r + strlen(r); memset(q, 0, sizeof *q);
+		jstr(r, e, "op", q->op, sizeof q->op); jstr(r, e, "item", q->item, sizeof q->item); jstr(r, e, "kind", q->kind, sizeof q->kind);
+		jstr(r, e, "nonce", q->nonce, sizeof q->nonce); jstr(r, e, "sig", q->sig, sizeof q->sig); jraw(r, e, "exp", q->exp, sizeof q->exp);
+		q->price = (int)jnum(r, e, "price"); q->refund = (int)jnum(r, e, "refund"); free(r);
+		return q->sig[0] && q->exp[0];
+	}
+	return false;
+}
+// Canjea el presupuesto firmado en AUTH (que comprueba la firma). Devuelve el JSON de respuesta o NULL
+static char *store_redeem(const Session *s, const Quote *q) {
+	char body[420]; snprintf(body, sizeof body, "{\"p_op\":\"%s\",\"p_item\":\"%s\",\"p_kind\":\"%s\",\"p_price\":%d,\"p_refund\":%d,\"p_exp\":%s,\"p_nonce\":\"%s\",\"p_sig\":\"%s\"}", q->op, q->item, q->kind, q->price, q->refund, q->exp, q->nonce, q->sig);
+	return http(M_POST, AUTH_URL "/rest/v1/rpc/shop_redeem", AUTH_ANON_KEY, s->token, body, NULL);
+}
+
 static bool open_game_session(Session *s) {
 	static char sbody[1800]; snprintf(sbody, sizeof sbody, "{\"token\":\"%s\"}", s->token);
 	char *r = http(M_POST, GAME_URL "/functions/v1/game-session", GAME_ANON_KEY, GAME_ANON_KEY, sbody, NULL); // Authorization: Bearer anon (pasa Verify JWT)
@@ -421,7 +462,8 @@ int net_fetch_chat(long since, ChatMsg *out, int max, long *last) {
 
 // ---------- Lobby: juegos, amigos, avatar ----------
 int net_list_games(GameInfo *out, int max) {
-	char *r = http(M_GET, GAME_URL "/rest/v1/games?select=id,name,description,owner_id,owner_name,hue,max_players,mode,config&order=created_at.asc&limit=32", GAME_ANON_KEY, NULL, NULL, NULL);
+	char *r = HAS_STORE ? http(M_GET, STORE_URL "/rest/v1/games?select=id,name,description,owner_id,owner_name,hue,max_players,mode,config&order=created_at.asc&limit=32", STORE_ANON_KEY, NULL, NULL, NULL)
+	                    : http(M_GET, GAME_URL "/rest/v1/games?select=id,name,description,owner_id,owner_name,hue,max_players,mode,config&order=created_at.asc&limit=32", GAME_ANON_KEY, NULL, NULL, NULL);
 	if (!r) { set_err("No se pudo cargar la lista de juegos"); return -1; }
 	int n = 0; const char *p = r, *end;
 	while (n < max && (p = next_obj(p, &end))) {
@@ -571,7 +613,8 @@ int net_wallet(const Session *s, Wallet *w) {
 }
 int net_shop_list(const Session *s, ShopItem *out, int max) {
 	if (!s->token[0]) return -2;
-	char *r = http(M_GET, AUTH_URL "/rest/v1/shop_items?select=id,kind,name,price,rarity&order=sort&limit=30", AUTH_ANON_KEY, s->token, NULL, NULL);
+	char *r = HAS_STORE ? http(M_GET, STORE_URL "/rest/v1/shop_items?select=id,kind,name,price,rarity&order=sort&limit=30", STORE_ANON_KEY, NULL, NULL, NULL)
+	                    : http(M_GET, AUTH_URL "/rest/v1/shop_items?select=id,kind,name,price,rarity&order=sort&limit=30", AUTH_ANON_KEY, s->token, NULL, NULL);
 	if (!r) return -1;
 	int n = 0; const char *p = r, *end;
 	while (n < max && (p = next_obj(p, &end))) {
@@ -583,12 +626,21 @@ int net_shop_list(const Session *s, ShopItem *out, int max) {
 }
 static int money_err(void) { return last_err[0] && strstr(last_err, "not enough") ? 1 : last_err[0] && strstr(last_err, "already") ? 2 : -1; }
 int net_buy(const Session *s, const char *id) {
+	if (HAS_STORE) {
+		Quote q; if (!store_quote(s, id, &q)) return -1;
+		char *r = store_redeem(s, &q); if (!r) return money_err(); free(r); return 0;
+	}
 	char body[80]; snprintf(body, sizeof body, "{\"p_item\":\"%s\"}", id);
 	char *r = http(M_POST, AUTH_URL "/rest/v1/rpc/buy_item", AUTH_ANON_KEY, s->token, body, NULL);
 	if (!r) return money_err();
 	free(r); return 0;
 }
 int net_open_crate(const Session *s, const char *id, char *item, size_t n, int *dup, int *refund) {
+	if (HAS_STORE) {
+		Quote q; if (!store_quote(s, id, &q)) return -1;
+		char *r = store_redeem(s, &q); if (!r) return money_err() == 1 ? 1 : -1;
+		const char *e = r + strlen(r); item[0] = 0; jstr(r, e, "item", item, n); *dup = jbool(r, e, "duplicate"); *refund = (int)jnum(r, e, "refund"); free(r); return 0;
+	}
 	char body[80]; snprintf(body, sizeof body, "{\"p_crate\":\"%s\"}", id);
 	char *r = http(M_POST, AUTH_URL "/rest/v1/rpc/open_crate", AUTH_ANON_KEY, s->token, body, NULL);
 	if (!r) return money_err() == 1 ? 1 : -1;

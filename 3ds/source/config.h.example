@@ -5,3 +5,5 @@
 #define GAME_URL      "https://yyyy.supabase.co"   // proyecto GAME
 #define GAME_ANON_KEY "eyJ..."
 #define GAME_ID       "00000000-0000-0000-0000-000000000001"  // Spawn Plaza
+#define STORE_URL      "https://zzzz.supabase.co"   // proyecto STORE (catálogo y lista de juegos); vacío = modo anterior
+#define STORE_ANON_KEY "eyJ..."

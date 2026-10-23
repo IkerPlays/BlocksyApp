@@ -60,3 +60,20 @@ La web enseña el apartado Crear solo si la respuesta de `game-session` trae `ca
 
 ## Studio y Lua
 El Studio (`/studio/<id>`) guarda en `games.config` (`ui` = textos en pantalla, `script_lang` = js | lua) y en `games.script`; no necesita más SQL que `game/v2.sql`.
+
+## Tercer servidor: STORE (catálogo de la tienda, objetos y lista de juegos)
+Los 3 proyectos: **AUTH** (cuentas, amigos, chat, presencia, **BCoins e inventario**), **GAME** (posiciones, bloques, chat de partida, reglas mínimas) y **STORE** (catálogo de la tienda y lista de juegos).
+Mientras no pongas las variables de STORE, la web y la 3DS siguen funcionando en el modo anterior (tienda en AUTH y juegos en GAME), así que puedes migrar sin cortes.
+
+1. Crea un proyecto nuevo en supabase.com y anota su Project URL y su clave anon/publishable.
+2. **STORE** → SQL Editor: ejecuta `store/schema.sql`. Después elige un secreto largo y aleatorio y ejecuta (con tu valor):
+   `insert into public.app_secrets (name, value) values ('shop_signing', 'TU-SECRETO') on conflict (name) do update set value = excluded.value;`
+3. **STORE → Edge Functions**: despliega `functions/game-session/index.ts` con el nombre `game-session` y **Verify JWT desactivado** (es el mismo código que en GAME).
+   Secrets: `AUTH_URL`, `AUTH_ANON_KEY` y, opcional, `CREATOR_EMAILS`.
+4. **AUTH** → SQL Editor: ejecuta `auth/store-link.sql` y el mismo `insert ... 'shop_signing'` con **el mismo secreto**.
+5. **GAME** → SQL Editor: ejecuta `game/v3.sql` (reglas mínimas por juego; los bloques ya no dependen de la tabla games).
+6. Variables: en Netlify `VITE_STORE_SUPABASE_URL` y `VITE_STORE_SUPABASE_ANON_KEY` (y en `web/.env`); en GitHub (Settings > Secrets) `STORE_SUPABASE_URL` y `STORE_SUPABASE_ANON_KEY` para la 3DS. Vuelve a desplegar la web y lanza un devbuild.
+7. Cuando compruebes que comprar, abrir cofres y crear juegos funcionan, ejecuta en AUTH `auth/store-lockdown.sql` para cerrar la compra antigua.
+
+Cómo se protege: el precio lo decide STORE y llega firmado (HMAC, 3 minutos, un solo uso) a AUTH (`shop_redeem`), que es quien mueve las monedas; GAME solo guarda las reglas
+(`allow_build`, `allow_chat`, modo y dueño) que le envía el cliente del creador al guardar un juego. La lista de juegos nueva empieza vacía salvo los 3 iniciales (mismos ids que antes).

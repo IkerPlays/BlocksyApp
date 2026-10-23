@@ -2,3 +2,4 @@ Blocksy 1.0. New: BCoins (the game currency) with a daily reward, earned by play
 New: voice chat by proximity on the web (V to talk), PWA update system (update button, version in Settings), web Sync slider.
 3DS: the Plaza and Obby games now work (floor, platforms, checkpoints, timer, no-build rules), smoother shaded blocks, fixed the missing text in pop-ups, the shop and your BCoins.
 Run the new SQL files: supabase/auth/shop.sql (AUTH) and supabase/game/v2.sql (GAME), and supabase/auth/social.sql again. See supabase/README.md.
+Servers: the shop catalog, items and the games list can now live in a third Supabase project (STORE). Purchases use signed quotes so prices cannot be tampered with. Without the STORE variables everything keeps working as before. See supabase/README.md.
