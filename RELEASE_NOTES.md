@@ -1,1 +1,1 @@
-Dev build 13: networked RemoteEvents in Lua (players can talk to each other; RunService:IsServer() is true for the first player alphabetically) and four multiplayer game templates: Tag, Steal the flag, Waves and Hide and seek. Run supabase/game/v8.sql (GAME).
+Dev build 14: rain and snow, configurable fog, a music track per game, and Lua can change weather and fog (game.weather, Lighting.FogEnd).

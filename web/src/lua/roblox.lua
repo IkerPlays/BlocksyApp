@@ -896,7 +896,7 @@ def("DataModel", "Instance", { methods = {
   FindService = function(_, n) return services[n] end, IsLoaded = function() return true end, BindToClose = function() end, GetObjects = function() return {} end,
   say = function(s) act("say", tostring(s)) end, title = function(s, ms) act("title", tostring(s), ms or 3000) end,
   teleport = function(x, y, z) act("teleport", x, y, z) end, setSpeed = function(n) act("speed", n) end, setJump = function(n) act("jump", n) end, setGravity = function(n) act("gravity", n) end,
-  emote = function(n) act("emote", tostring(n)) end, sky = function(n) act("sky", tostring(n)) end, sound = function(n) act("sound", tostring(n)) end } })
+  emote = function(n) act("emote", tostring(n)) end, sky = function(n) act("sky", tostring(n)) end, weather = function(n) act("weather", tostring(n or "")) end, sound = function(n) act("sound", tostring(n)) end } })
 local game = newInstance("DataModel"); rawset(game, "_name", "Game")
 for n, s in pairs(services) do rawset(s, "_parent", game); table.insert(rawget(game, "_kids"), s) end
 rawget(game, "_props").PlaceId = 1; rawget(game, "_props").JobId = "blocksy"; rawget(game, "_props").GameId = 1

@@ -36,11 +36,13 @@ function playCurrent() {
   if ('mediaSession' in navigator) { try { navigator.mediaSession.metadata = new MediaMetadata({ title: nice(f), artist: 'Blocksy' }); navigator.mediaSession.setActionHandler('nexttrack', next); navigator.mediaSession.setActionHandler('previoustrack', prev) } catch {} }
   emit()
 }
-export async function start() {
+export async function listTracks() { await load(); return list.map(f => ({ file: f, title: nice(f) })) }
+export async function start(preferred) {
   if (!settings.music) return
   userPaused = false
   await load(); if (!list.length) return emit()
-  if (!order.length) makeOrder()
+  const want = preferred ? list.findIndex(f => f === preferred || nice(f) === preferred) : -1
+  if (want >= 0) makeOrder(want); else if (!order.length) makeOrder()
   playCurrent()
   const resume = () => { if (audio && audio.paused && settings.music && !userPaused) audio.play().catch(() => {}); removeEventListener('pointerdown', resume) }
   addEventListener('pointerdown', resume)

@@ -19,6 +19,7 @@ import { createVoice } from './voice.js'
 import { createHorror } from './horror.js'
 import { createScripted } from './scene-parts.js'
 import { createStudio } from './studio-tools.js'
+import { createWeather } from './weather.js'
 import { loadingScreen, createShortcuts, togglePhoto, REACT_PREFIX, REACTIONS, isReaction, layoutWheel } from './extras.js'
 
 // 12 colores: la 3DS usa los mismos (3ds/source/main.c)
@@ -66,7 +67,8 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
 
   // ---------- escena ----------
   const scene = new THREE.Scene()
-  scene.fog = new THREE.Fog('#c4e2ff', settings.viewDistance * 0.35, settings.viewDistance)
+  const fogMul = () => Math.min(2, Math.max(0.25, Number(cfg.fog) || 1))
+  scene.fog = new THREE.Fog('#c4e2ff', settings.viewDistance * 0.35 * fogMul(), settings.viewDistance * fogMul())
   const camera = new THREE.PerspectiveCamera(settings.fov, 1, 0.1, 500)
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' })
   renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.0
@@ -347,7 +349,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
   }
   function applyAll() {
     const q = settings.quality
-    scene.fog.far = settings.viewDistance; scene.fog.near = settings.viewDistance * 0.35
+    scene.fog.far = settings.viewDistance * fogMul(); scene.fog.near = settings.viewDistance * 0.35 * fogMul()
     camera.fov = settings.fov; camera.updateProjectionMatrix()
     tagSprites.forEach(tg => (tg.visible = settings.names))
     const shadowsOn = settings.shadows && q !== 'low'
@@ -427,10 +429,11 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
   // ---------- script del juego (Worker aislado) ----------
   let runner = { fire() {}, has: () => false, dispose() {} }
   // piezas, luces, interfaz y puntuaciones que crean los scripts (API de Roblox en Lua)
+  const weather = createWeather(scene); weather.setKind(cfg.weather)
   const projV = new THREE.Vector3()
   const rbx = createScripted({ scene, uiRoot: $('game'), getMe: () => me.pos, solid, world, sfx,
     project: (x, y, z) => { projV.set(x, y, z).project(camera); const w = canvas.clientWidth, h = canvas.clientHeight, r = canvas.getBoundingClientRect(); return { x: r.left + (projV.x * 0.5 + 0.5) * w, y: r.top + (-projV.y * 0.5 + 0.5) * h, visible: projV.z < 1 && Math.abs(projV.x) < 1.2 && Math.abs(projV.y) < 1.2, dist: camera.position.distanceTo(projV.set(x, y, z)) } },
-    fire: (ev, data) => runner.fire(ev, { data }), onSpawn: p => { respawn.pos = p; teleport(...p) }, setHour: h => sky.setHour(h), setFog: () => {} })
+    fire: (ev, data) => runner.fire(ev, { data }), onSpawn: p => { respawn.pos = p; teleport(...p) }, setHour: h => sky.setHour(h), setFog: v => { const f = Math.min(v, settings.viewDistance * fogMul()); scene.fog.far = Math.max(8, f); scene.fog.near = Math.max(2, f * 0.35) } })
   const keyName = c => (/^Key[A-Z]$/.test(c) ? c.slice(3) : /^Digit\d$/.test(c) ? ['Zero', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine'][+c.slice(5)]
     : { Space: 'Space', ShiftLeft: 'LeftShift', ShiftRight: 'RightShift', ControlLeft: 'LeftControl', Enter: 'Return', Escape: 'Escape', Tab: 'Tab', Backspace: 'Backspace', ArrowUp: 'Up', ArrowDown: 'Down', ArrowLeft: 'Left', ArrowRight: 'Right' }[c] ?? null)
   let remoteTokens = 10, remoteAt = performance.now()
@@ -444,6 +447,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
         case 'print': sys('› ' + a[0]); break
         case 'team': setTeam(String(a[0]), a[1] ? `rgb(${[1, 2, 3].map(i => Math.round(Number(String(a[1]).slice(2).split(',')[i - 1]) * 255)).join(',')})` : ''); break
         case 'cmd': scriptCmds.add(String(a[0])); break
+        case 'weather': weather.setKind(String(a[0])); break
         case 'remote': { const now = performance.now(); remoteTokens = Math.min(10, remoteTokens + (now - remoteAt) / 100); remoteAt = now; if (remoteTokens >= 1) { remoteTokens--; api.gameEvent(game.id, 'rem', { id: String(a[0]), m: String(a[1]), t: String(a[2] ?? ''), a: String(a[3] ?? '') }).catch(() => {}) } break }
         case 'dsset': saveDataStore(game.parentId ?? game.id, String(a[0]), String(a[1]), String(a[2] ?? '')); break
         case 'respawn': teleport(...respawn.pos); runner.fire('respawned', { data: {} }); break
@@ -503,6 +507,8 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
       onEnv: (k, v) => {
         if (k === 'gravity') phys.gravity = Number(v) || 24; else if (k === 'speed') phys.speed = Number(v) || 6; else if (k === 'jump') phys.jump = Number(v) || 8.6
         else if (k === 'sky') { if (v === 'auto') sky.setHour(0); else sky.setPreset(v) }
+        else if (k === 'weather') weather.setKind(v)
+        else if (k === 'fog') { scene.fog.far = settings.viewDistance * fogMul(); scene.fog.near = settings.viewDistance * 0.35 * fogMul() }
       },
       onScript: async () => { await studio.openScript(game) },
       onTestToggle: () => {
@@ -759,7 +765,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
   mBtn.onclick = () => mPanel.classList.toggle('hidden')
   $('music-toggle').onclick = () => music.toggle(); $('music-next').onclick = () => music.next(); $('music-prev').onclick = () => music.prev()
   $('music-toggle').innerHTML = icon('play', 18); $('music-next').innerHTML = icon('next', 18); $('music-prev').innerHTML = icon('prev', 18)
-  if (!ST) music.start(); paintMusic(music.state())
+  if (!ST) music.start(cfg.track); paintMusic(music.state())
 
   // ---------- chat de voz (WebRTC, por proximidad) ----------
   let voiceSt = { active: false, muted: true, members: [], selfSpeaking: false }
@@ -825,7 +831,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
       o.avatar.rotation.y += d * Math.min(1, dt * 12)
       animateAvatar(o.avatar, o.anim, dt, tAnim)
     }
-    stepParts(dt); rbx.step(dt)
+    stepParts(dt); rbx.step(dt); weather.update(dt, me.pos, settings.reduceMotion)
     for (const p of pets.values()) {                                    // mascotas: siguen a su dueño con un pequeño bote
       const a = p.owner, ry = a.rotation.y, tx = a.position.x - Math.sin(ry) * 0.9 - Math.cos(ry) * 0.8, tz = a.position.z - Math.cos(ry) * 0.9 + Math.sin(ry) * 0.8
       p.mesh.position.x += (tx - p.mesh.position.x) * Math.min(1, dt * 4); p.mesh.position.z += (tz - p.mesh.position.z) * Math.min(1, dt * 4)
@@ -879,7 +885,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
     window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); window.removeEventListener('resize', onResize)
     window.removeEventListener('pointermove', pmove); window.removeEventListener('pointerup', pup); window.removeEventListener('pointercancel', pup)
     canvas.removeEventListener('pointerdown', pdown); canvas.removeEventListener('wheel', wheel); canvas.removeEventListener('contextmenu', noMenu); canvas.removeEventListener('pointerleave', pleave)
-    offSettings(); offSync(); offLang(); offMusic(); music.stop(); runner.dispose(); rbx.dispose(); help.dispose(); clearInterval(uiTimer); clearInterval(loadoutTimer); window.removeEventListener('pointermove', uiMove); window.removeEventListener('pointerup', uiUp); studioCleanup.forEach(f => f()); uiLayer.replaceChildren()
+    offSettings(); offSync(); offLang(); offMusic(); music.stop(); runner.dispose(); rbx.dispose(); help.dispose(); weather.dispose(); clearInterval(uiTimer); clearInterval(loadoutTimer); window.removeEventListener('pointermove', uiMove); window.removeEventListener('pointerup', uiUp); studioCleanup.forEach(f => f()); uiLayer.replaceChildren()
     touchUi?.remove(); emotePanel.classList.add('hidden'); mPanel.classList.add('hidden'); $('big-title').classList.add('hidden')
     $('pause').classList.add('hidden'); roster.classList.add('hidden'); log.replaceChildren()
     api.leave().catch(() => {}); gameDb.removeChannel(channel)

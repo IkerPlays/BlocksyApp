@@ -554,7 +554,9 @@ async function editor(root, ctx, id) {
       const sk = el('div', { class: 'chips' }, SKIES.map(s => el('button', { type: 'button', class: `chip ${(g.config.sky ?? 'day') === s ? 'on' : ''}`, text: t('sky_' + s), onclick: () => { g.config.sky = s; if (s !== 'day') delete g.config.time; draw() } })),
         el('button', { type: 'button', class: `chip ${g.config.time === 0 ? 'on' : ''}`, text: t('ed_time').split(' (')[0] + ' ⟳', onclick: () => { g.config.time = 0; delete g.config.sky; draw() } }))
       const music = chk('music', t('ed_music'))
-      return [el('div', { class: 'section-s', text: t('ed_terrain') }), tp, el('div', { class: 'section-s', text: t('ed_sky') }), sk, el('div', { class: 'section-s', text: t('ed_spawn') }), el('div', { class: 'form-row' }, spawn)]
+      const wx = el('div', { class: 'chips' }, ['', 'rain', 'snow'].map(v => el('button', { type: 'button', class: `chip ${(g.config.weather ?? '') === v ? 'on' : ''}`, text: t('weather_' + (v || 'none')), onclick: () => { g.config.weather = v; draw() } })))
+      const fog = el('input', { type: 'number', min: 0.25, max: 2, step: 0.1, value: g.config.fog ?? 1 }); fog.oninput = () => { g.config.fog = Number(fog.value) || 1 }
+      return [el('div', { class: 'section-s', text: t('ed_terrain') }), tp, el('div', { class: 'section-s', text: t('ed_sky') }), sk, el('div', { class: 'section-s', text: t('ed_spawn') }), el('div', { class: 'form-row' }, spawn), el('div', { class: 'section-s', text: t('env_weather') }), wx, el('label', { class: 'field' }, t('env_fog'), fog)]
     },
     code: () => codeEditor(g),
   }

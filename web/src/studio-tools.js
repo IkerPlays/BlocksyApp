@@ -4,6 +4,7 @@ import * as THREE from 'three'
 import { t } from './i18n.js'
 import { icon } from './icons.js'
 import { PRESET_HOUR } from './sky.js'
+import * as music from './music.js'
 
 const MAX_VOL = 6000                      // bloques por operación
 const SEND_CHUNK = 400
@@ -185,8 +186,10 @@ export function createStudio(ctx) {
     const bool = (k, label, d) => { const i = h('input', { type: 'checkbox', checked: c[k] ?? d }); i.onchange = () => { c[k] = i.checked; cfg[k] = i.checked; onEnv(k, i.checked) }; return h('label', { class: 'chk' }, i, label) }
     const sky = h('select', {}, SKIES.map(s => h('option', { value: s, text: t('sky_' + s), selected: (c.sky ?? 'day') === s && c.time !== 0 })), h('option', { value: 'auto', text: t('ed_time').split(' (')[0] + ' ⟳', selected: c.time === 0 }))
     sky.onchange = () => { if (sky.value === 'auto') { c.time = 0; delete c.sky } else { c.sky = sky.value; delete c.time }; cfg.sky = c.sky; cfg.time = c.time; onEnv('sky', sky.value) }
+    const wx = h('select', { onchange: e => { c.weather = e.target.value; cfg.weather = c.weather; onEnv('weather', c.weather) } }, ['', 'rain', 'snow'].map(v => h('option', { value: v, text: t('weather_' + (v || 'none')), selected: (c.weather ?? '') === v })))
+    const tr = h('select', { onchange: e => { c.track = e.target.value; cfg.track = c.track } }, h('option', { value: '', text: t('track_any') })); music.listTracks().then(l => l.forEach(x => tr.append(h('option', { value: x.file, text: x.title, selected: c.track === x.file }))))
     const wel = h('input', { value: c.welcome ?? '', maxlength: 120, placeholder: t('env_welcome') }); wel.oninput = () => { c.welcome = wel.value; cfg.welcome = wel.value }
-    envBox.replaceChildren(h('b', { text: t('st_env') }), h('label', {}, t('ed_sky'), sky), numf('gravity', t('env_gravity'), 24, 1, 0, 80), numf('speed', t('env_speed'), 6, 0.5, 1, 30), numf('jump', t('env_jump'), 8.6, 0.5, 1, 30), h('label', {}, t('env_welcome'), wel),
+    envBox.replaceChildren(h('b', { text: t('st_env') }), h('label', {}, t('ed_sky'), sky), numf('gravity', t('env_gravity'), 24, 1, 0, 80), numf('speed', t('env_speed'), 6, 0.5, 1, 30), numf('jump', t('env_jump'), 8.6, 0.5, 1, 30), numf('fog', t('env_fog'), 1, 0.1, 0.25, 2), h('label', {}, t('env_weather'), wx), h('label', {}, t('env_track'), tr), h('label', {}, t('env_welcome'), wel),
       bool('allow_chat', t('env_chat'), true), bool('allow_emotes', t('env_emotes'), true), bool('allow_fly', t('env_fly'), true), bool('allow_build', t('env_build'), false))
     envBox.classList.remove('hidden')
   }

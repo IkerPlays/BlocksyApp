@@ -42,6 +42,9 @@ Blocksy is a multiplayer block-building game for the web and the Nintendo 3DS (h
 - **More chat commands.** /me, /pos, /ping and /clear, and /help now lists the commands created by the game's script.
 - **Multiplayer Lua.** RemoteEvent now travels between every player in the game (FireServer, FireClient, FireAllClients) and RunService:IsServer() tells you who is the server.
 - **Four multiplayer modes.** Ready-made templates in Create: Tag, Steal the flag, Waves of monsters and Hide and seek, all written in Lua.
+- **Weather.** Rain and snow for any game, set in the editor or from a Lua script.
+- **Fog.** Choose how far players can see; Lighting.FogEnd works from Lua.
+- **Music per game.** Creators pick which song from the playlist plays in their game.
 
 ## Installing
 - Install `Blocksy.cia` with FBI, or copy `Blocksy.3dsx` to the `3ds` folder of the SD card and run it from the Homebrew Launcher.
