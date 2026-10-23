@@ -47,7 +47,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: npm install && npm run build
+      - run: npm install && npm test && npm run build
         working-directory: web
         env:
           VITE_AUTH_SUPABASE_URL: https://example.supabase.co
