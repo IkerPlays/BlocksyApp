@@ -4,7 +4,7 @@ import { t } from './i18n.js'
 const $ = id => document.getElementById(id)
 let box, input, list, items = [], sel = 0, getCtx = null
 
-const PAGES = [['home', 'nav_home', 'h'], ['discover', 'nav_discover', 'd'], ['friends', 'nav_friends', 'f'], ['shop', 'nav_shop', 's'], ['avatar', 'nav_avatar', 'a'], ['profile', 'nav_profile', 'p'], ['achievements', 'nav_achievements', 'l'], ['gallery', 'nav_gallery', 'm'], ['settings', 'nav_settings', 'o'], ['link', 'nav_link', 'k']]
+const PAGES = [['home', 'nav_home', 'h'], ['discover', 'nav_discover', 'd'], ['friends', 'nav_friends', 'f'], ['shop', 'nav_shop', 's'], ['avatar', 'nav_avatar', 'a'], ['profile', 'nav_profile', 'p'], ['achievements', 'nav_achievements', 'l'], ['gallery', 'nav_gallery', 'm'], ['privacy', 'nav_privacy', 'v'], ['settings', 'nav_settings', 'o'], ['link', 'nav_link', 'k']]
 const inGame = () => !$('game')?.classList.contains('hidden')
 const typingNow = () => /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName ?? '') || document.activeElement?.isContentEditable
 

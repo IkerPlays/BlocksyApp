@@ -251,6 +251,28 @@ export const pages = {
     setKids(root, el('h1', { class: 'page-title', text: t('discover') }), el('div', { class: 'form-row', style: 'margin-bottom:12px' }, input, dl, sortEl), chips, allTags.length ? el('div', { class: 'chips tags' }, allTags.map(tg => el('button', { class: 'chip', text: '#' + tg, onclick: e => { tagSel = tagSel === tg ? '' : tg; e.target.parentNode.querySelectorAll('.chip').forEach(c => c.classList.toggle('on', c.textContent === '#' + tagSel)); draw() } }))) : null, trend, out)
   },
 
+  // Privacidad y datos: qué se guarda, borrar datos locales, descargar mis datos y cómo borrar la cuenta
+  async privacy(root, ctx) {
+    const sec = (title, ...kids) => el('div', { class: 'panel', style: 'margin-bottom:14px' }, el('h3', { text: title }), ...kids)
+    const p = k => el('p', { class: 'muted', text: t(k) })
+    const clear = el('button', { class: 'btn danger', text: t('priv_clear'), onclick: () => {
+      if (!confirm(t('priv_clear_confirm'))) return
+      try { for (const k of Object.keys(localStorage)) if (k.startsWith('blocksy.')) localStorage.removeItem(k) } catch {}
+      caches?.keys?.().then(ks => ks.forEach(k => caches.delete(k))); toast(t('priv_cleared')); setTimeout(() => location.reload(), 800) } })
+    const dl = el('button', { class: 'btn', text: t('priv_download'), onclick: async () => {
+      const data = { exported_at: new Date().toISOString(), profile: { id: ctx.profile.id, username: ctx.profile.username, avatar_color: ctx.profile.avatar_color }, local: {} }
+      try { for (const k of Object.keys(localStorage)) if (k.startsWith('blocksy.') && k !== 'blocksy.gallery') { try { data.local[k] = JSON.parse(localStorage.getItem(k)) } catch { data.local[k] = localStorage.getItem(k) } } } catch {}
+      try { data.wallet = await social.loadWallet() } catch {}
+      try { data.friends = (await social.listFriends(ctx.profile.id)).map(f => f.username) } catch {}
+      try { data.favorites = [...(await social.myFavorites())] } catch {}
+      try { data.my_games = (await api.listGames()).filter(g => g.owner_id === ctx.profile.id).map(g => ({ id: g.id, name: g.name, description: g.description, mode: g.mode, config: g.config, script: g.script })) } catch {}
+      const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 1)], { type: 'application/json' })); a.download = 'blocksy-my-data.json'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000) } })
+    setKids(root, el('h1', { class: 'page-title', text: t('nav_privacy') }),
+      sec(t('priv_what_title'), p('priv_what')), sec(t('priv_local_title'), p('priv_local'), clear),
+      sec(t('priv_mine_title'), p('priv_mine'), dl),
+      sec(t('priv_delete_title'), p('priv_delete'), el('a', { class: 'btn', href: reportUrl(t('priv_delete_issue') + ' ' + ctx.profile.username), target: '_blank', rel: 'noopener', text: t('priv_delete_btn') })))
+  },
+
   // Galería de capturas de este dispositivo
   gallery(root) {
     const draw = () => {
@@ -693,7 +715,7 @@ export const pages = {
             el('button', { class: 'btn', text: t('whats_new'), onclick: () => showNews() }),
             el('button', { class: 'btn', text: t('credits'), onclick: () => showCredits() }),
             el('button', { class: 'btn', text: t('error_log'), onclick: () => showErrors() }),
-            el('button', { class: 'btn primary', text: t('report_bug'), onclick: () => window.open(reportUrl(), '_blank', 'noopener') }))),
+            el('a', { class: 'btn', href: '/privacy', text: t('nav_privacy') }), el('button', { class: 'btn primary', text: t('report_bug'), onclick: () => window.open(reportUrl(), '_blank', 'noopener') }))),
         el('div', { class: 'panel' }, el('h3', { text: t('set_access') }),
           sel('colorblind', t('set_colorblind'), [['none', t('cb_none')], ['protanopia', t('cb_prot')], ['deuteranopia', t('cb_deut')], ['tritanopia', t('cb_trit')]]),
           rg('textScale', t('set_text_size'), 0.9, 1.5, 0.05, v => Math.round(v * 100) + '%'), sw('subtitles', t('set_subtitles')), sw('uiSounds', t('set_ui_sounds')), sw('chatFilter', t('set_chat_filter')), sw('vibrate', t('set_vibrate')), sw('noFlash', t('set_noflash')), sw('srChat', t('set_srchat')), sel('batterySaver', t('set_saver'), [['auto', t('saver_auto')], ['on', t('saver_on')], ['off', t('saver_off')]])),
