@@ -59,6 +59,7 @@ static struct {
 } hr;
 static long ev_last = -1;
 static TopTime g_top[5]; static volatile int g_ntop;       // mejores tiempos de la carrera (lo rellena el hilo de red)
+static volatile int g_ping;                          // ms de la ultima peticion de posicion (suavizado)
 static bool photo_mode;                              // L+R: oculta la interfaz
 static struct { float x, y, z, life; } puff[10]; static float puff_t;   // polvo al caminar
 static int g_weather;                                // 0 nada, 1 lluvia, 2 nieve (config del juego)
@@ -90,7 +91,7 @@ static void net_thread(void *arg) {
 			else if (a.type == TIME) { int rk = net_submit_time(&sess, a.x); if (rk > 0) race_rank = rk; TopTime tt[5]; int tn = net_best_times(tt, 5); if (tn >= 0) { LightLock_Lock(&lock); memcpy(g_top, tt, sizeof tt); g_ntop = tn; LightLock_Unlock(&lock); } }
 			else net_say(&sess, a.text);
 		}
-		net_send_state(&sess, x, y, z, ry, anim);
+		{ u64 t0 = osGetTime(); net_send_state(&sess, x, y, z, ry, anim); int d = (int)(osGetTime() - t0); g_ping = g_ping ? (g_ping * 3 + d) / 4 : d; }
 
 		Remote tmp[MAX_PLAYERS]; int n = net_fetch_players(&sess, tmp, MAX_PLAYERS);
 		if (n >= 0) { LightLock_Lock(&lock); memcpy(remotes, tmp, sizeof(Remote) * n); nremotes = n; LightLock_Unlock(&lock); }
@@ -395,7 +396,7 @@ static void render_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 	// citro2d tiene un límite de objetos por frame: se descartan los más lejanos
 	int first = nd > cap ? nd - cap : 0;
 	AvCam cam = {cx_, cy_, cz_, cam_yaw, cam_pitch, cam_dist, FOV, TOP_W / 2.0f, TOP_H / 2.0f};
-	self_style = av_style(sess.username, sess.color); self_style.hat = av_hat_index(g_my_hat);
+	self_style = av_style(sess.username, sess.color); av_apply_loadout(&self_style, g_my_hat);
 	for (int i = first; i < nd; i++) {
 		const Box *b = &draw_list[i];
 		if (b->av <= -10) {                                                                 // fragmento de luz: brilla aunque haya niebla
@@ -407,7 +408,7 @@ static void render_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 			for (int e = -1; e <= 1; e += 2) if (project(cx + rx * e, 3.12f, cz + rz * e, &ax, &ay, &ad)) C2D_DrawRectSolid(ax - 2.5f, ay - 1.5f, 0, 5, 3, C2D_Color32(0xFF, 0x2A, 0x2A, 255));
 		} else if (b->av < 0) draw_box(b->x, b->y, b->z, b->w, b->h, b->color);
 		else if (b->av == 0) av_draw(&cam, px, py, pz, self_yaw, &self_style, &pose_self, fog_near, fog_far);       // avatares 3D (modelo con partes)
-		else { int j = b->av - 1; rem_style[j] = av_style(rem[j].name, rem[j].color); rem_style[j].hat = av_hat_index(rem[j].hat); av_draw(&cam, rem[j].x, rem[j].y, rem[j].z, rem[j].ry, &rem_style[j], &rem_pose[j], fog_near, fog_far); }
+		else { int j = b->av - 1; rem_style[j] = av_style(rem[j].name, rem[j].color); av_apply_loadout(&rem_style[j], rem[j].hat); av_draw(&cam, rem[j].x, rem[j].y, rem[j].z, rem[j].ry, &rem_style[j], &rem_pose[j], fog_near, fog_far); }
 	}
 	// contorno: blanco = lo que romperá Y; del color elegido = dónde pondrá X
 	if (can_build && break_y >= 0) draw_outline(tx, break_y, tz, C2D_Color32(255, 255, 255, 255));
@@ -441,7 +442,13 @@ static void render_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 		float k2 = puff[i].life / 0.5f, r2 = (1 - k2) * 7 + 2; C2D_DrawEllipseSolid(sx2 - r2, sy2 - r2 * 0.5f, 0, r2 * 2, r2, C2D_Color32(0xE6, 0xE6, 0xE6, (u8)(150 * k2)));
 	}
 	if (!photo_mode) {
-	char pc[24]; snprintf(pc, sizeof pc, "%d jugando", nr + 1);
+	{                                                                           // brujula: rumbo de la camara con N E S O
+		float hd = fmodf(-cam_yaw * 180.0f / (float)M_PI + 3600.0f, 360.0f); static const char *const CL[8] = {"N", "NE", "E", "SE", "S", "SO", "O", "NO"};
+		ui_rrect(8, 8, 150, 20, 8, C2D_Color32(0, 0, 0, 130));
+		for (int k = -3; k <= 3; k++) { float a = floorf(hd / 45.0f + 0.5f) * 45.0f + k * 45.0f, off = a - hd, x = 83 + off * 0.55f; if (x < 14 || x > 152) continue; int idx = ((int)roundf(a / 45.0f) % 8 + 8) % 8; ui_text(x, 11, 0.4f, idx == 0 ? C2D_Color32(0xFF, 0x6B, 0x6B, 255) : COL_TEXT, C2D_AlignCenter, CL[idx]); }
+		ui_rect(83, 8, 2, 4, C2D_Color32(0xFF, 0xD3, 0x4D, 255));
+	}
+	char pc[32]; if (g_ping > 0) snprintf(pc, sizeof pc, "%d jugando  %d ms", nr + 1, g_ping); else snprintf(pc, sizeof pc, "%d jugando", nr + 1);
 	float pw = ui_text_width(pc, 0.4f) + 16; ui_rrect(392 - pw, 8, pw, 22, 8, C2D_Color32(0, 0, 0, 130)); ui_text(392 - pw / 2, 11, 0.4f, COL_TEXT, C2D_AlignCenter, pc);
 	int shown = 0; for (int i = 0; i < 4; i++) if (chat[i].until > now) shown++;
 	for (int i = 0, row = 0; i < 4; i++) if (chat[i].until > now) {          // chat reciente, abajo a la izquierda

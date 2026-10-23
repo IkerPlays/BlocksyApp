@@ -164,7 +164,7 @@ static GameInfo g_games[MAX_GAMES]; static int g_ngames;
 static Person g_friends[MAX_PEOPLE]; static int g_nfriends;
 static FriendReq g_reqs[MAX_PEOPLE]; static int g_nreqs; static volatile int g_unread;
 static DmMsg g_dm[40]; static int g_ndm; static char g_dm_friend[40]; static volatile int g_dm_open; static volatile int g_dm_seq;
-static ShopItem g_shop[40]; static int g_nshop; static Wallet g_wallet; char g_my_hat[32];
+static ShopItem g_shop[40]; static int g_nshop; static Wallet g_wallet; char g_my_hat[100];
 static Notif g_notifs[16]; static int g_nnotifs; static volatile int g_notif_unread;
 static char g_alert[96]; static volatile int g_alert_seq;     // aviso nuevo (toast) generado por el hilo de red static char g_dm_friend[40]; static volatile int g_dm_open; static volatile int g_dm_seq;
 static volatile int g_account = 1;   // 0 = sesión por QR (sin token de Auth): no hay amigos ni avatar
@@ -202,6 +202,8 @@ static u32 parse_hex(const char *hex) {
 	return 0xFF000000u | (b << 16) | (g << 8) | r;
 }
 
+// Lo que llevas puesto viaja como "sombrero|gafas|espalda|estela|mascota|" (igual que la web; el aspecto lo calcula cada cliente)
+static void pack_loadout(const Wallet *w) { snprintf(g_my_hat, sizeof g_my_hat, "%s|%s|%s|%s|%s|", w->hat, w->face, w->back, w->trail, w->pet); net_set_hat(g_my_hat); }
 static void refresh_all(void) {
 	static GameInfo tg[MAX_GAMES]; static Person tf[MAX_PEOPLE]; static FriendReq tr[MAX_PEOPLE];
 	int ng = net_list_games(tg, MAX_GAMES);
@@ -211,7 +213,7 @@ static void refresh_all(void) {
 	int un = net_unread_total(W.s); if (un >= 0) g_unread = un;
 	{	// BCoins y tienda
 		static Wallet tw; static ShopItem ts[40];
-		if (net_wallet(W.s, &tw) == 0) { LightLock_Lock(&lk); g_wallet = tw; LightLock_Unlock(&lk); snprintf(g_my_hat, sizeof g_my_hat, "%s", tw.hat); net_set_hat(tw.hat); }
+		if (net_wallet(W.s, &tw) == 0) { LightLock_Lock(&lk); g_wallet = tw; LightLock_Unlock(&lk); pack_loadout(&tw); }
 		if (!g_nshop) { int nsh = net_shop_list(W.s, ts, 40); if (nsh > 0) { LightLock_Lock(&lk); memcpy(g_shop, ts, sizeof(ShopItem) * nsh); g_nshop = nsh; LightLock_Unlock(&lk); } }
 	}
 	{	// avisos: lista + detección de novedades (solicitudes, invitaciones, mensajes) para el toast
@@ -485,7 +487,7 @@ static void avatar_preview(float cx, float cy, const Session *s, u32 shirt) {
 	if (prev_pose.legY == 0) prev_pose.legY = 0.74f;
 	av_pose_update(&prev_pose, prev_demo ? AV_EMOTE_ID[prev_demo - 1] : "idle", dt, now / 1000.0f);
 	AvCam cam = {0, 1.0f, 0, 0, 0.12f, 3.5f, 190, cx, cy};
-	AvStyle st = av_style(s->username, shirt); st.hat = av_hat_index(wallet.hat);
+	AvStyle st = av_style(s->username, shirt); st.hat = av_hat_index(wallet.hat); st.face = av_face_index(wallet.face); st.back = av_back_index(wallet.back);
 	av_set_z(0.35f);                                            // por encima del panel (los rectángulos de la UI están en z=0.2)
 	av_draw(&cam, 0, 0, 0, now / 1000.0f * 0.9f, &st, &prev_pose, 0, 0);
 	av_set_z(0);
@@ -912,7 +914,7 @@ static bool acc_cycle(const char *kind, int dir) {         // false: no tienes n
 	const char *ids[24], *nm[24]; int n = acc_list(kind, ids, nm);
 	if (n <= 1) return false;
 	int c = (acc_cur(kind, n, ids) + dir + n) % n; request(RQ_EQUIP, ids[c], kind, 0);
-	if (!strcmp(kind, "hat")) { snprintf(g_my_hat, sizeof g_my_hat, "%s", ids[c]); net_set_hat(ids[c]); wallet.hat[0] = 0; snprintf(wallet.hat, sizeof wallet.hat, "%s", ids[c]); }
+	if (!strcmp(kind, "hat")) { wallet.hat[0] = 0; snprintf(wallet.hat, sizeof wallet.hat, "%s", ids[c]); pack_loadout(&wallet); }
 	else snprintf(wallet.title, sizeof wallet.title, "%s", ids[c]);
 	return true;
 }

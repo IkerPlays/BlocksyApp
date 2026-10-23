@@ -395,7 +395,7 @@ static void clean(char *dst, size_t n, const char *src) {   // quita comillas y 
 	dst[i] = 0;
 }
 
-static char g_hat[32]; static int g_hat_ok = 1;      // g_hat_ok: 1 = el servidor acepta p_hat (GAME v4), 0 = no (se usa la version antigua)
+static char g_hat[100]; static int g_hat_ok = 1;      // g_hat_ok: 1 = el servidor acepta p_hat (GAME v4), 0 = no (se usa la version antigua)
 void net_set_hat(const char *id) { snprintf(g_hat, sizeof g_hat, "%s", id ? id : ""); }
 bool net_send_state(const Session *s, float x, float y, float z, float ry, const char *anim) {
 	char a[300];
@@ -430,7 +430,7 @@ int net_fetch_players(const Session *s, Remote *out, int max) {
 		if (!jstr(start, end, "username", o->name, sizeof o->name)) strcpy(o->name, "?");
 		jstr(start, end, "color", col, sizeof col); o->color = parse_color(col);
 		jstr(start, end, "platform", plat, sizeof plat); o->is3ds = strcmp(plat, "3ds") == 0;
-		o->hat[0] = 0; jstr(start, end, "hat", o->hat, sizeof o->hat); { char *bar = strchr(o->hat, '|'); if (bar) *bar = 0; }          // la web manda sombrero|gafas|espalda|estela|mascota: la 3DS solo dibuja el sombrero
+		o->hat[0] = 0; jstr(start, end, "hat", o->hat, sizeof o->hat);           // la web manda sombrero|gafas|espalda|estela|mascota|aspecto: la 3DS dibuja sombrero, gafas y espalda
 		o->anim[0] = 0; jstr(start, end, "anim", o->anim, sizeof o->anim); if (!o->anim[0]) strcpy(o->anim, "idle");
 		o->x = jnum(start, end, "x"); o->y = jnum(start, end, "y"); o->z = jnum(start, end, "z"); o->ry = jnum(start, end, "ry");
 		n++;
@@ -695,7 +695,7 @@ int net_wallet(const Session *s, Wallet *w) {
 	if (!r) return -1;
 	const char *e = r + strlen(r); memset(w, 0, sizeof *w);
 	w->bcoins = (int)jnum(r, e, "bcoins"); w->streak = (int)jnum(r, e, "streak"); w->can_claim = jbool(r, e, "can_claim");
-	{ const char *q = json_find_from(r, e, "equipped"); const char *qe = q ? strchr(q, '}') : NULL; if (q && qe) { jstr(q, qe, "hat", w->hat, sizeof w->hat); jstr(q, qe, "title", w->title, sizeof w->title); } }
+	{ const char *q = json_find_from(r, e, "equipped"); const char *qe = q ? strchr(q, '}') : NULL; if (q && qe) { jstr(q, qe, "hat", w->hat, sizeof w->hat); jstr(q, qe, "title", w->title, sizeof w->title); jstr(q, qe, "face", w->face, sizeof w->face); jstr(q, qe, "back", w->back, sizeof w->back); jstr(q, qe, "trail", w->trail, sizeof w->trail); jstr(q, qe, "pet", w->pet, sizeof w->pet); } }
 	const char *inv = json_find_from(r, e, "inventory");
 	if (inv && *inv == '[') for (const char *p = inv + 1; *p && *p != ']' && w->ninv < 24; p++) if (*p == '"') {
 		size_t i = 0; p++; while (*p && *p != '"' && i + 1 < sizeof w->inv[0]) w->inv[w->ninv][i++] = *p++;

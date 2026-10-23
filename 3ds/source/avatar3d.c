@@ -19,6 +19,16 @@ AvStyle av_style(const char *name, u32 shirt) {
 
 const char *const AV_HAT_ID[NHATS] = {"hat_cap", "hat_antenna", "hat_party", "hat_halo", "hat_top", "hat_crown", "hat_wizard", "hat_cowboy", "hat_chef", "hat_beanie", "hat_helmet", "hat_flower"};
 int av_hat_index(const char *id) { if (id) for (int i = 0; i < NHATS; i++) if (!strcmp(id, AV_HAT_ID[i])) return i + 1; return 0; }
+static const char *const FACE_ID[NFACES] = {"face_shades", "face_round", "face_visor", "face_mask"};
+static const char *const BACK_ID[NBACKS] = {"back_cape", "back_wings", "back_backpack"};
+int av_face_index(const char *id) { if (id) for (int i = 0; i < NFACES; i++) if (!strcmp(id, FACE_ID[i])) return i + 1; return 0; }
+int av_back_index(const char *id) { if (id) for (int i = 0; i < NBACKS; i++) if (!strcmp(id, BACK_ID[i])) return i + 1; return 0; }
+void av_apply_loadout(AvStyle *st, const char *packed) {
+	char f[3][40] = {"", "", ""}; int k = 0, n = 0;
+	for (const char *p = packed ? packed : ""; *p && k < 3; p++) { if (*p == '|') { f[k][n] = 0; k++; n = 0; } else if (n < 39) f[k][n++] = *p; }
+	if (k < 3) f[k][n] = 0;
+	st->hat = av_hat_index(f[0]); st->face = av_face_index(f[1]); st->back = av_back_index(f[2]);
+}
 static const u32 HAT_COL[NHATS] = {RGB(0xe7, 0x4c, 0x3c), RGB(0x7e, 0xd6, 0xff), RGB(0xff, 0x6b, 0x9d), RGB(0xf5, 0xc5, 0x42), RGB(0x2b, 0x2f, 0x36), RGB(0xf1, 0xc4, 0x0f), RGB(0x6c, 0x3f, 0xb5), RGB(0xa0, 0x52, 0x2d), RGB(0xf5, 0xf5, 0xf5), RGB(0xe6, 0x7e, 0x22), RGB(0x7f, 0x8c, 0x8d), RGB(0xff, 0x7e, 0xb6)};
 
 const char *const AV_EMOTE_ID[NEMOTES] = {"wave", "dance", "cheer", "clap", "sit"};
@@ -125,6 +135,23 @@ void av_draw(const AvCam *c, float x, float y, float z, float yaw, const AvStyle
 		case 12: HP(0, 0.42f, 0, 0.10f, 0.22f, 0.10f, RGB(0x2e, 0xcc, 0x71)); HP(0, 0.58f, 0, 0.28f, 0.10f, 0.28f, hc); HP(0, 0.60f, 0, 0.10f, 0.12f, 0.10f, RGB(0xf1, 0xc4, 0x0f)); break;
 		}
 #undef HP
+	}
+	if (st->face > 0) {                                                                                      // gafas y mascara (igual que addFace de la web)
+#define FP(OX, OY, OZ, W, H, D, COL) PART(0, 1.78f, 0, OX, OY, OZ, W, H, D, pose->headX, 0, 1, COL)
+		switch (st->face) {
+		case 1: FP(0, 0.04f, 0.27f, 0.50f, 0.11f, 0.03f, RGB(0x1b, 0x1b, 0x1b)); FP(0, 0.10f, 0.27f, 0.50f, 0.03f, 0.03f, RGB(0x1b, 0x1b, 0x1b)); break;
+		case 2: FP(-0.12f, 0.04f, 0.27f, 0.17f, 0.17f, 0.03f, RGB(0xf5, 0xc5, 0x42)); FP(0.12f, 0.04f, 0.27f, 0.17f, 0.17f, 0.03f, RGB(0xf5, 0xc5, 0x42)); FP(0, 0.07f, 0.27f, 0.06f, 0.03f, 0.03f, RGB(0xf5, 0xc5, 0x42)); break;
+		case 3: FP(0, 0.05f, 0.28f, 0.56f, 0.16f, 0.05f, RGB(0x4d, 0xd0, 0xff)); break;
+		case 4: FP(0, -0.12f, 0.27f, 0.52f, 0.24f, 0.03f, RGB(0xff, 0xff, 0xff)); break;
+		}
+#undef FP
+	}
+	if (st->back > 0) {                                                                                      // capa, alas y mochila (igual que addBack de la web; el torso esta en y=1.10)
+		switch (st->back) {
+		case 1: PART(0, 0, 0, 0, 1.00f, -0.21f, 0.62f, 0.95f, 0.05f, 0, 0, 1, RGB(0xc0, 0x39, 0x2b)); break;
+		case 2: for (int s = -1; s <= 1; s += 2) PART(s * 0.38f, 1.15f, -0.24f, 0, 0, 0, 0.55f, 0.70f, 0.04f, 0, -s * 0.35f, 1, RGB(0xec, 0xf0, 0xf1)); break;
+		case 3: PART(0, 0, 0, 0, 1.10f, -0.28f, 0.42f, 0.52f, 0.20f, 0, 0, 1, RGB(0x2d, 0x6a, 0x4f)); PART(0, 0, 0, 0, 1.05f, -0.40f, 0.30f, 0.14f, 0.04f, 0, 0, 1, RGB(0x1b, 0x43, 0x32)); break;
+		}
 	}
 #undef PART
 	// profundidad de cada parte -> orden de atrás hacia delante

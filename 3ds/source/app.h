@@ -7,7 +7,7 @@ typedef enum { APP_PLAY, APP_LOGOUT, APP_QUIT, APP_RESTART } AppResult;   // APP
 
 // Lobby de Blocksy (réplica de la web): Inicio, Descubrir, Avatar, Amigos, Crear y Ajustes.
 // Devuelve APP_PLAY con `chosen` relleno, APP_LOGOUT (cerrar sesión) o APP_QUIT (START).
-extern char g_my_hat[32];     // sombrero equipado (lo usa el juego para dibujarte)
+extern char g_my_hat[100];    // lo que llevas puesto (sombrero|gafas|espalda|estela|mascota|), lo usa el juego para dibujarte
 AppResult app_lobby(C3D_RenderTarget *top, C3D_RenderTarget *bot, Session *s, GameInfo *chosen, const char *version);
 
 // Ajustes guardados en la SD

@@ -5,7 +5,7 @@
 #define MAX_PLAYERS 24
 #define MAX_BLOCKS  2048
 
-typedef struct { char id[40]; char name[24]; float x, y, z, ry; unsigned int color; int is3ds; char anim[12]; char hat[64]; } Remote;
+typedef struct { char id[40]; char name[24]; float x, y, z, ry; unsigned int color; int is3ds; char anim[12]; char hat[96]; } Remote;
 typedef struct { int x, y, z, kind; unsigned int color; } Block;   // kind = -1: bloque fijo del mundo (color propio, no se rompe)
 
 typedef struct {
@@ -55,7 +55,7 @@ typedef struct { long id; int mine, edited; char text[100]; } DmMsg;
 bool net_edit_dm(const Session *s, long id, const char *text);
 bool net_delete_dm(const Session *s, long id);
 typedef struct { char id[32]; char kind[8]; char name[32]; int price; int rarity; } ShopItem;      // rarity: 0 común, 1 raro, 2 épico
-typedef struct { int bcoins, streak, can_claim, ninv; char inv[24][32]; char hat[32], title[32]; } Wallet;
+typedef struct { int bcoins, streak, can_claim, ninv; char inv[24][32]; char hat[32], title[32], face[32], back[32], trail[32], pet[32]; } Wallet;
 int  net_wallet(const Session *s, Wallet *w);                          // BCoins, inventario y equipado (0 ok, <0 error)
 int  net_shop_list(const Session *s, ShopItem *out, int max);
 extern char net_why[96];                                                   // motivo del ultimo fallo de compra
