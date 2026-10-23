@@ -20,6 +20,7 @@ import { createHorror } from './horror.js'
 import { createScripted } from './scene-parts.js'
 import { createStudio } from './studio-tools.js'
 import { createWeather } from './weather.js'
+import { filterWords, isMuted, toggleMute, createLimiter } from './moderation.js'
 import { checkAchievements } from './achievements.js'
 import { remapEvent, saverOn, shareGame } from './access.js'
 import { createCompass, createPings, createHealth, PING_PREFIX, isPing } from './hud.js'
@@ -320,6 +321,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
   }
   const sys = tx => addChat(tx, 'sys')
   function chatLine(name, text, playerId) {
+    if (name !== profile.username) text = filterWords(text)
     const b = document.createElement('b'); b.textContent = name + ': '; addChat([b, document.createTextNode(text)])
     const av = playerId === profile.id || name === profile.username ? meAvatar : others.get(playerId)?.avatar ?? [...others.values()].find(o => o.name === name)?.avatar
     bubble(av, text); if (name !== profile.username) sfx.chat()
@@ -337,6 +339,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
       const vm = o.me ? (voiceSt.active ? { speaking: voiceSt.selfSpeaking && !voiceSt.muted, muted: voiceSt.muted } : null) : voiceSt.members.find(m => m.id === o.id)
       if (vm) { const mic = document.createElement('span'); mic.className = 'vmic' + (vm.speaking ? ' on' : ''); mic.innerHTML = icon(vm.muted ? 'micoff' : 'mic', 14); li.append(mic) }
       if (o.platform === '3ds') { const tg = document.createElement('span'); tg.className = 'tag'; tg.textContent = '3DS'; li.append(tg) }
+      if (!o.me) { const mb = document.createElement('button'); mb.className = 'mute-btn' + (isMuted(o.name) ? ' on' : ''); mb.innerHTML = icon('mute', 14); mb.title = t('mute_player'); mb.onclick = ev => { ev.stopPropagation(); const on = toggleMute(o.name); mb.classList.toggle('on', on); sys(t(on ? 'muted_player' : 'unmuted_player', { name: o.name })) }; li.append(mb) }
       if (!o.me) { li.classList.add('tp'); li.onclick = () => { teleport(o.target.x + 1.2, o.target.y + 0.2, o.target.z); roster.classList.add('hidden') } }
       return li
     }))
@@ -393,9 +396,14 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
     const m = $('t-mode'); if (m) m.textContent = touchBreak ? t('break') : t('place')
     const j = $('t-jump'); if (j) j.textContent = t('jump')
   }
+  function paintRules() {
+    let box = $('pause-rules'); if (!box) { box = document.createElement('div'); box.id = 'pause-rules'; $('pause-title').after(box) }
+    const yn = v => t(v ? 'rule_yes' : 'rule_no'), rows = [['rule_build', canBuild], ['rule_chat', cfg.allow_chat], ['rule_emotes', cfg.allow_emotes], ['rule_double', !!cfg.double_jump], ['rule_crouch', cfg.allow_crouch !== false]]
+    box.replaceChildren(...rows.map(([k, v]) => { const s = document.createElement('span'); s.className = v ? 'ok' : 'no'; s.textContent = `${t(k)}: ${yn(v)}`; return s }))
+  }
   function setPaused(v) {
     paused = v; $('pause').classList.toggle('hidden', !v)
-    if (v) { drawRoster(); document.activeElement?.blur?.() }
+    if (v) { drawRoster(); paintRules(); document.activeElement?.blur?.() }
   }
   $('menu-btn').onclick = () => setPaused(!paused)
   $('resume').onclick = () => setPaused(false)
@@ -434,10 +442,11 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
       return
     }
     if (!cfg.allow_chat) return sys(t('chat_off'))
+    { const lim = chatLimit(tx); if (lim) return sys(t(lim === 'slow' ? 'chat_slow' : 'chat_dup')) }
     bump('msgs'); social.missionAdd('chat_5'); api.say(game.id, tx).then(() => {}, err => sys(err.message))
     chatLine(profile.username, tx, profile.id); chatSeenLocal.add(tx + '|' + Math.floor(Date.now() / 4000))
   }
-  const chatSeenLocal = new Set()
+  const chatSeenLocal = new Set(), chatLimit = createLimiter()
 
   // ---------- script del juego (Worker aislado) ----------
   let runner = { fire() {}, has: () => false, dispose() {} }
@@ -722,7 +731,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
   const onChatRow = row => {
     if (!row || row.kind !== 'chat' || chatSeen.has(row.id)) return
     chatSeen.add(row.id); chatSince = row.created_at
-    if (row.player_id === profile.id || social.isBlockedName(row.username)) return                      // mis mensajes ya se enseñaron al enviarlos
+    if (row.player_id === profile.id || social.isBlockedName(row.username) || isMuted(row.username)) return                      // mis mensajes ya se enseñaron al enviarlos
     { const r = isReaction(row.payload?.text); if (r) { bubble(others.get(row.player_id)?.avatar, r); return } }
     { const pg = isPing(row.payload?.text); if (pg) { pings.add(pg[0], pg[1], pg[2], row.username); sfx.checkpoint(); return } }
     chatLine(row.username, row.payload?.text ?? '', row.player_id)
