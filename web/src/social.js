@@ -118,6 +118,12 @@ export const getMissions = async () => (await rpc('my_missions')) ?? []
 export const claimMission = async key => { const r = await rpc('mission_claim', { p_key: key }); await loadWallet(); return r }
 // Suma progreso a una misión (en lotes pequeños para no saturar el servidor)
 const pend = {}
+// Tiempo jugado, insignias, última conexión y favoritos (AUTH v12). Si el SQL aún no está, todo falla en silencio.
+export const addPlaytime = sec => rpc('add_playtime', { p_seconds: sec }).catch(() => {})
+export const profileExtra = name => rpc('profile_extra', { p_username: name }).catch(() => null)
+let favs = null
+export async function myFavorites() { if (!favs) favs = new Set(await rpc('my_favorites', {}).catch(() => [])); return favs }
+export async function toggleFavorite(id) { const on = await rpc('toggle_favorite', { p_game: id }); const s = await myFavorites(); on ? s.add(id) : s.delete(id); return on }
 export function missionAdd(key, n = 1) {
   pend[key] = (pend[key] ?? 0) + n
   clearTimeout(missionAdd.t); missionAdd.t = setTimeout(async () => { const p = { ...pend }; for (const k in pend) delete pend[k]; for (const [k, v] of Object.entries(p)) { try { await rpc('mission_add', { p_key: k, p_add: v }) } catch {} } }, 4000)

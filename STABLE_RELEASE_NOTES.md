@@ -10,6 +10,9 @@ Blocksy is a multiplayer block-building game for the web and the Nintendo 3DS (h
 - **Emote wheel.** The emote menu is now a wheel around your character.
 - **Quick reactions.** Alt+1 to Alt+4 show +1, GG, LOL or ! above your head for everybody.
 - **Footsteps.** Soft footstep sounds while you walk or run.
+- **Profile badges.** Pioneer, Regular, Veteran, Social, Collector, Rich and Creator badges on every profile.
+- **Play time and last seen.** Profiles show the time played and, for friends, when they were last online.
+- **Favorite games.** Add a game to your favorites from its page; they appear on your Home.
 
 ## Installing
 - Install `Blocksy.cia` with FBI, or copy `Blocksy.3dsx` to the `3ds` folder of the SD card and run it from the Homebrew Launcher.

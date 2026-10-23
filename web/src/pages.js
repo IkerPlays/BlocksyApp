@@ -42,6 +42,12 @@ const MODES = ['build', 'social', 'obby', 'arena']
 const modeLabel = m => t('mode_' + (m || 'build'))
 
 // ---------- tarjetas de juego ----------
+function favBtn(g) {
+  const b = el('button', { class: 'btn wide', text: '...' }), paint = on => { b.textContent = t(on ? 'fav_remove' : 'fav_add'); b.classList.toggle('on', on) }
+  social.myFavorites().then(s => paint(s.has(g.id)))
+  b.onclick = async () => { try { paint(await social.toggleFavorite(g.id)) } catch (e) { toast(e.message) } }
+  return b
+}
 function gameCard(g, counts, onOpen) {
   const n = counts[g.id] ?? 0
   const thumb = el('div', { class: 'thumb', style: `--h:${g.hue ?? hueOf(g.id)}` }, el('div', { class: 'cube' }),
@@ -65,6 +71,7 @@ export function openGameModal(g, counts, onPlay) {
         el('div', {}, el('b', { text: 'Web + 3DS' }), el('small', { text: t('platforms') }))),
       el('p', { text: g.description || t('no_desc') }),
       el('button', { class: 'btn primary wide', text: t('play'), onclick: () => { closeModal(); onPlay(g) } }),
+      favBtn(g),
       el('button', { class: 'btn wide', text: t('close'), onclick: closeModal }))))
   m.classList.remove('hidden')
 }
@@ -95,7 +102,8 @@ export const pages = {
     const open = g => openGameModal(g, counts, ctx.play)
     const popular = [...games].sort((a, b) => (counts[b.id] ?? 0) - (counts[a.id] ?? 0))
     const last = games.find(g => g.id === lastPlayed())
-    const friendsRow = el('div')
+    const friendsRow = el('div'), favRow = el('div')
+    social.myFavorites().then(s => { const fg = games.filter(g => s.has(g.id)); if (fg.length) setKids(favRow, el('div', { class: 'section' }, el('h2', { text: t('favorites') })), grid(fg, counts, open)) })
     const paintFriends = list => setKids(friendsRow, list.length
       ? el('div', { class: 'row-scroll' }, list.map(f => el('a', { class: 'friend', href: `/u/${encodeURIComponent(f.username)}` },
           avatar(f.username, f.avatar_color, f.is_online), el('b', { text: f.username }), el('small', { text: statusText(f) }))))
@@ -105,6 +113,7 @@ export const pages = {
       el('div', { class: 'hero' }, avatar(ctx.profile.username, ctx.profile.avatar_color), el('h1', { text: t('hello', { name: ctx.profile.username }) })),
       el('div', { class: 'section' }, el('h2', { text: t('friends_n', { n: friends.length }) }), el('a', { href: '/friends', text: t('see_all') })), friendsRow,
       last ? [el('div', { class: 'section' }, el('h2', { text: t('continue') })), grid([last], counts, open)] : null,
+      favRow,
       el('div', { class: 'section' }, el('h2', { text: t('popular') }), el('a', { href: '/discover', text: t('see_all') })),
       grid(popular.slice(0, 12), counts, open),
       el('div', { class: 'section' }, el('h2', { text: t('newest') })),
@@ -188,6 +197,7 @@ export const pages = {
     const { data: p, error } = await social.getProfile(name, ctx.profile.id)
     if (error || !p) return setKids(root, el('h1', { class: 'page-title', text: t('nav_profile') }), el('div', { class: 'empty', text: error ? `${t('err_generic')}: ${error.message}` : t('p_not_found') }))
     const self = p.relation === 'self', canvas = el('canvas', { class: 'avatar-3d' })
+    const extraBox = el('div')
     const stat = (v, k) => el('div', { class: 'stat' }, el('b', { text: String(v) }), el('small', { text: k }))
     const actions = el('div', { class: 'form-row profile-actions' }), bioBox = el('div'), games = el('div'), friendsBox = el('div'), titleBox = el('div', { class: 'p-title' })
     const reload = () => pages.profile(root, ctx, name)
@@ -225,13 +235,15 @@ export const pages = {
         titleBox,
         status ? el('div', { class: 'p-status' }, el('span', { class: `dot-i ${p.is_online ? 'on' : ''}` }), status) : null,
         el('small', { style: 'color:var(--muted)', text: self ? t('p_you') : t('p_joined', { date: new Date(p.created_at).toLocaleDateString() }) }),
-        bioBox,
+        bioBox, extraBox,
         el('div', { class: 'stats-row', style: 'margin:14px 0' }, stat(p.friend_count, t('p_friends')), stat(mine0.length, t('p_games'))), actions)),
       el('div', { class: 'section' }, el('h2', { text: t('p_games') })), games,
       self ? [el('div', { class: 'section' }, el('h2', { text: t('friends_n', { n: '' }).replace('()', '').trim() })), friendsBox] : null)
     const pv = createPreview(canvas, { ...styleFor(p.username, p.avatar_color), hat: hatStyle(p.equipped?.hat) }); pv.setAnim('wave')
     if (p.equipped?.title) social.listShop().then(items => { const it = items.find(i => i.id === p.equipped.title); if (it) titleBox.textContent = it.data?.text ?? it.name }).catch(() => {})
     paintBio(); paintActions()
+    social.profileExtra(p.username).then(x => { if (!x) return; const hrs = Math.floor(x.play_seconds / 3600), mins = Math.floor(x.play_seconds % 3600 / 60); const bd = [...(x.badges ?? []), ...(mine0.length ? ['creator'] : [])]
+      setKids(extraBox, el('div', { class: 'badges' }, bd.map(b => el('span', { class: 'badge', title: t('badge_' + b + '_d'), text: t('badge_' + b) }))), el('small', { style: 'display:block;color:var(--muted);margin:6px 0', text: `${t('stat_time')}: ${hrs}h ${mins}m${x.last_seen && !p.is_online ? ` · ${t('last_seen')}: ${new Date(x.last_seen).toLocaleString()}` : ''}` })) })
     await social.myBlocked()
     const [all, counts] = await Promise.all([api.listGames(), api.playerCounts()])
     const mine = all.filter(g => g.owner_id === p.id); mine0 = mine

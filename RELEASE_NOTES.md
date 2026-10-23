@@ -1,1 +1,1 @@
-Dev build 2: four new emotes (jump for joy, cry, point, flex), a radial emote wheel, quick reactions (Alt+1..4) and footstep sounds.
+Dev build 3: profile badges, play time and last seen on profiles, and favorite games. Run supabase/auth/v12.sql (AUTH) for these.

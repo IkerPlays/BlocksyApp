@@ -349,3 +349,6 @@ textarea.code { flex:1; border:0; outline:none; resize:none; background:transpar
 #emote-panel.wheel { position: fixed; top: 50%; left: 50%; right: auto; width: 0; height: 0; padding: 0; background: none; display: block; transform: none; }
 #emote-panel.wheel .emote { position: absolute; transform: translate(-50%, -50%); white-space: nowrap; box-shadow: 0 4px 14px #0008; }
 #emote-panel.wheel::before { content: ''; position: absolute; width: 250px; height: 250px; left: -125px; top: -125px; border-radius: 50%; background: #000a; }
+
+.badges { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; } .badge { background: var(--accent, #4d8dff); color: #fff; font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 999px; }
+.btn.on { outline: 2px solid var(--accent, #4d8dff); }

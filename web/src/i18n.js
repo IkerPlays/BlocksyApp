@@ -3,6 +3,8 @@ import { EXTRA } from './i18n-extra.js'
 const D = {
   es: {
     lang_name: 'Español',
+    badge_pioneer: 'Pionero', badge_pioneer_d: 'Se unió en la primera etapa', badge_regular: 'Habitual', badge_regular_d: 'Más de 1 hora jugada', badge_veteran: 'Veterano', badge_veteran_d: 'Más de 10 horas jugadas', badge_social: 'Sociable', badge_social_d: '5 o más amigos', badge_collector: 'Coleccionista', badge_collector_d: '5 o más objetos', badge_rich: 'Rico', badge_rich_d: '1000 BCoins o más', badge_creator: 'Creador', badge_creator_d: 'Ha creado un juego',
+    last_seen: 'Última vez', favorites: 'Favoritos', fav_add: 'Añadir a favoritos', fav_remove: 'Quitar de favoritos',
     emote_jumpjoy: 'Saltar de alegría', emote_cry: 'Llorar', emote_point: 'Señalar', emote_flex: 'Presumir', react_hint: 'Alt + 1-4: reacciones',
     tip_1: 'Pulsa G para abrir los emotes.', tip_2: 'Pulsa P para sacar una captura de pantalla.', tip_3: 'Dos veces Espacio activa el vuelo si el juego lo permite.', tip_4: 'Invita a tus amigos desde el menú de pausa.', tip_5: 'Pulsa H para ocultar la interfaz y hacer fotos.', tip_6: 'Mantén V para hablar si usas pulsar para hablar.', tip_7: 'Completa las misiones diarias para ganar BCoins.', tip_8: 'Pulsa ? para ver todos los atajos.',
     sc_title: 'Atajos de teclado', sc_move: 'Moverte', sc_sprint: 'Correr', sc_jump: 'Saltar', sc_fly: 'Volar', sc_emotes: 'Emotes', sc_chat: 'Chat', sc_players: 'Jugadores', sc_music: 'Música', sc_voice: 'Voz', sc_shot: 'Captura', sc_photo: 'Modo foto', sc_help: 'Esta ayuda', sc_menu: 'Menú de pausa', photo_hint: 'Modo foto: pulsa H para volver',
@@ -71,6 +73,8 @@ const D = {
   },
   en: {
     lang_name: 'English',
+    badge_pioneer: 'Pioneer', badge_pioneer_d: 'Joined in the first stage', badge_regular: 'Regular', badge_regular_d: 'Over 1 hour played', badge_veteran: 'Veteran', badge_veteran_d: 'Over 10 hours played', badge_social: 'Social', badge_social_d: '5 or more friends', badge_collector: 'Collector', badge_collector_d: '5 or more items', badge_rich: 'Rich', badge_rich_d: '1000 BCoins or more', badge_creator: 'Creator', badge_creator_d: 'Has created a game',
+    last_seen: 'Last seen', favorites: 'Favorites', fav_add: 'Add to favorites', fav_remove: 'Remove from favorites',
     emote_jumpjoy: 'Jump for joy', emote_cry: 'Cry', emote_point: 'Point', emote_flex: 'Flex', react_hint: 'Alt + 1-4: reactions',
     tip_1: 'Press G to open emotes.', tip_2: 'Press P to take a screenshot.', tip_3: 'Double-tap Space to fly when the game allows it.', tip_4: 'Invite your friends from the pause menu.', tip_5: 'Press H to hide the interface and take photos.', tip_6: 'Hold V to talk if you use push to talk.', tip_7: 'Finish the daily missions to earn BCoins.', tip_8: 'Press ? to see every shortcut.',
     sc_title: 'Keyboard shortcuts', sc_move: 'Move', sc_sprint: 'Sprint', sc_jump: 'Jump', sc_fly: 'Fly', sc_emotes: 'Emotes', sc_chat: 'Chat', sc_players: 'Players', sc_music: 'Music', sc_voice: 'Voice', sc_shot: 'Screenshot', sc_photo: 'Photo mode', sc_help: 'This help', sc_menu: 'Pause menu', photo_hint: 'Photo mode: press H to go back',

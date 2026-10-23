@@ -87,3 +87,6 @@ Ejecuta, en este orden y solo una vez (todos son seguros de repetir):
 
 Studio: las piezas (Part) y el entorno que edites se guardan en `games.config` (`parts`, `gravity`, `speed`, `jump`, `sky`, `welcome`...). El script Lua puede encontrar las piezas por su nombre: `workspace.Part1`.
 Lua estilo Roblox: cada jugador ejecuta el script en su navegador (como un LocalScript); no hace falta ningún SQL. La referencia está en el editor de scripts.
+
+## Hoja de ruta 1.2 (SQL nuevo, seguro de repetir)
+- **AUTH** `auth/v12.sql`: tiempo jugado, insignias del perfil, ultima conexion y juegos favoritos. Sin el SQL esas partes no se muestran.
