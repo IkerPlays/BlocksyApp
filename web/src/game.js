@@ -20,9 +20,9 @@ import { createHorror } from './horror.js'
 import { createScripted } from './scene-parts.js'
 import { createStudio } from './studio-tools.js'
 import { createWeather } from './weather.js'
-import { remapEvent } from './access.js'
+import { remapEvent, saverOn, shareGame } from './access.js'
 import { createCompass, createPings, createHealth, PING_PREFIX, isPing } from './hud.js'
-import { loadingScreen, createShortcuts, togglePhoto, REACT_PREFIX, REACTIONS, isReaction, layoutWheel } from './extras.js'
+import { loadingScreen, createShortcuts, togglePhoto, orientationHint, REACT_PREFIX, REACTIONS, isReaction, layoutWheel } from './extras.js'
 
 // 12 colores: la 3DS usa los mismos (3ds/source/main.c)
 export const PALETTE = ['#e8e8e8', '#e74c3c', '#f39c12', '#2ecc71', '#3498db', '#9b59b6', '#f1c40f', '#1abc9c', '#ff6b9d', '#8b5e34', '#4b4f57', '#7ed6ff']
@@ -355,7 +355,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
   function size() {
     const w = canvas.clientWidth, h = canvas.clientHeight; if (!w || !h) return
     const q = settings.quality, dpr = devicePixelRatio || 1
-    const pr = Math.max(0.5, Math.min(dpr, MAXPR[q] ?? 1.5) * (settings.dynRes ? resScale : 1))
+    const pr = Math.max(0.5, Math.min(dpr, MAXPR[q] ?? 1.5) * (settings.dynRes ? resScale : 1) * (saverOn() ? 0.6 : 1))
     renderer.setPixelRatio(pr); renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix()
     composer?.setPixelRatio(pr); composer?.setSize(w, h)
   }
@@ -364,7 +364,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
     scene.fog.far = settings.viewDistance * fogMul(); scene.fog.near = settings.viewDistance * 0.35 * fogMul()
     camera.fov = settings.fov; camera.updateProjectionMatrix()
     tagSprites.forEach(tg => (tg.visible = settings.names))
-    const shadowsOn = settings.shadows && q !== 'low'
+    const shadowsOn = settings.shadows && q !== 'low' && !saverOn()
     renderer.shadowMap.enabled = shadowsOn; sun.castShadow = shadowsOn
     staticMesh.castShadow = q === 'high' || q === 'ultra'          // miles de bloques fijos en el mapa de sombras pesan mucho en tablets
     const ss = q === 'ultra' ? 3072 : q === 'high' ? 2048 : 1024
@@ -400,7 +400,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
   $('resume').onclick = () => setPaused(false)
   $('leave').onclick = () => onExit()
   $('invite-btn').onclick = () => { setPaused(false); onInvite?.(game) }
-  $('copy-link').onclick = () => { const url = `${location.origin}/join/${game.id}`; (navigator.clipboard?.writeText(url) ?? Promise.reject()).then(() => sys(t('link_copied')), () => prompt(t('copy_link'), url)); setPaused(false) }
+  $('copy-link').onclick = async () => { const r = await shareGame(game); if (r === 'copied') sys(t('link_copied')); setPaused(false) }
   // ----- emotes -----
   const emotePanel = $('emote-panel')
   emotePanel.replaceChildren(...EMOTES.map(e => { const b = document.createElement('button'); b.className = 'emote'; b.dataset.id = e.id; b.textContent = t('emote_' + e.id); b.onclick = () => { if (!cfg.allow_emotes) return; if (me.grounded || me.fly) { me.fly = false; me.emote = e.id } emotePanel.classList.add('hidden') }; return b }))
@@ -621,7 +621,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
     if (!cfg.allow_chat || Date.now() - lastReact < 1500) return; lastReact = Date.now()
     bubble(meAvatar, REACTIONS[i]); sfx.click(); api.say(game.id, REACT_PREFIX + REACTIONS[i]).catch(() => {})
   }
-  const help = createShortcuts(); loadingScreen(game.name); let ping = 0
+  const orient = orientationHint($('game')); const help = createShortcuts(); loadingScreen(game.name); let ping = 0
   const down = e0 => {
     const e = remapEvent(e0); if (!e) return
     if (typing()) { if (e.code === 'Escape') { $('chat-input').blur(); $('chat-form').classList.remove('open') } return }
@@ -840,8 +840,10 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
   const camPos = new THREE.Vector3(), camLook = new THREE.Vector3(), want = new THREE.Vector3(), tgt = new THREE.Vector3()
   camPos.set(me.pos.x, me.pos.y + 6, me.pos.z + 9)
   paintStatic(); applyAll()
+  let lastDraw = 0
   function frame() {
     raf = requestAnimationFrame(frame)
+    if (saverOn()) { const n0 = performance.now(); if (n0 - lastDraw < 30) return; lastDraw = n0 }
     const dt = Math.min(clock.getDelta(), 0.05); tAnim += dt
     const w = canvas.clientWidth, h = canvas.clientHeight
     if (w && h && (canvas.width !== Math.floor(w * renderer.getPixelRatio()) || canvas.height !== Math.floor(h * renderer.getPixelRatio()))) size()
@@ -910,7 +912,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
     window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); window.removeEventListener('resize', onResize)
     window.removeEventListener('pointermove', pmove); window.removeEventListener('pointerup', pup); window.removeEventListener('pointercancel', pup)
     canvas.removeEventListener('pointerdown', pdown); canvas.removeEventListener('wheel', wheel); canvas.removeEventListener('contextmenu', noMenu); canvas.removeEventListener('pointerleave', pleave)
-    offSettings(); offSync(); offLang(); offMusic(); music.stop(); runner.dispose(); rbx.dispose(); help.dispose(); weather.dispose(); compass.dispose(); pings.dispose(); health.dispose(); clearInterval(uiTimer); clearInterval(loadoutTimer); window.removeEventListener('pointermove', uiMove); window.removeEventListener('pointerup', uiUp); studioCleanup.forEach(f => f()); uiLayer.replaceChildren()
+    offSettings(); offSync(); offLang(); offMusic(); music.stop(); runner.dispose(); rbx.dispose(); help.dispose(); weather.dispose(); compass.dispose(); pings.dispose(); orient.dispose(); health.dispose(); clearInterval(uiTimer); clearInterval(loadoutTimer); window.removeEventListener('pointermove', uiMove); window.removeEventListener('pointerup', uiUp); studioCleanup.forEach(f => f()); uiLayer.replaceChildren()
     touchUi?.remove(); emotePanel.classList.add('hidden'); mPanel.classList.add('hidden'); $('big-title').classList.add('hidden')
     $('pause').classList.add('hidden'); roster.classList.add('hidden'); log.replaceChildren()
     api.leave().catch(() => {}); gameDb.removeChannel(channel)

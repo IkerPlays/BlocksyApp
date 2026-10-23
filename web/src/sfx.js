@@ -1,6 +1,6 @@
 // Efectos de sonido sintetizados con WebAudio (sin archivos)
 import { settings } from './settings.js'
-import { caption } from './access.js'
+import { caption, vibrate } from './access.js'
 let ac = null
 const ctx = () => { if (!ac) { try { ac = new (window.AudioContext || window.webkitAudioContext)() } catch { return null } } if (ac.state === 'suspended') ac.resume().catch(() => {}); return ac }
 function tone(freq, dur, { type = 'sine', gain = 0.2, slide = 0, delay = 0 } = {}) {
@@ -40,4 +40,4 @@ const raw = {
   hit: () => { noise(0.08, { gain: 0.2, freq: 1200 }); tone(200, 0.08, { type: 'square', gain: 0.08, slide: -100 }) },
   click: () => tone(500, 0.04, { type: 'square', gain: 0.05 }),
 }
-export const sfx = Object.fromEntries(Object.entries(raw).map(([k, f]) => [k, (...a) => { if (k !== 'step' && k !== 'click') caption(k); return f(...a) }]))
+export const sfx = Object.fromEntries(Object.entries(raw).map(([k, f]) => [k, (...a) => { if (k !== 'step' && k !== 'click') caption(k); vibrate(k); return f(...a) }]))

@@ -50,6 +50,7 @@ Blocksy is a multiplayer block-building game for the web and the Nintendo 3DS (h
 - **Climb and swim.** Parts named Ladder (or marked climbable) can be climbed, and parts with the Water material let you swim.
 - Compass strip, map pings (B) shared with the room and shown on the minimap, and a health bar driven by Humanoid.Health.
 - Accessibility: colorblind filters, text size, sound captions and rebindable keys.
+- Mobile: vibration, rotate hint, battery saver and native game sharing.
 
 ## Installing
 - Install `Blocksy.cia` with FBI, or copy `Blocksy.3dsx` to the `3ds` folder of the SD card and run it from the Homebrew Launcher.

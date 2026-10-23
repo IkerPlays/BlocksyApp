@@ -40,3 +40,12 @@ export function togglePhoto() {
   if (on) { const m = document.createElement('div'); m.id = 'photo-hint'; m.textContent = t('photo_hint'); $('game').append(m); setTimeout(() => m.remove(), 2200) }
   return on
 }
+
+// Aviso de orientación: en móvil vertical el juego se ve mejor girado
+export function orientationHint(root) {
+  const d = document.createElement('div'); d.id = 'rotate-hint'; d.textContent = t('rotate_hint'); root.append(d)
+  const mq = matchMedia('(pointer: coarse) and (orientation: portrait)'); let hide = 0
+  const upd = () => { if (mq.matches && !hide) { d.classList.add('show'); hide = setTimeout(() => d.classList.remove('show'), 5000) } else if (!mq.matches) { d.classList.remove('show'); clearTimeout(hide); hide = 0 } }
+  mq.addEventListener?.('change', upd); upd()
+  return { dispose() { mq.removeEventListener?.('change', upd); clearTimeout(hide); d.remove() } }
+}

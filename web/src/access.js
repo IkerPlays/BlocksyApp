@@ -50,3 +50,19 @@ export function caption(name) {
   while (subBox.children.length > 3) subBox.firstChild.remove()
   setTimeout(() => row.remove(), 2200)
 }
+
+// ---- Vibración (móviles) ----
+const VIB = { break: 25, place: 12, hit: [40, 30, 40], boom: [80, 40, 80], win: [60, 40, 60, 40, 120], fall: 60, coin: 10, checkpoint: 30, powerup: 40 }
+export function vibrate(name) { if (settings.vibrate && VIB[name] && navigator.vibrate) { try { navigator.vibrate(VIB[name]) } catch {} } }
+
+// ---- Ahorro de batería ----
+let lowBattery = false
+try { navigator.getBattery?.().then(b => { const up = () => { lowBattery = b.level <= 0.2 && !b.charging }; up(); b.addEventListener('levelchange', up); b.addEventListener('chargingchange', up) }) } catch {}
+export const saverOn = () => settings.batterySaver === 'on' || (settings.batterySaver === 'auto' && lowBattery)
+
+// ---- Compartir un juego ----
+export async function shareGame(game) {
+  const url = `${location.origin}/join/${game.id}`, data = { title: game.name, text: t('share_text', { name: game.name }), url }
+  if (navigator.share) { try { await navigator.share(data); return 'shared' } catch (e) { if (e?.name === 'AbortError') return 'cancel' } }
+  try { await navigator.clipboard.writeText(url); return 'copied' } catch { prompt(t('copy_link'), url); return 'prompt' }
+}
