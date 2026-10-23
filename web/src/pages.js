@@ -6,7 +6,7 @@ import { KEY_ACTIONS, keyLabel } from './access.js'
 import { DEFAULTS, settings, saveSettings, resetSettings, lastPlayed, recentGames, getStats, applyTheme } from './settings.js'
 import { icon } from './icons.js'
 import { headshot, styleFor, EMOTES, createPreview, loadoutStyle, parseLoadout, packLoadout, PALETTES, defaultLook, randomLook } from './avatar.js'
-import { t, LANGS, langName, getPref, setLang, onLang } from './i18n.js'
+import { t, LANGS, langName, getPref, setLang, onLang, getLang, missingFor } from './i18n.js'
 import { codeEditor } from './studio-ui.js'
 import { partyPanel, attachEmoticons } from './party-ui.js'
 import { TEMPLATES } from './templates.js'
@@ -67,6 +67,14 @@ function decorateSettings(root, ctx) {
     f.onchange = async () => { try { const d = JSON.parse(await f.files[0].text()); if (d.format !== 'blocksy-settings-1') throw new Error('format'); for (const k of Object.keys(DEFAULTS)) if (k in d.settings && typeof d.settings[k] === typeof DEFAULTS[k]) settings[k] = d.settings[k]; saveSettings(); applyTheme(); toast(t('saved')); pages.settings(root, ctx) } catch { toast(t('set_import_bad')) } }
     f.click() } })
   grid.before(el('div', { class: 'form-row', style: 'align-items:center;gap:8px;margin-bottom:12px' }, search, exp, imp))
+}
+function showTranslations() {
+  const rows = LANGS.filter(l => l !== 'en').map(l => ({ l, m: missingFor(l) }))
+  setKids($('modal-card'), el('div', { class: 'detail-col' }, el('h2', { text: t('tr_check') }), el('p', { class: 'muted', text: t('tr_help') }),
+    el('div', { class: 'hist-list' }, rows.map(({ l, m }) => el('div', { class: 'person' }, el('div', { class: 'grow' }, el('b', { text: langName(l) }), el('small', { text: t('tr_missing_n', { n: m.length }) })),
+      m.length ? el('button', { class: 'btn tiny', text: t('download'), onclick: () => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(Object.fromEntries(m.map(k => [k, ''])), null, 1)], { type: 'application/json' })); a.download = `missing-${l}.json`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000) } }) : el('span', { class: 'owned', text: '✓' })))),
+    el('button', { class: 'btn wide', text: t('close'), onclick: closeModal })))
+  $('modal').classList.remove('hidden')
 }
 export function showNews() {
   const m = $('modal'); setKids($('modal-card'), el('div', { class: 'detail-col' }, el('h2', { text: t('whats_new') + ' · ' + APP_VERSION }), el('ul', { class: 'news-list' }, whatsNew().map(x => el('li', { text: x }))), el('button', { class: 'btn wide primary', text: t('close'), onclick: closeModal })))
@@ -251,6 +259,20 @@ export const pages = {
     setKids(root, el('h1', { class: 'page-title', text: t('discover') }), el('div', { class: 'form-row', style: 'margin-bottom:12px' }, input, dl, sortEl), chips, allTags.length ? el('div', { class: 'chips tags' }, allTags.map(tg => el('button', { class: 'chip', text: '#' + tg, onclick: e => { tagSel = tagSel === tg ? '' : tg; e.target.parentNode.querySelectorAll('.chip').forEach(c => c.classList.toggle('on', c.textContent === '#' + tagSel)); draw() } }))) : null, trend, out)
   },
 
+  // Historial de versiones: las notas de las versiones estables publicadas en GitHub
+  async changelog(root) {
+    setKids(root, pageSkel())
+    let list = []
+    try {
+      const r = await fetch('https://api.github.com/repos/IkerPlays/BlocksyApp/releases?per_page=20'); if (!r.ok) throw new Error(r.status)
+      list = (await r.json()).filter(x => !x.draft && !x.prerelease)
+    } catch {}
+    const clean = s => String(s ?? '').replace(/[*`#]/g, '').split('\n').filter(l => l.trim() && !l.startsWith('<sub>') && !l.startsWith('---')).join('\n')
+    setKids(root, el('h1', { class: 'page-title', text: t('nav_changelog') }),
+      list.length ? list.map(x => el('div', { class: 'panel', style: 'margin-bottom:14px' }, el('h3', { text: x.name || x.tag_name }), el('small', { class: 'muted', text: new Date(x.published_at).toLocaleDateString(getLang()) }), el('pre', { class: 'notes', text: clean(x.body) })))
+        : el('div', { class: 'panel' }, el('p', { class: 'muted', text: t('changelog_offline') }), el('ul', { class: 'news-list' }, whatsNew().map(x => el('li', { text: x })))))
+  },
+
   // Privacidad y datos: qué se guarda, borrar datos locales, descargar mis datos y cómo borrar la cuenta
   async privacy(root, ctx) {
     const sec = (title, ...kids) => el('div', { class: 'panel', style: 'margin-bottom:14px' }, el('h3', { text: title }), ...kids)
@@ -279,7 +301,7 @@ export const pages = {
       const l = listShots().slice().reverse()
       setKids(root, el('h1', { class: 'page-title', text: t('nav_gallery') }), el('p', { class: 'muted', text: t('gallery_help') }),
         l.length ? el('div', { class: 'shot-grid' }, l.map(s => el('div', { class: 'shot' }, el('img', { src: s.img, alt: s.game, loading: 'lazy' }),
-          el('div', { class: 'shot-bar' }, el('small', { text: `${s.game} · ${new Date(s.at).toLocaleString()}` }),
+          el('div', { class: 'shot-bar' }, el('small', { text: `${s.game} · ${new Date(s.at).toLocaleString(getLang())}` }),
             el('a', { class: 'btn tiny', href: s.img, download: `blocksy-${s.at}.jpg`, text: t('download') }), el('button', { class: 'btn tiny danger', text: '×', onclick: () => { delShot(s.at); draw() } }))))) : el('div', { class: 'empty', text: t('gallery_empty') }))
     }
     draw()
@@ -357,7 +379,7 @@ export const pages = {
     function showHistory() {
       let h = []; try { h = JSON.parse(localStorage.getItem('blocksy.history') || '[]') } catch {}
       setKids($('modal-card'), el('div', { class: 'detail-col' }, el('h2', { text: t('buy_history') }),
-        h.length ? el('div', { class: 'hist-list' }, h.slice().reverse().map(x => el('div', { class: 'person' }, el('div', { class: 'grow' }, el('b', { text: x.name }), el('small', { text: new Date(x.at).toLocaleString() })), el('span', { class: 'price', html: icon('coin', 14) + ' ' + x.price })))) : el('p', { class: 'muted', text: t('buy_history_none') }),
+        h.length ? el('div', { class: 'hist-list' }, h.slice().reverse().map(x => el('div', { class: 'person' }, el('div', { class: 'grow' }, el('b', { text: x.name }), el('small', { text: new Date(x.at).toLocaleString(getLang()) })), el('span', { class: 'price', html: icon('coin', 14) + ' ' + x.price })))) : el('p', { class: 'muted', text: t('buy_history_none') }),
         el('button', { class: 'btn wide', text: t('close'), onclick: closeModal })))
       $('modal').classList.remove('hidden')
     }
@@ -439,7 +461,7 @@ export const pages = {
         el('h1', { class: 'page-title', style: 'margin-bottom:4px', text: p.username }), p.relation === 'friends' && nickOf(p.username) !== p.username ? el('small', { class: 'muted', text: t('p_nick_is', { nick: nickOf(p.username) }) }) : null,
         titleBox,
         status ? el('div', { class: 'p-status' }, el('span', { class: `dot-i ${p.is_online ? 'on' : ''}` }), status) : null,
-        el('small', { style: 'color:var(--muted)', text: self ? t('p_you') : t('p_joined', { date: new Date(p.created_at).toLocaleDateString() }) }),
+        el('small', { style: 'color:var(--muted)', text: self ? t('p_you') : t('p_joined', { date: new Date(p.created_at).toLocaleDateString(getLang()) }) }),
         bioBox, extraBox,
         el('div', { class: 'stats-row', style: 'margin:14px 0' }, stat(p.friend_count, t('p_friends')), stat(mine0.length, t('p_games'))), actions)),
       el('div', { class: 'section' }, el('h2', { text: t('p_games') })), games,
@@ -448,7 +470,7 @@ export const pages = {
     if (p.equipped?.title) social.listShop().then(items => { const it = items.find(i => i.id === p.equipped.title); if (it) titleBox.textContent = it.data?.text ?? it.name }).catch(() => {})
     paintBio(); paintBanner(); paintActions()
     social.profileExtra(p.username).then(x => { if (!x) return; if (x.look) pv.setStyle(loadoutStyle(styleFor(p.username, p.avatar_color), parseLoadout(packLoadout(p.equipped, x.look)))); const hrs = Math.floor(x.play_seconds / 3600), mins = Math.floor(x.play_seconds % 3600 / 60); const bd = [...(x.badges ?? []), ...(mine0.length ? ['creator'] : [])]
-      setKids(extraBox, el('div', { class: 'badges' }, bd.map(b => el('span', { class: 'badge', title: t('badge_' + b + '_d'), text: t('badge_' + b) }))), el('small', { style: 'display:block;color:var(--muted);margin:6px 0', text: `${t('stat_time')}: ${hrs}h ${mins}m${x.last_seen && !p.is_online ? ` · ${t('last_seen')}: ${new Date(x.last_seen).toLocaleString()}` : ''}` })) })
+      setKids(extraBox, el('div', { class: 'badges' }, bd.map(b => el('span', { class: 'badge', title: t('badge_' + b + '_d'), text: t('badge_' + b) }))), el('small', { style: 'display:block;color:var(--muted);margin:6px 0', text: `${t('stat_time')}: ${hrs}h ${mins}m${x.last_seen && !p.is_online ? ` · ${t('last_seen')}: ${new Date(x.last_seen).toLocaleString(getLang())}` : ''}` })) })
     await social.myBlocked()
     const [all, counts] = await Promise.all([api.listGames(), api.playerCounts()])
     const mine = all.filter(g => g.owner_id === p.id); mine0 = mine
@@ -715,7 +737,7 @@ export const pages = {
             el('button', { class: 'btn', text: t('whats_new'), onclick: () => showNews() }),
             el('button', { class: 'btn', text: t('credits'), onclick: () => showCredits() }),
             el('button', { class: 'btn', text: t('error_log'), onclick: () => showErrors() }),
-            el('a', { class: 'btn', href: '/privacy', text: t('nav_privacy') }), el('button', { class: 'btn primary', text: t('report_bug'), onclick: () => window.open(reportUrl(), '_blank', 'noopener') }))),
+            el('a', { class: 'btn', href: '/privacy', text: t('nav_privacy') }), el('a', { class: 'btn', href: '/changelog', text: t('nav_changelog') }), el('button', { class: 'btn', text: t('tr_check'), onclick: showTranslations }), el('button', { class: 'btn primary', text: t('report_bug'), onclick: () => window.open(reportUrl(), '_blank', 'noopener') }))),
         el('div', { class: 'panel' }, el('h3', { text: t('set_access') }),
           sel('colorblind', t('set_colorblind'), [['none', t('cb_none')], ['protanopia', t('cb_prot')], ['deuteranopia', t('cb_deut')], ['tritanopia', t('cb_trit')]]),
           rg('textScale', t('set_text_size'), 0.9, 1.5, 0.05, v => Math.round(v * 100) + '%'), sw('subtitles', t('set_subtitles')), sw('uiSounds', t('set_ui_sounds')), sw('chatFilter', t('set_chat_filter')), sw('vibrate', t('set_vibrate')), sw('noFlash', t('set_noflash')), sw('srChat', t('set_srchat')), sel('batterySaver', t('set_saver'), [['auto', t('saver_auto')], ['on', t('saver_on')], ['off', t('saver_off')]])),

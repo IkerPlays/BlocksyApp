@@ -451,3 +451,4 @@ html.rainbow { animation: rainbow 2s linear infinite; } @keyframes rainbow { to 
 .sr-only, #sr-live { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .skip-link { position: fixed; left: 8px; top: -60px; z-index: 400; background: var(--accent); color: #fff; padding: 8px 14px; border-radius: 8px; } .skip-link:focus { top: 8px; }
 html.no-flash.rainbow { animation: none; } html.no-flash * { scroll-behavior: auto !important; } html.no-flash #big-title.show { animation: none; }
+pre.notes { white-space: pre-wrap; font-family: inherit; font-size: 14px; color: var(--fg); margin: 8px 0 0; }

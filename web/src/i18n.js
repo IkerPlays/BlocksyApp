@@ -3,6 +3,7 @@ import { EXTRA } from './i18n-extra.js'
 const D = {
   es: {
     lang_name: 'Español',
+    nav_changelog: 'Historial de versiones', changelog_offline: 'No se pudieron cargar las versiones de GitHub. Esto es lo último:', tr_check: 'Comprobar traducciones', tr_help: 'Textos que faltan por traducir en cada idioma (mientras faltan se ven en inglés). Descarga la lista para completarla.', tr_missing_n: '{n} textos sin traducir',
     nav_privacy: 'Privacidad y datos', priv_what_title: 'Qué guardamos', priv_what: 'Tu cuenta (email y usuario), tu avatar, tus amigos y mensajes, tus BCoins e inventario, los juegos que creas y, mientras juegas, tu posición y los bloques que colocas. No vendemos datos ni mostramos anuncios.', priv_local_title: 'En este dispositivo', priv_local: 'Ajustes, estadísticas, capturas, versiones del Studio, apodos y lugares se guardan solo en tu navegador. Puedes borrarlos cuando quieras.', priv_clear: 'Borrar los datos de este dispositivo', priv_clear_confirm: '¿Borrar ajustes, capturas, versiones y demás datos locales? Tu cuenta no se borra.', priv_cleared: 'Datos locales borrados', priv_mine_title: 'Descargar mis datos', priv_mine: 'Un archivo con tu perfil, ajustes locales, amigos, favoritos, cartera y tus juegos.', priv_download: 'Descargar mis datos', priv_delete_title: 'Borrar mi cuenta', priv_delete: 'Todavía no hay un botón para borrar la cuenta. Pídelo y se borra la cuenta y todos sus datos (mensajes, amigos, juegos y BCoins). El botón abre una petición pública en GitHub: no incluyas tu contraseña.', priv_delete_btn: 'Pedir el borrado', priv_delete_issue: 'Quiero borrar mi cuenta de Blocksy:',
     skip_content: 'Saltar al contenido', set_noflash: 'Sin destellos ni parpadeos', set_srchat: 'Anunciar el chat a lectores de pantalla',
     set_fpscap: 'Límite de fps', fps_none: 'Sin límite',
@@ -115,6 +116,7 @@ const D = {
   },
   en: {
     lang_name: 'English',
+    nav_changelog: 'Version history', changelog_offline: 'The versions could not be loaded from GitHub. This is the latest:', tr_check: 'Check translations', tr_help: 'Texts still missing in each language (they show in English meanwhile). Download the list to complete it.', tr_missing_n: '{n} texts not translated',
     nav_privacy: 'Privacy and data', priv_what_title: 'What we store', priv_what: 'Your account (email and username), your avatar, your friends and messages, your BCoins and inventory, the games you create and, while you play, your position and the blocks you place. We do not sell data or show ads.', priv_local_title: 'On this device', priv_local: 'Settings, statistics, screenshots, Studio versions, nicknames and places are kept only in your browser. You can delete them whenever you want.', priv_clear: 'Delete this device\'s data', priv_clear_confirm: 'Delete settings, screenshots, versions and other local data? Your account is not deleted.', priv_cleared: 'Local data deleted', priv_mine_title: 'Download my data', priv_mine: 'A file with your profile, local settings, friends, favorites, wallet and your games.', priv_download: 'Download my data', priv_delete_title: 'Delete my account', priv_delete: 'There is no delete-account button yet. Ask for it and the account and all its data (messages, friends, games and BCoins) will be deleted. The button opens a public GitHub request: do not include your password.', priv_delete_btn: 'Request deletion', priv_delete_issue: 'I want to delete my Blocksy account:',
     skip_content: 'Skip to content', set_noflash: 'No flashing or flickering', set_srchat: 'Announce chat to screen readers',
     set_fpscap: 'FPS limit', fps_none: 'No limit',
@@ -348,6 +350,8 @@ const D = {
 }
 for (const l of Object.keys(EXTRA)) D[l] = { ...EXTRA[l], ...D[l] }          // traducciones adicionales (lo que ya está en D tiene prioridad)
 export const LANGS = Object.keys(D)
+// Detector de textos sin traducir: claves del inglés que faltan en cada idioma (para quien traduce)
+export const missingFor = l => Object.keys(D.en).filter(k => D[l] && D[l][k] === undefined)
 export const langName = l => D[l].lang_name
 // Idioma automático: el primero de navigator.languages que tengamos (pt-BR -> pt, zh-TW -> zh...); si no hay ninguno, inglés
 const detect = () => {

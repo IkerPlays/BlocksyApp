@@ -1,16 +1,17 @@
 // Paleta de comandos (Ctrl+K), atajos de navegación (g + letra) y aviso de conexión
-import { t } from './i18n.js'
+import { t, LANGS, langName, setLang } from './i18n.js'
 
 const $ = id => document.getElementById(id)
 let box, input, list, items = [], sel = 0, getCtx = null
 
-const PAGES = [['home', 'nav_home', 'h'], ['discover', 'nav_discover', 'd'], ['friends', 'nav_friends', 'f'], ['shop', 'nav_shop', 's'], ['avatar', 'nav_avatar', 'a'], ['profile', 'nav_profile', 'p'], ['achievements', 'nav_achievements', 'l'], ['gallery', 'nav_gallery', 'm'], ['privacy', 'nav_privacy', 'v'], ['settings', 'nav_settings', 'o'], ['link', 'nav_link', 'k']]
+const PAGES = [['home', 'nav_home', 'h'], ['discover', 'nav_discover', 'd'], ['friends', 'nav_friends', 'f'], ['shop', 'nav_shop', 's'], ['avatar', 'nav_avatar', 'a'], ['profile', 'nav_profile', 'p'], ['achievements', 'nav_achievements', 'l'], ['gallery', 'nav_gallery', 'm'], ['privacy', 'nav_privacy', 'v'], ['changelog', 'nav_changelog', 'n'], ['settings', 'nav_settings', 'o'], ['link', 'nav_link', 'k']]
 const inGame = () => !$('game')?.classList.contains('hidden')
 const typingNow = () => /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName ?? '') || document.activeElement?.isContentEditable
 
 async function buildItems(q) {
   const c = getCtx(), out = PAGES.map(([p, k, key]) => ({ label: t(k), hint: `g ${key}`, kind: 'page', run: () => c.go(p) }))
   if (c.canCreate?.()) out.push({ label: t('nav_create'), hint: 'g c', kind: 'page', run: () => c.go('create') })
+  for (const l of LANGS) out.push({ label: t('set_language') + ': ' + langName(l), kind: 'action', run: () => setLang(l) })
   out.push({ label: t('whats_new'), kind: 'action', run: () => import('./pages.js').then(m => m.showNews()) },
     { label: t('set_theme') + ': ' + t('theme_dark'), kind: 'action', run: () => c.setTheme?.('dark') },
     { label: t('set_theme') + ': ' + t('theme_light'), kind: 'action', run: () => c.setTheme?.('light') },

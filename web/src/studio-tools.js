@@ -1,7 +1,7 @@
 // Herramientas del Studio (editor del dueño del juego): colocar/borrar/pintar, cuentagotas, cajas, selección con copiar/pegar,
 // estructuras prefabricadas, deshacer/rehacer, piezas (Part) con propiedades y panel de entorno.
 import * as THREE from 'three'
-import { t } from './i18n.js'
+import { t, getLang } from './i18n.js'
 import { icon } from './icons.js'
 import { PRESET_HOUR } from './sky.js'
 import * as music from './music.js'
@@ -265,13 +265,13 @@ export function createStudio(ctx) {
     if (versionsBox.classList.contains('hidden')) return
     const l = readSnaps()
     versionsBox.replaceChildren(h('b', { text: t('st_versions') }), h('button', { type: 'button', class: 'btn tiny primary', text: '+ ' + t('st_snap_new'), onclick: () => { takeSnapshot(t('st_snap_manual')); sfx.click() } }),
-      ...l.map((s, i) => ({ s, i })).reverse().map(({ s, i }) => h('div', { class: 'ver-row' }, h('div', { class: 'grow' }, h('span', { text: s.label }), h('small', { text: `${new Date(s.at).toLocaleString()} · ${s.nb} ${t('st_blocks')}${s.blocks ? '' : ' (' + t('st_snap_noblocks') + ')'} · ${s.parts.length} ${t('st_parts')}` })),
+      ...l.map((s, i) => ({ s, i })).reverse().map(({ s, i }) => h('div', { class: 'ver-row' }, h('div', { class: 'grow' }, h('span', { text: s.label }), h('small', { text: `${new Date(s.at).toLocaleString(getLang())} · ${s.nb} ${t('st_blocks')}${s.blocks ? '' : ' (' + t('st_snap_noblocks') + ')'} · ${s.parts.length} ${t('st_parts')}` })),
         h('button', { type: 'button', class: 'btn tiny', text: t('st_snap_restore'), onclick: () => restoreSnapshot(i) }), h('button', { type: 'button', class: 'btn tiny danger', text: '×', onclick: () => { const q = readSnaps(); q.splice(i, 1); writeSnaps(q); paintVersions() } }))),
       !l.length ? h('small', { class: 'muted', text: t('st_snap_none') }) : null)
   }
   const toggleVersions = () => { versionsBox.classList.toggle('hidden'); paintVersions() }
   let lastSaved = 0, savedEl
-  const paintSaved = () => { if (!savedEl) return; savedEl.textContent = lastSaved ? `✓ ${new Date(lastSaved).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : t('st_notsaved'); savedEl.classList.toggle('dirty', !lastSaved) }
+  const paintSaved = () => { if (!savedEl) return; savedEl.textContent = lastSaved ? `✓ ${new Date(lastSaved).toLocaleTimeString(getLang(), { hour: '2-digit', minute: '2-digit' })}` : t('st_notsaved'); savedEl.classList.toggle('dirty', !lastSaved) }
   const doSave = async silent => { const ok = await onSave(silent); if (ok) { lastSaved = Date.now(); paintSaved(); if (silent !== true) takeSnapshot(t('st_snap_save')) } return ok }
   // ---------- barra de herramientas ----------
   const TOOLS = [['place', 'plus'], ['erase', 'trash'], ['paint', 'edit'], ['pick', 'search'], ['box', 'box'], ['shape', 'sphere'], ['line', 'line'], ['replace', 'replace'], ['select', 'select'], ['stamp', 'cube'], ['part', 'part'], ['terrain', 'mountain'], ['measure', 'ruler'], ['ui', 'chat']]

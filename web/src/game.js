@@ -7,7 +7,7 @@ import { gameDb } from './supabase.js'
 import * as api from './api.js'
 import { settings, saveSettings, onSettings, bump, visited, bestTime, bumpGame } from './settings.js'
 import { buildAvatar, poseAvatar, styleFor, EMOTES, headshot, packLoadout, parseLoadout, loadoutStyle, buildPet, trailColor } from './avatar.js'
-import { t, onLang } from './i18n.js'
+import { t, onLang, getLang } from './i18n.js'
 import { createSky } from './sky.js'
 import { buildWorld } from './world.js'
 import { loadDataStore, saveDataStore, createRunner } from './script.js'
@@ -330,7 +330,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
   function paintHist() {
     const q = histPanel.querySelector('input')?.value.toLowerCase() ?? ''
     const body = document.createElement('div'); body.className = 'ch-body'
-    for (const m of chatHist) { if (q && !m.text.toLowerCase().includes(q)) continue; const r = document.createElement('div'); r.className = 'ch-row ' + m.cls; r.textContent = `${new Date(m.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}  ${m.text}`; body.append(r) }
+    for (const m of chatHist) { if (q && !m.text.toLowerCase().includes(q)) continue; const r = document.createElement('div'); r.className = 'ch-row ' + m.cls; r.textContent = `${new Date(m.at).toLocaleTimeString(getLang(), { hour: '2-digit', minute: '2-digit' })}  ${m.text}`; body.append(r) }
     const search = histPanel.querySelector('input') ?? Object.assign(document.createElement('input'), { type: 'search', placeholder: t('chat_search'), oninput: paintHist })
     histPanel.replaceChildren(Object.assign(document.createElement('b'), { textContent: t('chat_history') }), search, body); body.scrollTop = body.scrollHeight
   }
@@ -344,7 +344,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
     if (typeof html === 'string') li.textContent = html; else li.append(...html)
     { const txt = li.textContent; if (settings.srChat) { srLive.textContent = ''; setTimeout(() => { srLive.textContent = txt }, 30) }
       chatHist.push({ at: Date.now(), cls: cls || 'chat', text: txt }); if (chatHist.length > 200) chatHist.shift(); if (!histPanel.classList.contains('hidden')) paintHist()
-      const tm = document.createElement('small'); tm.className = 'chat-time'; tm.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + ' '; li.prepend(tm)
+      const tm = document.createElement('small'); tm.className = 'chat-time'; tm.textContent = new Date().toLocaleTimeString(getLang(), { hour: '2-digit', minute: '2-digit' }) + ' '; li.prepend(tm)
       if (!cls && new RegExp(`@${profile.username.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(txt)) { li.classList.add('mention'); sfx.notify() } }
     log.append(li); while (log.children.length > 8) log.firstChild.remove()
     clearTimeout(li._t); li._t = setTimeout(() => li.remove(), 20000)

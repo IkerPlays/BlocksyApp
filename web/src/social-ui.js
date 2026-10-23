@@ -2,7 +2,7 @@
 import * as social from './social.js'
 import * as api from './api.js'
 import { headshot } from './avatar.js'
-import { t, onLang } from './i18n.js'
+import { t, onLang, getLang } from './i18n.js'
 import { icon } from './icons.js'
 import { settings, saveSettings } from './settings.js'
 import { sfx } from './sfx.js'
@@ -11,8 +11,8 @@ import { attachEmoticons } from './party-ui.js'
 
 const $ = id => document.getElementById(id)
 const status = f => (f.is_online ? (f.current_game ? t('status_game') : t('status_online')) : t('status_offline'))
-export const dayLabel = iso => { const d = new Date(iso), n = new Date(), y = new Date(Date.now() - 864e5); return d.toDateString() === n.toDateString() ? t('today') : d.toDateString() === y.toDateString() ? t('yesterday') : d.toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' }) }
-export const fmtTime = iso => new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+export const dayLabel = iso => { const d = new Date(iso), n = new Date(), y = new Date(Date.now() - 864e5); return d.toDateString() === n.toDateString() ? t('today') : d.toDateString() === y.toDateString() ? t('yesterday') : d.toLocaleDateString(getLang(), { weekday: 'short', day: 'numeric', month: 'short' }) }
+export const fmtTime = iso => new Date(iso).toLocaleTimeString(getLang(), { hour: '2-digit', minute: '2-digit' })
 
 // ---------- chat privado ----------
 let openedChat = null     // { friendId, add(msg) } mientras la ventana está abierta
@@ -126,7 +126,7 @@ export function initNotifications(ctx) {
       if (n.kind === 'invite') actions.push(el('button', { class: 'btn primary', text: t('join'), onclick: async e => {
         e.stopPropagation(); panel.classList.add('hidden')
         const g = await api.getGame(n.payload?.game_id); if (!g) return toast(t('invite_game_gone')); ctx.play(g, { room: api.roomFromName(n.payload?.game_name) }) } }))
-      rows.push(el('div', { class: `notif ${n.read ? '' : 'unread'}` }, avatarEl(n.from_name || '?', '#4da6ff'), el('div', { class: 'grow' }, el('b', { text: text(n) }), el('small', { text: new Date(n.created_at).toLocaleString() })), actions))
+      rows.push(el('div', { class: `notif ${n.read ? '' : 'unread'}` }, avatarEl(n.from_name || '?', '#4da6ff'), el('div', { class: 'grow' }, el('b', { text: text(n) }), el('small', { text: new Date(n.created_at).toLocaleString(getLang()) })), actions))
     }
     setKids(panel, el('div', { class: 'notif-head' }, el('b', { text: t('notifications') }), el('button', { class: 'link-btn', text: settings.dnd ? t('dnd_off') : t('dnd_on'), onclick: () => { settings.dnd = !settings.dnd; saveSettings(); bell.classList.toggle('dnd', !!settings.dnd); drawPanel() } }), ns.length ? el('button', { class: 'link-btn', text: t('notif_clear'), onclick: async () => { await social.clearNotifications(); drawPanel(); refreshBadges() } }) : null),
       rows.length ? rows : el('div', { class: 'empty', text: t('notif_none') }))
