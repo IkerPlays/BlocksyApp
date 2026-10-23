@@ -143,13 +143,15 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
   }
 
   // ---------- avatares (modelo 3D + cartel con el nombre + burbuja de chat) ----------
-  const tagSprites = []
+  const tagSprites = [], teamColors = new Map(), scriptCmds = new Set()
+  const setTeam = (name, color) => { color ? teamColors.set(name, color) : teamColors.delete(name); const av = name === profile.username ? meAvatar : [...others.values()].find(o => o.name === name)?.avatar; av?.userData.tag?.userData.redraw(color || '#fff') }
   function makeAvatar(color, name, hat = '') {
     const g = buildAvatar(loadoutStyle(styleFor(name, color), parseLoadout(hat)))
     const c = document.createElement('canvas'); c.width = 256; c.height = 64
     const ctx = c.getContext('2d'); ctx.font = 'bold 34px system-ui, sans-serif'; ctx.textAlign = 'center'
     ctx.lineWidth = 6; ctx.strokeStyle = '#000'; ctx.strokeText(name, 128, 44); ctx.fillStyle = '#fff'; ctx.fillText(name, 128, 44)
     const tag = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), depthTest: false, transparent: true }))
+    tag.userData.redraw = col => { ctx.clearRect(0, 0, 256, 64); ctx.lineWidth = 6; ctx.strokeStyle = '#000'; ctx.strokeText(name, 128, 44); ctx.fillStyle = col || '#fff'; ctx.fillText(name, 128, 44); tag.material.map.needsUpdate = true }; g.userData.tag = tag; if (teamColors.has(name)) tag.userData.redraw(teamColors.get(name))
     tag.scale.set(2, 0.5, 1); tag.position.y = 2.5; tag.renderOrder = 10; tag.visible = settings.names; g.add(tag); tagSprites.push(tag)
     scene.add(g); return g
   }
@@ -405,7 +407,11 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
   function sendChat(tx) {
     if (tx.startsWith('/')) {
       const [cmd, ...rest] = tx.slice(1).split(' '), name = cmd.toLowerCase(), args = rest.join(' ').trim()
-      if (name === 'help') return sys('/help  /tp <jugador>  /fly  /spawn' + (runner.has() ? '  (+ comandos del juego)' : ''))
+      if (name === 'help') return sys('/help  /tp <jugador>  /fly  /spawn  /me <texto>  /pos  /ping  /clear' + (scriptCmds.size ? '  ·  ' + [...scriptCmds].map(c => '/' + c).join('  ') : ''))
+      if (name === 'me') return args ? sendChat(`* ${profile.username} ${args}`) : sys('/me <texto>')
+      if (name === 'pos') return sys(`(${me.pos.x.toFixed(1)}, ${me.pos.y.toFixed(1)}, ${me.pos.z.toFixed(1)})`)
+      if (name === 'ping') return sys(`${ping || '?'} ms`)
+      if (name === 'clear') return log.replaceChildren()
       if (name === 'spawn') return teleport(...respawn.pos)
       if (name === 'fly') return toggleFly()
       if (name === 'tp') { const o = [...others.values()].find(x => x.name.toLowerCase() === args.toLowerCase()); return o ? teleport(o.target.x + 1.2, o.target.y + 0.2, o.target.z) : sys(args ? `${args}: ?` : '/tp <jugador>') }
@@ -421,7 +427,9 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
   // ---------- script del juego (Worker aislado) ----------
   let runner = { fire() {}, has: () => false, dispose() {} }
   // piezas, luces, interfaz y puntuaciones que crean los scripts (API de Roblox en Lua)
+  const projV = new THREE.Vector3()
   const rbx = createScripted({ scene, uiRoot: $('game'), getMe: () => me.pos, solid, world, sfx,
+    project: (x, y, z) => { projV.set(x, y, z).project(camera); const w = canvas.clientWidth, h = canvas.clientHeight, r = canvas.getBoundingClientRect(); return { x: r.left + (projV.x * 0.5 + 0.5) * w, y: r.top + (-projV.y * 0.5 + 0.5) * h, visible: projV.z < 1 && Math.abs(projV.x) < 1.2 && Math.abs(projV.y) < 1.2, dist: camera.position.distanceTo(projV.set(x, y, z)) } },
     fire: (ev, data) => runner.fire(ev, { data }), onSpawn: p => { respawn.pos = p; teleport(...p) }, setHour: h => sky.setHour(h), setFog: () => {} })
   const keyName = c => (/^Key[A-Z]$/.test(c) ? c.slice(3) : /^Digit\d$/.test(c) ? ['Zero', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine'][+c.slice(5)]
     : { Space: 'Space', ShiftLeft: 'LeftShift', ShiftRight: 'RightShift', ControlLeft: 'LeftControl', Enter: 'Return', Escape: 'Escape', Tab: 'Tab', Backspace: 'Backspace', ArrowUp: 'Up', ArrowDown: 'Down', ArrowLeft: 'Left', ArrowRight: 'Right' }[c] ?? null)
@@ -433,6 +441,8 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
     runner = createRunner(game.script, { name: profile.username }, (type, a) => {
       switch (type) {
         case 'print': sys('› ' + a[0]); break
+        case 'team': setTeam(String(a[0]), a[1] ? `rgb(${[1, 2, 3].map(i => Math.round(Number(String(a[1]).slice(2).split(',')[i - 1]) * 255)).join(',')})` : ''); break
+        case 'cmd': scriptCmds.add(String(a[0])); break
         case 'dsset': saveDataStore(game.parentId ?? game.id, String(a[0]), String(a[1]), String(a[2] ?? '')); break
         case 'respawn': teleport(...respawn.pos); runner.fire('respawned', { data: {} }); break
         case 'say': sys('» ' + a[0]); break

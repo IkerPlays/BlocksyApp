@@ -19,16 +19,17 @@ export function dec(v) {
     case 'u': { const a = n(); return { xs: a[0], xo: a[1], ys: a[2], yo: a[3] } }
     case 'd': { const a = n(); return { s: a[0], o: a[1] } }
     case 'e': return { enum: body }
+    case 'i': return { inst: Number(body) }
     case 'f': { const a = n(); return { x: a[0], y: a[1], z: a[2], rx: a[3], ry: a[4], rz: a[5] } }
     case 'n': return null
   }
   return v
 }
 const css = c => `rgb(${Math.round(Math.min(1, Math.max(0, c.r)) * 255)},${Math.round(Math.min(1, Math.max(0, c.g)) * 255)},${Math.round(Math.min(1, Math.max(0, c.b)) * 255)})`
-const GUI_CLASSES = new Set(['ScreenGui', 'Frame', 'TextLabel', 'TextButton', 'ImageLabel', 'UICorner', 'UIStroke', 'UIListLayout', 'UIPadding'])
+const GUI_CLASSES = new Set(['BillboardGui', 'ScreenGui', 'Frame', 'TextLabel', 'TextButton', 'ImageLabel', 'UICorner', 'UIStroke', 'UIListLayout', 'UIPadding'])
 const FONT = { Code: 'ui-monospace,Menlo,Consolas,monospace', RobotoMono: 'ui-monospace,Menlo,Consolas,monospace', Fantasy: 'fantasy', Bangers: 'Impact,fantasy', SciFi: 'Orbitron,sans-serif', Arcade: 'Courier New,monospace' }
 
-export function createScripted({ scene, uiRoot, getMe, solid, world, fire, sfx, onSpawn, setHour, setFog, onSay }) {
+export function createScripted({ scene, uiRoot, getMe, solid, world, fire, sfx, onSpawn, setHour, setFog, onSay, project }) {
   const group = new THREE.Group(); scene.add(group)
   const objs = new Map()                    // id -> { id, cls, name, parent, props, mesh?, el?, light? }
   const parts = new Set()                   // piezas con malla
@@ -76,8 +77,8 @@ export function createScripted({ scene, uiRoot, getMe, solid, world, fire, sfx, 
     const el = o.el; if (!el) return
     const s = el.style
     switch (key) {
-      case 'Position': s.left = `calc(${val.xs * 100}% + ${val.xo}px)`; s.top = `calc(${val.ys * 100}% + ${val.yo}px)`; break
-      case 'Size': s.width = `calc(${val.xs * 100}% + ${val.xo}px)`; s.height = `calc(${val.ys * 100}% + ${val.yo}px)`; break
+      case 'Position': if (o.bb) break; s.left = `calc(${val.xs * 100}% + ${val.xo}px)`; s.top = `calc(${val.ys * 100}% + ${val.yo}px)`; break
+      case 'Size': if (o.bb) { s.width = `${val.xo || 100}px`; s.height = `${val.yo || 40}px`; break } s.width = `calc(${val.xs * 100}% + ${val.xo}px)`; s.height = `calc(${val.ys * 100}% + ${val.yo}px)`; break
       case 'AnchorPoint': case 'Rotation': {
         const a = o.props.AnchorPoint ?? { x: 0, y: 0 }; s.transform = `translate(${-a.x * 100}%, ${-a.y * 100}%) rotate(${num(o.props.Rotation)}deg)`; break }
       case 'BackgroundColor3': case 'BackgroundTransparency': {
@@ -126,6 +127,7 @@ export function createScripted({ scene, uiRoot, getMe, solid, world, fire, sfx, 
       nGui++
       if (cls.startsWith('UI') && cls !== 'UI') { applyUiChild(o); return }
       const el = document.createElement(cls === 'TextButton' ? 'button' : 'div'); el.className = 'rb-el rb-' + cls.toLowerCase(); o.el = el
+      if (cls === 'BillboardGui') { o.bb = true; el.style.display = 'none' }
       if (cls === 'TextButton') el.addEventListener('click', () => fire('guiclick', { id }))
       guiParentEl(o).append(el)
       for (const k of Object.keys(o.props)) paintGui(o, k, o.props[k])
@@ -212,6 +214,14 @@ export function createScripted({ scene, uiRoot, getMe, solid, world, fire, sfx, 
         if (hit && !touching.has(id)) { touching.add(id); fire('touch', { id, on: 1 }) }
         else if (!hit && touching.has(id)) { touching.delete(id); fire('touch', { id, on: 0 }) }
       }
+    }
+    // BillboardGui: carteles que siguen a una pieza
+    if (project) for (const o of objs.values()) {
+      if (!o.bb) continue
+      const host = objs.get(o.props.Adornee?.inst) ?? objs.get(o.parent); if (!host?.mesh || o.props.Enabled === false) { o.el.style.display = 'none'; continue }
+      const off = o.props.StudsOffset ?? { x: 0, y: 2, z: 0 }, m = host.mesh.position, pr = project(m.x + off.x, m.y + off.y + host.mesh.scale.y / 2, m.z + off.z)
+      if (!pr.visible || pr.dist > 45) { o.el.style.display = 'none'; continue }
+      o.el.style.display = 'block'; o.el.style.left = pr.x + 'px'; o.el.style.top = pr.y + 'px'; o.el.style.transform = 'translate(-50%, -100%)'
     }
     // avisos de proximidad (tecla E)
     let best = null, bd = 1e9; const me = getMe()

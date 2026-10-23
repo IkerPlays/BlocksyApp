@@ -37,6 +37,9 @@ Blocksy is a multiplayer block-building game for the web and the Nintendo 3DS (h
 - **Lua DataStore.** DataStoreService:GetDataStore with GetAsync, SetAsync, UpdateAsync, IncrementAsync and RemoveAsync; data stays in the player's browser.
 - **Lua raycast and regions.** Workspace:Raycast and part queries by radius, box or overlap.
 - **Lua sounds.** Sound objects play built-in effects (coin, laser, boom, powerup, hit...); blocksy://name picks one, any Roblox id maps to one.
+- **Lua teams.** Team and Teams service; a team's color paints the name of its players.
+- **Lua BillboardGui and animations.** Labels floating over parts, and Humanoid:LoadAnimation to play emotes from scripts.
+- **More chat commands.** /me, /pos, /ping and /clear, and /help now lists the commands created by the game's script.
 
 ## Installing
 - Install `Blocksy.cia` with FBI, or copy `Blocksy.3dsx` to the `3ds` folder of the SD card and run it from the Homebrew Launcher.

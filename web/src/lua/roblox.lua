@@ -360,6 +360,7 @@ local function enc(v)
   if t == "EnumItem" then return "e:" .. v.Name end
   if t == "CFrame" then local rx, ry, rz = toEuler(v.r); return string.format("f:%.4f,%.4f,%.4f,%.4f,%.4f,%.4f", v.p.X, v.p.Y, v.p.Z, rx, ry, rz) end
   if t == "BrickColor" then return enc(v.Color) end
+  if t == "Instance" then return "i:" .. tostring(rawget(v, "_id")) end
   if v == nil then return "n:" end
   return tostring(v)
 end
@@ -631,7 +632,7 @@ standard("UICorner", "Instance", { props = { CornerRadius = UDim.new(0, 8) }, re
 standard("UIStroke", "Instance", { props = { Color = Color3.new(0, 0, 0), Thickness = 1, Transparency = 0 }, render = true, rep = { "Color", "Thickness", "Transparency" } })
 standard("UIListLayout", "Instance", { props = { Padding = UDim.new(0, 0), FillDirection = Enum.FillDirection.Vertical, HorizontalAlignment = Enum.HorizontalAlignment.Left, VerticalAlignment = Enum.VerticalAlignment.Top, SortOrder = Enum.SortOrder.LayoutOrder }, render = true, rep = { "Padding", "FillDirection", "HorizontalAlignment", "VerticalAlignment" } })
 standard("UIPadding", "Instance", { props = { PaddingLeft = UDim.new(0, 0), PaddingRight = UDim.new(0, 0), PaddingTop = UDim.new(0, 0), PaddingBottom = UDim.new(0, 0) }, render = true, rep = { "PaddingLeft", "PaddingRight", "PaddingTop", "PaddingBottom" } })
-standard("BillboardGui", "Instance", { props = { Size = UDim2.new(0, 100, 0, 40), StudsOffset = Vector3.new(0, 2, 0), AlwaysOnTop = false, Enabled = true }, nilprops = { "Adornee" }, render = true, gui = true, rep = { "Size", "StudsOffset", "AlwaysOnTop", "Enabled" } })
+standard("BillboardGui", "Instance", { props = { Size = UDim2.new(0, 100, 0, 40), StudsOffset = Vector3.new(0, 2, 0), AlwaysOnTop = false, Enabled = true }, nilprops = { "Adornee" }, render = true, gui = true, rep = { "Size", "StudsOffset", "AlwaysOnTop", "Enabled", "Adornee" } })
 
 -- humanoide y personajes
 standard("Humanoid", "Instance", { props = { WalkSpeed = 16, JumpPower = 50, JumpHeight = 7.2, Health = 100, MaxHealth = 100, DisplayName = "", UseJumpPower = true, AutoRotate = true, HipHeight = 2, Sit = false }, events = { "Died", "HealthChanged", "Jumping", "Running", "Seated" }, methods = {
@@ -707,6 +708,30 @@ PlayersS = service("Players", "Instance", { props = { MaxPlayers = 12, RespawnTi
   GetPlayerByUserId = function(_, id) for _, p in ipairs(rawget(PlayersS, "_kids")) do if p.UserId == id then return p end end end,
   GetPlayerFromCharacter = function(_, ch) for _, p in ipairs(rawget(PlayersS, "_kids")) do if rawget(p, "_props").Character == ch then return p end end end,
   GetUserIdFromNameAsync = function(_, n) return hashName(n) end } })
+-- Equipos: Teams, Team y Player.Team (el color del equipo pinta el nombre del jugador)
+def("Team", "Instance", { props = { TeamColor = BrickColor.new("White"), AutoAssignable = true }, events = { "PlayerAdded", "PlayerRemoved" }, methods = {
+  GetPlayers = function(tm) local out = {} for _, p in ipairs(rawget(PlayersS, "_kids")) do if rawget(p, "_props").Team == tm then out[#out + 1] = p end end return out end } })
+classes.Player.set.Team = function(p, tm)
+  local old = rawget(p, "_props").Team; if old == tm then return end
+  setProp(p, "Team", tm); if old then fire(old, "PlayerRemoved", p) end
+  act("team", rawget(p, "_name"), tm and enc(rawget(tm, "_props").TeamColor.Color) or ""); if tm then fire(tm, "PlayerAdded", p) end
+end
+classes.Player.get.TeamColor = function(p) local tm = rawget(p, "_props").Team; return tm and rawget(tm, "_props").TeamColor or BrickColor.new("White") end
+classes.Player.set.TeamColor = function(p, bc) for _, tm in ipairs(rawget(services.Teams, "_kids")) do if rawget(tm, "_props").TeamColor.Name == bc.Name then p.Team = tm return end end end
+-- Animaciones: una Animation con id "blocksy://wave" (o cualquier id de Roblox) se reproduce como uno de los emotes
+local EMOTE_IDS = { "wave", "dance", "cheer", "clap", "sit", "jumpjoy", "cry", "point", "flex" }
+def("Animation", "Instance", { props = { AnimationId = "" } })
+local function emoteName(id) id = tostring(id or ""); local n = id:match("^blocksy://(%w+)$"); if n then return n end return EMOTE_IDS[(tonumber(id:match("(%d+)")) or 0) % #EMOTE_IDS + 1] end
+local function animTrack(anim)
+  local tr = { Animation = anim, IsPlaying = false, Looped = false, Speed = 1, Length = 2.5, Stopped = newSignal(), Ended = newSignal() }
+  function tr:Play() act("emote", emoteName(rawget(anim, "_props").AnimationId)); self.IsPlaying = true; task.delay(self.Length, function() if self.IsPlaying then self.IsPlaying = false; self.Stopped:Fire(); self.Ended:Fire() end end) end
+  function tr:Stop() if self.IsPlaying then self.IsPlaying = false; self.Stopped:Fire() end end
+  function tr:AdjustSpeed(s) self.Speed = s end
+  function tr:AdjustWeight() end
+  return tr
+end
+classes.Humanoid.methods.LoadAnimation = function(_, anim) return animTrack(anim) end
+classes.Humanoid.get.Animator = function(h) return { LoadAnimation = function(_, anim) return animTrack(anim) end } end
 local ReplicatedStorage = service("ReplicatedStorage"); local ServerStorage = service("ServerStorage"); local ServerScriptService = service("ServerScriptService")
 local StarterGui = service("StarterGui"); local StarterPack = service("StarterPack"); local StarterPlayer = service("StarterPlayer"); service("Teams"); service("Chat"); service("MarketplaceService"); service("ReplicatedFirst"); service("TextService"); service("PathfindingService"); service("PhysicsService"); service("GuiService"); service("TeleportService"); service("RunService"); service("SoundService")
 local Lighting = service("Lighting", "Instance", { props = { ClockTime = 14, TimeOfDay = "14:00:00", Brightness = 2, Ambient = Color3.new(0.27, 0.27, 0.27), OutdoorAmbient = Color3.new(0.5, 0.5, 0.5), FogEnd = 100000, FogStart = 0, FogColor = Color3.new(0.75, 0.75, 0.75), GlobalShadows = true, ExposureCompensation = 0 },
@@ -885,7 +910,7 @@ end
 -- ---------- API clasica de Blocksy (on / command / game.* / ui) ----------
 local handlers, commands = { join = {}, playerjoin = {}, chat = {}, tick = {} }, {}
 function on(ev, fn) if not handlers[ev] then error("evento desconocido: " .. tostring(ev)) end table.insert(handlers[ev], fn) end
-function command(name, fn) commands[string.lower(tostring(name))] = fn end
+function command(name, fn) commands[string.lower(tostring(name))] = fn; act("cmd", string.lower(tostring(name))) end
 ui = { setText = function(id, text) act("uitext", tostring(id), tostring(text)) end }
 local function legacyFire(ev, name, text) for _, f in ipairs(handlers[ev] or {}) do fireFn(f, { name = name, text = text }) end end
 

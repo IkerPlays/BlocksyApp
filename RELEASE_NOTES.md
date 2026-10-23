@@ -1,1 +1,1 @@
-Dev build 11: Lua gets DataStoreService (saved in your browser), Workspace:Raycast, region queries (GetPartBoundsInRadius, GetPartBoundsInBox, GetPartsInPart) and Roblox sound ids mapped to ten built-in sound effects.
+Dev build 12: Lua teams (Teams, Team, Player.Team colors the name tag), BillboardGui over parts, Humanoid animations (LoadAnimation plays emotes), and chat commands: /me, /pos, /ping, /clear and /help lists the commands of the game script.

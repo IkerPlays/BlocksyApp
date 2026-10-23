@@ -65,3 +65,11 @@ test('Sound usa un efecto por nombre o por id', () => {
   const h = run('local s = Instance.new("Sound"); s.SoundId = "blocksy://win"; s:Play(); s.SoundId = "rbxassetid://12345"; s:Play()')
   assert.deepEqual(h.acts.filter(a => a[0] === 'sound').map(a => a[1]), ['win', 'boom'])
 })
+
+test('Equipos, animaciones y comandos registrados', () => {
+  const h = run('local t = Instance.new("Team", game.Teams); t.Name = "Rojo"; t.TeamColor = BrickColor.new("Bright red"); game.Players.PlayerAdded:Connect(function(p) p.Team = t; print(#t:GetPlayers(), p.TeamColor.Name) end); command("hola", function() end); local a = Instance.new("Animation"); a.AnimationId = "blocksy://cry"; local h = game.Players.LocalPlayer.Character and 0')
+  steps(h, 2); assert.deepEqual(h.errs, [])
+  assert.ok(h.acts.some(a => a[0] === 'team' && a[1] === 'Iker' && a[2].startsWith('c:'))); assert.ok(h.acts.some(a => a[0] === 'cmd' && a[1] === 'hola')); assert.deepEqual(prints(h), ['1 Bright red'])
+  const h2 = run('game.Players.PlayerAdded:Connect(function(p) local ch = p.Character or p.CharacterAdded:Wait(); local hum = ch:FindFirstChildOfClass("Humanoid"); local a = Instance.new("Animation"); a.AnimationId = "blocksy://flex"; hum:LoadAnimation(a):Play() end)'); steps(h2, 2)
+  assert.deepEqual(h2.acts.filter(a => a[0] === 'emote').map(a => a[1]), ['flex'])
+})
