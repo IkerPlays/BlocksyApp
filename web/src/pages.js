@@ -265,6 +265,7 @@ export const pages = {
     const style = () => loadoutStyle(styleFor(ctx.profile.username, ctx.profile.avatar_color), { ...parseLoadout(packLoadout(equipped())), ...(tryOn ? { [tryOn.kind]: tryOn.id } : {}) })
     const rarity = r => el('span', { class: `rarity ${r}`, text: t('rar_' + r) })
     const price = n => el('span', { class: 'price', html: icon('coin', 16) + ' ' + n })
+    const logBuy = (name, price, kind) => { try { const h = JSON.parse(localStorage.getItem('blocksy.history') || '[]'); h.push({ at: Date.now(), name, price, kind }); localStorage.setItem('blocksy.history', JSON.stringify(h.slice(-60))) } catch {} }
     const run = async fn => { try { await fn() } catch (e) { toast(/not enough/i.test(e.message) ? t('shop_no_coins') : /already/i.test(e.message) ? t('shop_owned') : e.message) } draw() }
     function paintDaily() {
       const wl = social.getWallet()
@@ -277,10 +278,10 @@ export const pages = {
       const have = owned().has(it.id), eq = equipped()[it.kind] === it.id
       const btns = [], wished = wishlist().includes(it.id)
       if (!have && it.kind !== 'crate') btns.push(el('button', { class: `btn wish ${wished ? 'on' : ''}`, html: icon('star', 16), title: t('wish_toggle'), onclick: () => { toggleWish(it.id); draw() } }))
-      if (it.kind === 'crate') btns.push(el('button', { class: 'btn blue', html: icon('gift', 16) + ' ' + t('shop_open'), onclick: () => run(async () => { const r = await social.openCrate(it.id); showReward(r) }) }))
+      if (it.kind === 'crate') btns.push(el('button', { class: 'btn blue', html: icon('gift', 16) + ' ' + t('shop_open'), onclick: () => run(async () => { const r = await social.openCrate(it.id); logBuy((items.find(i => i.id === r.item)?.name ?? r.item) + ' (' + it.name + ')', it.price, 'crate'); showReward(r) }) }))
       else if (have) {
         btns.push(el('button', { class: `btn ${eq ? '' : 'primary'}`, text: eq ? t('shop_unequip') : t('shop_equip'), onclick: () => run(async () => { eq ? await social.unequipSlot(it.kind) : await social.equipItem(it.id); tryOn = null; pv?.setStyle(style()) }) }))
-      } else btns.push(el('button', { class: 'btn blue', text: t('shop_buy'), onclick: () => run(async () => { await social.buyItem(it.id); toast(t('shop_bought', { name: it.name })) }) }))
+      } else btns.push(el('button', { class: 'btn blue', text: t('shop_buy'), onclick: () => run(async () => { await social.buyItem(it.id); logBuy(it.name, it.price, it.kind); toast(t('shop_bought', { name: it.name })) }) }))
       if (['hat', 'face', 'back'].includes(it.kind) && !eq) btns.push(el('button', { class: 'btn', text: t('shop_try'), onclick: () => { tryOn = { kind: it.kind, id: it.id }; pv?.setStyle(style()) } }))
       return el('div', { class: `shop-card ${it.rarity}` }, el('div', { class: 'sc-top' }, el('b', { text: it.name }), rarity(it.rarity)), el('small', { text: it.description }),
         el('div', { class: 'sc-bot' }, it.kind === 'crate' || !have ? price(it.price) : el('span', { class: 'owned', text: eq ? t('shop_equipped') : t('shop_owned') }), el('div', { class: 'sc-btns' }, btns)))
@@ -291,13 +292,38 @@ export const pages = {
         el('p', { text: r.duplicate ? t('shop_dup', { n: r.refund }) : t('shop_new') }), el('button', { class: 'btn wide primary', text: t('close'), onclick: closeModal })))
       $('modal').classList.remove('hidden')
     }
+    const F = { kind: 'all', sort: 'default', owned: false }
+    const RAR = { common: 0, rare: 1, epic: 2 }
+    const filterBar = el('div', { class: 'shop-filters' })
+    const paintFilters = () => {
+      const kinds = ['all', 'crate', 'hat', 'face', 'back', 'trail', 'pet', 'title']
+      const ks = el('select', { onchange: e => { F.kind = e.target.value; draw() } }, kinds.map(k => el('option', { value: k, text: t('sf_' + k), selected: F.kind === k })))
+      const ss = el('select', { onchange: e => { F.sort = e.target.value; draw() } }, ['default', 'price_asc', 'price_desc', 'rarity'].map(k => el('option', { value: k, text: t('ss_' + k), selected: F.sort === k })))
+      const ow = el('input', { type: 'checkbox', checked: F.owned }); ow.onchange = () => { F.owned = ow.checked; draw() }
+      const anim = el('select', { onchange: e => pv?.setAnim(e.target.value) }, ['idle', 'wave', 'dance', 'walk'].map(k => el('option', { value: k, text: t('pv_' + k) })))
+      const spin = el('input', { type: 'checkbox', checked: true }); spin.onchange = () => pv?.setSpin(spin.checked)
+      setKids(filterBar, ks, ss, el('label', { class: 'chip-num' }, ow, t('sf_owned')), anim, el('label', { class: 'chip-num' }, spin, t('pv_spin')), el('button', { class: 'btn tiny', text: t('buy_history'), onclick: showHistory }))
+    }
+    function showHistory() {
+      let h = []; try { h = JSON.parse(localStorage.getItem('blocksy.history') || '[]') } catch {}
+      setKids($('modal-card'), el('div', { class: 'detail-col' }, el('h2', { text: t('buy_history') }),
+        h.length ? el('div', { class: 'hist-list' }, h.slice().reverse().map(x => el('div', { class: 'person' }, el('div', { class: 'grow' }, el('b', { text: x.name }), el('small', { text: new Date(x.at).toLocaleString() })), el('span', { class: 'price', html: icon('coin', 14) + ' ' + x.price })))) : el('p', { class: 'muted', text: t('buy_history_none') }),
+        el('button', { class: 'btn wide', text: t('close'), onclick: closeModal })))
+      $('modal').classList.remove('hidden')
+    }
+    const arrange = list => {
+      let l = list.filter(i => (F.kind === 'all' || i.kind === F.kind) && (!F.owned || owned().has(i.id)))
+      if (F.sort === 'price_asc') l = [...l].sort((a, b) => a.price - b.price); else if (F.sort === 'price_desc') l = [...l].sort((a, b) => b.price - a.price); else if (F.sort === 'rarity') l = [...l].sort((a, b) => (RAR[b.rarity] ?? 0) - (RAR[a.rarity] ?? 0))
+      return l
+    }
     function draw() {
       coins.innerHTML = icon('coin', 22) + ' ' + (social.getWallet()?.bcoins ?? 0)
       paintDaily(); pv?.setStyle(style())
-      const sec = (title, kind) => { const l = items.filter(i => i.kind === kind); return l.length ? [el('div', { class: 'section' }, el('h2', { text: title })), el('div', { class: 'shop-grid' }, l.map(card))] : null }
+      const sec = (title, kind) => { const l = arrange(items.filter(i => i.kind === kind)); return l.length ? [el('div', { class: 'section' }, el('h2', { text: title })), el('div', { class: 'shop-grid' }, l.map(card))] : null }
       const wl = items.filter(i => wishlist().includes(i.id) && !owned().has(i.id)), coinsNow = social.getWallet()?.bcoins ?? 0
       const wishBlock = wl.length ? [el('div', { class: 'section' }, el('h2', { text: t('wishlist') + (wl.some(i => i.price <= coinsNow) ? ' · ' + t('wish_afford') : '') })), el('div', { class: 'shop-grid' }, wl.map(card))] : null
-      setKids(body, wishBlock, sec(t('shop_crates'), 'crate'), sec(t('shop_hats'), 'hat'), sec(t('shop_faces'), 'face'), sec(t('shop_backs'), 'back'), sec(t('shop_trails'), 'trail'), sec(t('shop_pets'), 'pet'), sec(t('shop_titles'), 'title'))
+      if (F.sort !== 'default') { const all = arrange(items); return setKids(body, el('div', { class: 'shop-grid' }, all.length ? all.map(card) : null), all.length ? null : el('div', { class: 'empty', text: t('ff_none') })) }
+      setKids(body, F.kind === 'all' && !F.owned ? wishBlock : null, sec(t('shop_crates'), 'crate'), sec(t('shop_hats'), 'hat'), sec(t('shop_faces'), 'face'), sec(t('shop_backs'), 'back'), sec(t('shop_trails'), 'trail'), sec(t('shop_pets'), 'pet'), sec(t('shop_titles'), 'title'))
     }
     const missionsBox = el('div')
     const paintMissions = async () => {
@@ -308,8 +334,8 @@ export const pages = {
         m.claimed ? el('span', { class: 'owned', text: t('mis_done') }) : el('button', { class: 'btn primary', text: t('shop_claim'), disabled: m.n < m.goal, onclick: () => run(async () => { await social.claimMission(m.key); toast(t('shop_got', { n: m.reward })); paintMissions() }) }))))] : null)
     }
     setKids(root, el('div', { class: 'section' }, el('h1', { class: 'page-title', text: t('nav_shop') }), coins), daily, missionsBox,
-      el('div', { class: 'shop-layout' }, el('div', { class: 'preview' }, canvas), body))
-    pv = createPreview(canvas, style()); draw(); paintMissions()
+      filterBar, el('div', { class: 'shop-layout' }, el('div', { class: 'preview' }, canvas), body))
+    pv = createPreview(canvas, style()); paintFilters(); draw(); paintMissions()
   },
 
   // Perfil: /profile (el tuyo) o /u/<usuario>

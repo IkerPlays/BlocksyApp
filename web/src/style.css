@@ -441,3 +441,5 @@ html.rainbow { animation: rainbow 2s linear infinite; } @keyframes rainbow { to 
 .peer-vol { width: 70px; margin-left: 6px; }
 .shot-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; margin-top: 12px; } .shot { background: var(--panel); border-radius: 12px; overflow: hidden; } .shot img { width: 100%; display: block; aspect-ratio: 16/9; object-fit: cover; } .shot-bar { display: flex; gap: 6px; align-items: center; padding: 6px 8px; } .shot-bar small { flex: 1; color: var(--muted); font-size: 11px; }
 #roster .roster-head { display: flex; gap: 6px; padding: 2px 4px 6px; } #roster .roster-head button { border: 0; border-radius: 999px; padding: 2px 10px; font-size: 11px; background: #ffffff1c; color: #fff; cursor: pointer; } #roster .roster-head button.on { background: var(--accent); }
+.shop-filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 10px 0; } .shop-filters select { padding: 6px 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel2); color: var(--fg); }
+.hist-list { max-height: 50vh; overflow: auto; }

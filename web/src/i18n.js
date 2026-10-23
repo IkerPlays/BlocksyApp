@@ -3,6 +3,7 @@ import { EXTRA } from './i18n-extra.js'
 const D = {
   es: {
     lang_name: 'Español',
+    sf_all: 'Todo', sf_crate: 'Cofres', sf_hat: 'Sombreros', sf_face: 'Caras', sf_back: 'Espalda', sf_trail: 'Estelas', sf_pet: 'Mascotas', sf_title: 'Títulos', sf_owned: 'Solo lo que tengo', ss_default: 'Orden de la tienda', ss_price_asc: 'Precio: menor primero', ss_price_desc: 'Precio: mayor primero', ss_rarity: 'Rareza', pv_idle: 'Quieto', pv_wave: 'Saludar', pv_dance: 'Bailar', pv_walk: 'Caminar', pv_spin: 'Girar', buy_history: 'Historial de compras', buy_history_none: 'Aún no has comprado nada desde este dispositivo.',
     nav_gallery: 'Capturas', gallery_help: 'Tus últimas 12 capturas (se guardan solo en este dispositivo). Haz una con la tecla P o el botón de la cámara.', gallery_empty: 'Aún no has hecho capturas.', download: 'Descargar', rsort_name: 'Nombre', rsort_dist: 'Cerca', set_clock: 'Mostrar la hora del juego',
     pos_copied: 'Coordenadas copiadas: {p}', stats_copy: 'Pulsa para copiar tus coordenadas', place_saved: 'Lugar «{n}» guardado', place_go: 'Vas a «{n}»', place_none: 'No hay ningún lugar llamado «{n}»', place_deleted: 'Lugar «{n}» borrado', place_list: 'Tus lugares: {l}  (usa /place go nombre)', place_help: 'Sin lugares guardados. /place save nombre · /place go nombre · /place del nombre', set_stamina: 'Barra de aguante al correr', voice_peer_vol: 'Volumen de este jugador',
     ctab_all: 'Todo', ctab_chat: 'Chat', ctab_system: 'Avisos', chat_history: 'Historial del chat', chat_search: 'Buscar en el chat…', set_chat_time: 'Mostrar la hora en el chat', sc_chat_hist: 'Historial del chat',
@@ -109,6 +110,7 @@ const D = {
   },
   en: {
     lang_name: 'English',
+    sf_all: 'All', sf_crate: 'Crates', sf_hat: 'Hats', sf_face: 'Faces', sf_back: 'Back', sf_trail: 'Trails', sf_pet: 'Pets', sf_title: 'Titles', sf_owned: 'Only what I own', ss_default: 'Shop order', ss_price_asc: 'Price: low to high', ss_price_desc: 'Price: high to low', ss_rarity: 'Rarity', pv_idle: 'Idle', pv_wave: 'Wave', pv_dance: 'Dance', pv_walk: 'Walk', pv_spin: 'Spin', buy_history: 'Purchase history', buy_history_none: 'You have not bought anything from this device yet.',
     nav_gallery: 'Screenshots', gallery_help: 'Your last 12 screenshots (kept only on this device). Take one with the P key or the camera button.', gallery_empty: 'You have not taken any screenshots yet.', download: 'Download', rsort_name: 'Name', rsort_dist: 'Nearest', set_clock: 'Show the in-game clock',
     pos_copied: 'Coordinates copied: {p}', stats_copy: 'Click to copy your coordinates', place_saved: 'Place “{n}” saved', place_go: 'Going to “{n}”', place_none: 'No place called “{n}”', place_deleted: 'Place “{n}” deleted', place_list: 'Your places: {l}  (use /place go name)', place_help: 'No saved places. /place save name · /place go name · /place del name', set_stamina: 'Sprint stamina bar', voice_peer_vol: 'This player\'s volume',
     ctab_all: 'All', ctab_chat: 'Chat', ctab_system: 'System', chat_history: 'Chat history', chat_search: 'Search the chat…', set_chat_time: 'Show time in the chat', sc_chat_hist: 'Chat history',

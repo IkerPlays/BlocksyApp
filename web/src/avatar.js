@@ -212,12 +212,13 @@ export function createPreview(canvas, style) {
   const sun = new THREE.DirectionalLight('#ffffff', 2); sun.position.set(2, 4, 3); sun.castShadow = true; scene.add(sun)
   const ground = new THREE.Mesh(new THREE.CircleGeometry(1.1, 40), new THREE.ShadowMaterial({ opacity: 0.35 })); ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground)
   const camera = new THREE.PerspectiveCamera(32, 1, 0.1, 50); camera.position.set(0, 1.35, 5.2); camera.lookAt(0, 1.05, 0)
-  let model = null, anim = 'idle', yaw = 0.5, dragging = false, lastX = 0, raf = 0, t = 0, last = performance.now(), alive = true
+  let spin = true, zoom = 5.2, model = null, anim = 'idle', yaw = 0.5, dragging = false, lastX = 0, raf = 0, t = 0, last = performance.now(), alive = true
   const mount = st => { if (model) scene.remove(model); model = buildAvatar(st); scene.add(model) }
   mount(style)
   const down = e => { dragging = true; lastX = e.clientX; canvas.setPointerCapture?.(e.pointerId) }
   const move = e => { if (dragging) { yaw += (e.clientX - lastX) * 0.012; lastX = e.clientX } }
   const up = () => { dragging = false }
+  canvas.addEventListener('wheel', e => { e.preventDefault(); zoom = Math.max(2.8, Math.min(8, zoom + Math.sign(e.deltaY) * 0.4)) }, { passive: false })
   canvas.addEventListener('pointerdown', down); canvas.addEventListener('pointermove', move); canvas.addEventListener('pointerup', up); canvas.addEventListener('pointercancel', up)
   function frame(now) {
     if (!alive) return
@@ -226,13 +227,14 @@ export function createPreview(canvas, style) {
     const dt = Math.min(0.05, (now - last) / 1000); last = now; t += dt
     const w = canvas.clientWidth, h = canvas.clientHeight
     if (w && h && (canvas.width !== Math.floor(w * renderer.getPixelRatio()) || canvas.height !== Math.floor(h * renderer.getPixelRatio()))) { renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix() }
-    if (!dragging) yaw += dt * 0.5
+    if (!dragging && spin) yaw += dt * 0.5
+    camera.position.z += (zoom - camera.position.z) * Math.min(1, dt * 8)
     model.rotation.y = yaw; poseAvatar(model, anim, dt, t)
     renderer.render(scene, camera)
   }
   raf = requestAnimationFrame(frame)
   const api = {
-    setStyle: mount, setAnim: a => { anim = a },
+    setStyle: mount, setAnim: a => { anim = a }, setSpin: v => { spin = v }, setZoom: z => { zoom = z },
     destroy() { alive = false; cancelAnimationFrame(raf); renderer.dispose() },
   }
   return api

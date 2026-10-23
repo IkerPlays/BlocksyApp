@@ -1,5 +1,4 @@
-Devbuild 44: in-game extras
-- Screenshot gallery: your last 12 screenshots are kept on this device and can be downloaded or deleted from the new Screenshots page.
-- Report a player straight from the player list.
-- In-game clock next to the player count (setting).
-- Sort the player list by name or by who is nearest.
+Devbuild 45: shop
+- Filter the shop by type and show only what you own; sort by price or rarity.
+- Purchase history (what you bought from this device).
+- Preview: choose the animation (idle, wave, dance, walk), pause the spin and zoom with the mouse wheel.
