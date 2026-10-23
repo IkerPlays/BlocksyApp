@@ -302,3 +302,7 @@ textarea.code { flex:1; border:0; outline:none; resize:none; background:transpar
 .acc-row { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:6px; } .acc-chip { background:var(--panel2); border:2px solid transparent; color:var(--fg); border-radius:18px; padding:6px 14px; font-weight:700; cursor:pointer; } .acc-chip.on { border-color:var(--accent2); background:color-mix(in srgb, var(--accent) 20%, var(--panel2)); } .acc-link { color:var(--accent2); font-weight:700; align-self:center; }
 
 .prog { height:6px; border-radius:3px; background:var(--panel2); margin:6px 0 2px; overflow:hidden; } .prog i { display:block; height:100%; background:var(--green); }
+
+/* ---- Bosque Oscuro ---- */
+#horror-hud { position:fixed; top:64px; left:50%; transform:translateX(-50%); background:#000a; color:#cfeaff; padding:6px 14px; border-radius:18px; font-weight:800; font-size:14px; z-index:3; pointer-events:none; white-space:nowrap; }
+#fear { position:fixed; inset:0; pointer-events:none; z-index:2; opacity:0; transition:opacity .25s; background:radial-gradient(ellipse at center, transparent 35%, #7a0000cc 100%); }

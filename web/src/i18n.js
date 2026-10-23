@@ -2,6 +2,7 @@
 const D = {
   es: {
     lang_name: 'Español',
+    hr_orbs: 'Fragmentos', hr_light: 'Linterna', hr_won: '¡Escapasteis! Nueva ronda en unos segundos...', hr_escaped: '¡Escapasteis del bosque!', hr_newround: 'Nueva ronda', hr_took: '{name} recogió un fragmento', hr_got: 'Fragmento {n}/{total}', hr_caught: '¡Te atrapó!', hr_caught_other: '{name} fue atrapado',
     block: 'Bloquear', unblock: 'Desbloquear', block_confirm: '¿Bloquear a {name}? Se quitarán vuestras amistades y no podrá escribirte.', report: 'Reportar', rep_reason: 'Motivo', rep_details: 'Cuéntanos qué pasó (opcional)', rep_sent: 'Reporte enviado. Gracias.',
     rep_spam: 'Spam', rep_abuse: 'Insultos o acoso', rep_cheating: 'Trampas', rep_inappropriate: 'Contenido inapropiado', rep_other: 'Otro', blocked_users: 'Usuarios bloqueados', blocked_none: 'No has bloqueado a nadie.',
     missions: 'Misiones diarias', mis_place_50: 'Coloca 50 bloques', mis_play_10: 'Juega 10 minutos', mis_obby_win: 'Termina una carrera', mis_chat_5: 'Escribe 5 mensajes', mis_friend_1: 'Haz un amigo', mis_done: 'Hecho', lang_auto: 'Automático (idioma del navegador)',
@@ -55,6 +56,7 @@ const D = {
   },
   en: {
     lang_name: 'English',
+    hr_orbs: 'Shards', hr_light: 'Flashlight', hr_won: 'You escaped! New round in a few seconds...', hr_escaped: 'You escaped the forest!', hr_newround: 'New round', hr_took: '{name} took a shard', hr_got: 'Shard {n}/{total}', hr_caught: 'It got you!', hr_caught_other: '{name} was caught',
     block: 'Block', unblock: 'Unblock', block_confirm: 'Block {name}? Your friendship is removed and they cannot message you.', report: 'Report', rep_reason: 'Reason', rep_details: 'Tell us what happened (optional)', rep_sent: 'Report sent. Thank you.',
     rep_spam: 'Spam', rep_abuse: 'Abuse or harassment', rep_cheating: 'Cheating', rep_inappropriate: 'Inappropriate content', rep_other: 'Other', blocked_users: 'Blocked users', blocked_none: "You haven't blocked anyone.",
     missions: 'Daily missions', mis_place_50: 'Place 50 blocks', mis_play_10: 'Play for 10 minutes', mis_obby_win: 'Finish an obby', mis_chat_5: 'Send 5 messages', mis_friend_1: 'Make a friend', mis_done: 'Done', lang_auto: 'Automatic (browser language)',

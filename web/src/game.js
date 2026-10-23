@@ -16,6 +16,7 @@ import * as music from './music.js'
 import { icon } from './icons.js'
 import * as social from './social.js'
 import { createVoice } from './voice.js'
+import { createHorror } from './horror.js'
 
 // 12 colores: la 3DS usa los mismos (3ds/source/main.c)
 export const PALETTE = ['#e8e8e8', '#e74c3c', '#f39c12', '#2ecc71', '#3498db', '#9b59b6', '#f1c40f', '#1abc9c', '#ff6b9d', '#8b5e34', '#4b4f57', '#7ed6ff']
@@ -81,7 +82,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
   const world = buildWorld(cfg.world ?? 'flat', cfg.seed ?? 1337)
   if (Array.isArray(cfg.spawn) && cfg.spawn.length === 3) world.spawn = cfg.spawn.map(Number)
   const floor = new THREE.Mesh(new THREE.PlaneGeometry(900, 900), new THREE.MeshLambertMaterial({ map: groundTexture(450) }))
-  floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; floor.visible = world.floor; scene.add(floor)
+  floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; floor.visible = world.floor; if (world.groundTint) floor.material.color.set(world.groundTint); scene.add(floor)
 
   const geo = new THREE.BoxGeometry(1, 1, 1)
   const tex = blockTexture(); tex.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy())
@@ -544,7 +545,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
     if (paused) return
     if (e.code === 'Slash' || e.code === 'Enter') { if (!cfg.allow_chat) return; e.preventDefault(); $('chat-form').classList.add('open'); $('chat-input').focus(); return }
     if (e.code === 'KeyG' && cfg.allow_emotes) { emotePanel.classList.toggle('hidden'); return }
-    if (e.code === 'KeyF') { toggleFly(); return }
+    if (e.code === 'KeyF') { if (horror) horror.toggleLight(); else toggleFly(); return }
     if (e.code === 'KeyM') { music.toggle(); return }
     if (e.code === 'KeyV') { if (settings.voiceMode === 'ptt' && voice.active) { if (!e.repeat) voice.setMuted(false) } else if (!e.repeat) toggleVoice(); return }
     if (e.code === 'KeyP') { shotPending = true; return }
@@ -619,6 +620,8 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
   }
 
   let chatSince = new Date().toISOString(), chatSeen = new Set(), rtAt = 0, chatRtOk = false
+  const seenEv = new Set()
+  const routeEvent = row => { if (!row || row.kind === 'chat' || seenEv.has(row.id)) return; seenEv.add(row.id); horror?.onEvent(row) }
   const onChatRow = row => {
     if (!row || row.kind !== 'chat' || chatSeen.has(row.id)) return
     chatSeen.add(row.id); chatSince = row.created_at
@@ -632,7 +635,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
     .on('postgres_changes', { event: '*', schema: 'public', table: 'blocks', filter: `game_id=eq.${game.id}` }, p => {
       if (p.eventType === 'DELETE') { const o = p.old; if (index.has(key(o.x, o.y, o.z))) burst(o.x, o.y, o.z, PALETTE[index.get(key(o.x, o.y, o.z)).kind], 5); removeBlock(o.x, o.y, o.z) } else setBlock(p.new.x, p.new.y, p.new.z, p.new.kind)
     })
-    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'interactions', filter: `game_id=eq.${game.id}` }, p => { chatRtOk = true; onChatRow(p.new) })
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'interactions', filter: `game_id=eq.${game.id}` }, p => { chatRtOk = true; if (p.new.kind === 'chat') onChatRow(p.new); else routeEvent(p.new) })
     .subscribe()
 
   ;(async () => {
@@ -664,8 +667,8 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
         if (pl) { const ids = new Set(pl.map(p => p.player_id)); for (const p of pl) upsertOther(p); for (const id of [...others.keys()]) if (!ids.has(id)) dropOther(id) }
       }
       if (!chatRtOk || pollN % 4 === 0) {
-        const { data: ch } = await gameDb.from('interactions').select('id,player_id,username,kind,payload,created_at').eq('game_id', game.id).eq('kind', 'chat').gt('created_at', chatSince).order('created_at').limit(30)
-        for (const c of ch ?? []) onChatRow(c)
+        const { data: ch } = await gameDb.from('interactions').select('id,player_id,username,kind,payload,created_at').eq('game_id', game.id).in('kind', horror ? ['chat', 'orb', 'win', 'round', 'caught'] : ['chat']).gt('created_at', chatSince).order('created_at').limit(40)
+        for (const c of ch ?? []) { if (c.kind === 'chat') onChatRow(c); else routeEvent(c); chatSince = c.created_at > chatSince ? c.created_at : chatSince }
         if (chatSeen.size > 200) chatSeen = new Set([...chatSeen].slice(-50))
       }
     } catch {} finally { pollBusy = false }
@@ -729,6 +732,10 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
     mmc.strokeStyle = 'rgba(255,255,255,.4)'; mmc.lineWidth = 2; mmc.beginPath(); mmc.arc(c, c, c - 1, 0, 7); mmc.stroke()
   }
 
+  // ---------- Bosque Oscuro: linterna, fragmentos y monstruo ----------
+  const horror = cfg.horror && !ST ? createHorror({ scene, camera, world, game, profile, me, others, sky, solid, sfx, sys, showTitle, teleport: (x, y, z) => { teleport(x, y, z); respawn.pos = [x, y, z] }, bonus: () => { social.missionAdd('obby_win'); social.earnCoins(20, 'obby').then(n => { if (n) sys(t('coins_earned', { n })) }) } }) : null
+  if (horror) { sky.setPreset('night'); canvas.style.background = '#000' }
+
   // ---------- bucle ----------
   const clock = new THREE.Clock(); let raf, tAnim = 0, fps = 60, frames = 0, fpsAt = performance.now(), mmAt = 0, shotPending = false
   const camPos = new THREE.Vector3(), camLook = new THREE.Vector3(), want = new THREE.Vector3(), tgt = new THREE.Vector3()
@@ -762,6 +769,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
     camPos.lerp(want, Math.min(1, dt * 14)); camera.position.copy(camPos)
     camLook.lerp(tgt.set(c.x, c.y + 1.3, c.z), Math.min(1, dt * 18)); camera.lookAt(camLook)
     const sk = sky.update(dt, camera, c)
+    horror?.update(dt, tAnim)
     renderer.toneMappingExposure = sk.night ? 1.15 : 1.0
     updateHover()
     if (composer) composer.render(dt); else renderer.render(scene, camera)
@@ -791,7 +799,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
     touchUi?.remove(); emotePanel.classList.add('hidden'); mPanel.classList.add('hidden'); $('big-title').classList.add('hidden')
     $('pause').classList.add('hidden'); roster.classList.add('hidden'); log.replaceChildren()
     api.leave().catch(() => {}); gameDb.removeChannel(channel)
-    voice.stop(); composer?.dispose(); sky.dispose()
+    horror?.stop(); voice.stop(); composer?.dispose(); sky.dispose()
     scene.traverse(o => { o.geometry?.dispose?.(); if (o.material) [].concat(o.material).forEach(m => { m.map?.dispose?.(); m.dispose?.() }) })
     renderer.dispose(); renderer.forceContextLoss()
   }

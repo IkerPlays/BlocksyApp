@@ -128,6 +128,32 @@ function obby(seed) {
   return { cells, floor: false, spawn: [0.5, 1.2, 0.5], voidY: -12, checkpoints, finish: { pos: [x + 0.5, y + 1, z + 2.5], radius: 2.6 } }
 }
 
+// Bosque oscuro: árboles, una cabaña de refugio en el centro, 5 fragmentos de luz y una valla de arbustos. Misma generación en la 3DS (world.c).
+function forest(seed) {
+  const r = rng(seed), cells = [], R = 46, trees = []
+  let tries = 0
+  while (trees.length < 150 && tries++ < 3000) {
+    const x = Math.round((r() * 2 - 1) * (R - 3)), z = Math.round((r() * 2 - 1) * (R - 3)), d = Math.hypot(x, z)
+    if (d < 9 || d > R - 3) continue
+    if (trees.some(t => Math.hypot(t[0] - x, t[1] - z) < 4)) continue
+    trees.push([x, z])
+  }
+  for (const [x, z] of trees) tree(cells, x, 0, z)
+  const orbs = []; tries = 0
+  while (orbs.length < 5 && tries++ < 6000) {
+    const a = r() * Math.PI * 2, d = 16 + r() * (R - 26), x = Math.round(Math.cos(a) * d), z = Math.round(Math.sin(a) * d)
+    if (trees.some(t => Math.hypot(t[0] - x, t[1] - z) < 3)) continue
+    if (orbs.some(o => Math.hypot(o[0] - x, o[2] - z) < 16)) continue
+    orbs.push([x + 0.5, 1.2, z + 0.5])
+  }
+  // valla de arbustos alrededor del bosque
+  for (let a = 0; a < Math.PI * 2; a += 0.9 / R) { const x = Math.round(Math.cos(a) * R), z = Math.round(Math.sin(a) * R); for (let y = 0; y < 5; y++) cells.push([x, y, z, y > 3 ? COL.leaves2 : COL.leaves]) }
+  // cabaña de refugio (puerta hacia +z)
+  for (let i = -3; i <= 3; i++) for (let y = 0; y < 3; y++) { cells.push([i, y, -3, COL.wood], [-3, y, i, COL.wood], [3, y, i, COL.wood]); if (Math.abs(i) > 1 || y > 1) cells.push([i, y, 3, COL.wood]) }
+  for (let x = -3; x <= 3; x++) for (let z = -3; z <= 3; z++) cells.push([x, 3, z, COL.dark])
+  return { cells, floor: true, spawn: [0.5, 1.2, 0.5], voidY: null, orbs, monsterStart: [-26, 0.01, -26], radius: R, safe: 5, groundTint: '#26402b' }
+}
+
 export function buildWorld(type = 'flat', seed = 1337) {
   switch (type) {
     case 'hills': return hills(seed)
@@ -136,6 +162,7 @@ export function buildWorld(type = 'flat', seed = 1337) {
     case 'checker': return checker()
     case 'void': return voidWorld()
     case 'obby': return obby(seed)
+    case 'forest': return forest(seed)
     default: return { cells: [], floor: true, spawn: [0.5, 3, 0.5], voidY: null }
   }
 }
