@@ -14,6 +14,7 @@ Blocksy is a multiplayer block-building game for the web and the Nintendo 3DS (h
 - Studio versions with restore, draft mode and a last-saved indicator.
 - Studio: terrain brush, water fill, torches and lamps, time of day slider and Dawn sky.
 - Studio: own structure library, structure import and export, game thumbnails and a compact toolbar.
+- Command palette, g-shortcuts, offline banner and retry on failed page loads.
 
 ## Installing
 - Install `Blocksy.cia` with FBI, or copy `Blocksy.3dsx` to the `3ds` folder of the SD card and run it from the Homebrew Launcher.

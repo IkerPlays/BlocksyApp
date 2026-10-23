@@ -13,9 +13,10 @@ import { initNotifications, openInvite } from './social-ui.js'
 import { openScriptModal } from './studio-ui.js'
 import { registerSW, applyUpdate } from './pwa.js'
 import { installErrorLog, isNewVersion } from './about.js'
+import { installPalette } from './palette.js'
 import { needsWelcome, markWelcomed, installEasterEggs } from './onboarding.js'
 import { sfx } from './sfx.js'
-import { settings } from './settings.js'
+import { settings, saveSettings } from './settings.js'
 import * as social from './social.js'
 import { icon } from './icons.js'
 
@@ -72,7 +73,11 @@ async function route() {
   $('sidebar').classList.remove('open')
   stopPageTimers()
   const root = $('page'); root.replaceChildren()
-  try { await pages[name](root, ctx, arg) } catch (e) { console.error(e); toast(e.message) }
+  try { await pages[name](root, ctx, arg) } catch (e) {
+    console.error(e); toast(e.message)
+    const retry = document.createElement('button'); retry.className = 'btn primary'; retry.textContent = t('retry'); retry.onclick = () => route()
+    const box = document.createElement('div'); box.className = 'panel err-panel'; const h = document.createElement('h3'); h.textContent = t('load_failed'); const p = document.createElement('p'); p.className = 'muted'; p.textContent = String(e.message ?? e); box.append(h, p, retry); root.replaceChildren(box)
+  }
   window.scrollTo(0, 0)
 }
 window.addEventListener('popstate', route)
@@ -160,7 +165,7 @@ $('modal').addEventListener('click', e => { if (e.target.id === 'modal') closeMo
 new MutationObserver(() => { if ($('modal').classList.contains('hidden')) $('game').classList.remove('hidden-for-modal') }).observe($('modal'), { attributes: true, attributeFilter: ['class'] })
 $('search').addEventListener('submit', e => { e.preventDefault(); const q = $('search-input').value.trim(); navigate(q ? `/discover/${encodeURIComponent(q)}` : '/discover') })
 window.addEventListener('beforeunload', () => { api.leaveBeacon() })
-installErrorLog(); installEasterEggs(m => toast(m))
+installPalette(() => (profile ? { go: ctx.go, play, canCreate: api.canCreate, games: api.listGames, setTheme: v => { settings.theme = v; saveSettings(); applyTheme() } } : null)); installErrorLog(); installEasterEggs(m => toast(m))
 document.addEventListener('click', e => { if (settings.uiSounds && e.target.closest?.('.btn, #sidebar a, .tab, .card, .game-card, .person, .shop-card button')) sfx.click() }, true)
 registerSW(() => { $('update-bar').classList.remove('hidden') })
 $('update-reload').onclick = () => applyUpdate()

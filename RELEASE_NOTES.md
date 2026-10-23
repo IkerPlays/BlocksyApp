@@ -1,5 +1,5 @@
-Devbuild 36: Studio library
-- Save any selection as your own structure and place it from the Structure tool (kept in this browser).
-- Export a structure to a file and import it into any game.
-- Game thumbnail: take a picture from the editor and it shows on the game card.
-- Compact toolbar (on by default) so the editor takes less room.
+Devbuild 37: navigation
+- Command palette (Ctrl+K): jump to any page, open a game by name or change the theme.
+- Navigation shortcuts: press g and then a letter (g h home, g d discover, g s shop, g f friends...).
+- Offline banner when the connection drops.
+- Pages that fail to load now show a Retry button instead of staying empty.

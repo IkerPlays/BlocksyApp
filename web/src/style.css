@@ -418,3 +418,10 @@ html.rainbow { animation: rainbow 2s linear infinite; } @keyframes rainbow { to 
 .thumb.has-img { background-size: cover; background-position: center; } .thumb.has-img .cube { display: none; }
 #studio-bar.compact { gap: 3px; padding: 4px; } #studio-bar.compact .st-btn { padding: 6px 8px; border-radius: 8px; } #studio-bar.compact .st-btn.lbl span { display: none; } #studio-bar.compact .st-sep { display: none; }
 #studio-bar.compact .st-btn svg { width: 16px; height: 16px; }
+#palette { position: fixed; inset: 0; background: #0009; z-index: 200; display: flex; justify-content: center; align-items: flex-start; padding-top: 12vh; }
+.pal-card { width: min(560px, 92vw); background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 12px; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 20px 50px #0008; }
+.pal-card input { width: 100%; padding: 12px 14px; font-size: 16px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel2); color: var(--fg); outline: none; }
+.pal-row { display: flex; justify-content: space-between; gap: 10px; padding: 9px 12px; border-radius: 9px; cursor: pointer; } .pal-row.on, .pal-row:hover { background: var(--accent); color: #fff; } .pal-row small { opacity: .7; }
+.pal-empty, .pal-foot { color: var(--muted); font-size: 12px; padding: 6px 8px; }
+#net-banner { position: fixed; left: 0; right: 0; top: 0; background: #b3541e; color: #fff; text-align: center; padding: 6px; z-index: 300; font-size: 13px; }
+.err-panel { margin: 20px 0; }
