@@ -6,6 +6,7 @@ import { icon } from './icons.js'
 import { headshot, styleFor, EMOTES, createPreview, hatStyle } from './avatar.js'
 import { t, LANGS, langName, getPref, setLang, onLang } from './i18n.js'
 import { codeEditor } from './studio-ui.js'
+import { partyPanel, attachEmoticons } from './party-ui.js'
 import { installApp, canInstall, isInstalled, askNotifications, checkForUpdate, applyUpdate, isUpdateReady, BUILD } from './pwa.js'
 
 const $ = id => document.getElementById(id)
@@ -42,6 +43,12 @@ const MODES = ['build', 'social', 'obby', 'arena']
 const modeLabel = m => t('mode_' + (m || 'build'))
 
 // ---------- tarjetas de juego ----------
+function roomBox(g, onPlay) {
+  const input = el('input', { placeholder: t('room_code'), maxlength: 12, style: 'text-transform:uppercase;flex:1' })
+  const go = c => { const v = String(c ?? input.value).trim(); if (v.length >= 3) { closeModal(); onPlay(g, { room: v }) } else toast(t('room_bad')) }
+  return el('div', { class: 'room-box' }, el('small', { text: t('room_title') }), el('div', { class: 'form-row' }, input,
+    el('button', { class: 'btn', text: t('room_new'), onclick: () => go(Math.random().toString(36).slice(2, 7).toUpperCase()) }), el('button', { class: 'btn', text: t('room_join'), onclick: () => go() })))
+}
 function favBtn(g) {
   const b = el('button', { class: 'btn wide', text: '...' }), paint = on => { b.textContent = t(on ? 'fav_remove' : 'fav_add'); b.classList.toggle('on', on) }
   social.myFavorites().then(s => paint(s.has(g.id)))
@@ -72,6 +79,7 @@ export function openGameModal(g, counts, onPlay) {
       el('p', { text: g.description || t('no_desc') }),
       el('button', { class: 'btn primary wide', text: t('play'), onclick: () => { closeModal(); onPlay(g) } }),
       favBtn(g),
+      roomBox(g, onPlay),
       el('button', { class: 'btn wide', text: t('close'), onclick: closeModal }))))
   m.classList.remove('hidden')
 }
@@ -295,7 +303,7 @@ export const pages = {
   async friends(root, ctx) {
     const input = el('input', { placeholder: t('friend_ph'), maxlength: 20, autocapitalize: 'off', autocomplete: 'off', spellcheck: 'false' })
     const msg = el('p', { class: 'msg', style: 'text-align:left' })
-    const reqBox = el('div'), mine = el('div', { class: 'panel' })
+    const reqBox = el('div'), mine = el('div', { class: 'panel' }), partyBox = partyPanel(ctx)
     let games = {}
     const add = async e => {
       e?.preventDefault(); const name = input.value.trim(); if (!name) return
@@ -333,7 +341,7 @@ export const pages = {
     setKids(root, el('h1', { class: 'page-title', text: t('friends') }),
       el('form', { class: 'panel add-friend', onsubmit: add }, el('h3', { text: t('add_friend'), style: 'margin-bottom:6px' }), el('p', { style: 'color:var(--muted);margin:0 0 10px;font-size:14px', text: t('friend_help') }),
         el('div', { class: 'form-row' }, input, el('button', { class: 'btn blue', style: 'white-space:nowrap', text: t('friend_add_btn') })), msg),
-      reqBox, mine)
+      partyBox.el, reqBox, mine)
     load(); every(load, 8000)
   },
 

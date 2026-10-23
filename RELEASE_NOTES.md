@@ -1,1 +1,1 @@
-Dev build 3: profile badges, play time and last seen on profiles, and favorite games. Run supabase/auth/v12.sql (AUTH) for these.
+Dev build 4: private rooms with a code, party group chat (Friends page), invite all online friends and an emoticon picker in chats. Run supabase/game/v6.sql (GAME) for rooms.

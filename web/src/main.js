@@ -96,6 +96,10 @@ async function enterApp() {
 
 // ---------- juego ----------
 function play(game, opts = {}) {
+  if (opts.room) {                                                 // sala privada: otro id con las mismas reglas
+    const code = String(opts.room).toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 12)
+    return api.joinRoom(game.id, code).then(id => play({ ...game, id, parentId: game.id, name: `${game.name} · ${code}` }, { ...opts, room: null }), e => toast(e.message))
+  }
   closeModal(); currentGame = game; if (!opts.studio) setLastPlayed(game.id)
   auth.startPresence(() => currentGame?.id)
   showScreen('game')

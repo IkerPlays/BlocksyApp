@@ -77,6 +77,9 @@ export async function submitTime(game, ms) {
     return { rank: Number(rank) || 0, top: data ?? [] }
   } catch { return null }
 }
+// Salas privadas (GAME v6): mismo juego, id propio por código. Devuelve el id de la sala.
+export const joinRoom = (parent, code) => rpc('join_room', { p_parent: parent, p_code: code })
+export const roomFromName = name => (/ · ([A-Z0-9]{3,12})$/.exec(String(name ?? '')) ?? [])[1] ?? null
 export const say = (game, text) => rpc('say', { p_game: game, p_text: text })
 export const leave = () => rpc('leave', {})
 export const linkApprove = code => rpc('link_approve', { p_code: code })

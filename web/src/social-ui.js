@@ -7,6 +7,7 @@ import { icon } from './icons.js'
 import { settings } from './settings.js'
 import { sfx } from './sfx.js'
 import { el, setKids, toast, avatarEl, closeModal } from './pages.js'
+import { attachEmoticons } from './party-ui.js'
 
 const $ = id => document.getElementById(id)
 const status = f => (f.is_online ? (f.current_game ? t('status_game') : t('status_online')) : t('status_offline'))
@@ -55,7 +56,7 @@ export function openChat(ctx, friend) {
   setKids(card, el('div', { class: 'dm-card' },
     el('div', { class: 'dm-head' }, avatarEl(friend.username, friend.avatar_color, friend.is_online), el('div', { class: 'grow' }, el('b', { text: t('chat_with', { name: friend.username }) }), el('small', { text: status(friend) })),
       el('button', { class: 'btn', text: t('close'), onclick: () => { stop(); closeModal() } })),
-    list, form))
+    list, attachEmoticons(input), form))
   $('modal').classList.remove('hidden'); refresh(); input.focus()
   const timer = setInterval(() => { if (!editing) refresh() }, 4000)
   const stop = () => { clearInterval(timer); openedChat = null }
@@ -67,15 +68,17 @@ export const chatOpenWith = () => openedChat?.friendId
 
 // ---------- invitar amigos al juego actual ----------
 export async function openInvite(ctx, game) {
+  const gid = game.parentId ?? game.id
   const card = $('modal-card')
   setKids(card, el('div', { class: 'detail-col' }, el('h2', { text: t('invite_title') }), el('div', { class: 'empty', text: t('loading') })))
   $('modal').classList.remove('hidden')
   const friends = (await social.listFriends(ctx.profile.id)).filter(f => f.is_online)
   const rows = friends.length ? friends.map(f => {
-    const b = el('button', { class: 'btn blue', text: t('invite'), onclick: async () => { b.disabled = true; try { await social.inviteFriend(f.id, game.id, game.name); toast(t('invite_sent', { name: f.username })); b.textContent = '✓' } catch (e) { toast(e.message); b.disabled = false } } })
+    const b = el('button', { class: 'btn blue', text: t('invite'), onclick: async () => { b.disabled = true; try { await social.inviteFriend(f.id, gid, game.name); toast(t('invite_sent', { name: f.username })); b.textContent = '✓' } catch (e) { toast(e.message); b.disabled = false } } })
     return el('div', { class: 'person' }, avatarEl(f.username, f.avatar_color, true), el('div', { class: 'grow' }, el('b', { text: f.username }), el('small', { text: status(f) })), b)
   }) : el('div', { class: 'empty', text: t('invite_none') })
-  setKids(card, el('div', { class: 'detail-col' }, el('h2', { text: t('invite_title') }), el('div', { class: 'panel' }, rows),
+  const all = friends.length > 1 ? el('button', { class: 'btn primary wide', text: t('invite_all'), onclick: async e => { e.target.disabled = true; let n = 0; for (const f of friends) { try { await social.inviteFriend(f.id, gid, game.name); n++ } catch {} } toast(t('invite_all_done', { n })) } }) : null
+  setKids(card, el('div', { class: 'detail-col' }, el('h2', { text: t('invite_title') }), all, el('div', { class: 'panel' }, rows),
     el('button', { class: 'btn wide', text: t('close'), onclick: closeModal })))
 }
 
@@ -116,7 +119,7 @@ export function initNotifications(ctx) {
       if (n.kind === 'friend_request') actions.push(el('button', { class: 'btn blue', text: t('nav_friends'), onclick: e => { e.stopPropagation(); panel.classList.add('hidden'); ctx.go('friends') } }))
       if (n.kind === 'invite') actions.push(el('button', { class: 'btn primary', text: t('join'), onclick: async e => {
         e.stopPropagation(); panel.classList.add('hidden')
-        const g = await api.getGame(n.payload?.game_id); if (!g) return toast(t('invite_game_gone')); ctx.play(g) } }))
+        const g = await api.getGame(n.payload?.game_id); if (!g) return toast(t('invite_game_gone')); ctx.play(g, { room: api.roomFromName(n.payload?.game_name) }) } }))
       rows.push(el('div', { class: `notif ${n.read ? '' : 'unread'}` }, avatarEl(n.from_name || '?', '#4da6ff'), el('div', { class: 'grow' }, el('b', { text: text(n) }), el('small', { text: new Date(n.created_at).toLocaleString() })), actions))
     }
     setKids(panel, el('div', { class: 'notif-head' }, el('b', { text: t('notifications') }), ns.length ? el('button', { class: 'link-btn', text: t('notif_clear'), onclick: async () => { await social.clearNotifications(); drawPanel(); refreshBadges() } }) : null),
@@ -142,7 +145,7 @@ export function initNotifications(ctx) {
       const f = (await social.listFriends(ctx.profile.id)).find(x => x.id === row.from_id)
       if (f) popup(f.username, row.body, () => openChat(ctx, f))
     } else if (kind === 'notification') {
-      popup('Blocksy', text(row), () => (row.kind === 'invite' ? api.getGame(row.payload?.game_id).then(g => (g ? ctx.play(g) : toast(t('invite_game_gone')))) : ctx.go('friends')))
+      popup('Blocksy', text(row), () => (row.kind === 'invite' ? api.getGame(row.payload?.game_id).then(g => (g ? ctx.play(g, { room: api.roomFromName(row.payload?.game_name) }) : toast(t('invite_game_gone')))) : ctx.go('friends')))
     }
     refreshBadges()
   })
