@@ -13,6 +13,7 @@
 
 #define OUR_TITLE_ID 0x000400000B10C500ULL     // 0004000000B10C50 + 00: el título de Blocksy (ver blocksy.rsf: UniqueId 0xB10C5)
 static char g_cur[48] = "dev";
+static char g_installed[48];   // version instalada en esta sesion (aun sin reiniciar): no se vuelve a ofrecer
 static char g_path[256];      // ruta del .3dsx en ejecución (vacía si se ejecuta como .cia)
 
 void update_init(const char *version, const char *argv0) {
@@ -57,11 +58,37 @@ static bool asset_url(const char *obj, const char *end, const char *ext, char *d
 }
 
 // Anota una release en el resultado (stable o dev) si es más nueva que la mejor vista hasta ahora
-static void consider(UpdateInfo *out, Ver *best_s, Ver *best_d, const char *tag, bool pre, const char *cia, const char *dsx) {
+// Decodifica el texto JSON de "body" (\n, \", \uXXXX...) y lo deja legible en la fuente de la 3DS, como hace Iker's Tube:
+// sin *, `, # ni emojis; sin lineas "<sub>" ni "---".
+static void notes_from(const char *obj, const char *end, char *dst, size_t n) {
+	dst[0] = 0; const char *p = json_find_from(obj, end, "body"); if (!p || *p != '"') return;
+	char raw[1400]; size_t i = 0; p++;
+	while (*p && p < end && *p != '"' && i + 2 < sizeof raw) {
+		if (*p == '\\' && p[1]) {
+			p++;
+			if (*p == 'n') raw[i++] = '\n'; else if (*p == 'r' || *p == 't') raw[i++] = ' ';
+			else if (*p == 'u') { unsigned cp = 0; sscanf(p + 1, "%4x", &cp); p += 4; if (cp == 0x2013 || cp == 0x2014) raw[i++] = '-'; else if (cp >= 0x20 && cp < 0x80) raw[i++] = (char)cp; }
+			else raw[i++] = *p;
+			p++; continue;
+		}
+		if ((unsigned char)*p < 0x80) { if (*p != '*' && *p != '`' && *p != '#') raw[i++] = *p; p++; }
+		else { unsigned char c = (unsigned char)*p; size_t l = c >= 0xF0 ? 4 : c >= 0xE0 ? 3 : 2; p += l; }       // emojis y simbolos: fuera
+	}
+	raw[i] = 0;
+	size_t o = 0; char *line = raw;
+	while (line && *line && o + 2 < n) {
+		char *nl = strchr(line, '\n'); if (nl) *nl = 0;
+		while (*line == ' ') line++;
+		if (*line && strncmp(line, "<sub>", 5) && strncmp(line, "---", 3)) o += snprintf(dst + o, n - o, "%s\n", line);
+		line = nl ? nl + 1 : NULL;
+	}
+	if (o >= n) dst[n - 1] = 0;
+}
+static void consider(UpdateInfo *out, Ver *best_s, Ver *best_d, const char *tag, bool pre, const char *cia, const char *dsx, const char *notes) {
 	bool ok; Ver v = parse_ver(tag, &ok); if (!ok) return;
 	v.is_dev = pre; if (!pre) v.dev = 0;
 	Rel tmp = {.valid = true, .is_dev = pre};
-	snprintf(tmp.tag, sizeof tmp.tag, "%s", tag); snprintf(tmp.cia, sizeof tmp.cia, "%s", cia); snprintf(tmp.dsx, sizeof tmp.dsx, "%s", dsx);
+	snprintf(tmp.tag, sizeof tmp.tag, "%s", tag); snprintf(tmp.cia, sizeof tmp.cia, "%s", cia); snprintf(tmp.dsx, sizeof tmp.dsx, "%s", dsx); snprintf(tmp.notes, sizeof tmp.notes, "%s", notes ? notes : "");
 	if (!pre && (!out->stable.valid || cmp_ver(v, *best_s) > 0)) { out->stable = tmp; *best_s = v; }
 	if (pre && (!out->dev.valid || cmp_ver(v, *best_d) > 0)) { out->dev = tmp; *best_d = v; }
 }
@@ -75,9 +102,11 @@ static bool check_api(UpdateInfo *out, Ver *best_s, Ver *best_d, char *err, size
 		const char *obj = p; p = end + 1;
 		if (jbool(obj, end, "draft")) continue;
 		char tag[48] = ""; if (!jstr(obj, end, "tag_name", tag, sizeof tag)) continue;
+		{ bool tk; parse_ver(tag, &tk); if (!tk) { char nm[48] = ""; jstr(obj, end, "name", nm, sizeof nm); parse_ver(nm, &tk); if (tk) snprintf(tag, sizeof tag, "%s", nm); } }       // etiqueta rara: se usa el nombre de la release
 		char cia[300], dsx[300];
 		if (!asset_url(obj, end, ".cia", cia, sizeof cia) || !asset_url(obj, end, ".3dsx", dsx, sizeof dsx)) continue;   // sin assets aún (publicándose)
-		consider(out, best_s, best_d, tag, jbool(obj, end, "prerelease"), cia, dsx); found++;
+		char notes[420]; notes_from(obj, end, notes, sizeof notes);
+		consider(out, best_s, best_d, tag, jbool(obj, end, "prerelease"), cia, dsx, notes); found++;
 	}
 	free(r);
 	if (!found) { snprintf(err, en, "No hay versiones publicadas todavia"); return false; }
@@ -96,7 +125,7 @@ static bool check_atom(UpdateInfo *out, Ver *best_s, Ver *best_d, char *err, siz
 		char cia[300], dsx[300];
 		snprintf(cia, sizeof cia, "https://github.com/" UPDATE_REPO "/releases/download/%s/Blocksy.cia", tag);
 		snprintf(dsx, sizeof dsx, "https://github.com/" UPDATE_REPO "/releases/download/%s/Blocksy.3dsx", tag);
-		consider(out, best_s, best_d, tag, strstr(tag, "-dev.") != NULL, cia, dsx); found++;
+		consider(out, best_s, best_d, tag, strstr(tag, "-dev.") != NULL, cia, dsx, NULL); found++;
 	}
 	free(r);
 	if (!found) { snprintf(err, en, "No hay versiones publicadas todavia"); return false; }
@@ -119,11 +148,12 @@ bool update_check(UpdateInfo *out, char *err, size_t en) {
 		ok = check_atom(out, &best_s, &best_d, e2, sizeof e2);
 	}
 	if (!ok) { snprintf(err, en, "%s", e1[0] ? e1 : e2); return false; }
-	if (out->stable.valid) { out->stable.cmp = cmp_ver(best_s, cur); out->stable.newer = out->stable.cmp > 0; }
-	if (out->dev.valid) { out->dev.cmp = cmp_ver(best_d, cur); out->dev.newer = out->dev.cmp > 0; }
+	if (out->stable.valid) { out->stable.cmp = cmp_ver(best_s, cur); out->stable.newer = out->stable.cmp > 0 && strcmp(out->stable.tag, g_installed); }
+	if (out->dev.valid) { out->dev.cmp = cmp_ver(best_d, cur); out->dev.newer = out->dev.cmp > 0 && strcmp(out->dev.tag, g_installed); }
 	return true;
 }
 
+void update_mark_installed(const char *tag) { snprintf(g_installed, sizeof g_installed, "%s", tag ? tag : ""); }
 // Reinicio tras actualizar: al salir de la app, el sistema abre el título recién instalado
 void update_restart(void) { if (update_is_cia()) aptSetChainloader(OUR_TITLE_ID, MEDIATYPE_SD); }
 // ---------- instalación ----------

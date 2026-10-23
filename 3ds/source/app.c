@@ -11,7 +11,7 @@
 #include <sys/stat.h>
 
 static int s_lang;   // 0 español, 1 English, 2 Portugues (ajuste guardado)
-static int s_forest = 1, s_steps = 1;                           // dificultad del bosque (0 facil, 1 normal, 2 dificil) y polvo al caminar
+static int s_forest = 1, s_steps = 1, s_showdev;                 // s_showdev: ofrecer devbuilds aunque se use una version estable
 static int s_notif_on = 1;                                      // avisos emergentes
 static int s_sync = 2;                                          // nivel de sincronización (índice en SYNC_MS)
 static const int SYNC_MS[6] = {40, 70, 100, 160, 250, 400};     // pausa entre envíos/lecturas de posiciones en la partida
@@ -126,6 +126,7 @@ static const char *const PT_TR[][2] = {
 	{"and add friends (not available with QR).", "e adicione amigos (nao disponivel com QR)."},
 	{"request", "pedido"},
 	{"streak", "sequencia"},
+	{"Show devbuilds", "Mostrar devbuilds"},
 	{"Added to favorites", "Adicionado aos favoritos"},
 	{"Removed from favorites", "Removido dos favoritos"},
 	{"Favorites need an email login", "Favoritos exigem login com email"},
@@ -172,12 +173,13 @@ static volatile int g_account = 1;   // 0 = sesión por QR (sin token de Auth): 
 static UpdateInfo g_upd; static volatile int g_upd_have;      // g_upd_have: ya se consultó GitHub
 static volatile int g_upd_state;                              // 0 reposo, 1 buscando, 2 descargando, 3 instalada, 4 error
 static volatile int g_upd_pct; static char g_upd_msg[100];
+static volatile int g_upd_auto;                               // 1 = instalar la estable nueva sola (una vez por sesion, como Iker's Tube)
 static volatile int g_upd_announce;                           // 1 = avisar con un toast de que hay versión nueva
 static int s_auto = 1;                                        // buscar al abrir (ajuste)
 
 static bool cur_is_dev(void) { return strstr(g_upd.cur, "-dev") != NULL || !strcmp(g_upd.cur, "dev"); }
 // ¿Hay algo nuevo? Una estable nueva siempre; una devbuild nueva solo si se usa una devbuild
-static bool upd_available(void) { return g_upd_have && (g_upd.stable.newer || (g_upd.dev.newer && cur_is_dev())); }
+static bool upd_available(void) { return g_upd_have && (g_upd.stable.newer || (g_upd.dev.newer && (cur_is_dev() || s_showdev))); }
 
 typedef enum { RQ_NONE, RQ_REFRESH, RQ_ADD, RQ_REMOVE, RQ_COLOR, RQ_UPD_CHECK, RQ_UPD_INSTALL, RQ_ACCEPT, RQ_DM_SEND, RQ_DM_FETCH, RQ_DM_EDIT, RQ_DM_DEL, RQ_NOTIF_READ, RQ_NOTIF_CLEAR, RQ_BUY, RQ_CRATE, RQ_CLAIM, RQ_EQUIP, RQ_FAV } Req;
 typedef struct {
@@ -235,7 +237,7 @@ static void upd_check_job(bool announce) {
 	static UpdateInfo tmp; char err[100] = "";
 	g_upd_state = 1; g_upd_msg[0] = 0;
 	bool ok = update_check(&tmp, err, sizeof err);
-	if (ok) { LightLock_Lock(&lk); g_upd = tmp; g_upd_have = 1; LightLock_Unlock(&lk); g_upd_state = 0; if (announce && upd_available()) g_upd_announce = 1; }
+	if (ok) { LightLock_Lock(&lk); g_upd = tmp; g_upd_have = 1; LightLock_Unlock(&lk); g_upd_state = 0; if (announce && upd_available()) g_upd_announce = 1; { static bool tried; if (announce && g_upd.stable.newer && !tried) { tried = true; g_upd_auto = 1; } } }
 	else { snprintf(g_upd_msg, sizeof g_upd_msg, "%s", err); g_upd_state = 4; }
 	W.seq++;
 }
@@ -244,6 +246,7 @@ static void upd_install_job(int which) {
 	if (!r.valid) { snprintf(g_upd_msg, sizeof g_upd_msg, "No hay version publicada de ese tipo"); g_upd_state = 4; return; }
 	char err[100] = ""; g_upd_state = 2; g_upd_pct = 0; g_upd_msg[0] = 0;
 	bool ok = update_install(&r, &g_upd_pct, err, sizeof err);
+	if (ok) update_mark_installed(r.tag);
 	if (ok) snprintf(g_upd_msg, sizeof g_upd_msg, update_is_cia() ? tr2("Instalada. Reiniciando Blocksy...", "Installed. Restarting Blocksy...") : tr2("Actualizada. Vuelve a abrirla desde el Homebrew Launcher", "Updated. Open it again from the Homebrew Launcher"));
 	else snprintf(g_upd_msg, sizeof g_upd_msg, "%s", err);
 	g_upd_state = ok ? 3 : 4;
@@ -258,6 +261,7 @@ static void worker_thread(void *arg) {
 		static u64 last_dm = 0;
 		if (!r && g_dm_open && now - last_dm > 3500) { last_dm = now; r = RQ_DM_FETCH; }
 		if (!r && now - last_refresh > 12000) r = RQ_REFRESH;     // refresco automático
+		if (!r && g_upd_auto && g_upd_state != 2) { g_upd_auto = 0; r = RQ_UPD_INSTALL; W.n = 0; }                 // estable nueva: se instala sola
 		if (!r && s_auto && W.seq > 0 && (first_upd || now - last_upd > 1800000) && g_upd_state != 2) { r = RQ_UPD_CHECK; W.n = 2; }   // al abrir y cada 30 min (n=2: automático)
 		if (r) {
 			W.busy = 1; W.done_ok = 1;
@@ -315,6 +319,7 @@ static void load_settings(void) {
 		else if (!strncmp(line, "dist=", 5)) s_dist = atoi(line + 5) % 3;
 		else if (!strncmp(line, "auto=", 5)) s_auto = atoi(line + 5) != 0;
 		else if (!strncmp(line, "forest=", 7)) { int v = atoi(line + 7); s_forest = v < 0 || v > 2 ? 1 : v; }
+		else if (!strncmp(line, "showdev=", 8)) s_showdev = atoi(line + 8) ? 1 : 0;
 		else if (!strncmp(line, "steps=", 6)) s_steps = atoi(line + 6) ? 1 : 0;
 		else if (!strncmp(line, "lang=", 5)) { int lg = atoi(line + 5); s_lang = lg < 0 || lg > 2 ? 0 : lg; }
 		else if (!strncmp(line, "sync=", 5)) s_sync = atoi(line + 5) % 6;
@@ -325,7 +330,7 @@ static void load_settings(void) {
 static void save_settings(void) {
 	mkdir("sdmc:/3ds", 0777); mkdir("sdmc:/3ds/blocksy", 0777);
 	FILE *f = fopen(SETTINGS_FILE, "w"); if (!f) return;
-	fprintf(f, "last_game=%s\ndist=%d\nauto=%d\nlang=%d\nsync=%d\nnotif=%d\nforest=%d\nsteps=%d\n", s_last_game, s_dist, s_auto, s_lang, s_sync, s_notif_on, s_forest, s_steps); fclose(f);
+	fprintf(f, "last_game=%s\ndist=%d\nauto=%d\nlang=%d\nsync=%d\nnotif=%d\nforest=%d\nsteps=%d\nshowdev=%d\n", s_last_game, s_dist, s_auto, s_lang, s_sync, s_notif_on, s_forest, s_steps, s_showdev); fclose(f);
 }
 
 // ---------- estado de la interfaz ----------
@@ -399,7 +404,7 @@ static int count_rows(const Ui *u, const Session *s) {
 	switch (u->page) {
 	case P_HOME: case P_DISCOVER: return build_view(u, s, view);
 	case P_FRIENDS: return build_people(s, pr);
-	case P_SETTINGS: return 9;
+	case P_SETTINGS: return 10;
 	case P_NOTIF: return nnotifs + 1;
 	case P_SHOP: return nshop + 1;
 	case P_UPDATE: return 3;
@@ -625,7 +630,13 @@ static void page_top(const Ui *u, const Session *s) {
 			ui_rrect(30, 204, 340, 10, 5, COL_PANEL2); if (g_upd_pct > 0) ui_rrect(30, 204, 340.0f * g_upd_pct / 100, 10, 5, COL_GREEN);
 		} else if (g_upd_state == 1) ui_text(30, 184, 0.44f, COL_MUTED, 0, "Buscando actualizaciones...");
 		else if (g_upd_msg[0]) { char m[100]; fit(m, sizeof m, g_upd_msg, 0.42f, 330); ui_text(30, 184, 0.42f, g_upd_state == 3 ? COL_GREEN : COL_RED, 0, m); }
-		else { ui_text(30, 180, 0.4f, COL_MUTED, 0, update_is_cia() ? "Se instalara como .cia (se reemplaza esta app)." : "Se instalara como .3dsx (se reemplaza este fichero)."); ui_text(30, 196, 0.38f, COL_MUTED, 0, "Tus datos y tu sesion se conservan."); }
+		else {
+			const Rel *nr_ = g_upd.stable.newer ? &g_upd.stable : (g_upd.dev.newer && (cur_is_dev() || s_showdev)) ? &g_upd.dev : g_upd.stable.valid ? &g_upd.stable : &g_upd.dev;
+			static char nl_[4][96]; char flat_[420]; snprintf(flat_, sizeof flat_, "%s", nr_->notes); for (char *q = flat_; *q; q++) if (*q == '\n') *q = ' ';
+			int nn_ = nr_->valid && flat_[0] ? wrap(flat_, 0.36f, 330, nl_, 4) : 0;       // notas de la release (resumen)
+			if (nn_) { for (int i = 0; i < nn_ && i < 3; i++) ui_text(30, 178 + i * 15, 0.36f, COL_MUTED, 0, nl_[i]); if (nn_ > 3) ui_text(30, 223, 0.3f, COL_MUTED, 0, "..."); }
+			else { ui_text(30, 180, 0.4f, COL_MUTED, 0, update_is_cia() ? "Se instalara como .cia (se reemplaza esta app)." : "Se instalara como .3dsx (se reemplaza este fichero)."); ui_text(30, 196, 0.38f, COL_MUTED, 0, "Tus datos y tu sesion se conservan."); }
+		}
 		break; }
 	case P_SETTINGS: {
 		const char *dn[3] = {tr2("Corta", "Short"), tr2("Media", "Medium"), tr2("Larga", "Long")};
@@ -802,7 +813,7 @@ static void pane(const Ui *u, const Session *s) {
 		break; }
 	case P_SETTINGS: {
 		const char *dn[3] = {tr2("Corta", "Short"), tr2("Media", "Medium"), tr2("Larga", "Long")};
-		char l[9][48]; const char *fn[3] = {tr2("Facil", "Easy"), "Normal", tr2("Dificil", "Hard")};
+		char l[10][48]; const char *fn[3] = {tr2("Facil", "Easy"), "Normal", tr2("Dificil", "Hard")};
 		snprintf(l[0], 48, "%s: %s", tr2("Distancia", "Distance"), dn[s_dist]);
 		snprintf(l[1], 48, "%s: %d ms", tr2("Sincronizacion", "Sync"), SYNC_MS[s_sync]);
 		snprintf(l[2], 48, "%s: %s", tr2("Updates al abrir", "Updates on start"), s_auto ? tr2("Si", "Yes") : "No");
@@ -811,7 +822,8 @@ static void pane(const Ui *u, const Session *s) {
 		snprintf(l[5], 48, "%s", tr2("Olvidar mi email", "Forget my email")); snprintf(l[6], 48, "%s", tr2("Cerrar sesion", "Log out"));
 		snprintf(l[7], 48, "%s: %s", tr2("Dificultad del bosque", "Forest difficulty"), fn[s_forest]);
 		snprintf(l[8], 48, "%s: %s", tr2("Polvo al caminar", "Footstep dust"), s_steps ? tr2("Si", "Yes") : "No");
-		for (int i = 0; i < vis && u->scroll + i < 9; i++) {
+		snprintf(l[9], 48, "%s: %s", tr2("Mostrar devbuilds", "Show devbuilds"), s_showdev || cur_is_dev() ? tr2("Si", "Yes") : "No");
+		for (int i = 0; i < vis && u->scroll + i < 10; i++) {
 			int r = u->scroll + i; float y = LIST_Y + 2 + i * rh;
 			if (r == 1) {                                       // barra deslizante: toca o arrastra para elegir (izquierda = rapido)
 				ui_button(PANE_X, y, PANE_W - 4, rh - 4, COL_PANEL2, u->cur == 1, l[1], 0.38f);
@@ -1100,6 +1112,7 @@ AppResult app_lobby(C3D_RenderTarget *top, C3D_RenderTarget *bot, Session *s, Ga
 				else if (act_row == 6) { res = APP_LOGOUT; goto out; }
 				else if (act_row == 7) { s_forest = (s_forest + 1) % 3; save_settings(); }
 				else if (act_row == 8) { s_steps = !s_steps; save_settings(); }
+				else if (act_row == 9) { s_showdev = !s_showdev; save_settings(); }
 				break;
 			}
 		}

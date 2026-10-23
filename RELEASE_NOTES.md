@@ -1,2 +1,5 @@
-Devbuild 27: create game error
-- Web: creating, editing or deleting a game now shows the real reason when the STORE server cannot be used, instead of the confusing 'create_game not found' message.
+Devbuild 28: full updater (like Iker's Tube)
+- 3DS: a newer stable release is now installed automatically (once per session) when update checks are enabled.
+- 3DS: the Update page shows a summary of the release notes.
+- 3DS: new setting Show devbuilds (devbuilds are always offered when you run a devbuild).
+- 3DS: a version you just installed is not offered again before restarting; releases with an odd tag use their name.

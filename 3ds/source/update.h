@@ -8,6 +8,7 @@ typedef struct {
 	int cmp;                         // 1 más nueva, 0 es la instalada, -1 más antigua
 	char tag[48];                    // p. ej. v0.1.0 o v0.1.1-dev.13
 	char cia[300], dsx[300];         // URLs de descarga de Blocksy.cia y Blocksy.3dsx
+	char notes[420];                 // resumen de las notas de la release (texto plano, como en Iker's Tube)
 } Rel;
 typedef struct { Rel stable, dev; char cur[48]; } UpdateInfo;
 
@@ -15,4 +16,5 @@ void update_init(const char *version, const char *argv0);      // versión insta
 bool update_is_cia(void);                                       // true: instalado como .cia (false: .3dsx desde el Homebrew Launcher)
 bool update_check(UpdateInfo *out, char *err, size_t en);       // consulta GitHub
 bool update_install(const Rel *r, volatile int *pct, char *err, size_t en);   // descarga e instala; true = hecho
+void update_mark_installed(const char *tag);                    // tras instalar: esa version ya no se ofrece antes de reiniciar
 void update_restart(void);                                   // pide a la consola que abra de nuevo Blocksy al salir (solo .cia)
