@@ -1,5 +1,3 @@
-Devbuild 28: full updater (like Iker's Tube)
-- 3DS: a newer stable release is now installed automatically (once per session) when update checks are enabled.
-- 3DS: the Update page shows a summary of the release notes.
-- 3DS: new setting Show devbuilds (devbuilds are always offered when you run a devbuild).
-- 3DS: a version you just installed is not offered again before restarting; releases with an odd tag use their name.
+Devbuild 29: 3DS hats
+- 3DS: the 6 new hats (wizard, cowboy, chef, beanie, helmet, flower) are now drawn on the 3DS, so every hat you wear on the web shows there too.
+- 3DS: the shop only loads hats, titles and crates, and has room for the whole catalog.

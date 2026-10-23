@@ -164,7 +164,7 @@ static GameInfo g_games[MAX_GAMES]; static int g_ngames;
 static Person g_friends[MAX_PEOPLE]; static int g_nfriends;
 static FriendReq g_reqs[MAX_PEOPLE]; static int g_nreqs; static volatile int g_unread;
 static DmMsg g_dm[40]; static int g_ndm; static char g_dm_friend[40]; static volatile int g_dm_open; static volatile int g_dm_seq;
-static ShopItem g_shop[24]; static int g_nshop; static Wallet g_wallet; char g_my_hat[32];
+static ShopItem g_shop[40]; static int g_nshop; static Wallet g_wallet; char g_my_hat[32];
 static Notif g_notifs[16]; static int g_nnotifs; static volatile int g_notif_unread;
 static char g_alert[96]; static volatile int g_alert_seq;     // aviso nuevo (toast) generado por el hilo de red static char g_dm_friend[40]; static volatile int g_dm_open; static volatile int g_dm_seq;
 static volatile int g_account = 1;   // 0 = sesión por QR (sin token de Auth): no hay amigos ni avatar
@@ -210,9 +210,9 @@ static void refresh_all(void) {
 	int nf = net_list_friends(W.s, tf, MAX_PEOPLE), nr = net_list_requests(W.s, tr, MAX_PEOPLE);
 	int un = net_unread_total(W.s); if (un >= 0) g_unread = un;
 	{	// BCoins y tienda
-		static Wallet tw; static ShopItem ts[24];
+		static Wallet tw; static ShopItem ts[40];
 		if (net_wallet(W.s, &tw) == 0) { LightLock_Lock(&lk); g_wallet = tw; LightLock_Unlock(&lk); snprintf(g_my_hat, sizeof g_my_hat, "%s", tw.hat); net_set_hat(tw.hat); }
-		if (!g_nshop) { int nsh = net_shop_list(W.s, ts, 24); if (nsh > 0) { LightLock_Lock(&lk); memcpy(g_shop, ts, sizeof(ShopItem) * nsh); g_nshop = nsh; LightLock_Unlock(&lk); } }
+		if (!g_nshop) { int nsh = net_shop_list(W.s, ts, 40); if (nsh > 0) { LightLock_Lock(&lk); memcpy(g_shop, ts, sizeof(ShopItem) * nsh); g_nshop = nsh; LightLock_Unlock(&lk); } }
 	}
 	{	// avisos: lista + detección de novedades (solicitudes, invitaciones, mensajes) para el toast
 		static Notif tn[16]; static long last_id = -1; static int last_un = -1; int nn = net_list_notifs(W.s, tn, 16);
@@ -351,7 +351,7 @@ typedef struct {
 // copias locales (para dibujar sin bloquear al hilo de red)
 static GameInfo games[MAX_GAMES]; static int ngames;
 static Person friends[MAX_PEOPLE]; static int nfriends;
-static FriendReq reqs[MAX_PEOPLE]; static int nreqs; static DmMsg dm[40]; static int ndm; static Notif notifs[16]; static int nnotifs, notif_unread; static ShopItem shop[24]; static int nshop; static Wallet wallet; static int unread;
+static FriendReq reqs[MAX_PEOPLE]; static int nreqs; static DmMsg dm[40]; static int ndm; static Notif notifs[16]; static int nnotifs, notif_unread; static ShopItem shop[40]; static int nshop; static Wallet wallet; static int unread;
 
 static void sync_data(void) {
 	LightLock_Lock(&lk);

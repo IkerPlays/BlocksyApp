@@ -17,9 +17,9 @@ AvStyle av_style(const char *name, u32 shirt) {
 	return (AvStyle){shirt, SKIN[h % 6], HAIR[(h >> 8) % 8], PANTS[(h >> 16) % 6], (int)((h >> 24) % 3), 0};
 }
 
-const char *const AV_HAT_ID[NHATS] = {"hat_cap", "hat_antenna", "hat_party", "hat_halo", "hat_top", "hat_crown"};
+const char *const AV_HAT_ID[NHATS] = {"hat_cap", "hat_antenna", "hat_party", "hat_halo", "hat_top", "hat_crown", "hat_wizard", "hat_cowboy", "hat_chef", "hat_beanie", "hat_helmet", "hat_flower"};
 int av_hat_index(const char *id) { if (id) for (int i = 0; i < NHATS; i++) if (!strcmp(id, AV_HAT_ID[i])) return i + 1; return 0; }
-static const u32 HAT_COL[NHATS] = {RGB(0xe7, 0x4c, 0x3c), RGB(0x7e, 0xd6, 0xff), RGB(0xff, 0x6b, 0x9d), RGB(0xf5, 0xc5, 0x42), RGB(0x2b, 0x2f, 0x36), RGB(0xf1, 0xc4, 0x0f)};
+static const u32 HAT_COL[NHATS] = {RGB(0xe7, 0x4c, 0x3c), RGB(0x7e, 0xd6, 0xff), RGB(0xff, 0x6b, 0x9d), RGB(0xf5, 0xc5, 0x42), RGB(0x2b, 0x2f, 0x36), RGB(0xf1, 0xc4, 0x0f), RGB(0x6c, 0x3f, 0xb5), RGB(0xa0, 0x52, 0x2d), RGB(0xf5, 0xf5, 0xf5), RGB(0xe6, 0x7e, 0x22), RGB(0x7f, 0x8c, 0x8d), RGB(0xff, 0x7e, 0xb6)};
 
 const char *const AV_EMOTE_ID[NEMOTES] = {"wave", "dance", "cheer", "clap", "sit"};
 const char *const AV_EMOTE_LABEL[NEMOTES] = {"Saludar", "Bailar", "Celebrar", "Aplaudir", "Sentarse"};
@@ -117,6 +117,12 @@ void av_draw(const AvCam *c, float x, float y, float z, float yaw, const AvStyle
 		case 4: HP(0, 0.62f, -0.28f, 0.60f, 0.06f, 0.06f, hc); HP(0, 0.62f, 0.28f, 0.60f, 0.06f, 0.06f, hc); HP(-0.28f, 0.62f, 0, 0.06f, 0.06f, 0.50f, hc); HP(0.28f, 0.62f, 0, 0.06f, 0.06f, 0.50f, hc); break;
 		case 5: HP(0, 0.34f, 0, 0.68f, 0.05f, 0.68f, hc); HP(0, 0.58f, 0, 0.40f, 0.42f, 0.40f, hc); HP(0, 0.45f, 0, 0.42f, 0.07f, 0.42f, RGB(0xc0, 0x39, 0x2b)); break;
 		case 6: HP(0, 0.40f, 0, 0.52f, 0.12f, 0.52f, hc); HP(-0.2f, 0.54f, -0.2f, 0.1f, 0.16f, 0.1f, hc); HP(0.2f, 0.54f, -0.2f, 0.1f, 0.16f, 0.1f, hc); HP(-0.2f, 0.54f, 0.2f, 0.1f, 0.16f, 0.1f, hc); HP(0.2f, 0.54f, 0.2f, 0.1f, 0.16f, 0.1f, hc); HP(0, 0.54f, 0, 0.1f, 0.16f, 0.1f, hc); break;
+		case 7: HP(0, 0.34f, 0, 0.70f, 0.05f, 0.70f, hc); HP(0, 0.40f, 0, 0.54f, 0.05f, 0.54f, RGB(0xf5, 0xc5, 0x42)); HP(0, 0.52f, 0, 0.40f, 0.20f, 0.40f, hc); HP(0, 0.68f, 0, 0.26f, 0.20f, 0.26f, hc); HP(0, 0.84f, 0, 0.12f, 0.16f, 0.12f, hc); break;
+		case 8: HP(0, 0.34f, 0, 0.78f, 0.05f, 0.62f, hc); HP(0, 0.47f, 0, 0.42f, 0.22f, 0.42f, hc); HP(0, 0.40f, 0, 0.44f, 0.05f, 0.44f, RGB(0x5b, 0x3a, 0x1a)); break;
+		case 9: HP(0, 0.35f, 0, 0.50f, 0.12f, 0.50f, hc); HP(0, 0.58f, 0, 0.60f, 0.34f, 0.60f, hc); break;
+		case 10: HP(0, 0.35f, 0, 0.58f, 0.16f, 0.58f, hc); HP(0, 0.50f, 0, 0.44f, 0.12f, 0.44f, hc); HP(0, 0.62f, 0, 0.12f, 0.12f, 0.12f, RGB(0xff, 0xff, 0xff)); break;
+		case 11: HP(0, 0.38f, 0, 0.60f, 0.30f, 0.60f, hc); HP(0, 0.58f, 0, 0.08f, 0.20f, 0.64f, RGB(0xc0, 0x39, 0x2b)); break;
+		case 12: HP(0, 0.42f, 0, 0.10f, 0.22f, 0.10f, RGB(0x2e, 0xcc, 0x71)); HP(0, 0.58f, 0, 0.28f, 0.10f, 0.28f, hc); HP(0, 0.60f, 0, 0.10f, 0.12f, 0.10f, RGB(0xf1, 0xc4, 0x0f)); break;
 		}
 #undef HP
 	}
