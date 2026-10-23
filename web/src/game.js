@@ -809,6 +809,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
   }
   frame()
   sys(t('welcome_to', { name: game.name }))
+  if (!ST) try { if (!localStorage.getItem('blocksy.tutorial')) { localStorage.setItem('blocksy.tutorial', '1'); setTimeout(() => sys(t('controls_help')), 2500) } } catch {}       // primera partida: recordatorio de controles
   if (cfg.welcome && !ST) showTitle(String(cfg.welcome).slice(0, 120), 4200)
   if (game.script && !ST) setTimeout(() => runner.fire('join', { data: { name: profile.username }, who: profile.username }), 600)
 
