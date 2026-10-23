@@ -3,6 +3,7 @@ import { EXTRA } from './i18n-extra.js'
 const D = {
   es: {
     lang_name: 'Español',
+    key_forward: 'Adelante', key_back: 'Atrás', key_left: 'Izquierda', key_right: 'Derecha', key_crouch: 'Agacharse', key_fly: 'Volar / linterna', key_emotes: 'Emotes', key_ping: 'Marcar punto', key_photo: 'Modo foto', key_voice: 'Voz', key_players: 'Jugadores', snd_place: 'bloque colocado', snd_break: 'bloque roto', snd_jump: 'salto', snd_land: 'aterrizaje', snd_chat: 'mensaje', snd_notify: 'aviso', snd_join: 'alguien entra', snd_checkpoint: 'punto de control', snd_win: 'victoria', snd_fall: 'caída', snd_coin: 'moneda', snd_laser: 'láser', snd_boom: 'explosión', snd_powerup: 'mejora', snd_hit: 'golpe', set_access: 'Accesibilidad', set_colorblind: 'Modo daltónico', cb_none: 'Desactivado', cb_prot: 'Protanopía', cb_deut: 'Deuteranopía', cb_trit: 'Tritanopía', set_text_size: 'Tamaño del texto', set_subtitles: 'Subtítulos de sonidos', set_keys: 'Teclas', keys_reset: 'Restablecer teclas', press_key: 'Pulsa una tecla…',
     set_compass: 'Brújula', ping_hint: 'B: marcar un punto para todos',
     st_climb: 'Escalable (escalera)', env_dj: 'Doble salto', env_crouch: 'Permitir agacharse (C)',
     env_fog: 'Visibilidad (1 = normal, menos = más niebla)', env_weather: 'Clima', env_track: 'Música del juego', weather_none: 'Despejado', weather_rain: 'Lluvia', weather_snow: 'Nieve', track_any: 'Cualquiera (lista completa)',
@@ -87,6 +88,7 @@ const D = {
   },
   en: {
     lang_name: 'English',
+    key_forward: 'Forward', key_back: 'Back', key_left: 'Left', key_right: 'Right', key_crouch: 'Crouch', key_fly: 'Fly / flashlight', key_emotes: 'Emotes', key_ping: 'Ping', key_photo: 'Photo mode', key_voice: 'Voice', key_players: 'Players', snd_place: 'block placed', snd_break: 'block broken', snd_jump: 'jump', snd_land: 'landing', snd_chat: 'message', snd_notify: 'notification', snd_join: 'player joined', snd_checkpoint: 'checkpoint', snd_win: 'victory', snd_fall: 'fall', snd_coin: 'coin', snd_laser: 'laser', snd_boom: 'explosion', snd_powerup: 'power-up', snd_hit: 'hit', set_access: 'Accessibility', set_colorblind: 'Colorblind mode', cb_none: 'Off', cb_prot: 'Protanopia', cb_deut: 'Deuteranopia', cb_trit: 'Tritanopia', set_text_size: 'Text size', set_subtitles: 'Sound captions', set_keys: 'Keys', keys_reset: 'Reset keys', press_key: 'Press a key…',
     set_compass: 'Compass', ping_hint: 'B: mark a spot for everyone',
     st_climb: 'Climbable (ladder)', env_dj: 'Double jump', env_crouch: 'Allow crouching (C)',
     env_fog: 'Visibility (1 = normal, less = more fog)', env_weather: 'Weather', env_track: 'Game music', weather_none: 'Clear', weather_rain: 'Rain', weather_snow: 'Snow', track_any: 'Any (whole playlist)',

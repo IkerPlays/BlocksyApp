@@ -1,5 +1,6 @@
 // Efectos de sonido sintetizados con WebAudio (sin archivos)
 import { settings } from './settings.js'
+import { caption } from './access.js'
 let ac = null
 const ctx = () => { if (!ac) { try { ac = new (window.AudioContext || window.webkitAudioContext)() } catch { return null } } if (ac.state === 'suspended') ac.resume().catch(() => {}); return ac }
 function tone(freq, dur, { type = 'sine', gain = 0.2, slide = 0, delay = 0 } = {}) {
@@ -20,7 +21,7 @@ function noise(dur, { gain = 0.15, freq = 800 } = {}) {
   s.buffer = buf; f.type = 'lowpass'; f.frequency.value = freq; g.gain.value = gain * settings.sfxVol
   s.connect(f).connect(g).connect(a.destination); s.start()
 }
-export const sfx = {
+const raw = {
   place: () => { tone(300, 0.09, { type: 'square', gain: 0.1, slide: 120 }); noise(0.05, { gain: 0.08, freq: 1500 }) },
   break: () => { noise(0.14, { gain: 0.22, freq: 900 }); tone(160, 0.1, { type: 'sawtooth', gain: 0.08, slide: -70 }) },
   jump: () => tone(260, 0.14, { type: 'sine', gain: 0.1, slide: 260 }),
@@ -39,3 +40,4 @@ export const sfx = {
   hit: () => { noise(0.08, { gain: 0.2, freq: 1200 }); tone(200, 0.08, { type: 'square', gain: 0.08, slide: -100 }) },
   click: () => tone(500, 0.04, { type: 'square', gain: 0.05 }),
 }
+export const sfx = Object.fromEntries(Object.entries(raw).map(([k, f]) => [k, (...a) => { if (k !== 'step' && k !== 'click') caption(k); return f(...a) }]))

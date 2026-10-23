@@ -4,7 +4,8 @@ import * as auth from './auth.js'
 import * as api from './api.js'
 import { pages, toast, closeModal, stopPageTimers } from './pages.js'
 import { startGame } from './game.js'
-import { setLastPlayed, applyTheme } from './settings.js'
+import { setLastPlayed, applyTheme, onSettings } from './settings.js'
+import { applyAccess } from './access.js'
 import { applyIcons } from './icons.js'
 import { headshot } from './avatar.js'
 import { t, applyStatic, setLang, getPref, LANGS, langName, onLang } from './i18n.js'
@@ -156,7 +157,7 @@ registerSW(() => { $('update-bar').classList.remove('hidden') })
 $('update-reload').onclick = () => applyUpdate()
 $('update-later').onclick = () => $('update-bar').classList.add('hidden')
 
-applyTheme(); applyStatic(); buildLangSelect(); applyIcons()
+applyTheme(); applyAccess(); onSettings(applyAccess); applyStatic(); buildLangSelect(); applyIcons()
 authDb.auth.getSession().then(({ data }) => (data.session ? enterApp() : showScreen('auth')))
 
 $('userchip').onclick = () => navigate('/profile')

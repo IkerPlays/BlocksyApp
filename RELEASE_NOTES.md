@@ -1,5 +1,5 @@
-Devbuild 16: HUD
-- Compass strip at the top (setting: Compass).
-- Press B to ping a spot: a beam and label appear for everyone in the room, and a marker shows on the minimap.
-- Minimap now shows pings.
-- Health bar for scripts that use Humanoid.Health / MaxHealth.
+Devbuild 17: accessibility
+- Colorblind mode (protanopia, deuteranopia, tritanopia) for the game view.
+- Text size setting for chat, menus and pages.
+- Sound captions: on-screen text for game sounds.
+- Rebindable keys (move, crouch, fly, emotes, ping, photo, voice, players) in Settings.

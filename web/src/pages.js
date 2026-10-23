@@ -1,6 +1,7 @@
 import * as auth from './auth.js'
 import * as api from './api.js'
 import * as social from './social.js'
+import { KEY_ACTIONS, keyLabel } from './access.js'
 import { settings, saveSettings, resetSettings, lastPlayed, recentGames, getStats, applyTheme } from './settings.js'
 import { icon } from './icons.js'
 import { headshot, styleFor, EMOTES, createPreview, loadoutStyle, parseLoadout, packLoadout, PALETTES, defaultLook, randomLook } from './avatar.js'
@@ -478,6 +479,18 @@ export const pages = {
     const sw = (key, label, after) => { const i = el('input', { type: 'checkbox' }); i.checked = !!settings[key]; i.onchange = () => { settings[key] = i.checked; saveSettings(); after?.() }; return el('label', { class: 'field check' }, i, label) }
     const rg = (key, label, min, max, step, fmt = v => v) => { const o = el('output', { text: fmt(settings[key]) }); const i = el('input', { type: 'range', min, max, step, value: settings[key] }); i.oninput = () => { settings[key] = +i.value; o.textContent = fmt(settings[key]); saveSettings() }; return el('label', { class: 'field' }, el('span', {}, label, ' ', o), i) }
     const sel = (key, label, opts, after) => { const s = el('select', {}, opts.map(([v, l]) => el('option', { value: v, text: l, selected: settings[key] === v }))); s.onchange = () => { settings[key] = s.value; saveSettings(); after?.() }; return el('label', { class: 'field' }, label, s) }
+    const keyRows = () => Object.keys(KEY_ACTIONS).map(a => {
+      const b = el('button', { class: 'btn small keybind', text: keyLabel(settings.keymap?.[a] ?? KEY_ACTIONS[a]) })
+      b.onclick = () => {
+        b.textContent = t('press_key'); const h = e => {
+          e.preventDefault(); e.stopPropagation(); window.removeEventListener('keydown', h, true)
+          if (e.code !== 'Escape') { settings.keymap = { ...(settings.keymap ?? {}), [a]: e.code }; for (const o of Object.keys(settings.keymap)) if (o !== a && settings.keymap[o] === e.code) delete settings.keymap[o]; saveSettings() }
+          pages.settings(root, ctx)
+        }
+        window.addEventListener('keydown', h, true)
+      }
+      return el('label', { class: 'field keyrow' }, el('span', { text: t('key_' + a) }), b)
+    })
     const accent = el('input', { type: 'color', value: settings.accent }); accent.oninput = () => { settings.accent = accent.value; saveSettings(); applyTheme() }
     const langSel = el('select', {}, ['auto', ...LANGS].map(l => el('option', { value: l, text: l === 'auto' ? t('lang_auto') : langName(l), selected: l === getPref() }))); langSel.onchange = () => { setLang(langSel.value) }
     const st = getStats(), hrs = Math.floor(st.time / 3600), mins = Math.floor((st.time % 3600) / 60)
@@ -510,6 +523,11 @@ export const pages = {
           rg('sensitivity', t('set_sens'), 0.3, 2.5, 0.1), rg('syncMs', t('set_sync'), 40, 400, 10, v => v + ' ms'), sw('invertY', t('set_invert')), sw('names', t('set_names')), sw('bubbles', t('set_bubbles')),
           sw('minimap', t('set_minimap')), sw('compass', t('set_compass')), sw('showFps', t('set_fps')), sw('notifPopups', t('set_notif')),
           rg('touchSize', t('set_touch_size'), 0.7, 1.5, 0.1), sw('leftHanded', t('set_left'))),
+        el('div', { class: 'panel' }, el('h3', { text: t('set_access') }),
+          sel('colorblind', t('set_colorblind'), [['none', t('cb_none')], ['protanopia', t('cb_prot')], ['deuteranopia', t('cb_deut')], ['tritanopia', t('cb_trit')]]),
+          rg('textScale', t('set_text_size'), 0.9, 1.5, 0.05, v => Math.round(v * 100) + '%'), sw('subtitles', t('set_subtitles'))),
+        el('div', { class: 'panel' }, el('h3', { text: t('set_keys') }), ...keyRows(),
+          el('button', { class: 'btn', text: t('keys_reset'), onclick: () => { settings.keymap = {}; saveSettings(); pages.settings(root, ctx) } })),
         el('div', { class: 'panel' }, el('h3', { text: t('blocked_users') }), blockedBox),
         el('div', { class: 'panel' }, el('h3', { text: t('set_stats') }),
           el('div', { class: 'stats-row' }, stat('stat_time', `${hrs}h ${mins}m`), stat('stat_placed', st.placed), stat('stat_broken', st.broken), stat('stat_games', st.games.length), stat('stat_msgs', st.msgs)),

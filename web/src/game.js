@@ -20,6 +20,7 @@ import { createHorror } from './horror.js'
 import { createScripted } from './scene-parts.js'
 import { createStudio } from './studio-tools.js'
 import { createWeather } from './weather.js'
+import { remapEvent } from './access.js'
 import { createCompass, createPings, createHealth, PING_PREFIX, isPing } from './hud.js'
 import { loadingScreen, createShortcuts, togglePhoto, REACT_PREFIX, REACTIONS, isReaction, layoutWheel } from './extras.js'
 
@@ -621,7 +622,8 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
     bubble(meAvatar, REACTIONS[i]); sfx.click(); api.say(game.id, REACT_PREFIX + REACTIONS[i]).catch(() => {})
   }
   const help = createShortcuts(); loadingScreen(game.name); let ping = 0
-  const down = e => {
+  const down = e0 => {
+    const e = remapEvent(e0); if (!e) return
     if (typing()) { if (e.code === 'Escape') { $('chat-input').blur(); $('chat-form').classList.remove('open') } return }
     if (e.code === 'Escape') return setPaused(!paused)
     if (paused) return
@@ -643,7 +645,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
     if (e.code === 'Space') { e.preventDefault(); if (!e.repeat) { const now = performance.now(); if (now - lastSpace < 280 && canFly && !cfg.double_jump) toggleFly(); lastSpace = now } }
     keys[e.code] = true
   }
-  const up = e => { keys[e.code] = false; { const kn = keyName(e.code); if (kn && !typing()) runner.fire('key', { data: { k: kn, down: false } }); rbx.onKey(e.code, false) } if (e.code === 'KeyV' && settings.voiceMode === 'ptt' && voice.active) voice.setMuted(true) }
+  const up = e0 => { const e = remapEvent(e0); if (!e) return; keys[e.code] = false; { const kn = keyName(e.code); if (kn && !typing()) runner.fire('key', { data: { k: kn, down: false } }); rbx.onKey(e.code, false) } if (e.code === 'KeyV' && settings.voiceMode === 'ptt' && voice.active) voice.setMuted(true) }
   let drag = null
   let touchBreak = false
   const pdown = e => { if (drag) return; if (ST && editing() && sd?.pointerDown(e)) return; drag = { id: e.pointerId, x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY, moved: false }; try { canvas.setPointerCapture(e.pointerId) } catch {} }
