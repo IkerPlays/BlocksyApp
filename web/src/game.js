@@ -19,6 +19,7 @@ import { createVoice } from './voice.js'
 import { createHorror } from './horror.js'
 import { createScripted } from './scene-parts.js'
 import { createStudio } from './studio-tools.js'
+import { loadingScreen, createShortcuts, togglePhoto } from './extras.js'
 
 // 12 colores: la 3DS usa los mismos (3ds/source/main.c)
 export const PALETTE = ['#e8e8e8', '#e74c3c', '#f39c12', '#2ecc71', '#3498db', '#9b59b6', '#f1c40f', '#1abc9c', '#ff6b9d', '#8b5e34', '#4b4f57', '#7ed6ff']
@@ -555,6 +556,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
     me.fly = !me.fly; sys(t(me.fly ? 'fly_on' : 'fly_off')); $('down-btn')?.classList.toggle('hidden', !me.fly)
   }
   let lastSpace = 0
+  const help = createShortcuts(); loadingScreen(game.name); let ping = 0
   const down = e => {
     if (typing()) { if (e.code === 'Escape') { $('chat-input').blur(); $('chat-form').classList.remove('open') } return }
     if (e.code === 'Escape') return setPaused(!paused)
@@ -565,6 +567,8 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
     if (e.code === 'KeyG' && cfg.allow_emotes) { emotePanel.classList.toggle('hidden'); return }
     if (e.code === 'KeyF') { if (horror) horror.toggleLight(); else toggleFly(); return }
     if (e.code === 'KeyM') { music.toggle(); return }
+    if (e.code === 'KeyH') { togglePhoto(); return }
+    if (e.key === '?' || e.code === 'F1') { e.preventDefault(); help.toggle(); return }
     if (e.code === 'KeyV') { if (settings.voiceMode === 'ptt' && voice.active) { if (!e.repeat) voice.setMuted(false) } else if (!e.repeat) toggleVoice(); return }
     if (e.code === 'KeyP') { shotPending = true; return }
     if (e.code === 'Tab') { e.preventDefault(); drawRoster(); roster.classList.toggle('hidden'); return }
@@ -634,7 +638,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
     if (sending || (!changed && now - lastSent < 1000)) return
     sending = true; lastSent = now
     last = { x: me.pos.x, y: me.pos.y, z: me.pos.z, ry: me.ry, anim: me.anim, hat: myHat() }
-    api.move(game.id, last).catch(() => {}).finally(() => (sending = false))
+    const t0 = performance.now(); api.move(game.id, last).then(() => { ping = Math.round(performance.now() - t0) }, () => {}).finally(() => (sending = false))
   }
 
   let chatSince = new Date().toISOString(), chatSeen = new Set(), rtAt = 0, chatRtOk = false
@@ -805,7 +809,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
         if (resScale !== prev) size()
       }
       const race$ = race.start && !race.done ? `  ${raceTime(Date.now() - race.start)}` : ''
-      $('stats').textContent = `${t('players_n', { n: others.size + 1 })} · ${fps} fps · (${c.x.toFixed(0)}, ${c.y.toFixed(0)}, ${c.z.toFixed(0)})${race$}` }
+      $('stats').textContent = `${t('players_n', { n: others.size + 1 })} · ${fps} fps · ${ping ? ping + ' ms · ' : ''}(${c.x.toFixed(0)}, ${c.y.toFixed(0)}, ${c.z.toFixed(0)})${race$}` }
   }
   frame()
   sys(t('welcome_to', { name: game.name }))
@@ -818,7 +822,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
     window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); window.removeEventListener('resize', onResize)
     window.removeEventListener('pointermove', pmove); window.removeEventListener('pointerup', pup); window.removeEventListener('pointercancel', pup)
     canvas.removeEventListener('pointerdown', pdown); canvas.removeEventListener('wheel', wheel); canvas.removeEventListener('contextmenu', noMenu); canvas.removeEventListener('pointerleave', pleave)
-    offSettings(); offSync(); offLang(); offMusic(); music.stop(); runner.dispose(); rbx.dispose(); clearInterval(uiTimer); window.removeEventListener('pointermove', uiMove); window.removeEventListener('pointerup', uiUp); studioCleanup.forEach(f => f()); uiLayer.replaceChildren()
+    offSettings(); offSync(); offLang(); offMusic(); music.stop(); runner.dispose(); rbx.dispose(); help.dispose(); clearInterval(uiTimer); window.removeEventListener('pointermove', uiMove); window.removeEventListener('pointerup', uiUp); studioCleanup.forEach(f => f()); uiLayer.replaceChildren()
     touchUi?.remove(); emotePanel.classList.add('hidden'); mPanel.classList.add('hidden'); $('big-title').classList.add('hidden')
     $('pause').classList.add('hidden'); roster.classList.add('hidden'); log.replaceChildren()
     api.leave().catch(() => {}); gameDb.removeChannel(channel)
