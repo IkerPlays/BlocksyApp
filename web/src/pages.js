@@ -593,7 +593,7 @@ export const pages = {
 
 // ---------- editor avanzado ----------
 const TERRAINS = ['flat', 'hills', 'islands', 'plaza', 'checker', 'void', 'obby']
-const SKIES = ['day', 'sunset', 'night', 'space']
+const SKIES = ['day', 'dawn', 'sunset', 'night', 'space']
 async function editor(root, ctx, id) {
   setKids(root, pageSkel())
   const g = await api.getGame(id)

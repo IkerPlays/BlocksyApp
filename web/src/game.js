@@ -534,6 +534,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
       onEnv: (k, v) => {
         if (k === 'gravity') phys.gravity = Number(v) || 24; else if (k === 'speed') phys.speed = Number(v) || 6; else if (k === 'jump') phys.jump = Number(v) || 8.6
         else if (k === 'sky') { if (v === 'auto') sky.setHour(0); else sky.setPreset(v) }
+        else if (k === 'hour') sky.setHour(Number(v))
         else if (k === 'weather') weather.setKind(v)
         else if (k === 'fog') { scene.fog.far = settings.viewDistance * fogMul(); scene.fog.near = settings.viewDistance * 0.35 * fogMul() }
       },

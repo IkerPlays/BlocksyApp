@@ -270,7 +270,9 @@ export function createScripted({ scene, uiRoot, getMe, solid, world, fire, sfx, 
     for (const p of list.slice(0, 300)) {
       const pk = { Position: `v:${num(p.x)},${num(p.y)},${num(p.z)}`, Size: `v:${num(p.sx, 4)},${num(p.sy, 1)},${num(p.sz, 2)}`, Color: `c:${hexRgb(p.color)}`, Anchored: 'b:1', CanCollide: p.collide === false ? 'b:0' : 'b:1', Transparency: num(p.transparency), Shape: `e:${p.shape || 'Block'}`, Material: `e:${p.material || 'Plastic'}`, Rot: `v:0,${num(p.ry)},0` }
       create(id, p.type === 'spawn' ? 'SpawnLocation' : 'Part', 0, Object.entries(pk).map(([k, v]) => k + SEP2 + v).join(SEP1), String(p.name ?? 'Part'))
-      const o = objs.get(id); if (o) { o.sidx = i; o.climb = !!p.climb }; id--; i++
+      const o = objs.get(id); if (o) { o.sidx = i; o.climb = !!p.climb }
+      if (p.light > 0) create(-10000 - i, 'PointLight', id, ['Color' + SEP2 + `c:${hexRgb(p.lightColor || '#ffd9a0')}`, 'Brightness' + SEP2 + num(p.light, 1), 'Range' + SEP2 + num(p.lightRange, 14)].join(SEP1), 'Light')       // antorchas y farolas del Studio
+      id--; i++
     }
   }
   const partAt = i => { for (const o of parts) if (o.sidx === i) return o; return null }

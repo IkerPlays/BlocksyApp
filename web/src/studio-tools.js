@@ -34,12 +34,12 @@ export const PREFABS = {
 }
 const rotate = (list, r) => list.map(([x, y, z, k]) => { for (let i = 0; i < r; i++) [x, z] = [-z, x]; return [x, y, z, k] })
 const SHAPES = ['Block', 'Ball', 'Cylinder'], MATERIALS = ['Plastic', 'Neon', 'Glass', 'Metal', 'Wood', 'Grass', 'Brick', 'Concrete', 'Water']
-const SKIES = ['day', 'sunset', 'night', 'space']
+const SKIES = ['day', 'dawn', 'sunset', 'night', 'space']
 
 export function createStudio(ctx) {
   const { game, cfg, api, PALETTE, key, index, statics, setBlock, removeBlock, me, pick, scene, camera, canvas, rbx, showTitle, sys, sfx, burst, selectKind, onEnv, onTestToggle, onSave, onExit, onScript, onAddText, setUiTool, getHover, getConfig } = ctx
   const g = document.getElementById('game'), bar = document.getElementById('studio-bar')
-  const state = { tool: 'place', mode: 'fill', shape: 'sphere', sym: 'off', grid: 0.5, prefab: 'house', rot: 0, a: null, region: null, clip: null }
+  const state = { terrR: 4, terrH: 4, terrMode: 'raise', tool: 'place', mode: 'fill', shape: 'sphere', sym: 'off', grid: 0.5, prefab: 'house', rot: 0, a: null, region: null, clip: null }
   const undoS = [], redoS = []
   const parts = cfg.parts = Array.isArray(cfg.parts) ? cfg.parts.slice(0, MAX_PARTS).map(p => ({ ...p })) : []
   let selPart = -1, partClip = null, dragPart = null
@@ -175,8 +175,11 @@ export function createStudio(ctx) {
     const v = new THREE.Vector3(); camera.getWorldDirection(v)
     const hit = pick(canvas.clientWidth / 2 + canvas.getBoundingClientRect().left, canvas.clientHeight / 2 + canvas.getBoundingClientRect().top)
     const at = hit?.place ?? [Math.round(me.pos.x + v.x * 6), Math.max(0, Math.round(me.pos.y)), Math.round(me.pos.z + v.z * 6)]
-    let n = 1; const base = type === 'spawn' ? 'Spawn' : 'Part'; while (parts.some(p => p.name === base + n)) n++
-    parts.push({ name: base + n, type, x: at[0] + 0.5, y: at[1] + (type === 'spawn' ? 0.25 : 0.5), z: at[2] + 0.5, sx: type === 'spawn' ? 4 : 2, sy: type === 'spawn' ? 0.5 : 1, sz: type === 'spawn' ? 4 : 2, color: type === 'spawn' ? '#4dd0ff' : '#ff9f43', shape: 'Block', material: 'Plastic', anchored: true, collide: true, transparency: 0, ry: 0 })
+    let n = 1; const base = type === 'spawn' ? 'Spawn' : type === 'torch' ? 'Torch' : type === 'lamp' ? 'Lamp' : 'Part'; while (parts.some(p => p.name === base + n)) n++
+    const P = { name: base + n, type: type === 'spawn' ? 'spawn' : 'part', x: at[0] + 0.5, y: at[1] + (type === 'spawn' ? 0.25 : 0.5), z: at[2] + 0.5, sx: type === 'spawn' ? 4 : 2, sy: type === 'spawn' ? 0.5 : 1, sz: type === 'spawn' ? 4 : 2, color: type === 'spawn' ? '#4dd0ff' : '#ff9f43', shape: 'Block', material: 'Plastic', anchored: true, collide: true, transparency: 0, ry: 0 }
+    if (type === 'torch') Object.assign(P, { y: at[1] + 0.9, sx: 0.3, sy: 1.6, sz: 0.3, color: '#ffb347', material: 'Neon', light: 1.6, lightColor: '#ffb347', lightRange: 16, collide: false })
+    if (type === 'lamp') Object.assign(P, { y: at[1] + 3, sx: 1, sy: 1, sz: 1, shape: 'Ball', color: '#fff3c4', material: 'Neon', light: 2, lightColor: '#fff3c4', lightRange: 22 })
+    parts.push(P)
     selPart = parts.length - 1; refreshParts(); setTool('part'); openPartInspector(); sfx.place()
   }
   const SC = [['Ctrl+Z / Ctrl+Y', 'st_sc_undo'], ['Ctrl+C / Ctrl+V', 'st_sc_copy'], ['Ctrl+D', 'st_sc_dup'], ['Ctrl+A', 'st_sc_all'], ['Del', 'st_sc_del'], ['Esc', 'st_sc_desel'], ['Shift+click', 'st_sc_multi'], ['Alt+arrows', 'st_sc_nudge'], ['Shift+arrows', 'st_sc_movesel'], ['R', 'st_sc_rot'], ['Alt+1..4', 'st_sc_marks'], ['Alt+Shift+1..4', 'st_sc_savemarks'], ['F1', 'st_sc_help']]
@@ -203,6 +206,7 @@ export function createStudio(ctx) {
       row(t('st_size3'), num('sx', 0.5, 48), num('sy', 0.5, 48), num('sz', 0.5, 48)), row(t('st_rot'), num('ry', 15, 62)),
       row(t('st_shape'), sel('shape', SHAPES)), row(t('st_material'), sel('material', MATERIALS)), row(t('st_color'), col), row(t('st_transp'), tr),
       row(t('st_lock'), (() => { const i = h('input', { type: 'checkbox', checked: !!p.locked }); i.onchange = () => { p.locked = i.checked; refreshParts() }; return i })()), row(t('st_hide'), (() => { const i = h('input', { type: 'checkbox', checked: !!p.eh }); i.onchange = () => { p.eh = i.checked; refreshParts() }; return i })()),
+      row(t('st_light'), num('light', 0.5, 48), (() => { const c = h('input', { type: 'color', value: p.lightColor || '#ffd9a0' }); c.oninput = () => { p.lightColor = c.value; refreshParts() }; return c })()),
       row(t('st_anchored'), chk('anchored')), row(t('st_collide'), chk('collide')), row(t('st_climb'), (() => { const i = h('input', { type: 'checkbox', checked: !!p.climb }); i.onchange = () => { p.climb = i.checked; refreshParts() }; return i })()),
       multi.size ? h('small', { class: 'muted', text: t('st_multi_n', { n: multi.size + 1 }) }) : null,
       multi.size ? h('div', { class: 'pi-row wrap' }, ...[['x', 'st_align_x'], ['y', 'st_align_y'], ['z', 'st_align_z']].map(([ax, k]) => h('button', { type: 'button', class: 'btn tiny', text: t(k), onclick: () => alignSel(ax) })), ...[['x', 'st_dist_x'], ['z', 'st_dist_z']].map(([ax, k]) => h('button', { type: 'button', class: 'btn tiny', text: t(k), onclick: () => distributeSel(ax) }))) : null,
@@ -219,11 +223,12 @@ export function createStudio(ctx) {
     const numf = (k, label, d, step = 1, min = -999, max = 999) => { const i = h('input', { type: 'number', step, min, max, value: c[k] ?? d }); i.oninput = () => { if (i.value === '') delete c[k]; else c[k] = +i.value; cfg[k] = c[k]; onEnv(k, c[k]) }; return h('label', {}, label, i) }
     const bool = (k, label, d) => { const i = h('input', { type: 'checkbox', checked: c[k] ?? d }); i.onchange = () => { c[k] = i.checked; cfg[k] = i.checked; onEnv(k, i.checked) }; return h('label', { class: 'chk' }, i, label) }
     const sky = h('select', {}, SKIES.map(s => h('option', { value: s, text: t('sky_' + s), selected: (c.sky ?? 'day') === s && c.time !== 0 })), h('option', { value: 'auto', text: t('ed_time').split(' (')[0] + ' ⟳', selected: c.time === 0 }))
+    const hour = h('input', { type: 'range', min: 1, max: 24, step: 1, value: c.time || 12 }); hour.oninput = () => { c.time = +hour.value; delete c.sky; cfg.time = c.time; cfg.sky = undefined; sky.value = 'auto'; sky.options[sky.options.length - 1].textContent = t('st_hour', { h: hour.value }); onEnv('hour', c.time) }
     sky.onchange = () => { if (sky.value === 'auto') { c.time = 0; delete c.sky } else { c.sky = sky.value; delete c.time }; cfg.sky = c.sky; cfg.time = c.time; onEnv('sky', sky.value) }
     const wx = h('select', { onchange: e => { c.weather = e.target.value; cfg.weather = c.weather; onEnv('weather', c.weather) } }, ['', 'rain', 'snow'].map(v => h('option', { value: v, text: t('weather_' + (v || 'none')), selected: (c.weather ?? '') === v })))
     const tr = h('select', { onchange: e => { c.track = e.target.value; cfg.track = c.track } }, h('option', { value: '', text: t('track_any') })); music.listTracks().then(l => l.forEach(x => tr.append(h('option', { value: x.file, text: x.title, selected: c.track === x.file }))))
     const wel = h('input', { value: c.welcome ?? '', maxlength: 120, placeholder: t('env_welcome') }); wel.oninput = () => { c.welcome = wel.value; cfg.welcome = wel.value }
-    envBox.replaceChildren(h('b', { text: t('st_env') }), h('label', {}, t('ed_sky'), sky), numf('gravity', t('env_gravity'), 24, 1, 0, 80), numf('speed', t('env_speed'), 6, 0.5, 1, 30), numf('jump', t('env_jump'), 8.6, 0.5, 1, 30), numf('fog', t('env_fog'), 1, 0.1, 0.25, 2), h('label', {}, t('env_weather'), wx), h('label', {}, t('env_track'), tr), h('label', {}, t('env_welcome'), wel),
+    envBox.replaceChildren(h('b', { text: t('st_env') }), h('label', {}, t('ed_sky'), sky), h('label', {}, t('st_time_slider'), hour), numf('gravity', t('env_gravity'), 24, 1, 0, 80), numf('speed', t('env_speed'), 6, 0.5, 1, 30), numf('jump', t('env_jump'), 8.6, 0.5, 1, 30), numf('fog', t('env_fog'), 1, 0.1, 0.25, 2), h('label', {}, t('env_weather'), wx), h('label', {}, t('env_track'), tr), h('label', {}, t('env_welcome'), wel),
       bool('allow_chat', t('env_chat'), true), bool('allow_emotes', t('env_emotes'), true), bool('allow_fly', t('env_fly'), true), bool('allow_build', t('env_build'), false), bool('double_jump', t('env_dj'), false), bool('allow_crouch', t('env_crouch'), true), bool('draft', t('env_draft'), false))
     envBox.classList.remove('hidden')
   }
@@ -266,7 +271,7 @@ export function createStudio(ctx) {
   const paintSaved = () => { if (!savedEl) return; savedEl.textContent = lastSaved ? `✓ ${new Date(lastSaved).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : t('st_unsaved'); savedEl.classList.toggle('dirty', !lastSaved) }
   const doSave = async silent => { const ok = await onSave(silent); if (ok) { lastSaved = Date.now(); paintSaved(); if (silent !== true) takeSnapshot(t('st_snap_save')) } return ok }
   // ---------- barra de herramientas ----------
-  const TOOLS = [['place', 'plus'], ['erase', 'trash'], ['paint', 'edit'], ['pick', 'search'], ['box', 'box'], ['shape', 'sphere'], ['line', 'line'], ['replace', 'replace'], ['select', 'select'], ['stamp', 'cube'], ['part', 'part'], ['measure', 'ruler'], ['ui', 'chat']]
+  const TOOLS = [['place', 'plus'], ['erase', 'trash'], ['paint', 'edit'], ['pick', 'search'], ['box', 'box'], ['shape', 'sphere'], ['line', 'line'], ['replace', 'replace'], ['select', 'select'], ['stamp', 'cube'], ['part', 'part'], ['terrain', 'mountain'], ['measure', 'ruler'], ['ui', 'chat']]
   const opts = h('div', { id: 'studio-opts', class: 'hidden' }); g.append(opts)
   const btnFor = {}
   function paintOpts() {
@@ -278,8 +283,13 @@ export function createStudio(ctx) {
       const s = h('select', {}, [...Object.keys(PREFABS), ...(state.clip ? ['clip'] : [])].map(k => h('option', { value: k, text: t('pf_' + k), selected: state.prefab === k }))); s.onchange = () => { state.prefab = s.value }
       L.push(s, h('button', { type: 'button', class: 'chip', text: t('st_rotate'), onclick: () => (state.rot = (state.rot + 1) % 4) }))
     }
-    if (state.tool === 'select') L.push(h('button', { type: 'button', class: 'chip', text: t('st_copy') + ' (Ctrl+C)', onclick: copySel }), h('button', { type: 'button', class: 'chip', text: t('st_cut'), onclick: () => { copySel(); clearSel() } }), h('button', { type: 'button', class: 'chip', text: t('st_fillsel'), onclick: fillSel }), h('button', { type: 'button', class: 'chip', text: t('st_clear') + ' (Del)', onclick: clearSel }), h('button', { type: 'button', class: 'chip', text: t('st_rot90'), onclick: rotateSel }), h('button', { type: 'button', class: 'chip', text: t('st_flipx'), onclick: () => flipSel('x') }), h('button', { type: 'button', class: 'chip', text: t('st_flipz'), onclick: () => flipSel('z') }))
-    if (state.tool === 'part') L.push(h('select', { onchange: e => { state.grid = Number(e.target.value) } }, [0, 0.25, 0.5, 1].map(v => h('option', { value: v, text: `${t('st_grid')}: ${v || t('st_sym_off')}`, selected: state.grid === v }))), h('button', { type: 'button', class: 'chip on', text: '+ ' + t('st_add_part'), onclick: () => newPart('part') }), h('button', { type: 'button', class: 'chip', text: '+ ' + t('st_add_spawn'), onclick: () => newPart('spawn') }))
+    if (state.tool === 'select') L.push(h('button', { type: 'button', class: 'chip', text: t('st_copy') + ' (Ctrl+C)', onclick: copySel }), h('button', { type: 'button', class: 'chip', text: t('st_cut'), onclick: () => { copySel(); clearSel() } }), h('button', { type: 'button', class: 'chip', text: t('st_fillsel'), onclick: fillSel }), h('button', { type: 'button', class: 'chip', text: t('st_clear') + ' (Del)', onclick: clearSel }), h('button', { type: 'button', class: 'chip', text: t('st_rot90'), onclick: rotateSel }), h('button', { type: 'button', class: 'chip', text: t('st_flipx'), onclick: () => flipSel('x') }), h('button', { type: 'button', class: 'chip', text: t('st_flipz'), onclick: () => flipSel('z') }), h('button', { type: 'button', class: 'chip', text: t('st_water'), onclick: waterSel }))
+    if (state.tool === 'terrain') {
+      for (const m of ['raise', 'lower']) L.push(chip(t('st_terr_' + m), state.terrMode === m, () => { state.terrMode = m; paintOpts() }))
+      const num2 = (k, lab, min, max) => { const i = h('input', { type: 'number', min, max, value: state[k] }); i.style.width = '52px'; i.oninput = () => { state[k] = clampI(+i.value || min, min, max) }; return h('label', { class: 'chip-num' }, lab, i) }
+      L.push(num2('terrR', t('st_radius'), 1, 12), num2('terrH', t('st_height'), 1, 12))
+    }
+    if (state.tool === 'part') L.push(h('select', { onchange: e => { state.grid = Number(e.target.value) } }, [0, 0.25, 0.5, 1].map(v => h('option', { value: v, text: `${t('st_grid')}: ${v || t('st_sym_off')}`, selected: state.grid === v }))), h('button', { type: 'button', class: 'chip on', text: '+ ' + t('st_add_part'), onclick: () => newPart('part') }), h('button', { type: 'button', class: 'chip', text: '+ ' + t('st_add_spawn'), onclick: () => newPart('spawn') }), h('button', { type: 'button', class: 'chip', text: '+ ' + t('st_torch'), onclick: () => newPart('torch') }), h('button', { type: 'button', class: 'chip', text: '+ ' + t('st_lamp'), onclick: () => newPart('lamp') }))
     L.push(h('span', { class: 'hint', text: t('st_hint_' + state.tool) }))
     opts.replaceChildren(...L); opts.classList.remove('hidden'); requestAnimationFrame(() => { opts.style.top = Math.round(bar.getBoundingClientRect().bottom + 8) + 'px' })
   }
@@ -331,6 +341,25 @@ export function createStudio(ctx) {
   function rotateSel() { const r = regionCells(); if (!r) return; const w = r.x1 - r.x0, d = r.z1 - r.z0; applyRegion(r, ([x, y, z, k]) => [r.x0 + (z - r.z0), y, r.z0 + (w - (x - r.x0)), k], [r.x0, r.y0, r.z0, r.x0 + d, r.y1, r.z0 + w]) }
   function flipSel(axis) { const r = regionCells(); if (!r) return; applyRegion(r, ([x, y, z, k]) => (axis === 'x' ? [r.x0 + r.x1 - x, y, z, k] : [x, y, r.z0 + r.z1 - z, k]), [r.x0, r.y0, r.z0, r.x1, r.y1, r.z1]) }
   function moveSel(dx, dy, dz) { const r = regionCells(); if (!r) return; applyRegion(r, ([x, y, z, k]) => [x + dx, y + dy, z + dz, k], [r.x0 + dx, r.y0 + dy, r.z0 + dz, r.x1 + dx, r.y1 + dy, r.z1 + dz]) }
+  // rellenar la región con agua: una pieza de material Water (se puede nadar)
+  function waterSel() {
+    if (!state.region) return showTitle(t('st_hint_select'), 2000)
+    const [a, b] = state.region, x0 = Math.min(a[0], b[0]), x1 = Math.max(a[0], b[0]) + 1, y0 = Math.min(a[1], b[1]), y1 = Math.max(a[1], b[1]) + 1, z0 = Math.min(a[2], b[2]), z1 = Math.max(a[2], b[2]) + 1
+    if (parts.length >= MAX_PARTS) return showTitle(t('st_big', { n: MAX_PARTS }), 2000)
+    let n = 1; while (parts.some(p => p.name === 'Water' + n)) n++
+    parts.push({ name: 'Water' + n, type: 'part', x: (x0 + x1) / 2, y: (y0 + y1) / 2, z: (z0 + z1) / 2, sx: x1 - x0, sy: y1 - y0, sz: z1 - z0, color: '#3b82f6', shape: 'Block', material: 'Water', anchored: true, collide: false, transparency: 0.45, ry: 0 })
+    selPart = parts.length - 1; refreshParts(); sfx.place(); showTitle(t('st_water_done'), 1400)
+  }
+  // pincel de terreno: levanta una colina (o cava un hoyo) con forma de cúpula en el punto elegido
+  function terrainAt(cx, cz, baseY) {
+    const R = state.terrR, H = state.terrH, ops = []
+    for (let dx = -R; dx <= R; dx++) for (let dz = -R; dz <= R; dz++) {
+      const d = Math.hypot(dx, dz); if (d > R) continue
+      const hgt = Math.max(1, Math.round(H * (1 - (d / (R + 0.5)) ** 2)))
+      for (let k = 0; k < hgt; k++) { const y = baseY + k; if (state.terrMode === 'raise') ops.push({ x: cx + dx, y, z: cz + dz, to: k === hgt - 1 ? me.kind : 9 }); else if (baseY - k >= 0) ops.push({ x: cx + dx, y: baseY - 1 - k, z: cz + dz, to: -1 }) }
+    }
+    return commit(ops)
+  }
   const clearSel = () => { if (state.region) { const n = commit(boxCells(state.region[0], state.region[1], 'erase', 0)); if (n) showTitle(t('st_done_n', { n }), 1200) } }
   const fillSel = () => { if (state.region) { const n = commit(boxCells(state.region[0], state.region[1], 'fill', me.kind)); if (n) showTitle(t('st_done_n', { n }), 1200) } }
 
@@ -371,6 +400,7 @@ export function createStudio(ctx) {
         const from = kindAt(...hit.cell); if (typeof from !== 'number' || from < 0 || from === me.kind) return true
         const ops = []; for (const [k, e] of index) if (e.kind === from && ops.length < MAX_VOL) { const [x, y, z] = k.split(',').map(Number); ops.push({ x, y, z, to: me.kind }) }
         const n = commit(ops); if (n) { sfx.place(); showTitle(t('st_done_n', { n }), 1200) } return true }
+      case 'terrain': { const n = terrainAt(place[0], place[2], state.terrMode === 'raise' ? place[1] : (hit.floor ? 0 : hit.cell[1] + 1)); if (n) { sfx.place(); showTitle(t('st_done_n', { n }), 1200) } return true }
       case 'measure': {
         const here = hit.floor ? place : hit.cell
         if (!state.a) { state.a = here; measureLine.visible = false; setWire(here, here); return true }

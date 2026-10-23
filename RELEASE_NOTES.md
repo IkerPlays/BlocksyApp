@@ -1,5 +1,5 @@
-Devbuild 34: Studio versions
-- Versions panel: a snapshot is saved every time you save (last 10, on this device) and you can save one by hand.
-- Restore a version: blocks, parts, script and settings go back (block changes can be undone with Ctrl+Z).
-- Draft mode: a game marked as draft is hidden from everyone but you.
-- The toolbar shows when the game was last saved.
+Devbuild 35: Studio world tools
+- Terrain brush: raise hills or dig pits with a chosen radius and height.
+- Fill a selection with water (a swimmable Water part).
+- Torches and lamps that really light up the area, and a Light field for any part.
+- Time of day slider and a new Dawn sky.
