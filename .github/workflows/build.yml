@@ -69,7 +69,16 @@ jobs:
           apt-get update
           apt-get install -y git make cmake g++ gcc
 
+      # pkg.devkitpro.org a veces rechaza (403) a los runners durante muchos minutos: las librerías se guardan en caché tras la primera instalación buena
+      - name: Cache 3DS libraries
+        id: dkpcache
+        uses: actions/cache@v4
+        with:
+          path: /opt/devkitpro/portlibs/3ds
+          key: dkp-3ds-libs-v1
+
       - name: Install 3DS libraries (curl, mbedtls, zlib)
+        if: steps.dkpcache.outputs.cache-hit != 'true'
         # pkg.devkitpro.org a veces devuelve 403/timeouts a los runners: se reintenta con espera creciente
         run: |
           for i in 1 2 3 4 5 6; do
