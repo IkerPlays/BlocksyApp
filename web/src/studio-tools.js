@@ -119,6 +119,14 @@ export function createStudio(ctx) {
   const stamp = new THREE.InstancedMesh(stampGeo, stampMat, 2500); stamp.count = 0; stamp.frustumCulled = false; stamp.visible = false; scene.add(stamp)
   const selWire = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(1, 1, 1)), new THREE.LineBasicMaterial({ color: 0xffd34d, depthTest: false })); selWire.visible = false; selWire.renderOrder = 6; scene.add(selWire)
   const setWire = (a, b) => { const x0 = Math.min(a[0], b[0]), x1 = Math.max(a[0], b[0]) + 1, y0 = Math.min(a[1], b[1]), y1 = Math.max(a[1], b[1]) + 1, z0 = Math.min(a[2], b[2]), z1 = Math.max(a[2], b[2]) + 1; wire.position.set((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2); wire.scale.set(x1 - x0 + 0.02, y1 - y0 + 0.02, z1 - z0 + 0.02); wire.visible = true }
+  // rejilla visible alrededor del jugador y herramienta de medir
+  const gridHelper = new THREE.GridHelper(64, 64, 0x4dd0ff, 0x4dd0ff); gridHelper.material.transparent = true; gridHelper.material.opacity = 0.28; gridHelper.material.depthWrite = false; gridHelper.visible = false; gridHelper.position.y = 0.02; scene.add(gridHelper)
+  const measureLine = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]), new THREE.LineBasicMaterial({ color: 0xffd34d, depthTest: false })); measureLine.visible = false; measureLine.renderOrder = 7; scene.add(measureLine)
+  function measure(a, b) {
+    const dx = Math.abs(b[0] - a[0]), dy = Math.abs(b[1] - a[1]), dz = Math.abs(b[2] - a[2])
+    measureLine.geometry.setFromPoints([new THREE.Vector3(a[0] + .5, a[1] + .5, a[2] + .5), new THREE.Vector3(b[0] + .5, b[1] + .5, b[2] + .5)]); measureLine.visible = true
+    showTitle(t('st_measure_res', { x: dx, y: dy, z: dz, d: Math.hypot(dx, dy, dz).toFixed(1) }), 3500)
+  }
   const m4 = new THREE.Matrix4(), c3 = new THREE.Color()
   function showStamp(origin) {
     const list = rotate(prefabList(), state.rot).slice(0, 2500); stamp.count = list.length
@@ -171,6 +179,8 @@ export function createStudio(ctx) {
     parts.push({ name: base + n, type, x: at[0] + 0.5, y: at[1] + (type === 'spawn' ? 0.25 : 0.5), z: at[2] + 0.5, sx: type === 'spawn' ? 4 : 2, sy: type === 'spawn' ? 0.5 : 1, sz: type === 'spawn' ? 4 : 2, color: type === 'spawn' ? '#4dd0ff' : '#ff9f43', shape: 'Block', material: 'Plastic', anchored: true, collide: true, transparency: 0, ry: 0 })
     selPart = parts.length - 1; refreshParts(); setTool('part'); openPartInspector(); sfx.place()
   }
+  const SC = [['Ctrl+Z / Ctrl+Y', 'st_sc_undo'], ['Ctrl+C / Ctrl+V', 'st_sc_copy'], ['Ctrl+D', 'st_sc_dup'], ['Ctrl+A', 'st_sc_all'], ['Del', 'st_sc_del'], ['Esc', 'st_sc_desel'], ['Shift+click', 'st_sc_multi'], ['Alt+arrows', 'st_sc_nudge'], ['Shift+arrows', 'st_sc_movesel'], ['R', 'st_sc_rot'], ['Alt+1..4', 'st_sc_marks'], ['Alt+Shift+1..4', 'st_sc_savemarks'], ['F1', 'st_sc_help']]
+  const helpBox = h('div', { id: 'studio-help', class: 'hidden' }, h('b', { text: t('st_shortcuts') }), ...SC.map(([k, v]) => h('div', { class: 'sc-row' }, h('kbd', { text: k }), h('span', { text: t(v) })))); g.append(helpBox)
   const partInsp = h('div', { id: 'part-inspector', class: 'hidden' }); g.append(partInsp)
   const selIdx = () => [selPart, ...multi].filter(i => parts[i] && !parts[i].locked)
   function alignSel(ax) { const ref = parts[selPart]; if (!ref) return; for (const i of selIdx()) parts[i][ax] = ref[ax]; refreshParts(); openPartInspector() }
@@ -219,7 +229,7 @@ export function createStudio(ctx) {
   }
 
   // ---------- barra de herramientas ----------
-  const TOOLS = [['place', 'plus'], ['erase', 'trash'], ['paint', 'edit'], ['pick', 'search'], ['box', 'box'], ['shape', 'sphere'], ['line', 'line'], ['replace', 'replace'], ['select', 'select'], ['stamp', 'cube'], ['part', 'part'], ['ui', 'chat']]
+  const TOOLS = [['place', 'plus'], ['erase', 'trash'], ['paint', 'edit'], ['pick', 'search'], ['box', 'box'], ['shape', 'sphere'], ['line', 'line'], ['replace', 'replace'], ['select', 'select'], ['stamp', 'cube'], ['part', 'part'], ['measure', 'ruler'], ['ui', 'chat']]
   const opts = h('div', { id: 'studio-opts', class: 'hidden' }); g.append(opts)
   const btnFor = {}
   function paintOpts() {
@@ -240,6 +250,7 @@ export function createStudio(ctx) {
     state.tool = n; state.a = null; wire.visible = false; stamp.visible = false
     g.classList.toggle('tool-ui', n === 'ui'); for (const [k, b] of Object.entries(btnFor)) b.classList.toggle('on', k === n)
     setUiTool(n === 'ui')
+    if (n !== 'measure') measureLine.visible = false
     if (n !== 'select') { state.region = null; if (selPart < 0 || n !== 'part') selWire.visible = false }
     if (n === 'part') { openPartInspector(); updateSelBox() } else partInsp.classList.add('hidden')
     paintOpts()
@@ -251,7 +262,7 @@ export function createStudio(ctx) {
     const items = TOOLS.map(([k, ic]) => { const b = mkBtn('st-' + k, ic, t('st_' + k), () => setTool(k), k === 'place' ? 'on' : ''); btnFor[k] = b; return b })
     const symBtn = mkBtn('st-sym', 'mirror', t('st_sym'), () => { state.sym = { off: 'x', x: 'z', z: 'xz', xz: 'off' }[state.sym]; symBtn.classList.toggle('on', state.sym !== 'off'); symBtn.title = `${t('st_sym')}: ${state.sym}`; showTitle(`${t('st_sym')}: ${state.sym === 'off' ? t('st_sym_off') : state.sym.toUpperCase()}`, 1200) })
     undoBtn = mkBtn('st-undo', 'undo', t('st_undo'), undo); redoBtn = mkBtn('st-redo', 'redo', t('st_redo'), redo)
-    bar.replaceChildren(...items, h('i', { class: 'st-sep' }), mkBtn('st-addtext', 'chat', t('st_addtext'), () => { onAddText(); setTool('ui') }), symBtn, undoBtn, redoBtn, mkBtn('st-explorer', 'menu', t('st_explorer'), toggleExplorer), mkBtn('st-export', 'send', t('st_export'), exportGame), mkBtn('st-env', 'sliders', t('st_env'), openEnv), mkBtn('st-script', 'code', t('ed_script'), onScript),
+    bar.replaceChildren(...items, h('i', { class: 'st-sep' }), mkBtn('st-addtext', 'chat', t('st_addtext'), () => { onAddText(); setTool('ui') }), symBtn, undoBtn, redoBtn, mkBtn('st-grid', 'grid', t('st_gridview'), () => { gridHelper.visible = !gridHelper.visible; document.getElementById('st-grid')?.classList.toggle('on', gridHelper.visible) }), mkBtn('st-explorer', 'menu', t('st_explorer'), toggleExplorer), mkBtn('st-export', 'send', t('st_export'), exportGame), mkBtn('st-env', 'sliders', t('st_env'), openEnv), mkBtn('st-script', 'code', t('ed_script'), onScript), mkBtn('st-help', 'search', t('st_shortcuts'), () => helpBox.classList.toggle('hidden')),
       h('i', { class: 'st-sep' }), mkBtn('st-test', 'play', t('st_test'), onTestToggle, 'lbl'), mkBtn('st-save', 'check', t('save'), onSave, 'primary lbl'), mkBtn('st-exit', 'back', t('close'), onExit, 'lbl'))
     paintHistory(); setTool('place')
   }
@@ -323,6 +334,10 @@ export function createStudio(ctx) {
         const from = kindAt(...hit.cell); if (typeof from !== 'number' || from < 0 || from === me.kind) return true
         const ops = []; for (const [k, e] of index) if (e.kind === from && ops.length < MAX_VOL) { const [x, y, z] = k.split(',').map(Number); ops.push({ x, y, z, to: me.kind }) }
         const n = commit(ops); if (n) { sfx.place(); showTitle(t('st_done_n', { n }), 1200) } return true }
+      case 'measure': {
+        const here = hit.floor ? place : hit.cell
+        if (!state.a) { state.a = here; measureLine.visible = false; setWire(here, here); return true }
+        measure(state.a, here); state.a = null; wire.visible = false; return true }
       case 'select': {
         const here = hit.floor ? place : hit.cell
         if (!state.a) { state.a = here; state.region = null; setWire(here, here); return true }
@@ -335,13 +350,24 @@ export function createStudio(ctx) {
   }
   // vista previa bajo el cursor (se llama cada fotograma)
   function update() {
+    if (gridHelper.visible) gridHelper.position.set(Math.round(me.pos.x), 0.02, Math.round(me.pos.z))
     const hp = getHover(); const tool = state.tool
     if (tool === 'stamp' && hp) { const hit = pick(hp.x, hp.y); if (hit) showStamp(hit.place); else stamp.visible = false }
-    else if ((tool === 'box' || tool === 'select' || tool === 'shape' || tool === 'line') && state.a && hp) { const hit = pick(hp.x, hp.y); if (hit) { const here = ((tool === 'box' && state.mode !== 'erase') || tool === 'shape' || tool === 'line') || hit.floor ? hit.place : hit.cell; setWire(state.a, here); wire.material.color.set(tool === 'box' && state.mode === 'erase' ? 0xff6b6b : 0x4dd0ff) } }
+    else if ((tool === 'box' || tool === 'select' || tool === 'shape' || tool === 'line' || tool === 'measure') && state.a && hp) { const hit = pick(hp.x, hp.y); if (hit) { const here = ((tool === 'box' && state.mode !== 'erase') || tool === 'shape' || tool === 'line') || hit.floor ? hit.place : hit.cell; setWire(state.a, here); wire.material.color.set(tool === 'box' && state.mode === 'erase' ? 0xff6b6b : 0x4dd0ff) } }
   }
   // atajos (devuelve true si los consume)
   function keydown(e) {
     const ctrl = e.ctrlKey || e.metaKey
+    if (e.altKey && /^Digit[1-4]$/.test(e.code)) {                         // marcadores de camara: Alt+1..4 ir, Alt+Mayús+1..4 guardar
+      const k = `blocksy.marks.${game.id}`, n = +e.code.slice(5) - 1; let m = []; try { m = JSON.parse(localStorage.getItem(k) || '[]') } catch {}
+      if (e.shiftKey) { m[n] = [+me.pos.x.toFixed(2), +me.pos.y.toFixed(2), +me.pos.z.toFixed(2)]; try { localStorage.setItem(k, JSON.stringify(m)) } catch {} showTitle(t('st_mark_saved', { n: n + 1 }), 1100) }
+      else if (m[n]) { me.pos.set ? me.pos.set(...m[n]) : Object.assign(me.pos, { x: m[n][0], y: m[n][1], z: m[n][2] }); me.vel?.set?.(0, 0, 0); showTitle(t('st_mark_go', { n: n + 1 }), 900) } else showTitle(t('st_mark_none', { n: n + 1 }), 1300)
+      e.preventDefault(); return true
+    }
+    if (ctrl && e.code === 'KeyD' && state.tool === 'part' && selPart >= 0) { e.preventDefault(); const src = [selPart, ...multi].filter(i => parts[i]); multi.clear(); let last = -1; for (const i of src) { if (parts.length >= MAX_PARTS) break; parts.push({ ...parts[i], name: parts[i].name.replace(/\d*$/, '') + (parts.length + 1), x: parts[i].x + 1, z: parts[i].z + 1 }); if (last >= 0) multi.add(last); last = parts.length - 1 } selPart = last; refreshParts(); openPartInspector(); sfx.place(); return true }
+    if (ctrl && e.code === 'KeyA' && state.tool === 'part') { e.preventDefault(); multi.clear(); parts.forEach((_, i) => { if (i !== 0) multi.add(i) }); selPart = parts.length ? 0 : -1; updateSelBox(); openPartInspector(); paintExplorer(); return true }
+    if (e.code === 'Escape' && (selPart >= 0 || multi.size)) { selPart = -1; multi.clear(); updateSelBox(); partInsp.classList.add('hidden'); paintExplorer(); return true }
+    if (e.code === 'F1') { e.preventDefault(); helpBox.classList.toggle('hidden'); return true }
     if (ctrl && e.code === 'KeyZ') { e.preventDefault(); e.shiftKey ? redo() : undo(); return true }
     if (ctrl && e.code === 'KeyY') { e.preventDefault(); redo(); return true }
     if (ctrl && e.code === 'KeyC' && state.tool === 'part' && selPart >= 0) { e.preventDefault(); partClip = targets(selPart).map(k => ({ ...parts[k] })); showTitle(t('st_done_n', { n: partClip.length }), 1000); return true }
@@ -392,6 +418,6 @@ export function createStudio(ctx) {
   }
   function pointerUp() { if (!dragPart) return false; dragPart = null; refreshParts(); openPartInspector(); return true }
   refreshParts()
-  function dispose() { for (const o of [wire, stamp, selWire, ...extraWires]) scene.remove(o); stampGeo.dispose(); stampMat.dispose(); stamp.dispose(); opts.remove(); partInsp.remove(); envBox.remove(); explorer.remove() }
+  function dispose() { for (const o of [wire, stamp, selWire, gridHelper, measureLine, ...extraWires]) scene.remove(o); helpBox.remove(); stampGeo.dispose(); stampMat.dispose(); stamp.dispose(); opts.remove(); partInsp.remove(); envBox.remove(); explorer.remove() }
   return { save: onSave, interact, update, keydown, pointerDown, pointerMove, pointerUp, undo, redo, setTool, setTesting, dispose, flush, get tool() { return state.tool }, get parts() { return parts } }
 }
