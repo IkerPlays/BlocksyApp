@@ -336,3 +336,4 @@ textarea.code { flex:1; border:0; outline:none; resize:none; background:transpar
 .rb-lb { right: 160px; top: 70px; }
 
 .st-btn { padding: 8px 10px; } #studio-bar .st-btn span { display: none; } #studio-bar .st-btn.lbl span { display: inline; } @media (max-width:720px) { #studio-bar .st-btn.lbl span { display: none; } }
+.api-ref { margin: 8px 0; background: #ffffff0d; border-radius: 10px; padding: 8px 12px; font-size: 13px; } .api-ref summary { cursor: pointer; font-weight: 700; } .api-ref p { margin: 8px 0 0; color: var(--muted); line-height: 1.5; }

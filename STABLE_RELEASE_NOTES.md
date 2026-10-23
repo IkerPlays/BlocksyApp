@@ -1,48 +1,16 @@
 Blocksy is a multiplayer block-building game for the web and the Nintendo 3DS (homebrew), with shared worlds, chat and friends.
 
-## What's new since the start
+## What's new since 1.0.0
 
 ### Changes
-- **Web client.** Roblox-style home with friends, popular games, game pages, avatar editor, friends, create and settings.
-- **In game.** Pause menu, chat, player list with a 3DS tag, six block colors.
-- **Nintendo 3DS.** Walk, jump, place and break blocks, chat, and see web players live. Installable as .cia (FBI) or .3dsx (Homebrew Launcher).
-- **Same look as the web.** The 3DS app has Home, Discover, Avatar, Friends, Update and Settings pages, a side menu, game pages, thumbnails and avatars like the website.
-- **Choose your game.** Pick any game from the lobby and return to it from the game.
-- **Friends and avatar.** Add or remove friends and change your avatar color from the 3DS (needs an email login, not the QR).
-- **Create account.** The login screen has Sign in and Create account tabs, like the web. The app remembers your email, last game and draw distance.
-- **Auto update.** The 3DS app checks GitHub for new versions on start and installs the latest stable release or devbuild from the Update page.
-- **Stay signed in.** The 3DS remembers your account with a renewable token, so you do not log in every time.
-- **Better gameplay on 3DS.** Run, automatic steps, C-stick camera, block outline, name tags, on-screen chat, sky and fog.
-- **Better web rendering.** Textured blocks, shadows, animated avatars, touch controls for tablets and phones, no emojis.
-- **Create is owner-only.** Creating and deleting games is web-only and limited to the authorized account (checked on the server).
-- **3D avatars.** Every player has their own look (skin, hair, hairstyle, pants) plus the shirt color they pick, identical on web and 3DS. Profile pictures show the avatar head. The web has a 3D avatar editor.
-- **Emotes.** Wave, Dance, Cheer, Clap and Sit, visible to everyone on web and 3DS.
-- **Touch login.** The 3DS login screen has Email and Password fields, show/hide password, Remember my email and an Enter button.
-- **Bottom screen panel.** Players online, block color picker, Chat and Exit buttons.
-- **Softer HOME Menu sound.** A gentle chime plays when the app is highlighted.
-- **Sign in with a QR.** The 3DS shows a QR; scan it with a phone or tablet, log in there and authorize. The 3DS remembers the session.
-- **Same world everywhere.** Web and 3DS read and write the same Supabase tables.
-
-- **Reliable sync.** Players, emotes and chat reach everyone on web and 3DS, with a polling fallback when Realtime is blocked. Online/offline status fixed.
-- **Friends 2.0.** Add by exact username with a request the other person accepts, private chat, notifications, game invitations and joining a friend's game (web; requests and chat also on the 3DS).
-- **Languages.** Spanish, English, Portuguese, French and German on the web; Spanish and English on the 3DS.
-- **PWA.** Install Blocksy from the browser; the app shell works offline.
-- **Music.** Drop audio files (.mp3, .ogg, .wav...) in `web/public/playlist` and they play in games, with next/previous, mute and volume in Settings.
-- **More settings.** Quality, field of view, shadows, bloom, clouds, theme and accent color, minimap, chat bubbles, touch size, left-handed mode, sound effects and stats.
-- **Better 3D.** Day and night cycle with stars, clouds, soft sky, richer block textures, break particles, chat bubbles, optional bloom. 3DS: sun, clouds, shadows.
-- **Game types and advanced editor.** Build, Social, Obby (checkpoints and timer) and Arena; terrains; rules; sky; scripts in a sandboxed worker (owner only).
-- **Extra ideas.** Minimap, screenshots (P), fly mode (F), sound effects, join links (#join/ID), best times, stats, themes, 12 block colors.
-
-- **Profiles and clean URLs.** Pages use real paths (/home, /friends, /u/username) and every player has a profile with a 3D avatar, bio and actions.
-
-- **Private messages.** Edit and delete your own messages (web and 3DS), with scrolling chat on the 3DS.
-- **3DS alerts.** Alerts page and pop-ups for requests, invitations and messages, a sync-rate slider, and an updater that restarts the app after updating.
-
-- **BCoins and Shop.** The game currency, a daily reward with streaks, coins for playing, and a shop with hats, titles and loot crates (web and 3DS).
-- **Studio.** A visual editor for your games: free camera, place and erase blocks, text on screen, test play, and Lua (or JavaScript) scripting in a sandbox.
-- **Voice chat.** Proximity voice chat on the web with push to talk or toggle.
-- **PWA updates.** Update button, automatic checks and the version in Settings.
-- **3DS worlds.** Plaza and Obby (checkpoints, timer, rules) play on the 3DS too.
+- **Dark Forest.** A new game: at night, with a flashlight, find the 5 light shards with your friends and run from the monster. Web and 3DS (the monster is shared: whoever is in the game moves it).
+- **Accessories.** Change your hat and title from the Avatar page on web and 3DS. Hats are now visible to every player, on web and 3DS.
+- **Studio 2.** Box fill (solid, hollow, clear), paint, eyedropper, select with copy, cut and paste, ready-made structures (house, tower, bridge, wall, stairs, pyramid, tree, arch...), undo and redo (Ctrl+Z / Ctrl+Y), parts with size, color, shape and material, spawn points and an Environment panel (sky, gravity, speed, jump, welcome message, rules).
+- **Roblox-style Lua.** Scripts can use Instance.new, Parts, game:GetService, Players, Humanoid, TweenService, RunService, UserInputService, Lighting, Debris, CollectionService, ScreenGui / TextLabel / TextButton, ClickDetector, ProximityPrompt, leaderstats, Touched, task.wait and more. Luau syntax (+=, continue, type annotations, `{variable}` strings) works too. See the API reference in the script editor.
+- **3DS build controls.** Games without building (Dark Forest, Plaza, Obby, Arena) no longer show the block palette, the outline or the build hints on the 3DS.
+- **3DS shop.** If a purchase fails, the 3DS shows the real reason; it also falls back to the old shop when the new server is not reachable.
+- **Safety.** Block and report players, daily missions with BCoin rewards, and 14 languages on the web chosen automatically from your browser.
+- **Bulk edits.** The server accepts many blocks at once (supabase/game/v5.sql), so Studio boxes and structures are fast.
 
 ## Installing
 - Install `Blocksy.cia` with FBI, or copy `Blocksy.3dsx` to the `3ds` folder of the SD card and run it from the Homebrew Launcher.

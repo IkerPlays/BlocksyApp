@@ -79,6 +79,78 @@ export const EXAMPLES = {
 }
 
 export const EXAMPLES_LUA = {
+  'Roblox: plataforma que sube y baja': `local TweenService = game:GetService("TweenService")
+local plataforma = Instance.new("Part")
+plataforma.Size = Vector3.new(6, 1, 6)
+plataforma.Position = Vector3.new(6, 2, 0)
+plataforma.Color = Color3.fromRGB(80, 180, 255)
+plataforma.Anchored = true
+plataforma.Parent = workspace
+
+local info = TweenInfo.new(2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true)
+TweenService:Create(plataforma, info, { Position = Vector3.new(6, 8, 0) }):Play()`,
+  'Roblox: monedas y puntuacion': `local Players = game:GetService("Players")
+
+Players.PlayerAdded:Connect(function(player)
+  local stats = Instance.new("Folder")
+  stats.Name = "leaderstats"
+  stats.Parent = player
+  local coins = Instance.new("IntValue")
+  coins.Name = "Monedas"
+  coins.Value = 0
+  coins.Parent = stats
+end)
+
+for i = 1, 5 do
+  local coin = Instance.new("Part")
+  coin.Shape = Enum.PartType.Ball
+  coin.Size = Vector3.new(1, 1, 1)
+  coin.Position = Vector3.new(i * 3, 1.5, 6)
+  coin.Color = Color3.fromRGB(255, 210, 60)
+  coin.Anchored = true
+  coin.CanCollide = false
+  coin.Parent = workspace
+  coin.Touched:Connect(function(hit)
+    local player = Players:GetPlayerFromCharacter(hit.Parent)
+    if player and coin.Parent then
+      player.leaderstats.Monedas.Value += 1
+      coin:Destroy()
+    end
+  end)
+end`,
+  'Roblox: boton en pantalla': `local player = game.Players.LocalPlayer
+local gui = Instance.new("ScreenGui")
+gui.Parent = player.PlayerGui
+
+local boton = Instance.new("TextButton")
+boton.Size = UDim2.new(0, 160, 0, 48)
+boton.Position = UDim2.new(0.5, 0, 1, -80)
+boton.AnchorPoint = Vector2.new(0.5, 0)
+boton.Text = "Super salto"
+boton.TextSize = 22
+boton.BackgroundColor3 = Color3.fromRGB(255, 120, 60)
+boton.Parent = gui
+Instance.new("UICorner", boton).CornerRadius = UDim.new(0, 12)
+
+boton.MouseButton1Click:Connect(function()
+  local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
+  humanoid.JumpPower = 100
+  task.wait(5)
+  humanoid.JumpPower = 50
+end)`,
+  'Roblox: lava que mata': `local lava = Instance.new("Part")
+lava.Size = Vector3.new(8, 1, 8)
+lava.Position = Vector3.new(-8, 0.5, 0)
+lava.Color = Color3.fromRGB(255, 80, 20)
+lava.Material = Enum.Material.Neon
+lava.Anchored = true
+lava.Parent = workspace
+
+lava.Touched:Connect(function(hit)
+  local humanoid = hit.Parent:FindFirstChildOfClass("Humanoid")
+  if humanoid then humanoid.Health = 0 end
+end)`,
+
   'Bienvenida': `on("join", function(p)
   game.title("Bienvenido, " .. game.me.name, 3500)
   game.say("Escribe /saltar para un super salto")

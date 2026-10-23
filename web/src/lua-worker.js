@@ -3,6 +3,7 @@
 // La API de Roblox (Instance, services, task, Vector3...) está escrita en Lua en ./lua/roblox.lua.
 import fengari from 'fengari'
 import ROBLOX from './lua/roblox.lua?raw'
+import { transpile } from './luau.js'      // Luau (+=, continue, tipos, `{x}`) -> Lua 5.3
 const { lua, lauxlib, lualib, to_luastring, to_jsstring } = fengari
 const L = lauxlib.luaL_newstate()
 for (const [name, open] of [['_G', lualib.luaopen_base], ['table', lualib.luaopen_table], ['string', lualib.luaopen_string], ['math', lualib.luaopen_math], ['coroutine', lualib.luaopen_coroutine], ['utf8', lualib.luaopen_utf8]]) {   // sin io, os, package ni debug
@@ -53,12 +54,12 @@ lua.lua_sethook(L, null, 0, 0)
 self.onmessage = e => {
   const m = e.data
   if (m.t === 'check') {                                                  // solo comprobar la sintaxis
-    const r = lauxlib.luaL_loadbuffer(L, to_luastring(m.code), m.code.length, to_luastring('=script'))
+    const code = transpile(m.code), r = lauxlib.luaL_loadbuffer(L, to_luastring(code), code.length, to_luastring('=script'))
     post({ t: 'checked', err: r ? to_jsstring(lua.lua_tostring(L, -1)) : null }); return
   }
   nacts = 0; guard()
   try {
-    if (m.t === 'init') { dispatch('init', { me: m.me?.name ?? '', code: m.code, parts: m.parts ?? [] }); lua.lua_sethook(L, null, 0, 0); post({ t: 'ready' }); return }
+    if (m.t === 'init') { dispatch('init', { me: m.me?.name ?? '', code: transpile(m.code), parts: m.parts ?? [] }); lua.lua_sethook(L, null, 0, 0); post({ t: 'ready' }); return }
     const d = { ...(m.data ?? {}) }
     if (m.name !== undefined) d.name = String(m.name)
     if (m.args !== undefined) d.args = String(m.args)

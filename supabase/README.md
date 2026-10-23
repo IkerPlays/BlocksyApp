@@ -77,3 +77,13 @@ Mientras no pongas las variables de STORE, la web y la 3DS siguen funcionando en
 
 Cómo se protege: el precio lo decide STORE y llega firmado (HMAC, 3 minutos, un solo uso) a AUTH (`shop_redeem`), que es quien mueve las monedas; GAME solo guarda las reglas
 (`allow_build`, `allow_chat`, modo y dueño) que le envía el cliente del creador al guardar un juego. La lista de juegos nueva empieza vacía salvo los 3 iniciales (mismos ids que antes).
+
+## Novedades 1.1 (Bosque Oscuro, Studio 2, sombreros, misiones)
+Ejecuta, en este orden y solo una vez (todos son seguros de repetir):
+1. **GAME** → `game/v4.sql`: sombrero visible para todos (`player_state.hat`), el monstruo del bosque (`npcs`, `npc_tick`, `npc_release`) y los eventos de partida (`game_event`); añade las reglas del Bosque Oscuro.
+2. **GAME** → `game/v5.sql`: `place_blocks` (muchos bloques en una llamada; lo usa el Studio para cajas, estructuras y deshacer). Sin él, el Studio sigue funcionando pero va bloque a bloque.
+3. **AUTH** → `auth/extras.sql`: bloquear y denunciar jugadores, misiones diarias.
+4. **STORE** → `store/forest.sql`: añade el juego "Bosque Oscuro" a la lista (necesita `store/schema.sql` ya ejecutado). Sin STORE, añade esa fila a `games` de GAME.
+
+Studio: las piezas (Part) y el entorno que edites se guardan en `games.config` (`parts`, `gravity`, `speed`, `jump`, `sky`, `welcome`...). El script Lua puede encontrar las piezas por su nombre: `workspace.Part1`.
+Lua estilo Roblox: cada jugador ejecuta el script en su navegador (como un LocalScript); no hace falta ningún SQL. La referencia está en el editor de scripts.
