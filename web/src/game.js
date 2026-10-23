@@ -173,7 +173,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
 
   const me = { pos: new THREE.Vector3(...world.spawn), vel: new THREE.Vector3(), ry: 0, grounded: false, anim: 'idle', kind: 1, emote: null, fly: false }
   social.myBlocked()
-  const myHat = () => packLoadout(social.getWallet()?.equipped)      // sombrero|gafas|espalda|estela|mascota
+  const myHat = () => packLoadout(social.getWallet()?.equipped, social.getLook())      // sombrero|gafas|espalda|estela|mascota
   let meAvatar = makeAvatar(profile.avatar_color, profile.username, myHat()), meLoadout = myHat()
   // mascotas (siguen a su dueño) y estelas (chispas al caminar)
   const pets = new Map(), trailAcc = new Map()
@@ -185,7 +185,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
     const mesh = buildPet(want); mesh.position.copy(avatar.position); scene.add(mesh); pets.set(key, { id: want, mesh, owner: avatar })
   }
   syncPet('me', meAvatar, meLoadout)
-  social.loadWallet().catch(() => {})                                // la cartera trae lo que llevas puesto
+  social.loadWallet().catch(() => {}); social.loadLook(profile.username).catch(() => {})                                // la cartera trae lo que llevas puesto
   const loadoutTimer = setInterval(() => {                           // si cambias de accesorios (o termina de cargar la cartera), tu avatar se rehace
     const now = myHat(); if (now === meLoadout) return; meLoadout = now
     const pos = meAvatar.position.clone(), rot = meAvatar.rotation.y; scene.remove(meAvatar)

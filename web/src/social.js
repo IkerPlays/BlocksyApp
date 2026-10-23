@@ -121,6 +121,12 @@ const pend = {}
 // Tiempo jugado, insignias, última conexión y favoritos (AUTH v12). Si el SQL aún no está, todo falla en silencio.
 export const addPlaytime = sec => rpc('add_playtime', { p_seconds: sec }).catch(() => {})
 export const profileExtra = name => rpc('profile_extra', { p_username: name }).catch(() => null)
+// Aspecto del avatar (piel, pelo, peinado, pantalón): se guarda en AUTH v14 y se copia en el navegador
+let look = (() => { try { return localStorage.getItem('blocksy.look') || '' } catch { return '' } })()
+const keepLook = c => { look = c; try { localStorage.setItem('blocksy.look', c) } catch {} }
+export const getLook = () => look
+export async function setLook(code) { keepLook(code); try { await rpc('set_look', { p_look: code }) } catch {} }
+export async function loadLook(name) { const x = await profileExtra(name); if (x && typeof x.look === 'string') keepLook(x.look); return look }
 let votes = null
 export async function gameVotes(force = false) { if (!votes || force) votes = Object.fromEntries((await rpc('game_votes_summary', {}).catch(() => []) ?? []).map(r => [r.game_id, { up: Number(r.up), down: Number(r.down), mine: r.mine }])); return votes }
 export async function voteGame(id, v) { const mine = await rpc('vote_game', { p_game: id, p_vote: v }); await gameVotes(true); return mine }

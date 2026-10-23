@@ -3,6 +3,7 @@ import { EXTRA } from './i18n-extra.js'
 const D = {
   es: {
     lang_name: 'Español',
+    look_skin: 'Piel', look_hair: 'Pelo', look_style: 'Peinado', look_pants: 'Pantalón', look_random: 'Aleatorio', look_reset: 'Restablecer', hairstyle_0: 'Corto', hairstyle_1: 'Flequillo', hairstyle_2: 'Pinchos', outfits: 'Atuendos guardados', outfit: 'Atuendo', outfit_saved: 'Atuendo guardado', outfit_worn: 'Atuendo puesto',
     shop_faces: 'Gafas y máscaras', shop_backs: 'Espalda', shop_trails: 'Estelas', shop_pets: 'Mascotas',
     like: 'Me gusta', dislike: 'No me gusta', recent: 'Jugados hace poco', sort_popular: 'Más populares', sort_newest: 'Más nuevos', sort_az: 'A-Z', sort_liked: 'Más valorados', ed_tags: 'Etiquetas (hasta 5, separadas por comas)', ed_tags_ph: 'aventura, amigos, carrera',
     room_title: 'Sala privada (solo entran quienes tengan el código)', room_code: 'Código de sala', room_new: 'Crear', room_join: 'Entrar', room_bad: 'El código necesita 3 o más letras o números', invite_all: 'Invitar a todos', invite_all_done: 'Invitaciones enviadas: {n}',
@@ -77,6 +78,7 @@ const D = {
   },
   en: {
     lang_name: 'English',
+    look_skin: 'Skin', look_hair: 'Hair', look_style: 'Hairstyle', look_pants: 'Pants', look_random: 'Random', look_reset: 'Reset', hairstyle_0: 'Short', hairstyle_1: 'Bangs', hairstyle_2: 'Spikes', outfits: 'Saved outfits', outfit: 'Outfit', outfit_saved: 'Outfit saved', outfit_worn: 'Outfit worn',
     shop_faces: 'Glasses and masks', shop_backs: 'Back items', shop_trails: 'Trails', shop_pets: 'Pets',
     like: 'Like', dislike: 'Dislike', recent: 'Recently played', sort_popular: 'Most popular', sort_newest: 'Newest', sort_az: 'A-Z', sort_liked: 'Top rated', ed_tags: 'Tags (up to 5, comma separated)', ed_tags_ph: 'adventure, friends, race',
     room_title: 'Private room (only people with the code join)', room_code: 'Room code', room_new: 'Create', room_join: 'Join', room_bad: 'The code needs 3 or more letters or numbers', invite_all: 'Invite everyone', invite_all_done: 'Invitations sent: {n}',

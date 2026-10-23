@@ -25,6 +25,16 @@ export function hash32(s) {                    // FNV-1a de 32 bits sobre los by
   for (const b of new TextEncoder().encode(s)) { h ^= b; h = Math.imul(h, 0x01000193) >>> 0 }
   return h >>> 0
 }
+// Aspecto elegido por el jugador: "piel.pelo.peinado.pantalon" con el número de cada opción (en blanco = el que sale del nombre)
+export const PALETTES = { skin: SKIN, hair: HAIR, pants: PANTS }
+export function applyLook(st, code) {
+  const a = String(code ?? '').split('.'), n = (i, len) => { const v = a[i]; if (v === '' || v === undefined) return null; const k = Number(v); return Number.isInteger(k) && k >= 0 && k < len ? k : null }
+  const s = n(0, SKIN.length), h = n(1, HAIR.length), y = n(2, 3), p = n(3, PANTS.length)
+  if (s != null) st.skin = SKIN[s]; if (h != null) st.hair = HAIR[h]; if (y != null) st.hairStyle = y; if (p != null) st.pants = PANTS[p]
+  return st
+}
+export const defaultLook = name => { const h = hash32(String(name || '')); return [h % SKIN.length, (h >>> 8) % HAIR.length, (h >>> 24) % 3, (h >>> 16) % PANTS.length] }
+export const randomLook = () => [Math.floor(Math.random() * SKIN.length), Math.floor(Math.random() * HAIR.length), Math.floor(Math.random() * 3), Math.floor(Math.random() * PANTS.length)].join('.')
 export function styleFor(name, shirt) {
   const h = hash32(String(name || ''))
   return { shirt, skin: SKIN[h % SKIN.length], hair: HAIR[(h >>> 8) % HAIR.length], pants: PANTS[(h >>> 16) % PANTS.length], hairStyle: (h >>> 24) % 3 }
@@ -60,9 +70,9 @@ export const COS_COLORS = { face_shades: '#1b1b1b', face_round: '#f5c542', face_
 export const cosStyle = id => (id && COS_COLORS[id] ? { id, color: COS_COLORS[id] } : null)
 export const SLOTS = ['hat', 'face', 'back', 'trail', 'pet']
 // Lo que llevas puesto viaja como "gorro|gafas|espalda|estela|mascota" (los vacíos quedan en blanco)
-export const packLoadout = eq => SLOTS.map(k => eq?.[k] ?? '').join('|')
-export const parseLoadout = s => { const a = String(s ?? '').split('|'); return Object.fromEntries(SLOTS.map((k, i) => [k, a[i] || ''])) }
-export const loadoutStyle = (base, lo) => ({ ...base, hat: hatStyle(lo.hat), face: cosStyle(lo.face), back: cosStyle(lo.back) })
+export const packLoadout = (eq, look = '') => [...SLOTS.map(k => eq?.[k] ?? ''), look].join('|')
+export const parseLoadout = s => { const a = String(s ?? '').split('|'); return { ...Object.fromEntries(SLOTS.map((k, i) => [k, a[i] || ''])), look: a[5] || '' } }
+export const loadoutStyle = (base, lo) => applyLook({ ...base, hat: hatStyle(lo.hat), face: cosStyle(lo.face), back: cosStyle(lo.back) }, lo.look)
 function addFace(head, f) {
   const m = lambert(f.color), add = (...o) => head.add(...o)
   switch (f.id) {

@@ -1,1 +1,1 @@
-Dev build 6: 6 new hats, glasses and masks, capes and wings, walking trails and pets, all visible to other players. Run supabase/game/v7.sql (GAME) and supabase/store/v12.sql (STORE). The 3DS still draws only the original 6 hats.
+Dev build 7: choose skin, hair, hairstyle and pants, a random avatar button and four saved outfits. Run supabase/auth/v14.sql (AUTH); v7.sql (GAME) now allows 96 characters. The 3DS keeps the look derived from the username.

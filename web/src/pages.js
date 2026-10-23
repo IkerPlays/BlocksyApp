@@ -3,7 +3,7 @@ import * as api from './api.js'
 import * as social from './social.js'
 import { settings, saveSettings, resetSettings, lastPlayed, recentGames, getStats, applyTheme } from './settings.js'
 import { icon } from './icons.js'
-import { headshot, styleFor, EMOTES, createPreview, loadoutStyle, parseLoadout, packLoadout } from './avatar.js'
+import { headshot, styleFor, EMOTES, createPreview, loadoutStyle, parseLoadout, packLoadout, PALETTES, defaultLook, randomLook } from './avatar.js'
 import { t, LANGS, langName, getPref, setLang, onLang } from './i18n.js'
 import { codeEditor } from './studio-ui.js'
 import { partyPanel, attachEmoticons } from './party-ui.js'
@@ -263,7 +263,7 @@ export const pages = {
     const pv = createPreview(canvas, { ...styleFor(p.username, p.avatar_color), ...loadoutStyle({}, parseLoadout(packLoadout(p.equipped))) }); pv.setAnim('wave')
     if (p.equipped?.title) social.listShop().then(items => { const it = items.find(i => i.id === p.equipped.title); if (it) titleBox.textContent = it.data?.text ?? it.name }).catch(() => {})
     paintBio(); paintActions()
-    social.profileExtra(p.username).then(x => { if (!x) return; const hrs = Math.floor(x.play_seconds / 3600), mins = Math.floor(x.play_seconds % 3600 / 60); const bd = [...(x.badges ?? []), ...(mine0.length ? ['creator'] : [])]
+    social.profileExtra(p.username).then(x => { if (!x) return; if (x.look) pv.setStyle(loadoutStyle(styleFor(p.username, p.avatar_color), parseLoadout(packLoadout(p.equipped, x.look)))); const hrs = Math.floor(x.play_seconds / 3600), mins = Math.floor(x.play_seconds % 3600 / 60); const bd = [...(x.badges ?? []), ...(mine0.length ? ['creator'] : [])]
       setKids(extraBox, el('div', { class: 'badges' }, bd.map(b => el('span', { class: 'badge', title: t('badge_' + b + '_d'), text: t('badge_' + b) }))), el('small', { style: 'display:block;color:var(--muted);margin:6px 0', text: `${t('stat_time')}: ${hrs}h ${mins}m${x.last_seen && !p.is_online ? ` · ${t('last_seen')}: ${new Date(x.last_seen).toLocaleString()}` : ''}` })) })
     await social.myBlocked()
     const [all, counts] = await Promise.all([api.listGames(), api.playerCounts()])
@@ -281,12 +281,41 @@ export const pages = {
     const sw = el('div', { class: 'swatches' })
     let pv = null
     await social.loadWallet().catch(() => {})
-    const style = () => loadoutStyle(styleFor(ctx.profile.username, sel), parseLoadout(packLoadout(social.getWallet()?.equipped)))
+    let lookCode = social.getLook(); await social.loadLook(ctx.profile.username).then(c => (lookCode = c)).catch(() => {})
+    const style = () => loadoutStyle(styleFor(ctx.profile.username, sel), parseLoadout(packLoadout(social.getWallet()?.equipped, lookCode)))
     const paint = () => {
       pv?.setStyle(style()); custom.value = sel
       setKids(sw, ...colors.map(c => el('div', { class: `swatch ${c === sel ? 'sel' : ''}`, style: `--c:${c}`, onclick: () => { sel = c; paint() } })), custom)
     }
     custom.oninput = () => { sel = custom.value; pv?.setStyle(style()) }
+    // Aspecto: piel, pelo, peinado y pantalón (los demás lo ven igual); aleatorio y atuendos guardados
+    const lookBox = el('div'), outfitBox = el('div')
+    const lk = () => { const d = defaultLook(ctx.profile.username), a = lookCode.split('.'); return [0, 1, 2, 3].map(i => (a[i] !== undefined && a[i] !== '' ? Number(a[i]) : d[i])) }
+    const setLookAt = (i, v) => { const cur = lk(); cur[i] = v; lookCode = cur.join('.'); paintLook(); pv?.setStyle(style()) }
+    const paintLook = () => {
+      const cur = lk(), row = (title, i, items) => [el('div', { class: 'section-s', text: title }), el('div', { class: 'swatches' }, items.map((c, k) => el('div', { class: `swatch ${cur[i] === k ? 'sel' : ''}`, style: `--c:${c}`, onclick: () => setLookAt(i, k) })))]
+      setKids(lookBox, row(t('look_skin'), 0, PALETTES.skin), row(t('look_hair'), 1, PALETTES.hair),
+        el('div', { class: 'section-s', text: t('look_style') }), el('div', { class: 'acc-row' }, [0, 1, 2].map(k => el('button', { class: `acc-chip ${cur[2] === k ? 'on' : ''}`, text: t('hairstyle_' + k), onclick: () => setLookAt(2, k) }))),
+        row(t('look_pants'), 3, PALETTES.pants),
+        el('div', { class: 'acc-row', style: 'margin-top:8px' }, el('button', { class: 'btn', text: t('look_random'), onclick: () => { lookCode = randomLook(); sel = colors[Math.floor(Math.random() * colors.length)]; paintLook(); paint() } }), el('button', { class: 'btn', text: t('look_reset'), onclick: () => { lookCode = ''; paintLook(); pv?.setStyle(style()) } })))
+    }
+    const outfits = () => { try { return JSON.parse(localStorage.getItem('blocksy.outfits') || '[]') } catch { return [] } }
+    const saveOutfits = l => { try { localStorage.setItem('blocksy.outfits', JSON.stringify(l)) } catch {} }
+    async function wear(o) {
+      sel = o.shirt; lookCode = o.look ?? ''
+      const have = new Set(social.getWallet()?.inventory ?? []), cur = social.getWallet()?.equipped ?? {}
+      for (const kind of ['hat', 'face', 'back', 'trail', 'pet']) { try { if (o.eq?.[kind] && have.has(o.eq[kind])) { if (cur[kind] !== o.eq[kind]) await social.equipItem(o.eq[kind]) } else if (cur[kind]) await social.unequipSlot(kind) } catch {} }
+      paintLook(); paintAcc(); paint(); toast(t('outfit_worn'))
+    }
+    const paintOutfits = () => {
+      const list = outfits()
+      setKids(outfitBox, el('div', { class: 'section-s', text: t('outfits') }), el('div', { class: 'acc-row' }, [0, 1, 2, 3].map(i => {
+        const o = list[i]
+        return el('span', {}, el('button', { class: `acc-chip ${o ? 'on' : ''}`, text: o ? `${t('outfit')} ${i + 1}` : `+ ${t('outfit')} ${i + 1}`, onclick: () => { if (o) wear(o); else { const l = outfits(); l[i] = { shirt: sel, look: lookCode, eq: { ...(social.getWallet()?.equipped ?? {}) } }; saveOutfits(l); paintOutfits(); toast(t('outfit_saved')) } } }),
+          o ? el('button', { class: 'acc-chip', text: 'x', title: t('delete'), onclick: () => { const l = outfits(); l[i] = null; saveOutfits(l); paintOutfits() } }) : null)
+      })))
+    }
+    paintLook(); paintOutfits()
     const emotes = el('div', { class: 'emote-row' }, EMOTES.map(e => el('button', { class: 'btn', text: t('emote_' + e.id), onclick: () => pv?.setAnim(e.id) })), el('button', { class: 'btn secondary', text: t('still'), onclick: () => pv?.setAnim('idle') }))
     // Accesorios: sombreros y títulos que ya tienes (se compran en la tienda)
     const shopItems = await social.listShop().catch(() => [])
@@ -306,9 +335,9 @@ export const pages = {
     setKids(root, el('h1', { class: 'page-title', text: t('avatar') }),
       el('div', { class: 'panel avatar-edit' }, el('div', { class: 'preview' }, canvas), el('div', {},
         el('h3', { text: ctx.profile.username }), el('p', { style: 'color:var(--muted)', text: t('avatar_help') }),
-        sw, accBox, el('div', { class: 'section-s', text: t('try_emotes') }), emotes,
+        sw, lookBox, accBox, outfitBox, el('div', { class: 'section-s', text: t('try_emotes') }), emotes,
         el('button', { class: 'btn primary', style: 'margin-top:16px', text: t('save'), onclick: async () => {
-          try { await auth.saveColor(ctx.profile.id, sel); await ctx.refreshProfile(); toast(t('avatar_saved')) } catch (e) { toast(e.message) } } }))))
+          try { await auth.saveColor(ctx.profile.id, sel); await social.setLook(lookCode); await ctx.refreshProfile(); toast(t('avatar_saved')) } catch (e) { toast(e.message) } } }))))
     pv = createPreview(canvas, style()); paint()
   },
 

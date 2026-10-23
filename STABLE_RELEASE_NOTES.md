@@ -22,6 +22,9 @@ Blocksy is a multiplayer block-building game for the web and the Nintendo 3DS (h
 - **Recently played.** Home shows the last games you played.
 - **New accessories.** 6 new hats, glasses and masks, capes, wings and a backpack, available in the shop, loot crates and the Avatar page.
 - **Trails and pets.** Leave sparks, fire, rainbow or bubbles when you walk, and a little pet follows you around; other players see them.
+- **Custom looks.** Choose skin, hair, hairstyle and pants on the web Avatar page; other web players see your choice.
+- **Random avatar.** One button to roll a new look and shirt color.
+- **Saved outfits.** Save up to four outfits (look, shirt color and accessories) and wear them with one click.
 
 ## Installing
 - Install `Blocksy.cia` with FBI, or copy `Blocksy.3dsx` to the `3ds` folder of the SD card and run it from the Homebrew Launcher.
