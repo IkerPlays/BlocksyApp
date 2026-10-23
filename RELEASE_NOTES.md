@@ -1,1 +1,1 @@
-Dev build 10: game templates (blank, obby, plaza, coins, platforms and lava), export and import games as .json, an object explorer in Studio and autosave every minute.
+Dev build 11: Lua gets DataStoreService (saved in your browser), Workspace:Raycast, region queries (GetPartBoundsInRadius, GetPartBoundsInBox, GetPartsInPart) and Roblox sound ids mapped to ten built-in sound effects.

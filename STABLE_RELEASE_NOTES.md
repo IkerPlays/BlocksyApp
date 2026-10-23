@@ -34,6 +34,9 @@ Blocksy is a multiplayer block-building game for the web and the Nintendo 3DS (h
 - **Game templates.** Start a new game from a template: Obby, Social plaza, Collect coins or Platforms and lava (with ready-made Lua).
 - **Export and import.** Export a whole game (blocks, parts, rules and script) from Studio and import it from the Create page.
 - **Studio explorer and autosave.** A list of every part in the game, and Studio saves by itself every minute.
+- **Lua DataStore.** DataStoreService:GetDataStore with GetAsync, SetAsync, UpdateAsync, IncrementAsync and RemoveAsync; data stays in the player's browser.
+- **Lua raycast and regions.** Workspace:Raycast and part queries by radius, box or overlap.
+- **Lua sounds.** Sound objects play built-in effects (coin, laser, boom, powerup, hit...); blocksy://name picks one, any Roblox id maps to one.
 
 ## Installing
 - Install `Blocksy.cia` with FBI, or copy `Blocksy.3dsx` to the `3ds` folder of the SD card and run it from the Homebrew Launcher.

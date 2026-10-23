@@ -10,7 +10,7 @@ import { buildAvatar, poseAvatar, styleFor, EMOTES, headshot, packLoadout, parse
 import { t, onLang } from './i18n.js'
 import { createSky } from './sky.js'
 import { buildWorld } from './world.js'
-import { createRunner } from './script.js'
+import { loadDataStore, saveDataStore, createRunner } from './script.js'
 import { sfx } from './sfx.js'
 import * as music from './music.js'
 import { icon } from './icons.js'
@@ -433,6 +433,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
     runner = createRunner(game.script, { name: profile.username }, (type, a) => {
       switch (type) {
         case 'print': sys('› ' + a[0]); break
+        case 'dsset': saveDataStore(game.parentId ?? game.id, String(a[0]), String(a[1]), String(a[2] ?? '')); break
         case 'respawn': teleport(...respawn.pos); runner.fire('respawned', { data: {} }); break
         case 'say': sys('» ' + a[0]); break
         case 'title': showTitle(a[0], a[1]); break
@@ -446,7 +447,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
         case 'uitext': uiText[a[0]] = String(a[1]); drawUi(); break
         default: rbx.apply(type, a)
       }
-    }, msg => sys('script: ' + msg), lua ? 'lua' : 'js', { parts: cfg.parts ?? [] })
+    }, msg => sys('script: ' + msg), lua ? 'lua' : 'js', { parts: cfg.parts ?? [], ds: loadDataStore(game.parentId ?? game.id) })
   }
   if (!ST) startRunner()
 

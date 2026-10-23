@@ -46,6 +46,12 @@ export function checkLua(code) {
 }
 import LuaWorker from './lua-worker.js?worker'
 
+// DataStore local: lo que guardan los scripts Lua se queda en este navegador (por juego)
+const dsKey = id => `blocksy.ds.${id}`
+export function loadDataStore(gameId) { try { return JSON.parse(localStorage.getItem(dsKey(gameId)) || '{}') } catch { return {} } }
+export function saveDataStore(gameId, store, key, json) {
+  try { const d = loadDataStore(gameId); d[store] = d[store] ?? {}; if (json === '') delete d[store][key]; else if (Object.keys(d[store]).length < 200 && String(json).length < 20000) d[store][key] = json; localStorage.setItem(dsKey(gameId), JSON.stringify(d)) } catch {}
+}
 export function createRunner(code, me, onAction, onError, lang = 'js', extra = {}) {
   if (!code || !code.trim()) return { fire() {}, has: () => false, dispose() {} }
   let w, alive = true, seq = 0, pending = new Map()

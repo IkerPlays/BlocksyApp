@@ -59,7 +59,7 @@ self.onmessage = e => {
   }
   nacts = 0; guard()
   try {
-    if (m.t === 'init') { dispatch('init', { me: m.me?.name ?? '', code: transpile(m.code), parts: m.parts ?? [] }); lua.lua_sethook(L, null, 0, 0); post({ t: 'ready' }); return }
+    if (m.t === 'init') { dispatch('init', { me: m.me?.name ?? '', code: transpile(m.code), parts: m.parts ?? [], ds: m.ds ?? {} }); lua.lua_sethook(L, null, 0, 0); post({ t: 'ready' }); return }
     const d = { ...(m.data ?? {}) }
     if (m.name !== undefined) d.name = String(m.name)
     if (m.args !== undefined) d.args = String(m.args)

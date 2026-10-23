@@ -32,5 +32,10 @@ export const sfx = {
   win: () => [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.25, { gain: 0.12, delay: i * 0.12 })),
   fall: () => tone(400, 0.4, { type: 'triangle', gain: 0.1, slide: -300 }),
   step: () => noise(0.04, { gain: 0.045, freq: 700 + Math.random() * 300 }),
+  coin: () => { tone(988, 0.07, { type: 'square', gain: 0.09 }); tone(1319, 0.16, { type: 'square', gain: 0.09, delay: 0.07 }) },
+  laser: () => tone(1400, 0.22, { type: 'sawtooth', gain: 0.08, slide: -1200 }),
+  boom: () => { noise(0.45, { gain: 0.3, freq: 400 }); tone(90, 0.35, { type: 'sawtooth', gain: 0.15, slide: -50 }) },
+  powerup: () => [392, 523, 659, 784].forEach((f, i) => tone(f, 0.12, { type: 'triangle', gain: 0.1, delay: i * 0.07 })),
+  hit: () => { noise(0.08, { gain: 0.2, freq: 1200 }); tone(200, 0.08, { type: 'square', gain: 0.08, slide: -100 }) },
   click: () => tone(500, 0.04, { type: 'square', gain: 0.05 }),
 }

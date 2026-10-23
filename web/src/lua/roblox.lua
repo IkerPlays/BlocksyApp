@@ -599,8 +599,15 @@ standard("PointLight", "Instance", { props = { Brightness = 1, Range = 12, Color
 standard("SpotLight", "PointLight"); standard("SurfaceLight", "PointLight")
 standard("ClickDetector", "Instance", { props = { MaxActivationDistance = 32 }, events = { "MouseClick", "MouseHoverEnter", "MouseHoverLeave", "RightMouseClick" }, render = true, rep = { "MaxActivationDistance" } })
 standard("ProximityPrompt", "Instance", { props = { ActionText = "Interactuar", ObjectText = "", MaxActivationDistance = 10, HoldDuration = 0, Enabled = true, KeyboardKeyCode = Enum.KeyCode.E, RequiresLineOfSight = false }, events = { "Triggered", "TriggerEnded", "PromptShown", "PromptHidden" }, render = true, rep = { "ActionText", "ObjectText", "MaxActivationDistance", "HoldDuration", "Enabled" } })
+local SOUNDS = { "click", "coin", "win", "jump", "laser", "boom", "powerup", "hit", "notify", "join" }
+function soundName(id)                                    -- "blocksy://win" usa el efecto por su nombre; cualquier otro id de Roblox se reparte entre los efectos
+  id = tostring(id or "")
+  local named = id:match("^blocksy://(%w+)$"); if named then return named end
+  local n = tonumber(id:match("(%d+)")) or 0
+  return SOUNDS[n % #SOUNDS + 1]
+end
 standard("Sound", "Instance", { props = { SoundId = "", Volume = 0.5, Looped = false, Playing = false, PlaybackSpeed = 1 }, events = { "Ended", "Played" }, methods = {
-  Play = function(i) act("sound", tostring(rawget(i, "_props").SoundId)); rawget(i, "_props").Playing = true; task.delay(0.8, function() rawget(i, "_props").Playing = false; fire(i, "Ended") end) end,
+  Play = function(i) act("sound", soundName(rawget(i, "_props").SoundId)); rawget(i, "_props").Playing = true; task.delay(0.8, function() rawget(i, "_props").Playing = false; fire(i, "Ended") end) end,
   Stop = function(i) rawget(i, "_props").Playing = false end, Pause = function() end, Resume = function() end } })
 standard("Attachment", "Instance", { props = { Position = Vector3.new(0, 0, 0) } })
 standard("Camera", "Instance", { props = { FieldOfView = 70, CFrame = CFrame.new(0, 10, 0), Focus = CFrame.new(0, 0, 0) }, nilprops = { "CameraSubject", "CameraType" } })
@@ -660,8 +667,36 @@ end
 -- servicios
 local services = {}
 local function service(name, base, o) def(name, base or "Instance", o or {}); local i = newInstance(name); rawset(i, "_name", name); services[name] = i; return i end
+-- piezas del mundo y rayos (sobre las piezas que crea el script; los bloques del mundo no cuentan)
+function allParts() local out = {} for _, d in ipairs(walk(services.Workspace, {})) do if isA(rawget(d, "_class"), "BasePart") and rawget(d, "_class").name ~= "CharPart" then out[#out + 1] = d end end return out end
+function aabb(p) local pr = rawget(p, "_props"); local h = pr.Size / 2; local r = pr.Rot; local sy = math.abs(math.sin((r.Y or 0) * pi / 180)); local c = pr.Position
+  local hx, hz = h.X * (1 - sy) + h.Z * sy, h.Z * (1 - sy) + h.X * sy; return { min = Vector3.new(c.X - hx, c.Y - h.Y, c.Z - hz), max = Vector3.new(c.X + hx, c.Y + h.Y, c.Z + hz) } end
+function raycast(o, d, params)
+  local len = d.Magnitude; if len == 0 then return nil end
+  local dir = d / len; local best, bestT, bestN = nil, len, nil
+  local ignore = {}; if params and params.FilterDescendantsInstances then for _, x in ipairs(params.FilterDescendantsInstances) do ignore[x] = true end end
+  for _, p in ipairs(allParts()) do
+    if not ignore[p] and rawget(p, "_props").CanCollide ~= false or (params and params.IgnoreCollide == false) then
+      local b = aabb(p); local t0, t1, n = 0, bestT, nil
+      for _, ax in ipairs({ "X", "Y", "Z" }) do
+        local oo, dd, lo, hi = o[ax], dir[ax], b.min[ax], b.max[ax]
+        if math.abs(dd) < 1e-9 then if oo < lo or oo > hi then t0 = nil break end
+        else local a, c = (lo - oo) / dd, (hi - oo) / dd; local sgn = -1; if a > c then a, c = c, a; sgn = 1 end
+          if a > t0 then t0 = a; n = { X = 0, Y = 0, Z = 0 }; n[ax] = sgn end
+          if c < t1 then t1 = c end
+          if t0 > t1 then t0 = nil break end end
+      end
+      if t0 and t0 <= bestT and not ignore[p] then best, bestT, bestN = p, t0, n end
+    end
+  end
+  if not best then return nil end
+  return { Instance = best, Position = o + dir * bestT, Distance = bestT, Normal = bestN and Vector3.new(bestN.X, bestN.Y, bestN.Z) or Vector3.new(0, 1, 0), Material = rawget(best, "_props").Material }
+end
 local Workspace = service("Workspace", "Instance", { props = { Gravity = 196.2, FallenPartsDestroyHeight = -500 }, nilprops = { "CurrentCamera", "Terrain" }, events = {}, render = false,
-  methods = { GetServerTimeNow = function() return EPOCH + NOW end, Raycast = function() return nil end, GetPartBoundsInRadius = function() return {} end } })
+  methods = { GetServerTimeNow = function() return EPOCH + NOW end, Raycast = function(_, o, d, params) return raycast(o, d, params) end,
+    GetPartBoundsInRadius = function(_, c, r) local out = {} for _, p in ipairs(allParts()) do local b = aabb(p); local dx, dy, dz = math.max(b.min.X - c.X, 0, c.X - b.max.X), math.max(b.min.Y - c.Y, 0, c.Y - b.max.Y), math.max(b.min.Z - c.Z, 0, c.Z - b.max.Z); if dx * dx + dy * dy + dz * dz <= r * r then out[#out + 1] = p end end return out end,
+    GetPartBoundsInBox = function(_, cf, size) local c, h = cf.Position, size / 2; local out = {} for _, p in ipairs(allParts()) do local b = aabb(p); if b.max.X >= c.X - h.X and b.min.X <= c.X + h.X and b.max.Y >= c.Y - h.Y and b.min.Y <= c.Y + h.Y and b.max.Z >= c.Z - h.Z and b.min.Z <= c.Z + h.Z then out[#out + 1] = p end end return out end,
+    GetPartsInPart = function(_, part) local pb = aabb(part); local out = {} for _, p in ipairs(allParts()) do if p ~= part then local b = aabb(p); if b.max.X >= pb.min.X and b.min.X <= pb.max.X and b.max.Y >= pb.min.Y and b.min.Y <= pb.max.Y and b.max.Z >= pb.min.Z and b.min.Z <= pb.max.Z then out[#out + 1] = p end end end return out end } })
 rawset(Workspace, "_root", true)
 rawget(Workspace, "_props").CurrentCamera = newInstance("Camera"); rawset(rawget(Workspace, "_props").CurrentCamera, "_name", "Camera")
 rawget(Workspace, "_props").Terrain = newInstance("Terrain")
@@ -731,6 +766,22 @@ end
 service("HttpService", "Instance", { methods = { JSONEncode = function(_, v) return jenc(v) end, JSONDecode = function(_, s) return jdec(s) end,
   GenerateGUID = function(_, wrap) local g = string.format("%08X-%04X-%04X-%04X-%06X%06X", math.random(0, 2 ^ 31 - 1), math.random(0, 65535), math.random(0, 65535), math.random(0, 65535), math.random(0, 16777215), math.random(0, 16777215)); return wrap == false and g or "{" .. g .. "}" end,
   GetAsync = function() error("HttpService: las peticiones HTTP no estan permitidas", 2) end, PostAsync = function() error("HttpService: las peticiones HTTP no estan permitidas", 2) end, RequestAsync = function() error("HttpService: las peticiones HTTP no estan permitidas", 2) end } })
+
+-- DataStoreService: se guarda en este navegador (por juego y jugador); GetAsync / SetAsync / UpdateAsync / IncrementAsync / RemoveAsync
+local dsCache = {}
+local function dsStore(name)
+  local st = { _name = tostring(name) }
+  dsCache[st._name] = dsCache[st._name] or {}
+  local function save(key, v) local j = v == nil and "" or jenc(v); dsCache[st._name][tostring(key)] = j ~= "" and j or nil; act("dsset", st._name, tostring(key), j) end
+  local function load(key) local j = dsCache[st._name][tostring(key)]; if j == nil then return nil end return jdec(j) end
+  function st:GetAsync(key) return load(key) end
+  function st:SetAsync(key, v) save(key, v); return v end
+  function st:RemoveAsync(key) local old = load(key); save(key, nil); return old end
+  function st:IncrementAsync(key, d) local v = (tonumber(load(key)) or 0) + (d or 1); save(key, v); return v end
+  function st:UpdateAsync(key, fn) local v = fn(load(key)); if v ~= nil then save(key, v) end return v end
+  return st
+end
+service("DataStoreService", "Instance", { methods = { GetDataStore = function(_, name) return dsStore(name) end, GetOrderedDataStore = function(_, name) return dsStore(name) end } })
 
 -- ---------- Tweens ----------
 local Easing = {}
@@ -856,6 +907,7 @@ local function firstStep()
 end
 local DISPATCH = {}
 function DISPATCH.init(m)
+  for store, kv in pairs(m.ds or {}) do dsCache[store] = {}; for k, j in pairs(kv) do dsCache[store][k] = j end end
   startGame(m.me)
   for _, d in ipairs(m.parts or {}) do                                    -- piezas hechas en el Studio: estan en Workspace con su nombre
     local part = newInstance(d.type == "spawn" and "SpawnLocation" or "Part"); rawset(part, "_name", d.name or "Part")

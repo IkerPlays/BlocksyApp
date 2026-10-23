@@ -52,3 +52,16 @@ test('piezas del Studio estan en workspace con su nombre', () => {
   const h = run('print(workspace.Meta.Position.X, workspace.Meta.Anchored)', { parts: [{ name: 'Meta', x: 5, y: 1, z: 2, sx: 2, sy: 2, sz: 2, anchored: true }] })
   assert.deepEqual(h.errs, []); assert.deepEqual(prints(h), ['5.0 true'])
 })
+
+test('DataStore guarda y lee (y avisa al juego)', () => {
+  const h = run('local ds = game:GetService("DataStoreService"):GetDataStore("p"); print(ds:GetAsync("oro")); ds:SetAsync("oro", 5); print(ds:IncrementAsync("oro", 2)); print(ds:GetAsync("oro")); ds:UpdateAsync("lista", function(v) return { 1, 2 } end); print(#ds:GetAsync("lista"))', { ds: { p: { oro: '10' } } })
+  assert.deepEqual(h.errs, []); assert.deepEqual(prints(h), ['10', '7', '7', '2']); assert.ok(h.acts.some(a => a[0] === 'dsset' && a[1] === 'p' && a[2] === 'oro'))
+})
+test('Raycast y regiones sobre piezas', () => {
+  const h = run('local p = Instance.new("Part", workspace); p.Anchored = true; p.Size = Vector3.new(4, 2, 4); p.Position = Vector3.new(0, 5, 10); local r = workspace:Raycast(Vector3.new(0, 5, 0), Vector3.new(0, 0, 50)); print(r.Instance == p, r.Position.Z, r.Distance, r.Normal.Z); print(workspace:Raycast(Vector3.new(20, 5, 0), Vector3.new(0, 0, 50))); print(#workspace:GetPartBoundsInRadius(Vector3.new(0, 5, 8), 3))')
+  assert.deepEqual(h.errs, []); assert.deepEqual(prints(h), ['true 8.0 8.0 -1', 'nil', '1'])
+})
+test('Sound usa un efecto por nombre o por id', () => {
+  const h = run('local s = Instance.new("Sound"); s.SoundId = "blocksy://win"; s:Play(); s.SoundId = "rbxassetid://12345"; s:Play()')
+  assert.deepEqual(h.acts.filter(a => a[0] === 'sound').map(a => a[1]), ['win', 'boom'])
+})
