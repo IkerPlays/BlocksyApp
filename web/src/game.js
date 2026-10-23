@@ -315,9 +315,27 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
     hotbar.classList.toggle('hidden', !canBuild)
   }
   function selectKind(i) { me.kind = i; drawHotbar(); ghostMat.color.set(PALETTE[me.kind]) }
+  // historial (F2): guarda los últimos 200 mensajes y avisos
+  const chatHist = []
+  const histPanel = document.createElement('div'); histPanel.id = 'chat-history'; histPanel.className = 'hidden'; $('game').append(histPanel)
+  function paintHist() {
+    const q = histPanel.querySelector('input')?.value.toLowerCase() ?? ''
+    const body = document.createElement('div'); body.className = 'ch-body'
+    for (const m of chatHist) { if (q && !m.text.toLowerCase().includes(q)) continue; const r = document.createElement('div'); r.className = 'ch-row ' + m.cls; r.textContent = `${new Date(m.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}  ${m.text}`; body.append(r) }
+    const search = histPanel.querySelector('input') ?? Object.assign(document.createElement('input'), { type: 'search', placeholder: t('chat_search'), oninput: paintHist })
+    histPanel.replaceChildren(Object.assign(document.createElement('b'), { textContent: t('chat_history') }), search, body); body.scrollTop = body.scrollHeight
+  }
+  const toggleHist = () => { histPanel.classList.toggle('hidden'); if (!histPanel.classList.contains('hidden')) paintHist() }
+  // pestañas del chat: todo / solo chat / solo avisos
+  const tabs = document.createElement('div'); tabs.id = 'chat-tabs'
+  for (const k of ['all', 'chat', 'system']) { const b = document.createElement('button'); b.type = 'button'; b.textContent = t('ctab_' + k); b.className = k === 'all' ? 'on' : ''; b.onclick = () => { log.dataset.tab = k; for (const x of tabs.children) x.classList.toggle('on', x === b) }; tabs.append(b) }
+  log.before(tabs); log.dataset.tab = 'all'
   function addChat(html, cls = '') {
     const li = document.createElement('li'); if (cls) li.className = cls
     if (typeof html === 'string') li.textContent = html; else li.append(...html)
+    { const txt = li.textContent; chatHist.push({ at: Date.now(), cls: cls || 'chat', text: txt }); if (chatHist.length > 200) chatHist.shift(); if (!histPanel.classList.contains('hidden')) paintHist()
+      const tm = document.createElement('small'); tm.className = 'chat-time'; tm.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + ' '; li.prepend(tm)
+      if (!cls && new RegExp(`@${profile.username.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(txt)) { li.classList.add('mention'); sfx.notify() } }
     log.append(li); while (log.children.length > 8) log.firstChild.remove()
     clearTimeout(li._t); li._t = setTimeout(() => li.remove(), 20000)
   }
@@ -369,7 +387,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
     const q = settings.quality
     scene.fog.far = settings.viewDistance * fogMul(); scene.fog.near = settings.viewDistance * 0.35 * fogMul()
     camera.fov = settings.fov; camera.updateProjectionMatrix()
-    tagSprites.forEach(tg => (tg.visible = settings.names))
+    tagSprites.forEach(tg => (tg.visible = settings.names)); log.classList.toggle('show-time', !!settings.chatTime)
     const shadowsOn = settings.shadows && q !== 'low' && !saverOn()
     renderer.shadowMap.enabled = shadowsOn; sun.castShadow = shadowsOn
     staticMesh.castShadow = q === 'high' || q === 'ultra'          // miles de bloques fijos en el mapa de sombras pesan mucho en tablets
@@ -651,6 +669,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
     if (e.code === 'KeyB' && !e.repeat) { sendPing(); return }
     if (e.code === 'KeyM') { music.toggle(); return }
     if (e.code === 'KeyH') { togglePhoto(); return }
+    if (e.code === 'F2') { e.preventDefault(); toggleHist(); return }
     if (e.key === '?' || e.code === 'F1') { e.preventDefault(); help.toggle(); return }
     if (e.code === 'KeyV') { if (settings.voiceMode === 'ptt' && voice.active) { if (!e.repeat) voice.setMuted(false) } else if (!e.repeat) toggleVoice(); return }
     if (e.code === 'KeyP') { shotPending = true; return }
@@ -928,7 +947,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
     window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); window.removeEventListener('resize', onResize)
     window.removeEventListener('pointermove', pmove); window.removeEventListener('pointerup', pup); window.removeEventListener('pointercancel', pup)
     canvas.removeEventListener('pointerdown', pdown); canvas.removeEventListener('wheel', wheel); canvas.removeEventListener('contextmenu', noMenu); canvas.removeEventListener('pointerleave', pleave)
-    offSettings(); offSync(); offLang(); offMusic(); music.stop(); runner.dispose(); rbx.dispose(); help.dispose(); weather.dispose(); compass.dispose(); pings.dispose(); orient.dispose(); tut.dispose(); health.dispose(); clearInterval(uiTimer); clearInterval(loadoutTimer); window.removeEventListener('pointermove', uiMove); window.removeEventListener('pointerup', uiUp); studioCleanup.forEach(f => f()); uiLayer.replaceChildren()
+    offSettings(); offSync(); offLang(); offMusic(); music.stop(); runner.dispose(); rbx.dispose(); help.dispose(); weather.dispose(); compass.dispose(); pings.dispose(); orient.dispose(); tut.dispose(); histPanel.remove(); tabs.remove(); health.dispose(); clearInterval(uiTimer); clearInterval(loadoutTimer); window.removeEventListener('pointermove', uiMove); window.removeEventListener('pointerup', uiUp); studioCleanup.forEach(f => f()); uiLayer.replaceChildren()
     touchUi?.remove(); emotePanel.classList.add('hidden'); mPanel.classList.add('hidden'); $('big-title').classList.add('hidden')
     $('pause').classList.add('hidden'); roster.classList.add('hidden'); log.replaceChildren()
     api.leave().catch(() => {}); gameDb.removeChannel(channel)

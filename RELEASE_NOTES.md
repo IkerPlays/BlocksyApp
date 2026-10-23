@@ -1,5 +1,5 @@
-Devbuild 41: friends and notifications
-- Friends list filters (All, Online, In game) and a name search.
-- Do not disturb: no pop-ups or sounds (button in the bell panel and in Settings).
-- Choose which events notify you: messages, friend requests, accepted requests and game invites.
-- Private chats show day separators (Today, Yesterday, date).
+Devbuild 42: in-game chat
+- Chat tabs: All, Chat only, or System messages only.
+- Optional timestamps in the chat (setting).
+- Messages that mention you with @yourname are highlighted and play a sound.
+- Chat history panel (F2) with the last 200 lines and a search box.
