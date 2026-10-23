@@ -471,6 +471,13 @@ int net_fetch_chat(long since, ChatMsg *out, int max, long *last) {
 	free(r); return n;
 }
 
+int net_best_times(TopTime *out, int max) {
+	char url[260]; snprintf(url, sizeof url, GAME_URL "/rest/v1/best_times?game_id=eq.%s&select=username,ms&order=ms.asc&limit=%d", g_game, max);
+	char *r = http(M_GET, url, GAME_ANON_KEY, NULL, NULL, NULL); if (!r) return -1;
+	int n = 0; const char *p = r, *end;
+	while (n < max && (p = next_obj(p, &end))) { const char *st = p; p = end + 1; memset(&out[n], 0, sizeof out[n]); jstr(st, end, "username", out[n].name, sizeof out[n].name); out[n].ms = (int)jnum(st, end, "ms"); if (out[n].ms > 0) n++; }
+	free(r); return n;
+}
 int net_submit_time(const Session *s, int ms) {
 	char body[200]; snprintf(body, sizeof body, "{\"p_secret\":\"%s\",\"p_game\":\"%s\",\"p_ms\":%d}", s->secret, g_game, ms);
 	char *r = http(M_POST, GAME_URL "/rest/v1/rpc/submit_time", GAME_ANON_KEY, NULL, body, NULL);
@@ -538,7 +545,7 @@ int net_list_games(GameInfo *out, int max) {
 		{ const char *cf = json_find_from(st, end, "config");
 		  if (cf && *cf == '{') {
 			const char *ce = strchr(cf, '}'); if (!ce) ce = end;
-			jstr(cf, ce, "world", g->world, sizeof g->world);
+			jstr(cf, ce, "world", g->world, sizeof g->world); jstr(cf, ce, "weather", g->weather, sizeof g->weather);
 			const char *ab = json_find_from(cf, ce, "allow_build"); if (ab) g->allow_build = *ab == 't';
 			const char *jp = json_find_from(cf, ce, "jump"); if (jp) g->jump = strtof(jp, NULL);
 			const char *sd = json_find_from(cf, ce, "seed"); if (sd) g->seed = (int)strtof(sd, NULL);

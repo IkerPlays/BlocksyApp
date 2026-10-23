@@ -24,7 +24,7 @@ bool net_download(const char *url, NetSink sink, void *ud, volatile int *pct, ch
 bool net_init(void);
 void net_exit(void);
 
-typedef struct { char id[40]; char name[44]; char desc[104]; char owner_id[40]; char owner[24]; int hue, max, players; char mode[8]; char world[12]; int allow_build; float jump; int seed; } GameInfo;   // allow_build: -1 según el modo
+typedef struct { char id[40]; char name[44]; char desc[104]; char owner_id[40]; char owner[24]; int hue, max, players; char mode[8]; char world[12]; char weather[8]; int allow_build; float jump; int seed; } GameInfo;   // allow_build: -1 según el modo
 typedef struct { char id[40]; char name[24]; unsigned int color; int online, in_game; } Person;
 #define MAX_GAMES  32
 #define MAX_PEOPLE 32
@@ -72,6 +72,8 @@ bool net_set_color(Session *s, const char *hex);
 
 typedef struct { long id; char name[24]; char text[100]; } ChatMsg;
 // Bosque oscuro: eventos de la partida (fragmentos, ganar, nueva ronda, atrapado) y el monstruo (anfitrion = quien guarda su posicion)
+typedef struct { char name[24]; int ms; } TopTime;
+int  net_best_times(TopTime *out, int max);                            // mejores tiempos del juego actual (el mas rapido primero); <0 error
 int  net_submit_time(const Session *s, int ms);                        // guarda tu tiempo de carrera y devuelve tu puesto (0 si falla)
 typedef struct { long id; char kind[8]; char name[24]; int i, n, round; } GEvent;
 int  net_fetch_events(long since, GEvent *out, int max, long *last);   // kinds orb/win/round/caught; since < 0: desde el principio

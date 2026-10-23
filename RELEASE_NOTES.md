@@ -1,5 +1,5 @@
-Devbuild 20: safety
-- Chat word filter (setting) that masks common insults.
-- Mute a player for the current match from the player list.
-- Game rules (build, chat, emotes, double jump, crouch) visible in the pause menu.
-- Chat anti-spam: at most 5 messages per 8 seconds and no repeated messages.
+Devbuild 21: 3DS
+- Portuguese language (Settings > Language cycles Spanish, English, Portuguese).
+- Profile summary on the Avatar page: BCoins, streak and friend count.
+- Race top times shown on the top screen (refreshed after each finish).
+- Rain and snow weather from the game settings is drawn in the game.

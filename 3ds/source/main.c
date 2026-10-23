@@ -58,6 +58,8 @@ static struct {
 	float dist, walk_ph; char note[48];
 } hr;
 static long ev_last = -1;
+static TopTime g_top[5]; static volatile int g_ntop;       // mejores tiempos de la carrera (lo rellena el hilo de red)
+static int g_weather;                                // 0 nada, 1 lluvia, 2 nieve (config del juego)
 static volatile int race_rank;                       // puesto en el top de tiempos (lo escribe el hilo de red)
 static void hr_apply(const GEvent *e, const char *me) {      // con `lock` cogido
 	if (!strcmp(e->kind, "orb")) { if (e->i >= 0 && e->i < world.norbs && !hr.got[e->i]) { hr.got[e->i] = true; hr.ngot++; if (hr.live && strcmp(e->name, me)) snprintf(hr.note, sizeof hr.note, "%s: fragmento %d/%d", e->name, hr.ngot, world.norbs); } }
@@ -70,6 +72,7 @@ static void net_thread(void *arg) {
 	(void)arg;
 	u64 last_blocks = 0, last_presence = 0, last_chat = 0, last_token = osGetTime(), last_alerts = 0; long alert_id = -1; int alert_un = -1;
 	long chat_last = -1;
+	if (world.has_fin) { TopTime tt[5]; int tn = net_best_times(tt, 5); if (tn >= 0) { LightLock_Lock(&lock); memcpy(g_top, tt, sizeof tt); g_ntop = tn; LightLock_Unlock(&lock); } }
 	while (running) {
 		u64 now = osGetTime();
 		Action a; bool have = false;
@@ -82,7 +85,7 @@ static void net_thread(void *arg) {
 			if (a.type == PLACE) net_place_block(&sess, a.x, a.y, a.z, a.kind);
 			else if (a.type == BREAK) net_break_block(&sess, a.x, a.y, a.z);
 			else if (a.type == EVT) net_game_event(&sess, a.text, a.x);
-			else if (a.type == TIME) { int rk = net_submit_time(&sess, a.x); if (rk > 0) race_rank = rk; }
+			else if (a.type == TIME) { int rk = net_submit_time(&sess, a.x); if (rk > 0) race_rank = rk; TopTime tt[5]; int tn = net_best_times(tt, 5); if (tn >= 0) { LightLock_Lock(&lock); memcpy(g_top, tt, sizeof tt); g_ntop = tn; LightLock_Unlock(&lock); } }
 			else net_say(&sess, a.text);
 		}
 		net_send_state(&sess, x, y, z, ry, anim);
@@ -422,6 +425,14 @@ static void render_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 		ui_rrect(14, 12, 24, 18, 5, PALETTE[kind]);
 		char hb[24]; snprintf(hb, sizeof hb, "%d/%d", kind + 1, NPALETTE); ui_text(46, 11, 0.42f, COL_TEXT, 0, hb);
 	}
+	if (g_weather) {                                                           // lluvia o nieve (clima del juego), partículas deterministas
+		float tw = (now - t_start) / 1000.0f;
+		for (int i = 0; i < (g_weather == 1 ? 70 : 50); i++) {
+			unsigned h = (unsigned)(i + 1) * 2654435761u; float bx = (h >> 6 & 1023) * 0.39f, by = (h >> 16 & 255) * 0.94f;
+			if (g_weather == 1) { float x = fmodf(bx + tw * 20 + 400, 400), y = fmodf(by + tw * (260 + (i % 5) * 20), 240); C2D_DrawRectSolid(x, y, 0, 1.2f, 7, C2D_Color32(0xB4, 0xD2, 0xFF, 170)); }
+			else { float x = fmodf(bx + sinf(tw * 1.3f + i) * 14 + 400, 400), y = fmodf(by + tw * (38 + (i % 4) * 9), 240); C2D_DrawRectSolid(x, y, 0, 2.4f, 2.4f, C2D_Color32(255, 255, 255, 220)); }
+		}
+	}
 	char pc[24]; snprintf(pc, sizeof pc, "%d jugando", nr + 1);
 	float pw = ui_text_width(pc, 0.4f) + 16; ui_rrect(392 - pw, 8, pw, 22, 8, C2D_Color32(0, 0, 0, 130)); ui_text(392 - pw / 2, 11, 0.4f, COL_TEXT, C2D_AlignCenter, pc);
 	int shown = 0; for (int i = 0; i < 4; i++) if (chat[i].until > now) shown++;
@@ -431,6 +442,11 @@ static void render_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 		float y = 236 - (shown - row) * 17; ui_rrect(6, y, lw, 15, 6, C2D_Color32(0, 0, 0, 140));
 		char fit[140]; snprintf(fit, sizeof fit, "%s", line); while (strlen(fit) > 4 && ui_text_width(fit, 0.38f) > lw - 10) fit[strlen(fit) - 1] = 0;
 		ui_text(12, y, 0.38f, COL_TEXT, 0, fit); row++;
+	}
+	if (world.has_fin && g_ntop > 0) {                                         // top de tiempos de la carrera
+		TopTime tt[5]; int tn; LightLock_Lock(&lock); tn = g_ntop; memcpy(tt, g_top, sizeof tt); LightLock_Unlock(&lock);
+		ui_rrect(292, 34, 100, 14 + tn * 14, 8, C2D_Color32(0, 0, 0, 130)); ui_text(342, 36, 0.34f, COL_MUTED, C2D_AlignCenter, "TOP");
+		for (int i = 0; i < tn; i++) { char l[48], nm[24]; snprintf(nm, sizeof nm, "%.9s", tt[i].name); snprintf(l, sizeof l, "%d %s %u:%05.2f", i + 1, nm, tt[i].ms / 60000, (tt[i].ms % 60000) / 1000.0f); ui_text(298, 48 + i * 14, 0.32f, COL_TEXT, 0, l); }
 	}
 	if (race.start && !race.done) {                                            // cronómetro de la carrera
 		unsigned ms = (unsigned)(now - race.start); char tb[24]; snprintf(tb, sizeof tb, "%u:%05.2f", ms / 60000, (ms % 60000) / 1000.0f);
@@ -466,7 +482,7 @@ static bool play_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 	ui_build_ui = can_build;
 	jump_v = cur_game.jump > 1 ? cur_game.jump : 8.6f; memset(&race, 0, sizeof race); big_msg[0] = 0; big_until = 0;
 	cam_yaw = 0; cam_pitch = 0.5f; cam_dist = 9; cx_ = px; cy_ = py + 1; cz_ = pz;
-	net_set_game(cur_game.id);
+	net_set_game(cur_game.id); g_weather = !strcmp(cur_game.weather, "rain") ? 1 : !strcmp(cur_game.weather, "snow") ? 2 : 0; g_ntop = 0;
 	memset(&hr, 0, sizeof hr); ev_last = -1; hr.on = world.type == 5; hr.flash = true; hr.mx = hr.mtx = world.mon_start[0]; hr.mz = hr.mtz = world.mon_start[2]; hr.dist = 99;
 	if (hr.on) { snprintf(big_msg, sizeof big_msg, "Recoge %d fragmentos y huye", world.norbs); big_until = osGetTime() + 5000; }
 	s32 prio = 0; svcGetThreadPriority(&prio, CUR_THREAD_HANDLE);

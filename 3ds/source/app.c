@@ -10,18 +10,136 @@
 #include <string.h>
 #include <sys/stat.h>
 
-static int s_lang;   // 0 español, 1 English (ajuste guardado)
+static int s_lang;   // 0 español, 1 English, 2 Portugues (ajuste guardado)
 static int s_notif_on = 1;                                      // avisos emergentes
 static int s_sync = 2;                                          // nivel de sincronización (índice en SYNC_MS)
 static const int SYNC_MS[6] = {40, 70, 100, 160, 250, 400};     // pausa entre envíos/lecturas de posiciones en la partida
 int app_sync_ms(void) { return SYNC_MS[s_sync < 0 ? 0 : s_sync > 5 ? 5 : s_sync]; }
 int app_notif_on(void) { return s_notif_on; }
-static const char *tr2(const char *es, const char *en) { return s_lang ? en : es; }
+static const char *const PT_TR[][2] = {
+	{"%s (duplicate, +%d BCoins)", "%s (repetido, +%d BCoins)"},
+	{"%s accepted your request", "%s aceitou seu pedido"},
+	{"%s invites you to %s", "%s convida voce para %s"},
+	{"%s wants to be your friend", "%s quer ser seu amigo"},
+	{"+ Add friend (username)", "+ Adicionar amigo (usuario)"},
+	{"Account", "Conta"},
+	{"Alerts cleared", "Avisos apagados"},
+	{"Alerts need an email login.", "Os avisos exigem login com email."},
+	{"Alerts", "Avisos"},
+	{"Already claimed today", "Ja recolhida hoje"},
+	{"Already downloading", "Ja esta baixando"},
+	{"Already friends", "Ja sao amigos"},
+	{"Already sent", "Ja enviado"},
+	{"Check updates on start", "Buscar updates ao abrir"},
+	{"Claim daily reward", "Pegar recompensa diaria"},
+	{"Clear all alerts", "Apagar todos os avisos"},
+	{"Close chat (B)", "Fechar chat (B)"},
+	{"Could not buy", "Nao foi possivel comprar"},
+	{"Could not delete", "Nao foi possivel apagar"},
+	{"Could not edit", "Nao foi possivel editar"},
+	{"Could not open", "Nao foi possivel abrir"},
+	{"Could not remove", "Nao foi possivel remover"},
+	{"Daily reward available!", "Recompensa diaria disponivel!"},
+	{"Daily reward: come back tomorrow", "Recompensa diaria: volte amanha"},
+	{"Declined", "Recusado"},
+	{"Delete (Y)", "Apagar (Y)"},
+	{"Distance", "Distancia"},
+	{"Done", "Pronto"},
+	{"Draw distance", "Distancia de desenho"},
+	{"Edit (X)", "Editar (X)"},
+	{"Edit message", "Editar mensagem"},
+	{"Email forgotten", "Email esquecido"},
+	{"Equip", "Equipar"},
+	{"Equipped", "Equipado"},
+	{"Error", "Erro"},
+	{"Exact username", "Usuario exato"},
+	{"Exit", "Sair"},
+	{"Forget my email", "Esquecer meu email"},
+	{"Friend added", "Amigo adicionado"},
+	{"Friend removed", "Amigo removido"},
+	{"Hat", "Chapeu"},
+	{"In a game", "Em um jogo"},
+	{"Installed", "Instalado"},
+	{"Installed. Restarting Blocksy...", "Instalado. Reiniciando o Blocksy..."},
+	{"Join", "Entrar"},
+	{"Language", "Idioma"},
+	{"Log in with email and password to see", "Entre com email e senha para ver"},
+	{"Log in with email", "Entrar com email"},
+	{"Log out", "Sair da conta"},
+	{"Long", "Longa"},
+	{"Medium", "Media"},
+	{"Message deleted", "Mensagem apagada"},
+	{"Message edited", "Mensagem editada"},
+	{"Message not sent", "Mensagem nao enviada"},
+	{"More items on the touch screen", "Mais itens na tela de toque"},
+	{"Needs an email login.", "Exige login com email."},
+	{"New message from a friend", "Nova mensagem de um amigo"},
+	{"New", "Novo"},
+	{"No devbuild yet", "Ainda nao ha devbuild"},
+	{"No messages yet. Say hi!", "Ainda nao ha mensagens. Diga oi!"},
+	{"No stable release yet", "Ainda nao ha versao estavel"},
+	{"No such user", "Usuario nao existe"},
+	{"None", "Nenhum"},
+	{"Not available with QR.", "Nao disponivel com QR."},
+	{"Not enough BCoins", "BCoins insuficientes"},
+	{"Offline", "Offline"},
+	{"Older", "Antigo"},
+	{"Open", "Abrir"},
+	{"Owned", "Seu"},
+	{"Player sync interval", "Sincronizacao de jogadores"},
+	{"Pop-up alerts", "Avisos pop-up"},
+	{"Press again to delete", "Pressione de novo para apagar"},
+	{"Purchased", "Comprado"},
+	{"Request sent", "Pedido enviado"},
+	{"Reward claimed", "Recompensa recolhida"},
+	{"Same on the web and on the 3DS.", "Igual na web e no 3DS."},
+	{"Save color", "Salvar cor"},
+	{"See Friends", "Ver Amigos"},
+	{"Shirt color:", "Cor da camisa:"},
+	{"Short", "Curta"},
+	{"Sure?", "Certeza?"},
+	{"Sync", "Sincronizacao"},
+	{"Tap X again to remove", "Toque X de novo para remover"},
+	{"Tap to join", "Toque para entrar"},
+	{"That game no longer exists", "Esse jogo nao existe mais"},
+	{"The shop needs an email login.", "A loja exige login com email."},
+	{"Title", "Titulo"},
+	{"Unequip", "Desequipar"},
+	{"Updated. Open it again from the Homebrew Launcher", "Atualizado. Abra de novo pelo Homebrew Launcher"},
+	{"Updates on start", "Updates ao abrir"},
+	{"Version", "Versao"},
+	{"Write (A)", "Escrever (A)"},
+	{"Write a message", "Escrever uma mensagem"},
+	{"Yes", "Sim"},
+	{"You already have this version or newer", "Voce ja tem esta versao ou mais nova"},
+	{"You already own it", "Voce ja tem"},
+	{"You are now friends", "Agora voces sao amigos"},
+	{"You can only delete your messages", "So pode apagar suas mensagens"},
+	{"You can only edit your messages", "So pode editar suas mensagens"},
+	{"You got: %s", "Voce ganhou: %s"},
+	{"You have no alerts.", "Voce nao tem avisos."},
+	{"You own none: buy them in the Shop", "Voce nao tem nenhum: compre na Loja"},
+	{"^ Up", "^ Cima"},
+	{"and add friends (not available with QR).", "e adicione amigos (nao disponivel com QR)."},
+	{"request", "pedido"},
+	{"streak", "sequencia"},
+	{"friends", "amigos"},
+	{"try emote", "testar emote"},
+	{"unread", "nao lidas"},
+	{"v Down", "v Baixo"},
+	{"wants to be your friend", "quer ser seu amigo"},
+};
+static const char *tr2(const char *es, const char *en) {
+	if (s_lang == 2) { for (size_t i = 0; i < sizeof PT_TR / sizeof PT_TR[0]; i++) if (!strcmp(PT_TR[i][0], en)) return PT_TR[i][1]; return en; }   // portugues: tabla por el texto en ingles
+	return s_lang ? en : es;
+}
+static const char *const LANG_NAME[3] = {"Espanol", "English", "Portugues"};
 // (Crear juegos es solo de la web y de la cuenta autorizada: no está en la 3DS)
 enum { P_HOME, P_DISCOVER, P_AVATAR, P_FRIENDS, P_NOTIF, P_SHOP, P_UPDATE, P_SETTINGS, NPAGES };
 static const char *const PAGE_NAME_ES[NPAGES] = {"Inicio", "Descubrir", "Avatar", "Amigos", "Avisos", "Tienda", "Actualizar", "Ajustes"};
 static const char *const PAGE_NAME_EN[NPAGES] = {"Home", "Discover", "Avatar", "Friends", "Alerts", "Shop", "Update", "Settings"};
-#define PAGE_NAME (s_lang ? PAGE_NAME_EN : PAGE_NAME_ES)
+static const char *const PAGE_NAME_PT[NPAGES] = {"Inicio", "Descobrir", "Avatar", "Amigos", "Avisos", "Loja", "Atualizar", "Ajustes"};
+#define PAGE_NAME (s_lang == 2 ? PAGE_NAME_PT : s_lang ? PAGE_NAME_EN : PAGE_NAME_ES)
 static const int PAGE_ICON[NPAGES] = {0, 1, 2, 3, 8, 9, 7, 5};
 static const char *const AVATAR_COLORS[10] = {"#4da6ff", "#ff9f43", "#2ecc71", "#e74c3c", "#9b59b6", "#f1c40f", "#1abc9c", "#ff6b9d", "#ecf0f1", "#95a5a6"};
 
@@ -181,7 +299,7 @@ static void load_settings(void) {
 		if (!strncmp(line, "last_game=", 10)) snprintf(s_last_game, sizeof s_last_game, "%s", line + 10);
 		else if (!strncmp(line, "dist=", 5)) s_dist = atoi(line + 5) % 3;
 		else if (!strncmp(line, "auto=", 5)) s_auto = atoi(line + 5) != 0;
-		else if (!strncmp(line, "lang=", 5)) s_lang = atoi(line + 5) ? 1 : 0;
+		else if (!strncmp(line, "lang=", 5)) { int lg = atoi(line + 5); s_lang = lg < 0 || lg > 2 ? 0 : lg; }
 		else if (!strncmp(line, "sync=", 5)) s_sync = atoi(line + 5) % 6;
 		else if (!strncmp(line, "notif=", 6)) s_notif_on = atoi(line + 6) != 0;
 	}
@@ -386,7 +504,7 @@ static void page_top(const Ui *u, const Session *s) {
 		avatar_preview(82, 152, s, parse_hex(AVATAR_COLORS[u->swatch]));
 		ui_text(156, 80, 0.7f, COL_TEXT, 0, s->username);
 		if (!g_account) ui_text(156, 104, 0.38f, COL_RED, 0, "Entra con email y contrasena para guardar.");
-		else ui_text(156, 104, 0.4f, COL_MUTED, 0, tr2("Igual en la web y en la 3DS.", "Same on the web and on the 3DS."));
+		if (g_account) { char pf[80]; snprintf(pf, sizeof pf, "%d BCoins  |  %s: %d  |  %s: %d", wallet.bcoins, tr2("racha", "streak"), wallet.streak, tr2("amigos", "friends"), nfriends); ui_text(156, 104, 0.36f, COL_ACCENT, 0, pf); }
 		{ char dm[48]; snprintf(dm, sizeof dm, "X: %s%s%s", tr2("probar emote", "try emote"), prev_demo ? "  (" : "", prev_demo ? AV_EMOTE_LABEL[prev_demo - 1] : ""); if (prev_demo) strncat(dm, ")", sizeof dm - strlen(dm) - 1); ui_text(156, 118, 0.38f, COL_ACCENT, 0, dm); }
 		{ char l[64], f[64]; snprintf(l, sizeof l, "%s: %s", tr2("Sombrero", "Hat"), acc_name("hat")); fit(f, sizeof f, l, 0.42f, 226); ui_text(156, 134, 0.42f, COL_TEXT, 0, f);
 		  snprintf(l, sizeof l, "%s: %s", tr2("Titulo", "Title"), acc_name("title")); fit(f, sizeof f, l, 0.42f, 226); ui_text(156, 150, 0.42f, COL_TEXT, 0, f); }
@@ -498,7 +616,7 @@ static void page_top(const Ui *u, const Session *s) {
 		ui_rrect(14, 66, 372, 162, 12, COL_PANEL);
 		char sy[24]; snprintf(sy, sizeof sy, "%d ms", SYNC_MS[s_sync]);
 		const char *lab[7] = {tr2("Distancia de dibujo", "Draw distance"), tr2("Sincronizacion de jugadores", "Player sync interval"), tr2("Buscar updates al abrir", "Check updates on start"), tr2("Avisos emergentes", "Pop-up alerts"), tr2("Idioma", "Language"), tr2("Cuenta", "Account"), tr2("Version", "Version")};
-		const char *val[7] = {dn[s_dist], sy, s_auto ? tr2("Si", "Yes") : "No", s_notif_on ? tr2("Si", "Yes") : "No", s_lang ? "English" : "Espanol", s->username, g_upd.cur[0] ? g_upd.cur : "Blocksy 3DS"};
+		const char *val[7] = {dn[s_dist], sy, s_auto ? tr2("Si", "Yes") : "No", s_notif_on ? tr2("Si", "Yes") : "No", LANG_NAME[s_lang], s->username, g_upd.cur[0] ? g_upd.cur : "Blocksy 3DS"};
 		for (int i = 0; i < 7; i++) {
 			float y = 72 + i * 22;
 			ui_text(30, y, 0.44f, COL_TEXT, 0, lab[i]); ui_text(370, y, 0.44f, i >= 5 ? COL_MUTED : (i == 2 || i == 3) ? (i == 2 ? s_auto : s_notif_on) ? COL_GREEN : COL_MUTED : COL_ACCENT, C2D_AlignRight, val[i]);
@@ -672,7 +790,7 @@ static void pane(const Ui *u, const Session *s) {
 		snprintf(l[1], 48, "%s: %d ms", tr2("Sincronizacion", "Sync"), SYNC_MS[s_sync]);
 		snprintf(l[2], 48, "%s: %s", tr2("Updates al abrir", "Updates on start"), s_auto ? tr2("Si", "Yes") : "No");
 		snprintf(l[3], 48, "%s: %s", tr2("Avisos", "Alerts"), s_notif_on ? tr2("Si", "Yes") : "No");
-		snprintf(l[4], 48, "%s: %s", tr2("Idioma", "Language"), s_lang ? "English" : "Espanol");
+		snprintf(l[4], 48, "%s: %s", tr2("Idioma", "Language"), LANG_NAME[s_lang]);
 		snprintf(l[5], 48, "%s", tr2("Olvidar mi email", "Forget my email")); snprintf(l[6], 48, "%s", tr2("Cerrar sesion", "Log out"));
 		for (int i = 0; i < vis && u->scroll + i < 7; i++) {
 			int r = u->scroll + i; float y = LIST_Y + 2 + i * rh;
@@ -956,7 +1074,7 @@ AppResult app_lobby(C3D_RenderTarget *top, C3D_RenderTarget *bot, Session *s, Ga
 				else if (act_row == 1) { if (!tap_btn) { s_sync = (s_sync + 1) % 6; save_settings(); } }
 				else if (act_row == 2) { s_auto = !s_auto; save_settings(); }
 				else if (act_row == 3) { s_notif_on = !s_notif_on; save_settings(); }
-				else if (act_row == 4) { s_lang = !s_lang; save_settings(); }
+				else if (act_row == 4) { s_lang = (s_lang + 1) % 3; save_settings(); }
 				else if (act_row == 5) { remove("sdmc:/3ds/blocksy/login.txt"); toast(&u, tr2("Email olvidado", "Email forgotten")); }
 				else if (act_row == 6) { res = APP_LOGOUT; goto out; }
 				break;
