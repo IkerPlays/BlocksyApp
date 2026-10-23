@@ -6,7 +6,7 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js'
 import { gameDb } from './supabase.js'
 import * as api from './api.js'
 import { settings, saveSettings, onSettings, bump, visited, bestTime } from './settings.js'
-import { buildAvatar, poseAvatar, styleFor, EMOTES, headshot, hatStyle } from './avatar.js'
+import { buildAvatar, poseAvatar, styleFor, EMOTES, headshot, packLoadout, parseLoadout, loadoutStyle, buildPet, trailColor } from './avatar.js'
 import { t, onLang } from './i18n.js'
 import { createSky } from './sky.js'
 import { buildWorld } from './world.js'
@@ -145,7 +145,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
   // ---------- avatares (modelo 3D + cartel con el nombre + burbuja de chat) ----------
   const tagSprites = []
   function makeAvatar(color, name, hat = '') {
-    const g = buildAvatar({ ...styleFor(name, color), hat: hatStyle(hat) })
+    const g = buildAvatar(loadoutStyle(styleFor(name, color), parseLoadout(hat)))
     const c = document.createElement('canvas'); c.width = 256; c.height = 64
     const ctx = c.getContext('2d'); ctx.font = 'bold 34px system-ui, sans-serif'; ctx.textAlign = 'center'
     ctx.lineWidth = 6; ctx.strokeStyle = '#000'; ctx.strokeText(name, 128, 44); ctx.fillStyle = '#fff'; ctx.fillText(name, 128, 44)
@@ -173,8 +173,24 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
 
   const me = { pos: new THREE.Vector3(...world.spawn), vel: new THREE.Vector3(), ry: 0, grounded: false, anim: 'idle', kind: 1, emote: null, fly: false }
   social.myBlocked()
-  const myHat = () => social.getWallet()?.equipped?.hat ?? ''
-  const meAvatar = makeAvatar(profile.avatar_color, profile.username, myHat())
+  const myHat = () => packLoadout(social.getWallet()?.equipped)      // sombrero|gafas|espalda|estela|mascota
+  let meAvatar = makeAvatar(profile.avatar_color, profile.username, myHat()), meLoadout = myHat()
+  // mascotas (siguen a su dueño) y estelas (chispas al caminar)
+  const pets = new Map(), trailAcc = new Map()
+  function syncPet(key, avatar, lo) {
+    const want = parseLoadout(lo).pet, p = pets.get(key)
+    if (p && p.id === want) { p.owner = avatar; return }
+    if (p) { scene.remove(p.mesh); pets.delete(key) }
+    if (!want) return
+    const mesh = buildPet(want); mesh.position.copy(avatar.position); scene.add(mesh); pets.set(key, { id: want, mesh, owner: avatar })
+  }
+  syncPet('me', meAvatar, meLoadout)
+  social.loadWallet().catch(() => {})                                // la cartera trae lo que llevas puesto
+  const loadoutTimer = setInterval(() => {                           // si cambias de accesorios (o termina de cargar la cartera), tu avatar se rehace
+    const now = myHat(); if (now === meLoadout) return; meLoadout = now
+    const pos = meAvatar.position.clone(), rot = meAvatar.rotation.y; scene.remove(meAvatar)
+    meAvatar = makeAvatar(profile.avatar_color, profile.username, now); meAvatar.position.copy(pos); meAvatar.rotation.y = rot; syncPet('me', meAvatar, now)
+  }, 1500)
   const others = new Map()          // player_id -> { avatar, target, ry, seen, name, platform, color, anim }
 
   function upsertOther(row) {
@@ -182,16 +198,16 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
     let o = others.get(row.player_id)
     if (!o) {
       o = { hat: row.hat || '', avatar: makeAvatar(row.color, row.username, row.hat || ''), target: new THREE.Vector3(row.x, row.y, row.z), ry: row.ry, name: row.username, color: row.color, anim: 'idle', id: row.player_id }
-      o.avatar.position.copy(o.target); others.set(row.player_id, o)
+      o.avatar.position.copy(o.target); others.set(row.player_id, o); syncPet(row.player_id, o.avatar, row.hat || '')
       sys(t('joined', { name: row.username })); sfx.join()
       runner.fire('playerjoin', { data: { name: row.username }, who: row.username })
     }
-    if ((row.hat || '') !== o.hat) { const pos = o.avatar.position.clone(), rot = o.avatar.rotation.y; scene.remove(o.avatar); o.hat = row.hat || ''; o.avatar = makeAvatar(row.color, row.username, o.hat); o.avatar.position.copy(pos); o.avatar.rotation.y = rot }       // cambió de sombrero
+    if ((row.hat || '') !== o.hat) { const pos = o.avatar.position.clone(), rot = o.avatar.rotation.y; scene.remove(o.avatar); o.hat = row.hat || ''; o.avatar = makeAvatar(row.color, row.username, o.hat); o.avatar.position.copy(pos); o.avatar.rotation.y = rot; syncPet(row.player_id, o.avatar, o.hat) }       // cambió de accesorios
     o.target.set(row.x, row.y, row.z); o.ry = row.ry; o.seen = Date.now(); o.platform = row.platform; o.anim = row.anim || 'idle'
   }
   function dropOther(id) {
     const o = others.get(id); if (!o) return
-    scene.remove(o.avatar); others.delete(id); sys(t('left', { name: o.name })); runner.fire('playerleave', { data: { name: o.name } })
+    scene.remove(o.avatar); const pet = pets.get(id); if (pet) { scene.remove(pet.mesh); pets.delete(id) } others.delete(id); sys(t('left', { name: o.name })); runner.fire('playerleave', { data: { name: o.name } })
   }
 
   // ---------- física ----------
@@ -788,6 +804,17 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
       animateAvatar(o.avatar, o.anim, dt, tAnim)
     }
     stepParts(dt); rbx.step(dt)
+    for (const p of pets.values()) {                                    // mascotas: siguen a su dueño con un pequeño bote
+      const a = p.owner, ry = a.rotation.y, tx = a.position.x - Math.sin(ry) * 0.9 - Math.cos(ry) * 0.8, tz = a.position.z - Math.cos(ry) * 0.9 + Math.sin(ry) * 0.8
+      p.mesh.position.x += (tx - p.mesh.position.x) * Math.min(1, dt * 4); p.mesh.position.z += (tz - p.mesh.position.z) * Math.min(1, dt * 4)
+      p.mesh.position.y += (a.position.y + Math.abs(Math.sin(tAnim * 4 + p.mesh.id)) * 0.08 - p.mesh.position.y) * Math.min(1, dt * 8); p.mesh.rotation.y += (ry - p.mesh.rotation.y) * Math.min(1, dt * 5)
+      p.mesh.visible = a.visible !== false
+    }
+    if (!settings.reduceMotion) for (const [key, av, anim, lo] of [['me', meAvatar, me.anim, meLoadout], ...[...others].map(([k, o]) => [k, o.avatar, o.anim, o.hat])]) {   // estelas
+      const id = parseLoadout(lo).trail; if (!id || anim !== 'walk' || !av.visible || parts.length > 120) continue
+      const acc = (trailAcc.get(key) ?? 0) + dt; if (acc < 0.07) { trailAcc.set(key, acc); continue } trailAcc.set(key, 0)
+      parts.push({ p: new THREE.Vector3(av.position.x + (Math.random() - .5) * .4, av.position.y + 0.1 + Math.random() * 0.5, av.position.z + (Math.random() - .5) * .4), v: new THREE.Vector3((Math.random() - .5) * 0.6, id === 'trail_bubbles' ? 1.5 : id === 'trail_fire' ? 2.2 : 0.8, (Math.random() - .5) * 0.6), life: 0.55, c: new THREE.Color(trailColor(id, tAnim * 0.5 + Math.random() * 0.2)) })
+    }
     stepAcc += dt
     if (stepAcc >= 0.066 && runner.has()) {                                 // el script Lua avanza (task.wait, Heartbeat, tweens...) con la posición de los jugadores
       runner.fire('step', { data: { dt: stepAcc, now: Date.now() / 1000, x: me.pos.x, y: me.pos.y, z: me.pos.z, others: [...others.values()].slice(0, 20).map(o => ({ n: o.name, x: o.avatar.position.x, y: o.avatar.position.y, z: o.avatar.position.z })) } }); stepAcc = 0
@@ -830,7 +857,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
     window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); window.removeEventListener('resize', onResize)
     window.removeEventListener('pointermove', pmove); window.removeEventListener('pointerup', pup); window.removeEventListener('pointercancel', pup)
     canvas.removeEventListener('pointerdown', pdown); canvas.removeEventListener('wheel', wheel); canvas.removeEventListener('contextmenu', noMenu); canvas.removeEventListener('pointerleave', pleave)
-    offSettings(); offSync(); offLang(); offMusic(); music.stop(); runner.dispose(); rbx.dispose(); help.dispose(); clearInterval(uiTimer); window.removeEventListener('pointermove', uiMove); window.removeEventListener('pointerup', uiUp); studioCleanup.forEach(f => f()); uiLayer.replaceChildren()
+    offSettings(); offSync(); offLang(); offMusic(); music.stop(); runner.dispose(); rbx.dispose(); help.dispose(); clearInterval(uiTimer); clearInterval(loadoutTimer); window.removeEventListener('pointermove', uiMove); window.removeEventListener('pointerup', uiUp); studioCleanup.forEach(f => f()); uiLayer.replaceChildren()
     touchUi?.remove(); emotePanel.classList.add('hidden'); mPanel.classList.add('hidden'); $('big-title').classList.add('hidden')
     $('pause').classList.add('hidden'); roster.classList.add('hidden'); log.replaceChildren()
     api.leave().catch(() => {}); gameDb.removeChannel(channel)

@@ -20,6 +20,8 @@ Blocksy is a multiplayer block-building game for the web and the Nintendo 3DS (h
 - **Sorting and tags.** Discover can sort by popular, newest, A-Z or top rated and filter by tags; creators add up to 5 tags in the editor.
 - **Likes.** Like or dislike a game from its page.
 - **Recently played.** Home shows the last games you played.
+- **New accessories.** 6 new hats, glasses and masks, capes, wings and a backpack, available in the shop, loot crates and the Avatar page.
+- **Trails and pets.** Leave sparks, fire, rainbow or bubbles when you walk, and a little pet follows you around; other players see them.
 
 ## Installing
 - Install `Blocksy.cia` with FBI, or copy `Blocksy.3dsx` to the `3ds` folder of the SD card and run it from the Homebrew Launcher.

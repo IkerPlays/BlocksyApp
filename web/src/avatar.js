@@ -52,8 +52,46 @@ function faceTexture(skin) {
 }
 
 // ---------- sombreros de la tienda ----------
-export const HAT_COLORS = { hat_cap: '#e74c3c', hat_antenna: '#7ed6ff', hat_party: '#ff6b9d', hat_halo: '#f5c542', hat_top: '#2b2f36', hat_crown: '#f1c40f' }
+export const HAT_COLORS = { hat_cap: '#e74c3c', hat_antenna: '#7ed6ff', hat_party: '#ff6b9d', hat_halo: '#f5c542', hat_top: '#2b2f36', hat_crown: '#f1c40f', hat_wizard: '#6c3fb5', hat_cowboy: '#a0522d', hat_chef: '#f5f5f5', hat_beanie: '#e67e22', hat_helmet: '#7f8c8d', hat_flower: '#ff7eb6' }
 export const hatStyle = id => (id && HAT_COLORS[id] ? { id, color: HAT_COLORS[id] } : null)
+// Otros accesorios de la tienda: gafas (face), espalda (back), estelas (trail) y mascotas (pet)
+export const COS_COLORS = { face_shades: '#1b1b1b', face_round: '#f5c542', face_visor: '#4dd0ff', face_mask: '#ffffff', back_cape: '#c0392b', back_wings: '#ecf0f1', back_backpack: '#2d6a4f',
+  trail_spark: '#ffe066', trail_fire: '#ff6b2b', trail_rainbow: 'rainbow', trail_bubbles: '#7ed6ff', pet_cube: '#4d8dff', pet_slime: '#4cd964', pet_bot: '#aab4c0', pet_ghost: '#f0f0ff' }
+export const cosStyle = id => (id && COS_COLORS[id] ? { id, color: COS_COLORS[id] } : null)
+export const SLOTS = ['hat', 'face', 'back', 'trail', 'pet']
+// Lo que llevas puesto viaja como "gorro|gafas|espalda|estela|mascota" (los vacíos quedan en blanco)
+export const packLoadout = eq => SLOTS.map(k => eq?.[k] ?? '').join('|')
+export const parseLoadout = s => { const a = String(s ?? '').split('|'); return Object.fromEntries(SLOTS.map((k, i) => [k, a[i] || ''])) }
+export const loadoutStyle = (base, lo) => ({ ...base, hat: hatStyle(lo.hat), face: cosStyle(lo.face), back: cosStyle(lo.back) })
+function addFace(head, f) {
+  const m = lambert(f.color), add = (...o) => head.add(...o)
+  switch (f.id) {
+    case 'face_shades': add(box(0.5, 0.11, 0.03, null, 0, 0.04, 0.27, m), box(0.5, 0.03, 0.03, null, 0, 0.1, 0.27, m)); break
+    case 'face_round': add(box(0.17, 0.17, 0.03, null, -0.12, 0.04, 0.27, m), box(0.17, 0.17, 0.03, null, 0.12, 0.04, 0.27, m), box(0.06, 0.03, 0.03, null, 0, 0.07, 0.27, m)); break
+    case 'face_visor': add(box(0.56, 0.16, 0.05, null, 0, 0.05, 0.28, new THREE.MeshBasicMaterial({ color: f.color, transparent: true, opacity: 0.75 }))); break
+    case 'face_mask': add(box(0.52, 0.24, 0.03, null, 0, -0.12, 0.27, m)); break
+  }
+}
+function addBack(torso, b) {
+  const m = lambert(b.color), add = (...o) => torso.add(...o)
+  switch (b.id) {
+    case 'back_cape': add(box(0.62, 0.95, 0.05, null, 0, -0.1, -0.21, m)); break
+    case 'back_wings': for (const s of [-1, 1]) { const w = box(0.55, 0.7, 0.04, null, s * 0.38, 0.05, -0.24, m); w.rotation.z = -s * 0.35; add(w) } break
+    case 'back_backpack': add(box(0.42, 0.52, 0.2, null, 0, 0, -0.28, m), box(0.3, 0.14, 0.04, null, 0, -0.05, -0.4, lambert('#1b4332'))); break
+  }
+}
+// Mascota: un muñeco pequeño que sigue a su dueño
+export function buildPet(id) {
+  const c = COS_COLORS[id] ?? '#4d8dff', g = new THREE.Group(), m = lambert(c)
+  switch (id) {
+    case 'pet_slime': g.add(box(0.5, 0.36, 0.5, null, 0, 0.18, 0, new THREE.MeshLambertMaterial({ color: c, transparent: true, opacity: 0.85 })), box(0.06, 0.06, 0.02, '#1b1b1b', -0.1, 0.24, 0.26), box(0.06, 0.06, 0.02, '#1b1b1b', 0.1, 0.24, 0.26)); break
+    case 'pet_bot': g.add(box(0.36, 0.3, 0.3, null, 0, 0.3, 0, m), box(0.26, 0.26, 0.26, null, 0, 0.58, 0, m), box(0.06, 0.06, 0.02, '#ff4d4d', -0.07, 0.6, 0.14), box(0.06, 0.06, 0.02, '#ff4d4d', 0.07, 0.6, 0.14), box(0.03, 0.14, 0.03, null, 0, 0.78, 0, lambert('#7f8c8d'))); break
+    case 'pet_ghost': g.add(box(0.4, 0.5, 0.3, null, 0, 0.4, 0, new THREE.MeshLambertMaterial({ color: c, transparent: true, opacity: 0.8, emissive: '#444466' })), box(0.07, 0.09, 0.02, '#1b1b1b', -0.09, 0.5, 0.16), box(0.07, 0.09, 0.02, '#1b1b1b', 0.09, 0.5, 0.16)); break
+    default: g.add(box(0.4, 0.4, 0.4, null, 0, 0.3, 0, m), box(0.07, 0.07, 0.02, '#fff', -0.09, 0.34, 0.21), box(0.07, 0.07, 0.02, '#fff', 0.09, 0.34, 0.21))
+  }
+  return g
+}
+export function trailColor(id, t = 0) { const c = COS_COLORS[id]; return c === 'rainbow' ? `hsl(${(t * 360) % 360},90%,60%)` : c }
 function addHat(head, hat) {
   const c = hat.color, m = lambert(c), add = (...o) => head.add(...o)
   switch (hat.id) {
@@ -62,6 +100,12 @@ function addHat(head, hat) {
     case 'hat_party': { const cone = new THREE.Mesh(new THREE.ConeGeometry(0.22, 0.48, 4), m); cone.position.set(0, 0.57, 0); cone.rotation.y = Math.PI / 4; cone.castShadow = true; add(cone, box(0.08, 0.08, 0.08, null, 0, 0.84, 0, lambert('#ffffff'))); break }
     case 'hat_halo': { const ring = new THREE.Mesh(new THREE.TorusGeometry(0.28, 0.035, 8, 28), new THREE.MeshBasicMaterial({ color: c })); ring.position.set(0, 0.62, 0); ring.rotation.x = Math.PI / 2; add(ring); break }
     case 'hat_top': add(box(0.68, 0.05, 0.68, null, 0, 0.34, 0, m), box(0.4, 0.42, 0.4, null, 0, 0.58, 0, m), box(0.42, 0.07, 0.42, null, 0, 0.45, 0, lambert('#c0392b'))); break
+    case 'hat_wizard': { add(box(0.7, 0.05, 0.7, null, 0, 0.34, 0, m)); const cone = new THREE.Mesh(new THREE.ConeGeometry(0.26, 0.7, 4), m); cone.position.set(0, 0.7, 0); cone.rotation.y = Math.PI / 4; cone.castShadow = true; add(cone, box(0.54, 0.05, 0.54, null, 0, 0.4, 0, lambert('#f5c542'))); break }
+    case 'hat_cowboy': add(box(0.78, 0.05, 0.62, null, 0, 0.34, 0, m), box(0.42, 0.22, 0.42, null, 0, 0.47, 0, m), box(0.44, 0.05, 0.44, null, 0, 0.4, 0, lambert('#5b3a1a'))); break
+    case 'hat_chef': add(box(0.5, 0.12, 0.5, null, 0, 0.35, 0, m), box(0.6, 0.34, 0.6, null, 0, 0.58, 0, m)); break
+    case 'hat_beanie': add(box(0.58, 0.16, 0.58, null, 0, 0.35, 0, m), box(0.44, 0.12, 0.44, null, 0, 0.5, 0, m), box(0.12, 0.12, 0.12, null, 0, 0.62, 0, lambert('#ffffff'))); break
+    case 'hat_helmet': add(box(0.6, 0.3, 0.6, null, 0, 0.38, 0, m), box(0.08, 0.2, 0.64, null, 0, 0.58, 0, lambert('#c0392b'))); break
+    case 'hat_flower': add(box(0.1, 0.22, 0.1, null, 0, 0.42, 0, lambert('#2ecc71')), box(0.28, 0.1, 0.28, null, 0, 0.58, 0, m), box(0.1, 0.12, 0.1, null, 0, 0.6, 0, lambert('#f1c40f'))); break
     case 'hat_crown': add(box(0.52, 0.12, 0.52, null, 0, 0.4, 0, m)); for (const [x, z] of [[-0.2, -0.2], [0.2, -0.2], [-0.2, 0.2], [0.2, 0.2], [0, 0]]) add(box(0.1, 0.16, 0.1, null, x, 0.54, z, m)); break
   }
 }
@@ -80,6 +124,8 @@ export function buildAvatar(style) {
   else if (style.hairStyle === 2) { for (const x of [-0.18, 0, 0.18]) head.add(box(0.1, 0.18, 0.1, null, x, 0.4, 0, hairMat)) }
   else head.add(box(0.56, 0.12, 0.1, null, 0, 0.18, 0.24, hairMat))
   if (style.hat) addHat(head, style.hat)
+  if (style.face) addFace(head, style.face)
+  if (style.back) addBack(torso, style.back)
   const legL = limb(-0.16, 0.74, 0.3, 0.74, 0.32, style.pants), legR = limb(0.16, 0.74, 0.3, 0.74, 0.32, style.pants)
   const armL = limb(-0.44, 1.42, 0.22, 0.68, 0.26, style.skin), armR = limb(0.44, 1.42, 0.22, 0.68, 0.26, style.skin)
   const sleeveL = box(0.24, 0.26, 0.28, style.shirt, 0, -0.13, 0), sleeveR = box(0.24, 0.26, 0.28, style.shirt, 0, -0.13, 0)

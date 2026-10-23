@@ -5,7 +5,7 @@
 #define MAX_PLAYERS 24
 #define MAX_BLOCKS  2048
 
-typedef struct { char id[40]; char name[24]; float x, y, z, ry; unsigned int color; int is3ds; char anim[12]; char hat[24]; } Remote;
+typedef struct { char id[40]; char name[24]; float x, y, z, ry; unsigned int color; int is3ds; char anim[12]; char hat[64]; } Remote;
 typedef struct { int x, y, z, kind; unsigned int color; } Block;   // kind = -1: bloque fijo del mundo (color propio, no se rompe)
 
 typedef struct {

@@ -24,7 +24,7 @@ function aq(table) {
     then: r => r({ data: table === 'friendships' ? friends.map(f => ({ friend_id: f.id })) : table === 'messages' ? msgs : table === 'notifications' ? notifs : friends }) }
   return q
 }
-const rpcs = { my_requests: reqs, unread_counts: { f0: 2 }, get_profile: { id: 'f0', username: 'Marta', avatar_color: '#2ecc71', bio: 'Me gusta construir castillos.', created_at: '2026-01-05T00:00:00Z', relation: 'friends', request_id: null, friend_count: 12, is_online: true, current_game: 'g1' } }
+const rpcs = { my_wallet: { bcoins: 340, streak: 2, can_claim: false, inventory: ['hat_wizard', 'face_shades', 'back_wings', 'trail_rainbow', 'pet_slime'], equipped: { hat: 'hat_wizard', face: 'face_shades', back: 'back_wings', trail: 'trail_rainbow', pet: 'pet_slime' } }, my_requests: reqs, unread_counts: { f0: 2 }, get_profile: { id: 'f0', username: 'Marta', avatar_color: '#2ecc71', bio: 'Me gusta construir castillos.', created_at: '2026-01-05T00:00:00Z', relation: 'friends', request_id: null, friend_count: 12, is_online: true, current_game: 'g1' } }
 const ch = { on: () => ch, subscribe: () => ch }
 export const authDb = { from: aq, rpc: n => Promise.resolve({ data: rpcs[n] ?? null, error: null }), channel: () => ch, removeChannel: () => {}, auth: {} }
 export const GAME_URL = '', GAME_KEY = ''

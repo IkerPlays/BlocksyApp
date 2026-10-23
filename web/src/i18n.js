@@ -3,6 +3,7 @@ import { EXTRA } from './i18n-extra.js'
 const D = {
   es: {
     lang_name: 'Español',
+    shop_faces: 'Gafas y máscaras', shop_backs: 'Espalda', shop_trails: 'Estelas', shop_pets: 'Mascotas',
     like: 'Me gusta', dislike: 'No me gusta', recent: 'Jugados hace poco', sort_popular: 'Más populares', sort_newest: 'Más nuevos', sort_az: 'A-Z', sort_liked: 'Más valorados', ed_tags: 'Etiquetas (hasta 5, separadas por comas)', ed_tags_ph: 'aventura, amigos, carrera',
     room_title: 'Sala privada (solo entran quienes tengan el código)', room_code: 'Código de sala', room_new: 'Crear', room_join: 'Entrar', room_bad: 'El código necesita 3 o más letras o números', invite_all: 'Invitar a todos', invite_all_done: 'Invitaciones enviadas: {n}',
     party: 'Fiesta', party_help: 'Un chat de grupo temporal con tus amigos: crea un código y compártelo.', party_code: 'Código de fiesta', party_new: 'Crear', party_join: 'Unirse', party_members: 'En la fiesta', party_leave: 'Salir de la fiesta',
@@ -76,6 +77,7 @@ const D = {
   },
   en: {
     lang_name: 'English',
+    shop_faces: 'Glasses and masks', shop_backs: 'Back items', shop_trails: 'Trails', shop_pets: 'Pets',
     like: 'Like', dislike: 'Dislike', recent: 'Recently played', sort_popular: 'Most popular', sort_newest: 'Newest', sort_az: 'A-Z', sort_liked: 'Top rated', ed_tags: 'Tags (up to 5, comma separated)', ed_tags_ph: 'adventure, friends, race',
     room_title: 'Private room (only people with the code join)', room_code: 'Room code', room_new: 'Create', room_join: 'Join', room_bad: 'The code needs 3 or more letters or numbers', invite_all: 'Invite everyone', invite_all_done: 'Invitations sent: {n}',
     party: 'Party', party_help: 'A temporary group chat with your friends: create a code and share it.', party_code: 'Party code', party_new: 'Create', party_join: 'Join', party_members: 'In the party', party_leave: 'Leave the party',

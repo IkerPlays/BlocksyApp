@@ -1,1 +1,1 @@
-Dev build 5: sort games (popular, newest, A-Z, top rated), game tags, like and dislike, and a Recently played row on Home. Run supabase/auth/v13.sql (AUTH) for votes.
+Dev build 6: 6 new hats, glasses and masks, capes and wings, walking trails and pets, all visible to other players. Run supabase/game/v7.sql (GAME) and supabase/store/v12.sql (STORE). The 3DS still draws only the original 6 hats.

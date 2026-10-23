@@ -419,7 +419,7 @@ int net_fetch_players(const Session *s, Remote *out, int max) {
 		if (!jstr(start, end, "username", o->name, sizeof o->name)) strcpy(o->name, "?");
 		jstr(start, end, "color", col, sizeof col); o->color = parse_color(col);
 		jstr(start, end, "platform", plat, sizeof plat); o->is3ds = strcmp(plat, "3ds") == 0;
-		o->hat[0] = 0; jstr(start, end, "hat", o->hat, sizeof o->hat);
+		o->hat[0] = 0; jstr(start, end, "hat", o->hat, sizeof o->hat); { char *bar = strchr(o->hat, '|'); if (bar) *bar = 0; }          // la web manda sombrero|gafas|espalda|estela|mascota: la 3DS solo dibuja el sombrero
 		o->anim[0] = 0; jstr(start, end, "anim", o->anim, sizeof o->anim); if (!o->anim[0]) strcpy(o->anim, "idle");
 		o->x = jnum(start, end, "x"); o->y = jnum(start, end, "y"); o->z = jnum(start, end, "z"); o->ry = jnum(start, end, "ry");
 		n++;

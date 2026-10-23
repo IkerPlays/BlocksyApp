@@ -92,3 +92,4 @@ Lua estilo Roblox: cada jugador ejecuta el script en su navegador (como un Local
 - **AUTH** `auth/v12.sql`: tiempo jugado, insignias del perfil, ultima conexion y juegos favoritos. Sin el SQL esas partes no se muestran.
 - **GAME** `game/v6.sql`: salas privadas (codigo de sala en la ficha de cada juego).
 - **AUTH** `auth/v13.sql`: me gusta / no me gusta en los juegos.
+- **GAME** `game/v7.sql` (accesorios sincronizados, 64 caracteres) y **STORE** `store/v12.sql` (22 objetos nuevos: sombreros, gafas, espalda, estelas y mascotas).

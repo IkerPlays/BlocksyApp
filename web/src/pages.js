@@ -3,7 +3,7 @@ import * as api from './api.js'
 import * as social from './social.js'
 import { settings, saveSettings, resetSettings, lastPlayed, recentGames, getStats, applyTheme } from './settings.js'
 import { icon } from './icons.js'
-import { headshot, styleFor, EMOTES, createPreview, hatStyle } from './avatar.js'
+import { headshot, styleFor, EMOTES, createPreview, loadoutStyle, parseLoadout, packLoadout } from './avatar.js'
 import { t, LANGS, langName, getPref, setLang, onLang } from './i18n.js'
 import { codeEditor } from './studio-ui.js'
 import { partyPanel, attachEmoticons } from './party-ui.js'
@@ -163,10 +163,10 @@ export const pages = {
     setKids(root, el('h1', { class: 'page-title', text: t('loading') }))
     const [items, w0] = await Promise.all([social.listShop(), social.loadWallet()])
     const canvas = el('canvas', { class: 'avatar-3d' }), coins = el('b', { class: 'coin-big' }), daily = el('div'), body = el('div')
-    let pv = null, tryHat = null
+    let pv = null, tryOn = null
     const equipped = () => social.getWallet()?.equipped ?? {}
     const owned = () => new Set(social.getWallet()?.inventory ?? [])
-    const style = () => ({ ...styleFor(ctx.profile.username, ctx.profile.avatar_color), hat: hatStyle(tryHat ?? equipped().hat) })
+    const style = () => loadoutStyle(styleFor(ctx.profile.username, ctx.profile.avatar_color), { ...parseLoadout(packLoadout(equipped())), ...(tryOn ? { [tryOn.kind]: tryOn.id } : {}) })
     const rarity = r => el('span', { class: `rarity ${r}`, text: t('rar_' + r) })
     const price = n => el('span', { class: 'price', html: icon('coin', 16) + ' ' + n })
     const run = async fn => { try { await fn() } catch (e) { toast(/not enough/i.test(e.message) ? t('shop_no_coins') : /already/i.test(e.message) ? t('shop_owned') : e.message) } draw() }
@@ -181,9 +181,9 @@ export const pages = {
       const btns = []
       if (it.kind === 'crate') btns.push(el('button', { class: 'btn blue', html: icon('gift', 16) + ' ' + t('shop_open'), onclick: () => run(async () => { const r = await social.openCrate(it.id); showReward(r) }) }))
       else if (have) {
-        btns.push(el('button', { class: `btn ${eq ? '' : 'primary'}`, text: eq ? t('shop_unequip') : t('shop_equip'), onclick: () => run(async () => { eq ? await social.unequipSlot(it.kind) : await social.equipItem(it.id); tryHat = null; pv?.setStyle(style()) }) }))
+        btns.push(el('button', { class: `btn ${eq ? '' : 'primary'}`, text: eq ? t('shop_unequip') : t('shop_equip'), onclick: () => run(async () => { eq ? await social.unequipSlot(it.kind) : await social.equipItem(it.id); tryOn = null; pv?.setStyle(style()) }) }))
       } else btns.push(el('button', { class: 'btn blue', text: t('shop_buy'), onclick: () => run(async () => { await social.buyItem(it.id); toast(t('shop_bought', { name: it.name })) }) }))
-      if (it.kind === 'hat' && !eq) btns.push(el('button', { class: 'btn', text: t('shop_try'), onclick: () => { tryHat = it.id; pv?.setStyle(style()) } }))
+      if (['hat', 'face', 'back'].includes(it.kind) && !eq) btns.push(el('button', { class: 'btn', text: t('shop_try'), onclick: () => { tryOn = { kind: it.kind, id: it.id }; pv?.setStyle(style()) } }))
       return el('div', { class: `shop-card ${it.rarity}` }, el('div', { class: 'sc-top' }, el('b', { text: it.name }), rarity(it.rarity)), el('small', { text: it.description }),
         el('div', { class: 'sc-bot' }, it.kind === 'crate' || !have ? price(it.price) : el('span', { class: 'owned', text: eq ? t('shop_equipped') : t('shop_owned') }), el('div', { class: 'sc-btns' }, btns)))
     }
@@ -197,7 +197,7 @@ export const pages = {
       coins.innerHTML = icon('coin', 22) + ' ' + (social.getWallet()?.bcoins ?? 0)
       paintDaily(); pv?.setStyle(style())
       const sec = (title, kind) => { const l = items.filter(i => i.kind === kind); return l.length ? [el('div', { class: 'section' }, el('h2', { text: title })), el('div', { class: 'shop-grid' }, l.map(card))] : null }
-      setKids(body, sec(t('shop_crates'), 'crate'), sec(t('shop_hats'), 'hat'), sec(t('shop_titles'), 'title'))
+      setKids(body, sec(t('shop_crates'), 'crate'), sec(t('shop_hats'), 'hat'), sec(t('shop_faces'), 'face'), sec(t('shop_backs'), 'back'), sec(t('shop_trails'), 'trail'), sec(t('shop_pets'), 'pet'), sec(t('shop_titles'), 'title'))
     }
     const missionsBox = el('div')
     const paintMissions = async () => {
@@ -260,7 +260,7 @@ export const pages = {
         el('div', { class: 'stats-row', style: 'margin:14px 0' }, stat(p.friend_count, t('p_friends')), stat(mine0.length, t('p_games'))), actions)),
       el('div', { class: 'section' }, el('h2', { text: t('p_games') })), games,
       self ? [el('div', { class: 'section' }, el('h2', { text: t('friends_n', { n: '' }).replace('()', '').trim() })), friendsBox] : null)
-    const pv = createPreview(canvas, { ...styleFor(p.username, p.avatar_color), hat: hatStyle(p.equipped?.hat) }); pv.setAnim('wave')
+    const pv = createPreview(canvas, { ...styleFor(p.username, p.avatar_color), ...loadoutStyle({}, parseLoadout(packLoadout(p.equipped))) }); pv.setAnim('wave')
     if (p.equipped?.title) social.listShop().then(items => { const it = items.find(i => i.id === p.equipped.title); if (it) titleBox.textContent = it.data?.text ?? it.name }).catch(() => {})
     paintBio(); paintActions()
     social.profileExtra(p.username).then(x => { if (!x) return; const hrs = Math.floor(x.play_seconds / 3600), mins = Math.floor(x.play_seconds % 3600 / 60); const bd = [...(x.badges ?? []), ...(mine0.length ? ['creator'] : [])]
@@ -281,7 +281,7 @@ export const pages = {
     const sw = el('div', { class: 'swatches' })
     let pv = null
     await social.loadWallet().catch(() => {})
-    const style = () => ({ ...styleFor(ctx.profile.username, sel), hat: hatStyle(social.getWallet()?.equipped?.hat) })
+    const style = () => loadoutStyle(styleFor(ctx.profile.username, sel), parseLoadout(packLoadout(social.getWallet()?.equipped)))
     const paint = () => {
       pv?.setStyle(style()); custom.value = sel
       setKids(sw, ...colors.map(c => el('div', { class: `swatch ${c === sel ? 'sel' : ''}`, style: `--c:${c}`, onclick: () => { sel = c; paint() } })), custom)
@@ -300,7 +300,7 @@ export const pages = {
           list.map(i => el('button', { class: `acc-chip ${eq[kind] === i.id ? 'on' : ''}`, text: i.name, onclick: async () => { try { await social.equipItem(i.id) } catch (e) { toast(e.message) } paintAcc(); pv?.setStyle(style()) } })),
           !list.length ? el('a', { href: '/shop', class: 'acc-link', text: t('acc_get') }) : null)]
       }
-      setKids(accBox, group('hat', t('shop_hats')), group('title', t('shop_titles')))
+      setKids(accBox, group('hat', t('shop_hats')), group('face', t('shop_faces')), group('back', t('shop_backs')), group('trail', t('shop_trails')), group('pet', t('shop_pets')), group('title', t('shop_titles')))
     }
     paintAcc()
     setKids(root, el('h1', { class: 'page-title', text: t('avatar') }),
