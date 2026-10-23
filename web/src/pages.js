@@ -508,7 +508,7 @@ export const pages = {
           sw('sfx', t('set_sfx')), rg('sfxVol', t('set_sfx_vol'), 0, 1, 0.05, v => Math.round(v * 100) + '%')),
         el('div', { class: 'panel' }, el('h3', { text: t('controls') ?? 'Controles' }),
           rg('sensitivity', t('set_sens'), 0.3, 2.5, 0.1), rg('syncMs', t('set_sync'), 40, 400, 10, v => v + ' ms'), sw('invertY', t('set_invert')), sw('names', t('set_names')), sw('bubbles', t('set_bubbles')),
-          sw('minimap', t('set_minimap')), sw('showFps', t('set_fps')), sw('notifPopups', t('set_notif')),
+          sw('minimap', t('set_minimap')), sw('compass', t('set_compass')), sw('showFps', t('set_fps')), sw('notifPopups', t('set_notif')),
           rg('touchSize', t('set_touch_size'), 0.7, 1.5, 0.1), sw('leftHanded', t('set_left'))),
         el('div', { class: 'panel' }, el('h3', { text: t('blocked_users') }), blockedBox),
         el('div', { class: 'panel' }, el('h3', { text: t('set_stats') }),

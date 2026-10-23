@@ -20,6 +20,7 @@ import { createHorror } from './horror.js'
 import { createScripted } from './scene-parts.js'
 import { createStudio } from './studio-tools.js'
 import { createWeather } from './weather.js'
+import { createCompass, createPings, createHealth, PING_PREFIX, isPing } from './hud.js'
 import { loadingScreen, createShortcuts, togglePhoto, REACT_PREFIX, REACTIONS, isReaction, layoutWheel } from './extras.js'
 
 // 12 colores: la 3DS usa los mismos (3ds/source/main.c)
@@ -440,6 +441,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
   let runner = { fire() {}, has: () => false, dispose() {} }
   // piezas, luces, interfaz y puntuaciones que crean los scripts (API de Roblox en Lua)
   const weather = createWeather(scene); weather.setKind(cfg.weather)
+  const compass = createCompass(), pings = createPings(scene), health = createHealth()
   const projV = new THREE.Vector3()
   const rbx = createScripted({ scene, uiRoot: $('game'), getMe: () => me.pos, solid, world, sfx,
     project: (x, y, z) => { projV.set(x, y, z).project(camera); const w = canvas.clientWidth, h = canvas.clientHeight, r = canvas.getBoundingClientRect(); return { x: r.left + (projV.x * 0.5 + 0.5) * w, y: r.top + (-projV.y * 0.5 + 0.5) * h, visible: projV.z < 1 && Math.abs(projV.x) < 1.2 && Math.abs(projV.y) < 1.2, dist: camera.position.distanceTo(projV.set(x, y, z)) } },
@@ -458,6 +460,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
         case 'team': setTeam(String(a[0]), a[1] ? `rgb(${[1, 2, 3].map(i => Math.round(Number(String(a[1]).slice(2).split(',')[i - 1]) * 255)).join(',')})` : ''); break
         case 'cmd': scriptCmds.add(String(a[0])); break
         case 'weather': weather.setKind(String(a[0])); break
+        case 'health': health.set(Number(a[0]), Number(a[1])); break
         case 'remote': { const now = performance.now(); remoteTokens = Math.min(10, remoteTokens + (now - remoteAt) / 100); remoteAt = now; if (remoteTokens >= 1) { remoteTokens--; api.gameEvent(game.id, 'rem', { id: String(a[0]), m: String(a[1]), t: String(a[2] ?? ''), a: String(a[3] ?? '') }).catch(() => {}) } break }
         case 'dsset': saveDataStore(game.parentId ?? game.id, String(a[0]), String(a[1]), String(a[2] ?? '')); break
         case 'respawn': teleport(...respawn.pos); runner.fire('respawned', { data: {} }); break
@@ -606,6 +609,13 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
     me.fly = !me.fly; sys(t(me.fly ? 'fly_on' : 'fly_off')); $('down-btn')?.classList.toggle('hidden', !me.fly)
   }
   let lastSpace = 0, lastReact = 0, stepAt = 0, spaceWas = false, jumpsLeft = 1, wasSwimming = false
+  function sendPing() {
+    if (Date.now() - lastReact < 1200) return; lastReact = Date.now()
+    const r = canvas.getBoundingClientRect(), h = pick(r.left + r.width / 2, r.top + r.height / 2)
+    const at = h && !h.floor ? h.cell : h ? h.place : [Math.round(me.pos.x), Math.round(me.pos.y), Math.round(me.pos.z)]
+    pings.add(at[0], at[1] + 1, at[2], profile.username); sfx.checkpoint()
+    if (cfg.allow_chat) api.say(game.id, `${PING_PREFIX}${at[0]},${at[1] + 1},${at[2]}`).catch(() => {})
+  }
   function react(i) {
     if (!cfg.allow_chat || Date.now() - lastReact < 1500) return; lastReact = Date.now()
     bubble(meAvatar, REACTIONS[i]); sfx.click(); api.say(game.id, REACT_PREFIX + REACTIONS[i]).catch(() => {})
@@ -621,6 +631,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
     if (e.code === 'KeyG' && cfg.allow_emotes) { emotePanel.classList.toggle('hidden'); return }
     if (e.code === 'KeyF') { if (horror) horror.toggleLight(); else toggleFly(); return }
     if (e.altKey && /^Digit[1-4]$/.test(e.code)) { e.preventDefault(); react(Number(e.code.slice(5)) - 1); return }
+    if (e.code === 'KeyB' && !e.repeat) { sendPing(); return }
     if (e.code === 'KeyM') { music.toggle(); return }
     if (e.code === 'KeyH') { togglePhoto(); return }
     if (e.key === '?' || e.code === 'F1') { e.preventDefault(); help.toggle(); return }
@@ -710,6 +721,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
     chatSeen.add(row.id); chatSince = row.created_at
     if (row.player_id === profile.id || social.isBlockedName(row.username)) return                      // mis mensajes ya se enseñaron al enviarlos
     { const r = isReaction(row.payload?.text); if (r) { bubble(others.get(row.player_id)?.avatar, r); return } }
+    { const pg = isPing(row.payload?.text); if (pg) { pings.add(pg[0], pg[1], pg[2], row.username); sfx.checkpoint(); return } }
     chatLine(row.username, row.payload?.text ?? '', row.player_id)
   }
   const channel = gameDb.channel(`game:${game.id}`)
@@ -810,6 +822,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
     for (const [k] of index) { if (++n > 2500) break; const [x, , z] = k.split(',').map(Number); if (Math.abs(x - px) > 48 || Math.abs(z - pz) > 48) continue; const [mx, my] = toMap(x + .5, z + .5); mmc.fillRect(mx - 1, my - 1, 2, 2) }
     for (const cp of world.checkpoints ?? []) { const [mx, my] = toMap(cp.pos[0], cp.pos[2]); mmc.fillStyle = '#4d8dff'; mmc.beginPath(); mmc.arc(mx, my, 3, 0, 7); mmc.fill() }
     if (world.finish) { const [mx, my] = toMap(world.finish.pos[0], world.finish.pos[2]); mmc.fillStyle = '#f5c542'; mmc.fillRect(mx - 3, my - 3, 6, 6) }
+    for (const p of pings.list) { const [mx, my] = toMap(p.x, p.z); mmc.fillStyle = '#ffd34d'; mmc.beginPath(); mmc.moveTo(mx, my - 6); mmc.lineTo(mx + 4, my + 3); mmc.lineTo(mx - 4, my + 3); mmc.fill() }
     for (const o of others.values()) { const [mx, my] = toMap(o.target.x, o.target.z); mmc.fillStyle = o.color; mmc.beginPath(); mmc.arc(mx, my, 3.4, 0, 7); mmc.fill(); mmc.strokeStyle = '#000a'; mmc.stroke() }
     mmc.restore()
     mmc.fillStyle = '#fff'; mmc.save(); mmc.translate(c, c); mmc.rotate(rot - me.ry + Math.PI); mmc.beginPath(); mmc.moveTo(0, -6); mmc.lineTo(4.5, 5); mmc.lineTo(-4.5, 5); mmc.closePath(); mmc.fill(); mmc.restore()
@@ -841,7 +854,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
       o.avatar.rotation.y += d * Math.min(1, dt * 12)
       animateAvatar(o.avatar, o.anim, dt, tAnim)
     }
-    stepParts(dt); rbx.step(dt); weather.update(dt, me.pos, settings.reduceMotion)
+    stepParts(dt); rbx.step(dt); weather.update(dt, me.pos, settings.reduceMotion); pings.update(tAnim); compass.update(cam.yaw, settings.compass)
     for (const p of pets.values()) {                                    // mascotas: siguen a su dueño con un pequeño bote
       const a = p.owner, ry = a.rotation.y, tx = a.position.x - Math.sin(ry) * 0.9 - Math.cos(ry) * 0.8, tz = a.position.z - Math.cos(ry) * 0.9 + Math.sin(ry) * 0.8
       p.mesh.position.x += (tx - p.mesh.position.x) * Math.min(1, dt * 4); p.mesh.position.z += (tz - p.mesh.position.z) * Math.min(1, dt * 4)
@@ -895,7 +908,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
     window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); window.removeEventListener('resize', onResize)
     window.removeEventListener('pointermove', pmove); window.removeEventListener('pointerup', pup); window.removeEventListener('pointercancel', pup)
     canvas.removeEventListener('pointerdown', pdown); canvas.removeEventListener('wheel', wheel); canvas.removeEventListener('contextmenu', noMenu); canvas.removeEventListener('pointerleave', pleave)
-    offSettings(); offSync(); offLang(); offMusic(); music.stop(); runner.dispose(); rbx.dispose(); help.dispose(); weather.dispose(); clearInterval(uiTimer); clearInterval(loadoutTimer); window.removeEventListener('pointermove', uiMove); window.removeEventListener('pointerup', uiUp); studioCleanup.forEach(f => f()); uiLayer.replaceChildren()
+    offSettings(); offSync(); offLang(); offMusic(); music.stop(); runner.dispose(); rbx.dispose(); help.dispose(); weather.dispose(); compass.dispose(); pings.dispose(); health.dispose(); clearInterval(uiTimer); clearInterval(loadoutTimer); window.removeEventListener('pointermove', uiMove); window.removeEventListener('pointerup', uiUp); studioCleanup.forEach(f => f()); uiLayer.replaceChildren()
     touchUi?.remove(); emotePanel.classList.add('hidden'); mPanel.classList.add('hidden'); $('big-title').classList.add('hidden')
     $('pause').classList.add('hidden'); roster.classList.add('hidden'); log.replaceChildren()
     api.leave().catch(() => {}); gameDb.removeChannel(channel)

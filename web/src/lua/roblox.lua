@@ -663,13 +663,13 @@ standard("Humanoid", "Instance", { props = { WalkSpeed = 16, JumpPower = 50, Jum
   EquipTool = function() end, UnequipTools = function() end, GetPlayingAnimationTracks = function() return {} end, LoadAnimation = function() return { Play = function() end, Stop = function() end } end } })
 classes.Humanoid.set.Health = function(i, v)
   local p = rawget(i, "_props"); v = max(0, min(v, p.MaxHealth)); if p.Health == v then return end
-  local was = p.Health; p.Health = v; fire(i, "HealthChanged", v)
+  local was = p.Health; p.Health = v; fire(i, "HealthChanged", v); if rawget(i, "_local") then act("health", v, p.MaxHealth) end
   if v <= 0 and was > 0 then fire(i, "Died"); if rawget(i, "_local") then act("respawn"); task.delay(0.2, function() p.Health = p.MaxHealth; fire(i, "HealthChanged", p.Health) end) end end
 end
 classes.Humanoid.set.WalkSpeed = function(i, v) setProp(i, "WalkSpeed", v); if rawget(i, "_local") then act("speed", v * 6 / 16) end end
 classes.Humanoid.set.JumpPower = function(i, v) setProp(i, "JumpPower", v); if rawget(i, "_local") then act("jump", v * 8.6 / 50) end end
 classes.Humanoid.set.JumpHeight = function(i, v) setProp(i, "JumpHeight", v); if rawget(i, "_local") then act("jump", v * 8.6 / 7.2) end end
-classes.Humanoid.set.MaxHealth = function(i, v) setProp(i, "MaxHealth", v) end
+classes.Humanoid.set.MaxHealth = function(i, v) setProp(i, "MaxHealth", v); if rawget(i, "_local") then act("health", rawget(i, "_props").Health, v) end end
 def("CharPart", "BasePart", { nosend = true, render = false })
 classes.CharPart.set.Position = function(i, v)
   setProp(i, "Position", v); if rawget(i, "_local") and rawget(i, "_name") == "HumanoidRootPart" and not rawget(i, "_sync") then act("teleport", v.X, v.Y, v.Z) end
