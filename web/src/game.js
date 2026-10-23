@@ -244,8 +244,11 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
     const len = Math.hypot(mx, mz)
     if (len > 0.001) { mx /= len; mz /= len; me.ry = Math.atan2(mx, mz) }
     const sprint = active && (keys.ShiftLeft || keys.ShiftRight) && !me.fly
-    const speed = (me.fly ? phys.speed * 1.7 : sprint ? phys.speed * 1.5 : phys.speed) * mag
     const p = me.pos
+    const swimming = !me.fly && rbx.inWater(p.x, p.y, p.z), climbing = !me.fly && !swimming && rbx.climbable(p.x, p.y, p.z)
+    const crouching = active && keys.KeyC && !me.fly && me.grounded && cfg.allow_crouch !== false
+    if (swimming && !wasSwimming) sfx.land(); wasSwimming = swimming
+    const speed = (me.fly ? phys.speed * 1.7 : crouching ? phys.speed * 0.45 : swimming ? phys.speed * 0.6 : sprint ? phys.speed * 1.5 : phys.speed) * mag
     for (const [ax, d] of [['x', mx * speed * dt], ['z', mz * speed * dt]]) {
       const old = p[ax]; p[ax] += d
       if (collides(p.x, p.y, p.z)) {
@@ -257,8 +260,14 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
     if (me.fly) {
       me.vel.y = ((active && (keys.Space || jumpHeld)) ? 8 : 0) - ((active && (keys.ShiftLeft || keys.ShiftRight || keys.KeyC || downHeld)) ? 8 : 0)
     } else {
-      if (active && (keys.Space || jumpHeld) && me.grounded) { me.vel.y = phys.jump; me.grounded = false; sfx.jump() }
-      me.vel.y -= phys.gravity * dt
+      const jumpKey = active && (keys.Space || jumpHeld), jumpEdge = jumpKey && !spaceWas; spaceWas = jumpKey
+      if (swimming) { me.vel.y += ((jumpKey ? 4.5 : -1.5) - me.vel.y) * Math.min(1, dt * 4); jumpsLeft = 1 }                // nadar: flotas, Espacio sube
+      else if (climbing) { const up = active && (keys.KeyW || keys.ArrowUp || keys.Space || jumpHeld), down = active && (keys.KeyS || keys.ArrowDown); me.vel.y = up ? 4.5 : down ? -4.5 : 0 }       // escalar
+      else {
+        if (jumpKey && me.grounded) { me.vel.y = phys.jump; me.grounded = false; sfx.jump(); jumpsLeft = 1 }
+        else if (jumpEdge && cfg.double_jump && !me.grounded && jumpsLeft > 0) { jumpsLeft--; me.vel.y = phys.jump * 0.9; sfx.jump(); burst(Math.floor(p.x), Math.floor(p.y), Math.floor(p.z), '#ffffff', 6) }
+        me.vel.y -= phys.gravity * dt
+      }
     }
     const oy = p.y; p.y += me.vel.y * dt
     me.grounded = false
@@ -266,12 +275,13 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
     if (world.floor && p.y < 0) { p.y = 0; me.vel.y = 0; me.grounded = true }
     if (editing()) me.fly = true
     else if (me.fly && me.grounded && !(keys.Space || jumpHeld)) { me.fly = false; sys(t('fly_off')) }
+    if (me.grounded) jumpsLeft = 1
     if (!wasGrounded && me.grounded && !me.fly) sfx.land()
     if (me.grounded && !me.fly && mag > 0.1 && (stepAt -= dt) <= 0) { stepAt = sprint ? 0.26 : 0.38; sfx.step() }
     if (world.voidY != null && p.y < world.voidY) { sfx.fall(); showTitle(t('fell'), 1200); teleport(...respawn.pos); if (race.start && !race.done) race.start = race.cp === 0 ? 0 : race.start }
     const moving = len > 0.001 && mag > 0.05
     if (me.emote && (moving || !me.grounded)) me.emote = null
-    me.anim = (!me.grounded && !me.fly) ? 'jump' : moving ? 'walk' : (me.fly ? 'idle' : (me.emote ?? 'idle'))
+    me.anim = crouching ? 'crouch' : swimming ? 'walk' : climbing ? 'jump' : (!me.grounded && !me.fly) ? 'jump' : moving ? 'walk' : (me.fly ? 'idle' : (me.emote ?? 'idle'))
     if (me.fly && moving) me.anim = 'walk'
     // carrera: puntos de control y meta
     if (world.checkpoints?.length || world.finish) {
@@ -595,7 +605,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
     if (!canFly) return
     me.fly = !me.fly; sys(t(me.fly ? 'fly_on' : 'fly_off')); $('down-btn')?.classList.toggle('hidden', !me.fly)
   }
-  let lastSpace = 0, lastReact = 0, stepAt = 0
+  let lastSpace = 0, lastReact = 0, stepAt = 0, spaceWas = false, jumpsLeft = 1, wasSwimming = false
   function react(i) {
     if (!cfg.allow_chat || Date.now() - lastReact < 1500) return; lastReact = Date.now()
     bubble(meAvatar, REACTIONS[i]); sfx.click(); api.say(game.id, REACT_PREFIX + REACTIONS[i]).catch(() => {})
@@ -619,7 +629,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
     if (e.code === 'Tab') { e.preventDefault(); drawRoster(); roster.classList.toggle('hidden'); return }
     if (e.code.startsWith('Digit')) { let n = Number(e.code.slice(5)) - 1; if (n < 0) n = 9; if (n >= 0 && n < PALETTE.length) selectKind(n) }
     if (e.code === 'KeyQ' || e.code === 'KeyE') selectKind((me.kind + (e.code === 'KeyE' ? 1 : PALETTE.length - 1)) % PALETTE.length)
-    if (e.code === 'Space') { e.preventDefault(); if (!e.repeat) { const now = performance.now(); if (now - lastSpace < 280 && canFly) toggleFly(); lastSpace = now } }
+    if (e.code === 'Space') { e.preventDefault(); if (!e.repeat) { const now = performance.now(); if (now - lastSpace < 280 && canFly && !cfg.double_jump) toggleFly(); lastSpace = now } }
     keys[e.code] = true
   }
   const up = e => { keys[e.code] = false; { const kn = keyName(e.code); if (kn && !typing()) runner.fire('key', { data: { k: kn, down: false } }); rbx.onKey(e.code, false) } if (e.code === 'KeyV' && settings.voiceMode === 'ptt' && voice.active) voice.setMuted(true) }

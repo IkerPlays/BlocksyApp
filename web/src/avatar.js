@@ -164,6 +164,7 @@ export function poseAvatar(g, anim, dt, t) {
     case 'clap': armLx = -1.45; armRx = -1.45; armLz = 0.55 - (Math.sin(u.phase) + 1) * 0.28; armRz = -0.55 + (Math.sin(u.phase) + 1) * 0.28; break
     case 'jumpjoy': armLx = -3; armRx = -3; legL = Math.abs(s) * 0.4; legR = -Math.abs(s) * 0.3; bodyY = Math.abs(Math.sin(u.phase)) * 0.38; break
     case 'cry': armLx = -1.35; armRx = -1.35; armLz = 0.5; armRz = -0.5; headX = 0.4 + Math.sin(u.phase) * 0.05; bodyY = -0.04 + Math.sin(u.phase * 1.4) * 0.02; break
+    case 'crouch': legL = -0.9; legR = -0.9; armLx = 0.3; armRx = 0.3; bodyY = -0.34; headX = 0.12; break
     case 'point': armRx = -1.55; armLx = Math.sin(t * 1.6) * 0.04; headX = -0.05; break
     case 'flex': armLz = -1.55 + Math.sin(u.phase) * 0.1; armRz = 1.55 - Math.sin(u.phase) * 0.1; armLx = -0.4; armRx = -0.4; bodyY = Math.abs(Math.sin(u.phase)) * 0.05; break
     case 'sit': legL = -1.5; legR = -1.5; armLx = -0.5; armRx = -0.5; bodyY = -0.36; break

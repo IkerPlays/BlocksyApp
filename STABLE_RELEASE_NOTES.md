@@ -45,6 +45,9 @@ Blocksy is a multiplayer block-building game for the web and the Nintendo 3DS (h
 - **Weather.** Rain and snow for any game, set in the editor or from a Lua script.
 - **Fog.** Choose how far players can see; Lighting.FogEnd works from Lua.
 - **Music per game.** Creators pick which song from the playlist plays in their game.
+- **Double jump.** Creators can enable a double jump for their game.
+- **Crouch.** Hold C to walk slowly in a crouch, visible to everyone.
+- **Climb and swim.** Parts named Ladder (or marked climbable) can be climbed, and parts with the Water material let you swim.
 
 ## Installing
 - Install `Blocksy.cia` with FBI, or copy `Blocksy.3dsx` to the `3ds` folder of the SD card and run it from the Homebrew Launcher.

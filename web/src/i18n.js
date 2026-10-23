@@ -3,6 +3,7 @@ import { EXTRA } from './i18n-extra.js'
 const D = {
   es: {
     lang_name: 'Español',
+    st_climb: 'Escalable (escalera)', env_dj: 'Doble salto', env_crouch: 'Permitir agacharse (C)',
     env_fog: 'Visibilidad (1 = normal, menos = más niebla)', env_weather: 'Clima', env_track: 'Música del juego', weather_none: 'Despejado', weather_rain: 'Lluvia', weather_snow: 'Nieve', track_any: 'Cualquiera (lista completa)',
     tpl_tag: 'Pilla-pilla', tpl_tag_d: 'Multijugador: uno la lleva', tpl_flag: 'Roba la bandera', tpl_flag_d: 'Multijugador: puntos por llevarla', tpl_waves: 'Oleadas', tpl_waves_d: 'Multijugador: sobrevive a monstruos', tpl_hide: 'Escondite', tpl_hide_d: 'Multijugador: uno busca',
     templates: 'Plantilla', tpl_blank: 'En blanco', tpl_blank_d: 'Un mundo vacío para construir', tpl_obby: 'Obby', tpl_obby_d: 'Parkour con puntos de control', tpl_plaza: 'Plaza social', tpl_plaza_d: 'Chat, emotes y música', tpl_coins: 'Recoge monedas', tpl_coins_d: 'Script Lua con marcador', tpl_sky: 'Plataformas y lava', tpl_sky_d: 'Plataformas móviles con Lua',
@@ -19,7 +20,7 @@ const D = {
     last_seen: 'Última vez', favorites: 'Favoritos', fav_add: 'Añadir a favoritos', fav_remove: 'Quitar de favoritos',
     emote_jumpjoy: 'Saltar de alegría', emote_cry: 'Llorar', emote_point: 'Señalar', emote_flex: 'Presumir', react_hint: 'Alt + 1-4: reacciones',
     tip_1: 'Pulsa G para abrir los emotes.', tip_2: 'Pulsa P para sacar una captura de pantalla.', tip_3: 'Dos veces Espacio activa el vuelo si el juego lo permite.', tip_4: 'Invita a tus amigos desde el menú de pausa.', tip_5: 'Pulsa H para ocultar la interfaz y hacer fotos.', tip_6: 'Mantén V para hablar si usas pulsar para hablar.', tip_7: 'Completa las misiones diarias para ganar BCoins.', tip_8: 'Pulsa ? para ver todos los atajos.',
-    sc_title: 'Atajos de teclado', sc_move: 'Moverte', sc_sprint: 'Correr', sc_jump: 'Saltar', sc_fly: 'Volar', sc_emotes: 'Emotes', sc_chat: 'Chat', sc_players: 'Jugadores', sc_music: 'Música', sc_voice: 'Voz', sc_shot: 'Captura', sc_photo: 'Modo foto', sc_help: 'Esta ayuda', sc_menu: 'Menú de pausa', photo_hint: 'Modo foto: pulsa H para volver',
+    sc_title: 'Atajos de teclado', sc_move: 'Moverte', sc_sprint: 'Correr', sc_jump: 'Saltar', sc_fly: 'Volar', sc_emotes: 'Emotes', sc_chat: 'Chat', sc_players: 'Jugadores', sc_music: 'Música', sc_voice: 'Voz', sc_shot: 'Captura', sc_photo: 'Modo foto', sc_crouch: 'Agacharte', sc_help: 'Esta ayuda', sc_menu: 'Menú de pausa', photo_hint: 'Modo foto: pulsa H para volver',
     top_times: 'Mejores tiempos', your_rank: 'Tu puesto: {n}',
     st_paint: 'Pintar', st_pick: 'Cuentagotas', st_box: 'Caja', st_select: 'Seleccionar', st_stamp: 'Estructuras', st_part: 'Piezas', st_undo: 'Deshacer', st_redo: 'Rehacer', st_env: 'Entorno',
     st_mode_fill: 'Rellenar', st_mode_hollow: 'Hueco', st_mode_erase: 'Vaciar', st_copy: 'Copiar', st_cut: 'Cortar', st_fillsel: 'Rellenar', st_clear: 'Vaciar', st_rotate: 'Girar (R)', st_add_part: 'Añadir pieza', st_add_spawn: 'Punto de aparición',
@@ -85,6 +86,7 @@ const D = {
   },
   en: {
     lang_name: 'English',
+    st_climb: 'Climbable (ladder)', env_dj: 'Double jump', env_crouch: 'Allow crouching (C)',
     env_fog: 'Visibility (1 = normal, less = more fog)', env_weather: 'Weather', env_track: 'Game music', weather_none: 'Clear', weather_rain: 'Rain', weather_snow: 'Snow', track_any: 'Any (whole playlist)',
     tpl_tag: 'Tag', tpl_tag_d: 'Multiplayer: someone is it', tpl_flag: 'Steal the flag', tpl_flag_d: 'Multiplayer: points for holding it', tpl_waves: 'Waves', tpl_waves_d: 'Multiplayer: survive monsters', tpl_hide: 'Hide and seek', tpl_hide_d: 'Multiplayer: one seeks',
     templates: 'Template', tpl_blank: 'Blank', tpl_blank_d: 'An empty world to build in', tpl_obby: 'Obby', tpl_obby_d: 'Parkour with checkpoints', tpl_plaza: 'Social plaza', tpl_plaza_d: 'Chat, emotes and music', tpl_coins: 'Collect coins', tpl_coins_d: 'Lua script with a scoreboard', tpl_sky: 'Platforms and lava', tpl_sky_d: 'Moving platforms with Lua',
@@ -101,7 +103,7 @@ const D = {
     last_seen: 'Last seen', favorites: 'Favorites', fav_add: 'Add to favorites', fav_remove: 'Remove from favorites',
     emote_jumpjoy: 'Jump for joy', emote_cry: 'Cry', emote_point: 'Point', emote_flex: 'Flex', react_hint: 'Alt + 1-4: reactions',
     tip_1: 'Press G to open emotes.', tip_2: 'Press P to take a screenshot.', tip_3: 'Double-tap Space to fly when the game allows it.', tip_4: 'Invite your friends from the pause menu.', tip_5: 'Press H to hide the interface and take photos.', tip_6: 'Hold V to talk if you use push to talk.', tip_7: 'Finish the daily missions to earn BCoins.', tip_8: 'Press ? to see every shortcut.',
-    sc_title: 'Keyboard shortcuts', sc_move: 'Move', sc_sprint: 'Sprint', sc_jump: 'Jump', sc_fly: 'Fly', sc_emotes: 'Emotes', sc_chat: 'Chat', sc_players: 'Players', sc_music: 'Music', sc_voice: 'Voice', sc_shot: 'Screenshot', sc_photo: 'Photo mode', sc_help: 'This help', sc_menu: 'Pause menu', photo_hint: 'Photo mode: press H to go back',
+    sc_title: 'Keyboard shortcuts', sc_move: 'Move', sc_sprint: 'Sprint', sc_jump: 'Jump', sc_fly: 'Fly', sc_emotes: 'Emotes', sc_chat: 'Chat', sc_players: 'Players', sc_music: 'Music', sc_voice: 'Voice', sc_shot: 'Screenshot', sc_photo: 'Photo mode', sc_crouch: 'Crouch', sc_help: 'This help', sc_menu: 'Pause menu', photo_hint: 'Photo mode: press H to go back',
     top_times: 'Best times', your_rank: 'Your rank: {n}',
     st_paint: 'Paint', st_pick: 'Eyedropper', st_box: 'Box', st_select: 'Select', st_stamp: 'Structures', st_part: 'Parts', st_undo: 'Undo', st_redo: 'Redo', st_env: 'Environment',
     st_mode_fill: 'Fill', st_mode_hollow: 'Hollow', st_mode_erase: 'Clear', st_copy: 'Copy', st_cut: 'Cut', st_fillsel: 'Fill', st_clear: 'Clear', st_rotate: 'Rotate (R)', st_add_part: 'Add part', st_add_spawn: 'Spawn point',

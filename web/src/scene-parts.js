@@ -67,7 +67,8 @@ export function createScripted({ scene, uiRoot, getMe, solid, world, fire, sfx, 
     const e = new THREE.Euler().copy(m.rotation), q = new THREE.Quaternion().setFromEuler(e), mx = new THREE.Matrix4().makeRotationFromQuaternion(q).elements
     const ex = Math.abs(mx[0]) * hx + Math.abs(mx[4]) * hy + Math.abs(mx[8]) * hz, ey = Math.abs(mx[1]) * hx + Math.abs(mx[5]) * hy + Math.abs(mx[9]) * hz, ez = Math.abs(mx[2]) * hx + Math.abs(mx[6]) * hy + Math.abs(mx[10]) * hz
     o.box = [m.position.x - ex, m.position.y - ey, m.position.z - ez, m.position.x + ex, m.position.y + ey, m.position.z + ez]
-    o.collide = p.CanCollide !== false
+    o.water = p.Material?.enum === 'Water'; o.collide = p.CanCollide !== false && !o.water
+    if (o.water) { mat.transparent = true; mat.opacity = Math.min(mat.opacity, 0.55); mat.color.set('#3aa0e8'); mat.depthWrite = false }
     if (o.cls === 'SpawnLocation' && spawnPart === o) onSpawn?.([m.position.x, o.box[4] + 0.05, m.position.z])
   }
 
@@ -188,6 +189,10 @@ export function createScripted({ scene, uiRoot, getMe, solid, world, fire, sfx, 
     for (const o of parts) if (o.collide && o.mesh.visible && overlaps(b, o.box)) return true
     return false
   }
+  // agua (Material.Water) y escaleras (nombre que empieza por Ladder / Climb, TrussPart o "climb" del Studio)
+  const inBox = (o, x, y, z, e = 0) => x > o.box[0] - e && x < o.box[3] + e && y > o.box[1] - e && y < o.box[4] + e && z > o.box[2] - e && z < o.box[5] + e
+  const inWater = (x, y, z) => { for (const o of parts) if (o.water && inBox(o, x, y + 0.9, z)) return true; return false }
+  const climbable = (x, y, z) => { for (const o of parts) if ((o.cls === 'TrussPart' || o.climb || /^(ladder|climb)/i.test(o.name ?? '')) && inBox(o, x, y + 0.9, z, 0.45)) return true; return false }
   const falling = new Map()
   function step(dt) {
     // piezas sueltas (Anchored = false): caen hasta el suelo o un bloque (y avisan al script de dónde se quedan)
@@ -265,7 +270,7 @@ export function createScripted({ scene, uiRoot, getMe, solid, world, fire, sfx, 
     for (const p of list.slice(0, 300)) {
       const pk = { Position: `v:${num(p.x)},${num(p.y)},${num(p.z)}`, Size: `v:${num(p.sx, 4)},${num(p.sy, 1)},${num(p.sz, 2)}`, Color: `c:${hexRgb(p.color)}`, Anchored: 'b:1', CanCollide: p.collide === false ? 'b:0' : 'b:1', Transparency: num(p.transparency), Shape: `e:${p.shape || 'Block'}`, Material: `e:${p.material || 'Plastic'}`, Rot: `v:0,${num(p.ry)},0` }
       create(id, p.type === 'spawn' ? 'SpawnLocation' : 'Part', 0, Object.entries(pk).map(([k, v]) => k + SEP2 + v).join(SEP1), String(p.name ?? 'Part'))
-      const o = objs.get(id); if (o) o.sidx = i; id--; i++
+      const o = objs.get(id); if (o) { o.sidx = i; o.climb = !!p.climb }; id--; i++
     }
   }
   const partAt = i => { for (const o of parts) if (o.sidx === i) return o; return null }
@@ -276,5 +281,5 @@ export function createScripted({ scene, uiRoot, getMe, solid, world, fire, sfx, 
   }
   const hexRgb = hex => { const c = new THREE.Color(hex || '#a3a2a5'); return `${c.r},${c.g},${c.b}` }
   function dispose() { reset(); scene.remove(group); layer.remove(); lbEl.remove(); promptEl.remove(); boxGeo.dispose(); ballGeo.dispose(); cylGeo.dispose() }
-  return { apply, step, collides, onKey, click, reset, spawnStatic, partAt, pickPart, dispose, get count() { return parts.size }, get parts() { return parts } }
+  return { apply, step, collides, inWater, climbable, onKey, click, reset, spawnStatic, partAt, pickPart, dispose, get count() { return parts.size }, get parts() { return parts } }
 }

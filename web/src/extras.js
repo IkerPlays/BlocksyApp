@@ -14,7 +14,7 @@ export function loadingScreen(name) {
 }
 
 // 2. Panel de atajos (tecla ? o F1)
-const SHORTCUTS = [['W A S D', 'sc_move'], ['Shift', 'sc_sprint'], ['Space', 'sc_jump'], ['F', 'sc_fly'], ['G', 'sc_emotes'], ['/ · Enter', 'sc_chat'], ['Tab', 'sc_players'], ['M', 'sc_music'], ['V', 'sc_voice'], ['P', 'sc_shot'], ['H', 'sc_photo'], ['? · F1', 'sc_help'], ['Esc', 'sc_menu']]
+const SHORTCUTS = [['W A S D', 'sc_move'], ['Shift', 'sc_sprint'], ['Space', 'sc_jump'], ['C', 'sc_crouch'], ['F', 'sc_fly'], ['G', 'sc_emotes'], ['/ · Enter', 'sc_chat'], ['Tab', 'sc_players'], ['M', 'sc_music'], ['V', 'sc_voice'], ['P', 'sc_shot'], ['H', 'sc_photo'], ['? · F1', 'sc_help'], ['Esc', 'sc_menu']]
 export function createShortcuts() {
   const box = document.createElement('div'); box.id = 'shortcuts'; box.className = 'hidden'
   const render = () => { box.replaceChildren(Object.assign(document.createElement('b'), { textContent: t('sc_title') }), ...SHORTCUTS.map(([k, l]) => { const r = document.createElement('div'); const kb = document.createElement('kbd'); kb.textContent = k; const s = document.createElement('span'); s.textContent = t(l); r.append(kb, s); return r })) }

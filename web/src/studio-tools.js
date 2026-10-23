@@ -33,7 +33,7 @@ export const PREFABS = {
   fence: k => { const a = []; for (let x = -5; x <= 5; x++) { a.push([x, 0, 0, 9]); if (x % 2 === 0) a.push([x, 1, 0, 9]); } B(a, -5, 1, 0, 5, 1, 0, 9); return a.map(b => b) },
 }
 const rotate = (list, r) => list.map(([x, y, z, k]) => { for (let i = 0; i < r; i++) [x, z] = [-z, x]; return [x, y, z, k] })
-const SHAPES = ['Block', 'Ball', 'Cylinder'], MATERIALS = ['Plastic', 'Neon', 'Glass', 'Metal', 'Wood', 'Grass', 'Brick', 'Concrete']
+const SHAPES = ['Block', 'Ball', 'Cylinder'], MATERIALS = ['Plastic', 'Neon', 'Glass', 'Metal', 'Wood', 'Grass', 'Brick', 'Concrete', 'Water']
 const SKIES = ['day', 'sunset', 'night', 'space']
 
 export function createStudio(ctx) {
@@ -171,7 +171,7 @@ export function createStudio(ctx) {
       row('X', num('x'), nudge('x', -1), nudge('x', 1)), row('Y', num('y'), nudge('y', -1), nudge('y', 1)), row('Z', num('z'), nudge('z', -1), nudge('z', 1)),
       row(t('st_size3'), num('sx', 0.5, 48), num('sy', 0.5, 48), num('sz', 0.5, 48)), row(t('st_rot'), num('ry', 15, 62)),
       row(t('st_shape'), sel('shape', SHAPES)), row(t('st_material'), sel('material', MATERIALS)), row(t('st_color'), col), row(t('st_transp'), tr),
-      row(t('st_anchored'), chk('anchored')), row(t('st_collide'), chk('collide')),
+      row(t('st_anchored'), chk('anchored')), row(t('st_collide'), chk('collide')), row(t('st_climb'), (() => { const i = h('input', { type: 'checkbox', checked: !!p.climb }); i.onchange = () => { p.climb = i.checked; refreshParts() }; return i })()),
       h('div', { class: 'pi-row' }, h('button', { type: 'button', class: 'btn', text: t('st_dup'), onclick: () => { parts.push({ ...p, name: p.name + '2', x: p.x + 1, z: p.z + 1 }); selPart = parts.length - 1; refreshParts(); openPartInspector() } }),
         h('button', { type: 'button', class: 'btn danger', text: t('st_del_part'), onclick: () => { parts.splice(selPart, 1); selPart = -1; refreshParts(); partInsp.classList.add('hidden') } })))
     partInsp.classList.remove('hidden')
@@ -190,7 +190,7 @@ export function createStudio(ctx) {
     const tr = h('select', { onchange: e => { c.track = e.target.value; cfg.track = c.track } }, h('option', { value: '', text: t('track_any') })); music.listTracks().then(l => l.forEach(x => tr.append(h('option', { value: x.file, text: x.title, selected: c.track === x.file }))))
     const wel = h('input', { value: c.welcome ?? '', maxlength: 120, placeholder: t('env_welcome') }); wel.oninput = () => { c.welcome = wel.value; cfg.welcome = wel.value }
     envBox.replaceChildren(h('b', { text: t('st_env') }), h('label', {}, t('ed_sky'), sky), numf('gravity', t('env_gravity'), 24, 1, 0, 80), numf('speed', t('env_speed'), 6, 0.5, 1, 30), numf('jump', t('env_jump'), 8.6, 0.5, 1, 30), numf('fog', t('env_fog'), 1, 0.1, 0.25, 2), h('label', {}, t('env_weather'), wx), h('label', {}, t('env_track'), tr), h('label', {}, t('env_welcome'), wel),
-      bool('allow_chat', t('env_chat'), true), bool('allow_emotes', t('env_emotes'), true), bool('allow_fly', t('env_fly'), true), bool('allow_build', t('env_build'), false))
+      bool('allow_chat', t('env_chat'), true), bool('allow_emotes', t('env_emotes'), true), bool('allow_fly', t('env_fly'), true), bool('allow_build', t('env_build'), false), bool('double_jump', t('env_dj'), false), bool('allow_crouch', t('env_crouch'), true))
     envBox.classList.remove('hidden')
   }
 
