@@ -10,7 +10,7 @@ const players = [
 ]
 const chats = [{ id: 1, player_id: 'p1', username: 'Marta', kind: 'chat', payload: { text: 'Hola Iker, mira mi casa!' }, created_at: new Date(Date.now() + 1500).toISOString() }]
 function query(table) {
-  const q = { select: () => q, eq: () => q, gt: () => q, order: () => q, limit: () => q, then: r => r({ data: table === 'blocks' ? blocks : table === 'interactions' ? chats : players }) }
+  const q = { select: () => q, in: () => q, maybeSingle: () => Promise.resolve({ data: null }), eq: () => q, gt: () => q, order: () => q, limit: () => q, then: r => r({ data: table === 'blocks' ? (location.search.includes('horror') ? [] : blocks) : table === 'interactions' ? chats : players }) }
   return q
 }
 const chan = { on: () => chan, subscribe: cb => { cb?.('SUBSCRIBED'); return chan }, send() {} }
@@ -20,7 +20,7 @@ const msgs = [{ id: 1, from_id: 'f0', to_id: 'me', body: 'Ven al juego!', create
 const reqs = [{ id: 7, dir: 'in', user_id: 'z', username: 'Carlos', avatar_color: '#1abc9c', created_at: '' }, { id: 8, dir: 'out', user_id: 'y', username: 'Sofia', avatar_color: '#ff6b9d', created_at: '' }]
 const notifs = [{ id: 1, kind: 'friend_request', from_name: 'Carlos', payload: {}, read: false, created_at: new Date().toISOString() }, { id: 2, kind: 'invite', from_name: 'Marta', payload: { game_id: 'g1', game_name: 'Spawn Plaza' }, read: false, created_at: new Date().toISOString() }]
 function aq(table) {
-  const q = { select: () => q, eq: () => q, in: () => q, or: () => q, order: () => q, limit: () => q, gt: () => q, ilike: () => q, single: () => q,
+  const q = { select: () => q, in: () => q, maybeSingle: () => Promise.resolve({ data: null }), eq: () => q, in: () => q, or: () => q, order: () => q, limit: () => q, gt: () => q, ilike: () => q, single: () => q,
     then: r => r({ data: table === 'friendships' ? friends.map(f => ({ friend_id: f.id })) : table === 'messages' ? msgs : table === 'notifications' ? notifs : friends }) }
   return q
 }

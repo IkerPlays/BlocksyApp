@@ -112,7 +112,7 @@ export function createHorror({ scene, camera, world, game, profile, me, others, 
   let lastDist = 99
   function update(dt, tAnim) {
     // ambiente oscuro (después de sky.update)
-    sky.hemi.intensity *= 0.28; sky.sun.intensity *= 0.2
+    sky.hemi.intensity = Math.max(sky.hemi.intensity, 0.55); sky.sun.intensity *= 0.5
     const d = Math.hypot(mon.position.x - me.pos.x, mon.position.z - me.pos.z); lastDist = d
     const fr = Math.max(0, 1 - d / 24)
     scene.fog.near = 1.5; scene.fog.far = 40 - fr * 14

@@ -5,6 +5,7 @@ import { startGame } from '../src/game.js'
 const q = new URLSearchParams(location.search)
 const config = {}
 for (const k of ['world', 'sky']) if (q.get(k)) config[k] = q.get(k)
+if (q.get('horror')) config.horror = true
 if (q.get('time')) config.time = Number(q.get('time'))
 if (q.get('build') === '0') config.allow_build = false
 if (q.get('lang')) config.script_lang = q.get('lang')
