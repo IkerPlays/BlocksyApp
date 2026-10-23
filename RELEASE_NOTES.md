@@ -1,5 +1,5 @@
-Devbuild 21: 3DS
-- Portuguese language (Settings > Language cycles Spanish, English, Portuguese).
-- Profile summary on the Avatar page: BCoins, streak and friend count.
-- Race top times shown on the top screen (refreshed after each finish).
-- Rain and snow weather from the game settings is drawn in the game.
+Devbuild 22: 3DS
+- Photo mode on the 3DS: press L+R together to hide the interface.
+- Footstep dust puffs while walking and running (Settings: Footstep dust).
+- Dark Forest difficulty setting (Easy, Normal, Hard) changes the monster speed when you host it.
+- Settings list now scrolls through the new rows.

@@ -11,11 +11,14 @@
 #include <sys/stat.h>
 
 static int s_lang;   // 0 español, 1 English, 2 Portugues (ajuste guardado)
+static int s_forest = 1, s_steps = 1;                           // dificultad del bosque (0 facil, 1 normal, 2 dificil) y polvo al caminar
 static int s_notif_on = 1;                                      // avisos emergentes
 static int s_sync = 2;                                          // nivel de sincronización (índice en SYNC_MS)
 static const int SYNC_MS[6] = {40, 70, 100, 160, 250, 400};     // pausa entre envíos/lecturas de posiciones en la partida
 int app_sync_ms(void) { return SYNC_MS[s_sync < 0 ? 0 : s_sync > 5 ? 5 : s_sync]; }
 int app_notif_on(void) { return s_notif_on; }
+int app_forest_level(void) { return s_forest; }
+int app_steps_on(void) { return s_steps; }
 static const char *const PT_TR[][2] = {
 	{"%s (duplicate, +%d BCoins)", "%s (repetido, +%d BCoins)"},
 	{"%s accepted your request", "%s aceitou seu pedido"},
@@ -123,6 +126,10 @@ static const char *const PT_TR[][2] = {
 	{"and add friends (not available with QR).", "e adicione amigos (nao disponivel com QR)."},
 	{"request", "pedido"},
 	{"streak", "sequencia"},
+	{"Forest difficulty", "Dificuldade da floresta"},
+	{"Easy", "Facil"},
+	{"Hard", "Dificil"},
+	{"Footstep dust", "Poeira dos passos"},
 	{"friends", "amigos"},
 	{"try emote", "testar emote"},
 	{"unread", "nao lidas"},
@@ -299,6 +306,8 @@ static void load_settings(void) {
 		if (!strncmp(line, "last_game=", 10)) snprintf(s_last_game, sizeof s_last_game, "%s", line + 10);
 		else if (!strncmp(line, "dist=", 5)) s_dist = atoi(line + 5) % 3;
 		else if (!strncmp(line, "auto=", 5)) s_auto = atoi(line + 5) != 0;
+		else if (!strncmp(line, "forest=", 7)) { int v = atoi(line + 7); s_forest = v < 0 || v > 2 ? 1 : v; }
+		else if (!strncmp(line, "steps=", 6)) s_steps = atoi(line + 6) ? 1 : 0;
 		else if (!strncmp(line, "lang=", 5)) { int lg = atoi(line + 5); s_lang = lg < 0 || lg > 2 ? 0 : lg; }
 		else if (!strncmp(line, "sync=", 5)) s_sync = atoi(line + 5) % 6;
 		else if (!strncmp(line, "notif=", 6)) s_notif_on = atoi(line + 6) != 0;
@@ -308,7 +317,7 @@ static void load_settings(void) {
 static void save_settings(void) {
 	mkdir("sdmc:/3ds", 0777); mkdir("sdmc:/3ds/blocksy", 0777);
 	FILE *f = fopen(SETTINGS_FILE, "w"); if (!f) return;
-	fprintf(f, "last_game=%s\ndist=%d\nauto=%d\nlang=%d\nsync=%d\nnotif=%d\n", s_last_game, s_dist, s_auto, s_lang, s_sync, s_notif_on); fclose(f);
+	fprintf(f, "last_game=%s\ndist=%d\nauto=%d\nlang=%d\nsync=%d\nnotif=%d\nforest=%d\nsteps=%d\n", s_last_game, s_dist, s_auto, s_lang, s_sync, s_notif_on, s_forest, s_steps); fclose(f);
 }
 
 // ---------- estado de la interfaz ----------
@@ -382,7 +391,7 @@ static int count_rows(const Ui *u, const Session *s) {
 	switch (u->page) {
 	case P_HOME: case P_DISCOVER: return build_view(u, s, view);
 	case P_FRIENDS: return build_people(s, pr);
-	case P_SETTINGS: return 7;
+	case P_SETTINGS: return 9;
 	case P_NOTIF: return nnotifs + 1;
 	case P_SHOP: return nshop + 1;
 	case P_UPDATE: return 3;
@@ -785,14 +794,16 @@ static void pane(const Ui *u, const Session *s) {
 		break; }
 	case P_SETTINGS: {
 		const char *dn[3] = {tr2("Corta", "Short"), tr2("Media", "Medium"), tr2("Larga", "Long")};
-		char l[7][48];
+		char l[9][48]; const char *fn[3] = {tr2("Facil", "Easy"), "Normal", tr2("Dificil", "Hard")};
 		snprintf(l[0], 48, "%s: %s", tr2("Distancia", "Distance"), dn[s_dist]);
 		snprintf(l[1], 48, "%s: %d ms", tr2("Sincronizacion", "Sync"), SYNC_MS[s_sync]);
 		snprintf(l[2], 48, "%s: %s", tr2("Updates al abrir", "Updates on start"), s_auto ? tr2("Si", "Yes") : "No");
 		snprintf(l[3], 48, "%s: %s", tr2("Avisos", "Alerts"), s_notif_on ? tr2("Si", "Yes") : "No");
 		snprintf(l[4], 48, "%s: %s", tr2("Idioma", "Language"), LANG_NAME[s_lang]);
 		snprintf(l[5], 48, "%s", tr2("Olvidar mi email", "Forget my email")); snprintf(l[6], 48, "%s", tr2("Cerrar sesion", "Log out"));
-		for (int i = 0; i < vis && u->scroll + i < 7; i++) {
+		snprintf(l[7], 48, "%s: %s", tr2("Dificultad del bosque", "Forest difficulty"), fn[s_forest]);
+		snprintf(l[8], 48, "%s: %s", tr2("Polvo al caminar", "Footstep dust"), s_steps ? tr2("Si", "Yes") : "No");
+		for (int i = 0; i < vis && u->scroll + i < 9; i++) {
 			int r = u->scroll + i; float y = LIST_Y + 2 + i * rh;
 			if (r == 1) {                                       // barra deslizante: toca o arrastra para elegir (izquierda = rapido)
 				ui_button(PANE_X, y, PANE_W - 4, rh - 4, COL_PANEL2, u->cur == 1, l[1], 0.38f);
@@ -1077,6 +1088,8 @@ AppResult app_lobby(C3D_RenderTarget *top, C3D_RenderTarget *bot, Session *s, Ga
 				else if (act_row == 4) { s_lang = (s_lang + 1) % 3; save_settings(); }
 				else if (act_row == 5) { remove("sdmc:/3ds/blocksy/login.txt"); toast(&u, tr2("Email olvidado", "Email forgotten")); }
 				else if (act_row == 6) { res = APP_LOGOUT; goto out; }
+				else if (act_row == 7) { s_forest = (s_forest + 1) % 3; save_settings(); }
+				else if (act_row == 8) { s_steps = !s_steps; save_settings(); }
 				break;
 			}
 		}

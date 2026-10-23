@@ -54,6 +54,7 @@ Blocksy is a multiplayer block-building game for the web and the Nintendo 3DS (h
 - Achievements page, BCoins ranking (AUTH v15.sql), daily chest countdown and shop wish list.
 - Chat word filter, per-match mute, visible game rules and chat anti-spam.
 - 3DS: Portuguese language, profile summary, race top times and rain/snow weather.
+- 3DS: photo mode (L+R), footstep dust and Dark Forest difficulty setting.
 
 ## Installing
 - Install `Blocksy.cia` with FBI, or copy `Blocksy.3dsx` to the `3ds` folder of the SD card and run it from the Homebrew Launcher.

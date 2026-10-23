@@ -59,6 +59,8 @@ static struct {
 } hr;
 static long ev_last = -1;
 static TopTime g_top[5]; static volatile int g_ntop;       // mejores tiempos de la carrera (lo rellena el hilo de red)
+static bool photo_mode;                              // L+R: oculta la interfaz
+static struct { float x, y, z, life; } puff[10]; static float puff_t;   // polvo al caminar
 static int g_weather;                                // 0 nada, 1 lluvia, 2 nieve (config del juego)
 static volatile int race_rank;                       // puesto en el top de tiempos (lo escribe el hilo de red)
 static void hr_apply(const GEvent *e, const char *me) {      // con `lock` cogido
@@ -267,8 +269,9 @@ static void mon_sim(float dt) {
 	}
 	hr.mmoving = false; if (!any || hr.stun > 0) return;
 	float ang = atan2f(gx - hr.mx, gz - hr.mz); static const float offs[6] = {0, 0.7f, -0.7f, 1.4f, -1.4f, 2.2f};
+	static const float MSP[3] = {3.4f, 4.3f, 5.2f}; float msp = MSP[app_forest_level() % 3];
 	for (int k = 0; k < 6; k++) {                                              // rodea los arboles
-		float a = ang + offs[k], nx = hr.mx + sinf(a) * 4.3f * dt, nz = hr.mz + cosf(a) * 4.3f * dt; int ix = (int)floorf(nx), iz = (int)floorf(nz); float r = hypotf(nx, nz);
+		float a = ang + offs[k], nx = hr.mx + sinf(a) * msp * dt, nz = hr.mz + cosf(a) * msp * dt; int ix = (int)floorf(nx), iz = (int)floorf(nz); float r = hypotf(nx, nz);
 		if (!solid_at(ix, 0, iz) && !solid_at(ix, 1, iz) && !solid_at(ix, 2, iz) && r < world.radius - 1 && r > world.safe) { hr.mx = nx; hr.mz = nz; hr.mry = a; hr.mmoving = true; break; }
 	}
 }
@@ -433,6 +436,11 @@ static void render_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 			else { float x = fmodf(bx + sinf(tw * 1.3f + i) * 14 + 400, 400), y = fmodf(by + tw * (38 + (i % 4) * 9), 240); C2D_DrawRectSolid(x, y, 0, 2.4f, 2.4f, C2D_Color32(255, 255, 255, 220)); }
 		}
 	}
+	for (int i = 0; i < 10; i++) if (puff[i].life > 0) {                       // polvo de los pasos
+		float sx2, sy2, d2; if (!project(puff[i].x, puff[i].y, puff[i].z, &sx2, &sy2, &d2)) continue;
+		float k2 = puff[i].life / 0.5f, r2 = (1 - k2) * 7 + 2; C2D_DrawEllipseSolid(sx2 - r2, sy2 - r2 * 0.5f, 0, r2 * 2, r2, C2D_Color32(0xE6, 0xE6, 0xE6, (u8)(150 * k2)));
+	}
+	if (!photo_mode) {
 	char pc[24]; snprintf(pc, sizeof pc, "%d jugando", nr + 1);
 	float pw = ui_text_width(pc, 0.4f) + 16; ui_rrect(392 - pw, 8, pw, 22, 8, C2D_Color32(0, 0, 0, 130)); ui_text(392 - pw / 2, 11, 0.4f, COL_TEXT, C2D_AlignCenter, pc);
 	int shown = 0; for (int i = 0; i < 4; i++) if (chat[i].until > now) shown++;
@@ -466,6 +474,7 @@ static void render_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 		ui_rrect(70, 206, 260, 22, 9, C2D_Color32(0, 0, 0, 150));
 		ui_text(200, 209, 0.38f, COL_TEXT, C2D_AlignCenter, can_build ? "A saltar  B correr  X poner  Y romper  +/- color" : night ? "A saltar  B correr  X linterna  Huye del monstruo" : "A saltar  B correr  L/R camara");
 	}
+	}                                                                          // fin de la interfaz (se oculta en el modo foto)
 	C2D_TargetClear(bot, C2D_Color32(0x23, 0x25, 0x27, 255));
 	C2D_SceneBegin(bot);
 	ui_game_bottom(&sess, rem, nr, kind, cur_game.name, BLOCKSY_VERSION, emote_menu, hist, nhist, hscroll, chat_view);
@@ -480,7 +489,7 @@ static bool play_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 	px = world.spawn[0]; py = world.spawn[1]; pz = world.spawn[2]; rsp_x = px; rsp_y = py; rsp_z = pz;
 	can_build = cur_game.allow_build >= 0 ? cur_game.allow_build > 0 : !strcmp(cur_game.mode, "build");   // solo los juegos de bloques dejan construir
 	ui_build_ui = can_build;
-	jump_v = cur_game.jump > 1 ? cur_game.jump : 8.6f; memset(&race, 0, sizeof race); big_msg[0] = 0; big_until = 0;
+	jump_v = cur_game.jump > 1 ? cur_game.jump : 8.6f; memset(&race, 0, sizeof race); big_msg[0] = 0; big_until = 0; photo_mode = false; memset(puff, 0, sizeof puff);
 	cam_yaw = 0; cam_pitch = 0.5f; cam_dist = 9; cx_ = px; cy_ = py + 1; cz_ = pz;
 	net_set_game(cur_game.id); g_weather = !strcmp(cur_game.weather, "rain") ? 1 : !strcmp(cur_game.weather, "snow") ? 2 : 0; g_ntop = 0;
 	memset(&hr, 0, sizeof hr); ev_last = -1; hr.on = world.type == 5; hr.flash = true; hr.mx = hr.mtx = world.mon_start[0]; hr.mz = hr.mtz = world.mon_start[2]; hr.dist = 99;
@@ -512,6 +521,7 @@ static bool play_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 		if (held & KEY_DDOWN) cam_dist = fminf(20, cam_dist + 6 * dt);
 		if (can_build && (down & KEY_DRIGHT)) kind = (kind + 1) % NPALETTE;
 		if (can_build && (down & KEY_DLEFT)) kind = (kind + NPALETTE - 1) % NPALETTE;
+		if (((held & KEY_L) && (held & KEY_R)) && (down & (KEY_L | KEY_R))) { photo_mode = !photo_mode; snprintf(big_msg, sizeof big_msg, "%s", photo_mode ? "Modo foto (L+R)" : "Modo foto off"); big_until = now + 1200; }
 		if (down & KEY_SELECT) do_chat();
 		if (down & KEY_TOUCH) {
 			touchPosition tp; hidTouchRead(&tp);
@@ -577,6 +587,10 @@ static bool play_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 		else if (grounded && !body_hits(nx, py + 1.01f, pz)) { px = nx; py += 1.01f; }
 		if (!body_hits(px, py, nz)) pz = nz;
 		else if (grounded && !body_hits(px, py + 1.01f, nz)) { pz = nz; py += 1.01f; }
+		if (app_steps_on()) {                                                  // polvo al caminar (cada 0.28 s)
+			for (int i = 0; i < 10; i++) if (puff[i].life > 0) puff[i].life -= dt;
+			puff_t -= dt; if (moving && grounded && puff_t <= 0) { puff_t = (held & KEY_B) ? 0.18f : 0.28f; for (int i = 0; i < 10; i++) if (puff[i].life <= 0) { puff[i].x = px; puff[i].y = py + 0.05f; puff[i].z = pz; puff[i].life = 0.5f; break; } }
+		}
 		if ((down & KEY_A) && grounded) { vy = jump_v; grounded = false; }
 		vy -= 24 * dt; float ny = py + vy * dt; grounded = false;
 		if (body_hits(px, ny, pz)) { if (vy < 0) grounded = true; vy = 0; }
