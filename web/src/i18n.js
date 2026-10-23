@@ -3,6 +3,7 @@ import { EXTRA } from './i18n-extra.js'
 const D = {
   es: {
     lang_name: 'Español',
+    tut_move: 'Muévete con W A S D', tut_jump: 'Salta con Espacio', tut_look: 'Arrastra el ratón o el dedo para girar la cámara', tut_chat: 'Pulsa Enter o / para abrir el chat', tut_emote: 'Pulsa G para ver los emotes', tut_done: '¡Listo! Ya sabes jugar.', egg_konami: '¡Modo arcoíris!', egg_party: '¡Fiesta!', welcome_title: '¡Bienvenido a Blocksy!', welcome_text: 'Tres pasos para empezar:', welcome_avatar: 'Crea tu avatar', welcome_play: 'Elige un juego', welcome_shop: 'Mira la tienda', my_game_stats: 'Has jugado aquí {n} veces ({m} min)',
     theme_contrast: 'Alto contraste', set_ui_sounds: 'Sonidos de la interfaz',
     about: 'Acerca de', whats_new: 'Novedades', credits: 'Créditos', error_log: 'Registro de errores', report_bug: 'Informar de un fallo', no_errors: 'No hay errores registrados.', clear: 'Borrar',
     set_chat_filter: 'Filtro de palabras en el chat', chat_slow: 'Vas muy rápido, espera un momento.', chat_dup: 'No repitas el mismo mensaje.', mute_player: 'Silenciar jugador', muted_player: 'Has silenciado a {name}', unmuted_player: 'Ya oyes a {name}', rule_yes: 'sí', rule_no: 'no', rule_build: 'Construir', rule_chat: 'Chat', rule_emotes: 'Emotes', rule_double: 'Doble salto', rule_crouch: 'Agacharse',
@@ -93,6 +94,7 @@ const D = {
   },
   en: {
     lang_name: 'English',
+    tut_move: 'Move with W A S D', tut_jump: 'Jump with Space', tut_look: 'Drag the mouse or your finger to turn the camera', tut_chat: 'Press Enter or / to open the chat', tut_emote: 'Press G to see the emotes', tut_done: 'Done! You know how to play.', egg_konami: 'Rainbow mode!', egg_party: 'Party time!', welcome_title: 'Welcome to Blocksy!', welcome_text: 'Three steps to get started:', welcome_avatar: 'Make your avatar', welcome_play: 'Pick a game', welcome_shop: 'Check out the shop', my_game_stats: 'You have played here {n} times ({m} min)',
     theme_contrast: 'High contrast', set_ui_sounds: 'Interface sounds',
     about: 'About', whats_new: 'What\'s new', credits: 'Credits', error_log: 'Error log', report_bug: 'Report a problem', no_errors: 'No errors recorded.', clear: 'Clear',
     set_chat_filter: 'Chat word filter', chat_slow: 'Slow down, wait a moment.', chat_dup: 'Do not repeat the same message.', mute_player: 'Mute player', muted_player: 'You muted {name}', unmuted_player: 'You can hear {name} again', rule_yes: 'yes', rule_no: 'no', rule_build: 'Building', rule_chat: 'Chat', rule_emotes: 'Emotes', rule_double: 'Double jump', rule_crouch: 'Crouch',

@@ -5,7 +5,7 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js'
 import { gameDb } from './supabase.js'
 import * as api from './api.js'
-import { settings, saveSettings, onSettings, bump, visited, bestTime } from './settings.js'
+import { settings, saveSettings, onSettings, bump, visited, bestTime, bumpGame } from './settings.js'
 import { buildAvatar, poseAvatar, styleFor, EMOTES, headshot, packLoadout, parseLoadout, loadoutStyle, buildPet, trailColor } from './avatar.js'
 import { t, onLang } from './i18n.js'
 import { createSky } from './sky.js'
@@ -20,6 +20,7 @@ import { createHorror } from './horror.js'
 import { createScripted } from './scene-parts.js'
 import { createStudio } from './studio-tools.js'
 import { createWeather } from './weather.js'
+import { createTutorial } from './onboarding.js'
 import { filterWords, isMuted, toggleMute, createLimiter } from './moderation.js'
 import { checkAchievements } from './achievements.js'
 import { remapEvent, saverOn, shareGame } from './access.js'
@@ -67,7 +68,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
   const canBuild = ST || isOwner || (cfg.allow_build ?? mode === 'build')
   const canFly = mode === 'build' || cfg.allow_fly === true
   const phys = { gravity: Number(cfg.gravity) || 24, speed: Number(cfg.speed) || 6, jump: Number(cfg.jump) || 8.6 }
-  visited(game.id)
+  visited(game.id); bumpGame(game.id, 'visits')
 
   // ---------- escena ----------
   const scene = new THREE.Scene()
@@ -435,6 +436,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
       if (name === 'pos') return sys(`(${me.pos.x.toFixed(1)}, ${me.pos.y.toFixed(1)}, ${me.pos.z.toFixed(1)})`)
       if (name === 'ping') return sys(`${ping || '?'} ms`)
       if (name === 'clear') return log.replaceChildren()
+      if (name === 'party') { me.fly = false; me.emote = 'dance'; sys(t('egg_party')); sfx.win(); return }
       if (name === 'spawn') return teleport(...respawn.pos)
       if (name === 'fly') return toggleFly()
       if (name === 'tp') { const o = [...others.values()].find(x => x.name.toLowerCase() === args.toLowerCase()); return o ? teleport(o.target.x + 1.2, o.target.y + 0.2, o.target.z) : sys(args ? `${args}: ?` : '/tp <jugador>') }
@@ -631,7 +633,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
     if (!cfg.allow_chat || Date.now() - lastReact < 1500) return; lastReact = Date.now()
     bubble(meAvatar, REACTIONS[i]); sfx.click(); api.say(game.id, REACT_PREFIX + REACTIONS[i]).catch(() => {})
   }
-  const orient = orientationHint($('game')); const help = createShortcuts(); loadingScreen(game.name); let ping = 0
+  const tut = createTutorial($('game'), !ST); const orient = orientationHint($('game')); const help = createShortcuts(); loadingScreen(game.name); let ping = 0
   const down = e0 => {
     const e = remapEvent(e0); if (!e) return
     if (typing()) { if (e.code === 'Escape') { $('chat-input').blur(); $('chat-form').classList.remove('open') } return }
@@ -653,7 +655,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
     if (e.code.startsWith('Digit')) { let n = Number(e.code.slice(5)) - 1; if (n < 0) n = 9; if (n >= 0 && n < PALETTE.length) selectKind(n) }
     if (e.code === 'KeyQ' || e.code === 'KeyE') selectKind((me.kind + (e.code === 'KeyE' ? 1 : PALETTE.length - 1)) % PALETTE.length)
     if (e.code === 'Space') { e.preventDefault(); if (!e.repeat) { const now = performance.now(); if (now - lastSpace < 280 && canFly && !cfg.double_jump) toggleFly(); lastSpace = now } }
-    keys[e.code] = true
+    keys[e.code] = true; tut.key(e.code)
   }
   const up = e0 => { const e = remapEvent(e0); if (!e) return; keys[e.code] = false; { const kn = keyName(e.code); if (kn && !typing()) runner.fire('key', { data: { k: kn, down: false } }); rbx.onKey(e.code, false) } if (e.code === 'KeyV' && settings.voiceMode === 'ptt' && voice.active) voice.setMuted(true) }
   let drag = null
@@ -664,7 +666,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
     hoverPt = { x: e.clientX, y: e.clientY }
     if (!drag || drag.id !== e.pointerId || paused) return
     const dx = e.clientX - drag.x, dy = e.clientY - drag.y
-    if (Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) > 6) drag.moved = true
+    if (Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) > 6) { drag.moved = true; tut.look() }
     cam.yaw -= dx * 0.005 * settings.sensitivity; cam.pitch = Math.min(1.45, Math.max(-0.25, cam.pitch + dy * 0.005 * settings.sensitivity * (settings.invertY ? -1 : 1)))
     drag.x = e.clientX; drag.y = e.clientY
   }
@@ -784,7 +786,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
   const rosterTimer = setInterval(() => { if (!roster.classList.contains('hidden') || paused) drawRoster() }, 1500)
   const tickTimer = setInterval(() => runner.fire('tick', { data: { players: others.size + 1 } }), 1000)
   const timeTimer = setInterval(() => bump('time', 5), 5000)
-  const missionTimer = setInterval(() => { social.missionAdd('play_10', 1); if (!document.hidden) social.addPlaytime(60); for (const a of checkAchievements()) { sys(t('ach_unlocked', { name: t('ach_' + a.id) })); sfx.win() } }, 60_000)
+  const missionTimer = setInterval(() => { social.missionAdd('play_10', 1); if (!document.hidden) { social.addPlaytime(60); bumpGame(game.id, 'secs', 60) }; for (const a of checkAchievements()) { sys(t('ach_unlocked', { name: t('ach_' + a.id) })); sfx.win() } }, 60_000)
   const coinTimer = setInterval(async () => { const n = await social.earnCoins(10, 'play'); if (n) sys(t('coins_earned', { n })) }, 300_000)       // BCoins por jugar (tope diario en el servidor)
 
   // ---------- música ----------
@@ -922,7 +924,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
     window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); window.removeEventListener('resize', onResize)
     window.removeEventListener('pointermove', pmove); window.removeEventListener('pointerup', pup); window.removeEventListener('pointercancel', pup)
     canvas.removeEventListener('pointerdown', pdown); canvas.removeEventListener('wheel', wheel); canvas.removeEventListener('contextmenu', noMenu); canvas.removeEventListener('pointerleave', pleave)
-    offSettings(); offSync(); offLang(); offMusic(); music.stop(); runner.dispose(); rbx.dispose(); help.dispose(); weather.dispose(); compass.dispose(); pings.dispose(); orient.dispose(); health.dispose(); clearInterval(uiTimer); clearInterval(loadoutTimer); window.removeEventListener('pointermove', uiMove); window.removeEventListener('pointerup', uiUp); studioCleanup.forEach(f => f()); uiLayer.replaceChildren()
+    offSettings(); offSync(); offLang(); offMusic(); music.stop(); runner.dispose(); rbx.dispose(); help.dispose(); weather.dispose(); compass.dispose(); pings.dispose(); orient.dispose(); tut.dispose(); health.dispose(); clearInterval(uiTimer); clearInterval(loadoutTimer); window.removeEventListener('pointermove', uiMove); window.removeEventListener('pointerup', uiUp); studioCleanup.forEach(f => f()); uiLayer.replaceChildren()
     touchUi?.remove(); emotePanel.classList.add('hidden'); mPanel.classList.add('hidden'); $('big-title').classList.add('hidden')
     $('pause').classList.add('hidden'); roster.classList.add('hidden'); log.replaceChildren()
     api.leave().catch(() => {}); gameDb.removeChannel(channel)

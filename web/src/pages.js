@@ -10,6 +10,7 @@ import { t, LANGS, langName, getPref, setLang, onLang } from './i18n.js'
 import { codeEditor } from './studio-ui.js'
 import { partyPanel, attachEmoticons } from './party-ui.js'
 import { TEMPLATES } from './templates.js'
+import { gameStat } from './settings.js'
 import { APP_VERSION, whatsNew, markSeen, CREDITS, errorLog, clearErrors, reportUrl } from './about.js'
 import { installApp, canInstall, isInstalled, askNotifications, checkForUpdate, applyUpdate, isUpdateReady, BUILD } from './pwa.js'
 
@@ -31,6 +32,13 @@ export function el(tag, props = {}, ...kids) {
 // Como replaceChildren pero acepta arrays anidados y descarta null/false
 export function setKids(node, ...kids) { node.replaceChildren(...kids.flat(Infinity).filter(k => k != null && k !== false)) }
 const pageSkel = () => [el('div', { class: 'skel', style: 'height:34px;width:38%;margin-bottom:16px' }), skeletons(6)]
+export function showWelcome(go) {
+  const step = (n, key, to) => el('button', { class: 'btn wide', onclick: () => { closeModal(); go(to) } }, el('b', { text: n + '  ' }), t(key))
+  setKids($('modal-card'), el('div', { class: 'detail-col' }, el('h2', { text: t('welcome_title') }), el('p', { class: 'muted', text: t('welcome_text') }),
+    step('1', 'welcome_avatar', 'avatar'), step('2', 'welcome_play', 'discover'), step('3', 'welcome_shop', 'shop'),
+    el('button', { class: 'btn wide primary', text: t('close'), onclick: closeModal })))
+  $('modal').classList.remove('hidden')
+}
 export function showNews() {
   const m = $('modal'); setKids($('modal-card'), el('div', { class: 'detail-col' }, el('h2', { text: t('whats_new') + ' · ' + APP_VERSION }), el('ul', { class: 'news-list' }, whatsNew().map(x => el('li', { text: x }))), el('button', { class: 'btn wide primary', text: t('close'), onclick: closeModal })))
   m.classList.remove('hidden'); markSeen()
@@ -104,6 +112,7 @@ export function openGameModal(g, counts, onPlay) {
         el('div', {}, el('b', { text: String(g.max_players) }), el('small', { text: t('max_players') })),
         el('div', {}, el('b', { text: 'Web + 3DS' }), el('small', { text: t('platforms') }))),
       el('p', { text: g.description || t('no_desc') }),
+      (() => { const s = gameStat(g.id); return s.visits ? el('small', { class: 'muted', text: t('my_game_stats', { n: s.visits, m: Math.round(s.secs / 60) }) }) : null })(),
       el('button', { class: 'btn primary wide', text: t('play'), onclick: () => { closeModal(); onPlay(g) } }),
       voteBox(g),
       favBtn(g),

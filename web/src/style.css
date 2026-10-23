@@ -399,3 +399,6 @@ html.big-text .page, html.big-text #chat-log, html.big-text #chat-form, html.big
 :root[data-theme=contrast] a:focus-visible, :root[data-theme=contrast] button:focus-visible { outline: 3px solid #ffe600; outline-offset: 2px; }
 #page.pg-in { animation: pgin .22s ease-out; } @keyframes pgin { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 .reduce-motion #page.pg-in { animation: none; }
+
+#tutorial { position: absolute; top: 84px; left: 50%; transform: translateX(-50%); background: #000c; color: #fff; padding: 8px 16px; border-radius: 12px; font-size: 14px; z-index: 45; pointer-events: none; box-shadow: 0 0 0 2px var(--accent); max-width: 90vw; text-align: center; }
+html.rainbow { animation: rainbow 2s linear infinite; } @keyframes rainbow { to { filter: hue-rotate(360deg); } } .reduce-motion.rainbow { animation: none; }

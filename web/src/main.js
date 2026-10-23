@@ -13,6 +13,7 @@ import { initNotifications, openInvite } from './social-ui.js'
 import { openScriptModal } from './studio-ui.js'
 import { registerSW, applyUpdate } from './pwa.js'
 import { installErrorLog, isNewVersion } from './about.js'
+import { needsWelcome, markWelcomed, installEasterEggs } from './onboarding.js'
 import { sfx } from './sfx.js'
 import { settings } from './settings.js'
 import * as social from './social.js'
@@ -125,7 +126,8 @@ async function exitGame() {
   stopGame?.(); stopGame = null; currentGame = null
   auth.startPresence(() => null)
   showScreen('app'); route()
-  if (isNewVersion()) setTimeout(() => import('./pages.js').then(m => m.showNews()), 1200)
+  if (needsWelcome()) { markWelcomed(); setTimeout(() => import('./pages.js').then(m => m.showWelcome(ctx.go)), 800) }
+  else if (isNewVersion()) setTimeout(() => import('./pages.js').then(m => m.showNews()), 1200)
 }
 
 // ---------- auth UI ----------
@@ -158,7 +160,7 @@ $('modal').addEventListener('click', e => { if (e.target.id === 'modal') closeMo
 new MutationObserver(() => { if ($('modal').classList.contains('hidden')) $('game').classList.remove('hidden-for-modal') }).observe($('modal'), { attributes: true, attributeFilter: ['class'] })
 $('search').addEventListener('submit', e => { e.preventDefault(); const q = $('search-input').value.trim(); navigate(q ? `/discover/${encodeURIComponent(q)}` : '/discover') })
 window.addEventListener('beforeunload', () => { api.leaveBeacon() })
-installErrorLog()
+installErrorLog(); installEasterEggs(m => toast(m))
 document.addEventListener('click', e => { if (settings.uiSounds && e.target.closest?.('.btn, #sidebar a, .tab, .card, .game-card, .person, .shop-card button')) sfx.click() }, true)
 registerSW(() => { $('update-bar').classList.remove('hidden') })
 $('update-reload').onclick = () => applyUpdate()

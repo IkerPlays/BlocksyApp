@@ -31,6 +31,11 @@ try { stats = { ...stats, ...JSON.parse(localStorage.getItem(SK) ?? '{}') } } ca
 export const getStats = () => { if (!Array.isArray(stats.games)) stats.games = []; return stats }
 const saveStats = () => { try { localStorage.setItem(SK, JSON.stringify(stats)) } catch {} }
 export function bump(k, n = 1) { stats[k] = (Number(stats[k]) || 0) + n; saveStats() }
+// Estadísticas por juego (este dispositivo): visitas y segundos jugados
+const GK = 'blocksy.gamestats'
+const readG = () => { try { const g = JSON.parse(localStorage.getItem(GK) || '{}'); return g && typeof g === 'object' ? g : {} } catch { return {} } }
+export const gameStat = id => ({ visits: 0, secs: 0, ...(readG()[id] ?? {}) })
+export function bumpGame(id, key, n = 1) { try { const g = readG(); g[id] = { visits: 0, secs: 0, ...(g[id] ?? {}) }; g[id][key] += n; localStorage.setItem(GK, JSON.stringify(g)) } catch {} }
 export function visited(id) {
   if (!Array.isArray(stats.games)) stats.games = []            // estadísticas guardadas por una versión con el fallo: se repara solas
   if (!stats.games.includes(id)) { stats.games.push(id); saveStats() }
