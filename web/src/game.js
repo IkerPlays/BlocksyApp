@@ -324,6 +324,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
   }
   function selectKind(i) { me.kind = i; drawHotbar(); ghostMat.color.set(PALETTE[me.kind]) }
   // historial (F2): guarda los últimos 200 mensajes y avisos
+  const srLive = document.createElement('div'); srLive.id = 'sr-live'; srLive.setAttribute('aria-live', 'polite'); srLive.setAttribute('role', 'log'); $('game').append(srLive)         // lectores de pantalla: anuncia el chat
   const chatHist = []
   const histPanel = document.createElement('div'); histPanel.id = 'chat-history'; histPanel.className = 'hidden'; $('game').append(histPanel)
   function paintHist() {
@@ -341,7 +342,8 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
   function addChat(html, cls = '') {
     const li = document.createElement('li'); if (cls) li.className = cls
     if (typeof html === 'string') li.textContent = html; else li.append(...html)
-    { const txt = li.textContent; chatHist.push({ at: Date.now(), cls: cls || 'chat', text: txt }); if (chatHist.length > 200) chatHist.shift(); if (!histPanel.classList.contains('hidden')) paintHist()
+    { const txt = li.textContent; if (settings.srChat) { srLive.textContent = ''; setTimeout(() => { srLive.textContent = txt }, 30) }
+      chatHist.push({ at: Date.now(), cls: cls || 'chat', text: txt }); if (chatHist.length > 200) chatHist.shift(); if (!histPanel.classList.contains('hidden')) paintHist()
       const tm = document.createElement('small'); tm.className = 'chat-time'; tm.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + ' '; li.prepend(tm)
       if (!cls && new RegExp(`@${profile.username.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(txt)) { li.classList.add('mention'); sfx.notify() } }
     log.append(li); while (log.children.length > 8) log.firstChild.remove()
@@ -974,7 +976,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
     window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); window.removeEventListener('resize', onResize)
     window.removeEventListener('pointermove', pmove); window.removeEventListener('pointerup', pup); window.removeEventListener('pointercancel', pup)
     canvas.removeEventListener('pointerdown', pdown); canvas.removeEventListener('wheel', wheel); canvas.removeEventListener('contextmenu', noMenu); canvas.removeEventListener('pointerleave', pleave)
-    offSettings(); offSync(); offLang(); offMusic(); music.stop(); runner.dispose(); rbx.dispose(); help.dispose(); weather.dispose(); compass.dispose(); pings.dispose(); orient.dispose(); tut.dispose(); stBar.remove(); histPanel.remove(); tabs.remove(); health.dispose(); clearInterval(uiTimer); clearInterval(loadoutTimer); window.removeEventListener('pointermove', uiMove); window.removeEventListener('pointerup', uiUp); studioCleanup.forEach(f => f()); uiLayer.replaceChildren()
+    offSettings(); offSync(); offLang(); offMusic(); music.stop(); runner.dispose(); rbx.dispose(); help.dispose(); weather.dispose(); compass.dispose(); pings.dispose(); orient.dispose(); tut.dispose(); stBar.remove(); histPanel.remove(); tabs.remove(); srLive.remove(); health.dispose(); clearInterval(uiTimer); clearInterval(loadoutTimer); window.removeEventListener('pointermove', uiMove); window.removeEventListener('pointerup', uiUp); studioCleanup.forEach(f => f()); uiLayer.replaceChildren()
     touchUi?.remove(); emotePanel.classList.add('hidden'); mPanel.classList.add('hidden'); $('big-title').classList.add('hidden')
     $('pause').classList.add('hidden'); roster.classList.add('hidden'); log.replaceChildren()
     api.leave().catch(() => {}); gameDb.removeChannel(channel)

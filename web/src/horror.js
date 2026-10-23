@@ -4,6 +4,7 @@ import * as THREE from 'three'
 import { gameDb } from './supabase.js'
 import * as api from './api.js'
 import { t } from './i18n.js'
+import { settings } from './settings.js'
 
 const MONSTER_SPEED = 4.3, CATCH_DIST = 1.15, TOTAL_ORBS = 5
 
@@ -117,7 +118,7 @@ export function createHorror({ scene, camera, world, game, profile, me, others, 
     const fr = Math.max(0, 1 - d / 24)
     scene.fog.near = 1.5; scene.fog.far = 40 - fr * 14
     // linterna
-    flicker = d < 14 && Math.random() < (1 - d / 14) * 0.25 ? 0.15 : Math.min(1, flicker + dt * 6)
+    flicker = !settings.noFlash && d < 14 && Math.random() < (1 - d / 14) * 0.25 ? 0.15 : Math.min(1, flicker + dt * 6)       // sin destellos: la linterna no parpadea
     head.set(me.pos.x, me.pos.y + 1.6, me.pos.z); camera.getWorldDirection(dir)
     light.position.copy(head); light.target.position.copy(head).addScaledVector(dir, 12)
     light.intensity = flash && phase !== 'won' ? 220 * flicker : 0

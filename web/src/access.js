@@ -38,6 +38,7 @@ export function applyAccess() {
   r.style.setProperty('--text-scale', String(settings.textScale || 1))
   r.classList.toggle('big-text', (settings.textScale || 1) > 1.01)
   r.classList.toggle('hc', settings.theme === 'contrast')
+  r.classList.toggle('no-flash', !!settings.noFlash)
 }
 
 // ---- Subtítulos de sonidos ----

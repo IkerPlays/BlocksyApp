@@ -447,3 +447,7 @@ html.rainbow { animation: rainbow 2s linear infinite; } @keyframes rainbow { to 
 .panel h3.collapsible { cursor: pointer; user-select: none; } .panel h3.collapsible::after { content: '▾'; float: right; opacity: .5; } .panel.collapsed h3.collapsible::after { content: '▸'; } .panel.collapsed > :not(h3):not(.sec-reset) { display: none; }
 .sec-reset { float: right; font-size: 11px; margin: 0 8px; }
 #install-banner { position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); z-index: 250; display: flex; gap: 10px; align-items: center; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; box-shadow: 0 10px 30px #0006; font-size: 14px; max-width: 94vw; }
+:focus-visible { outline: 3px solid var(--accent2, #4d7bff); outline-offset: 2px; border-radius: 4px; }
+.sr-only, #sr-live { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.skip-link { position: fixed; left: 8px; top: -60px; z-index: 400; background: var(--accent); color: #fff; padding: 8px 14px; border-radius: 8px; } .skip-link:focus { top: 8px; }
+html.no-flash.rainbow { animation: none; } html.no-flash * { scroll-behavior: auto !important; } html.no-flash #big-title.show { animation: none; }

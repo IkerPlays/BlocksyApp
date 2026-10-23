@@ -3,6 +3,7 @@ import { EXTRA } from './i18n-extra.js'
 const D = {
   es: {
     lang_name: 'Español',
+    skip_content: 'Saltar al contenido', set_noflash: 'Sin destellos ni parpadeos', set_srchat: 'Anunciar el chat a lectores de pantalla',
     set_fpscap: 'Límite de fps', fps_none: 'Sin límite',
     install_banner: 'Instala Blocksy para abrirlo como una app', install_btn: 'Instalar',
     set_search: 'Buscar un ajuste…', set_export: 'Exportar ajustes', set_import: 'Importar ajustes', set_import_bad: 'Ese archivo no es de ajustes de Blocksy', set_reset_section: 'Restablecer',
@@ -113,6 +114,7 @@ const D = {
   },
   en: {
     lang_name: 'English',
+    skip_content: 'Skip to content', set_noflash: 'No flashing or flickering', set_srchat: 'Announce chat to screen readers',
     set_fpscap: 'FPS limit', fps_none: 'No limit',
     install_banner: 'Install Blocksy to open it like an app', install_btn: 'Install',
     set_search: 'Search settings…', set_export: 'Export settings', set_import: 'Import settings', set_import_bad: 'That file is not a Blocksy settings file', set_reset_section: 'Reset',

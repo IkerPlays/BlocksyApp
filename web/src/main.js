@@ -185,6 +185,13 @@ installPalette(() => (profile ? { go: ctx.go, play, canCreate: api.canCreate, ga
   }
   window.addEventListener('blocksy:installable', () => setTimeout(show, 4000)); setTimeout(show, 6000)
 }
+// accesibilidad: enlace para saltar al contenido, nombres para botones solo con icono y aviso de página nueva
+{
+  const skip = document.createElement('a'); skip.href = '#page'; skip.className = 'skip-link'; skip.textContent = t('skip_content'); skip.onclick = e => { e.preventDefault(); const p = document.getElementById('page'); p.setAttribute('tabindex', '-1'); p.focus() }; document.body.prepend(skip)
+  const label = root => root.querySelectorAll?.('button:not([aria-label]), a:not([aria-label])').forEach(b => { if (!b.textContent.trim() && b.title) b.setAttribute('aria-label', b.title) })
+  new MutationObserver(ms => { for (const m of ms) m.addedNodes.forEach(n => n.nodeType === 1 && (n.matches?.('button,a') ? label({ querySelectorAll: () => [n] }) : label(n))) }).observe(document.body, { childList: true, subtree: true })
+  const live = document.createElement('div'); live.setAttribute('aria-live', 'polite'); live.className = 'sr-only'; document.body.append(live); window.addEventListener('popstate', () => setTimeout(() => { live.textContent = document.title }, 300))
+}
 installErrorLog(); installEasterEggs(m => toast(m))
 document.addEventListener('click', e => { if (settings.uiSounds && e.target.closest?.('.btn, #sidebar a, .tab, .card, .game-card, .person, .shop-card button')) sfx.click() }, true)
 registerSW(() => { $('update-bar').classList.remove('hidden') })

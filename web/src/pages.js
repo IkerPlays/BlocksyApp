@@ -696,7 +696,7 @@ export const pages = {
             el('button', { class: 'btn primary', text: t('report_bug'), onclick: () => window.open(reportUrl(), '_blank', 'noopener') }))),
         el('div', { class: 'panel' }, el('h3', { text: t('set_access') }),
           sel('colorblind', t('set_colorblind'), [['none', t('cb_none')], ['protanopia', t('cb_prot')], ['deuteranopia', t('cb_deut')], ['tritanopia', t('cb_trit')]]),
-          rg('textScale', t('set_text_size'), 0.9, 1.5, 0.05, v => Math.round(v * 100) + '%'), sw('subtitles', t('set_subtitles')), sw('uiSounds', t('set_ui_sounds')), sw('chatFilter', t('set_chat_filter')), sw('vibrate', t('set_vibrate')), sel('batterySaver', t('set_saver'), [['auto', t('saver_auto')], ['on', t('saver_on')], ['off', t('saver_off')]])),
+          rg('textScale', t('set_text_size'), 0.9, 1.5, 0.05, v => Math.round(v * 100) + '%'), sw('subtitles', t('set_subtitles')), sw('uiSounds', t('set_ui_sounds')), sw('chatFilter', t('set_chat_filter')), sw('vibrate', t('set_vibrate')), sw('noFlash', t('set_noflash')), sw('srChat', t('set_srchat')), sel('batterySaver', t('set_saver'), [['auto', t('saver_auto')], ['on', t('saver_on')], ['off', t('saver_off')]])),
         el('div', { class: 'panel' }, el('h3', { text: t('set_keys') }), ...keyRows(),
           el('button', { class: 'btn', text: t('keys_reset'), onclick: () => { settings.keymap = {}; saveSettings(); pages.settings(root, ctx) } })),
         el('div', { class: 'panel' }, el('h3', { text: t('blocked_users') }), blockedBox),
