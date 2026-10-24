@@ -40,6 +40,13 @@ export const PREFABS = {
   tree: () => { const a = []; B(a, 0, 0, 0, 0, 3, 0, 9); B(a, -2, 4, -2, 2, 5, 2, 3); B(a, -1, 6, -1, 1, 6, 1, 3); a.push([0, 7, 0, 3]); return cut(a, (x, y, z) => y >= 4 && y <= 5 && Math.abs(x) === 2 && Math.abs(z) === 2) },
   arch: k => { const a = []; B(a, -3, 0, 0, -2, 5, 0, k); B(a, 2, 0, 0, 3, 5, 0, k); B(a, -3, 6, 0, 3, 7, 0, k); return a },
   platform: k => { const a = []; B(a, -4, 0, -4, 3, 0, 3, k); return a },
+  castle: k => { const a = []; B(a, -7, 0, -7, 7, 3, -7, k); B(a, -7, 0, 7, 7, 3, 7, k); B(a, -7, 0, -7, -7, 3, 7, k); B(a, 7, 0, -7, 7, 3, 7, k)
+    for (const sx of [-8, 6]) for (const sz of [-8, 6]) B(a, sx, 0, sz, sx + 2, 6, sz + 2, k, true)
+    for (let x = -7; x <= 7; x += 2) { a.push([x, 4, -7, k], [x, 4, 7, k]) }
+    return cut(a, (x, y, z) => z === 7 && Math.abs(x) <= 1 && y <= 2) },
+  dome: k => { const a = []; for (let x = -5; x <= 5; x++) for (let y = 0; y <= 5; y++) for (let z = -5; z <= 5; z++) { const d = Math.hypot(x, y, z); if (d >= 4.2 && d <= 5.3) a.push([x, y, z, k]) } return cut(a, (x, y, z) => z === 5 && Math.abs(x) <= 1 && y <= 2) },
+  spiral: k => { const a = []; B(a, 0, 0, 0, 0, 15, 0, 9); for (let i = 0; i < 16; i++) { const ang = i * 0.55; for (const r of [2, 3]) a.push([Math.round(Math.cos(ang) * r), i, Math.round(Math.sin(ang) * r), k]) } return a },
+  pillar: k => { const a = []; B(a, 0, 1, 0, 0, 7, 0, k); B(a, -1, 0, -1, 1, 0, 1, 9); B(a, -1, 8, -1, 1, 8, 1, 9); return a },
   fence: k => { const a = []; for (let x = -5; x <= 5; x++) { a.push([x, 0, 0, 9]); if (x % 2 === 0) a.push([x, 1, 0, 9]); } B(a, -5, 1, 0, 5, 1, 0, 9); return a.map(b => b) },
 }
 const rotate = (list, r) => list.map(([x, y, z, k]) => { for (let i = 0; i < r; i++) [x, z] = [-z, x]; return [x, y, z, k] })

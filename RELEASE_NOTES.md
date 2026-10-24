@@ -8,3 +8,4 @@ Devbuild: four new templates and translucent 3DS parts
 - 3DS: Home shows your next meetup (from the web calendar) next to the greeting.
 - 3DS: distant hills on the horizon in worlds with a floor (two layers, tinted by the world type).
 - 3DS: decorative flowers on grass worlds (visual only).
+- Studio: four new structures (castle, dome, spiral staircase, pillar).

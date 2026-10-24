@@ -1,6 +1,10 @@
 // Traducciones completas de los textos añadidos desde la 1.3 (se mezclan en i18n.js; lo que ya esté traducido allí tiene prioridad).
 export const MORE = {
   pt: {
+    pf_castle: "Castelo",
+    pf_dome: "Cúpula",
+    pf_spiral: "Escada em espiral",
+    pf_pillar: "Coluna",
     tpl_treasure: "Caça ao tesouro",
     tpl_treasure_d: "Encontre oito baús o mais rápido possível",
     tpl_tower: "Torre",
@@ -746,6 +750,10 @@ export const MORE = {
     lang_hint: "O idioma é aplicado na hora.",
   },
   fr: {
+    pf_castle: "Château",
+    pf_dome: "Dôme",
+    pf_spiral: "Escalier en colimaçon",
+    pf_pillar: "Colonne",
     tpl_treasure: "Chasse au trésor",
     tpl_treasure_d: "Trouve huit coffres le plus vite possible",
     tpl_tower: "Tour",
@@ -1491,6 +1499,10 @@ export const MORE = {
     lang_hint: "La langue s'applique instantanément.",
   },
   de: {
+    pf_castle: "Burg",
+    pf_dome: "Kuppel",
+    pf_spiral: "Wendeltreppe",
+    pf_pillar: "Säule",
     tpl_treasure: "Schatzsuche",
     tpl_treasure_d: "Finde acht Truhen so schnell du kannst",
     tpl_tower: "Turm",
@@ -2236,6 +2248,10 @@ export const MORE = {
     lang_hint: "Die Sprache wird sofort angewendet.",
   },
   it: {
+    pf_castle: "Castello",
+    pf_dome: "Cupola",
+    pf_spiral: "Scala a chiocciola",
+    pf_pillar: "Colonna",
     tpl_treasure: "Caccia al tesoro",
     tpl_treasure_d: "Trova otto forzieri il più in fretta possibile",
     tpl_tower: "Torre",
@@ -2998,6 +3014,10 @@ export const MORE = {
     invite_friends: "Invita amici",
   },
   pl: {
+    pf_castle: "Zamek",
+    pf_dome: "Kopuła",
+    pf_spiral: "Schody spiralne",
+    pf_pillar: "Kolumna",
     tpl_treasure: "Polowanie na skarby",
     tpl_treasure_d: "Znajdź osiem skrzyń jak najszybciej",
     tpl_tower: "Wieża",
@@ -3979,6 +3999,10 @@ export const MORE = {
     offline_ready: "Gotowe do użycia offline",
   },
   ru: {
+    pf_castle: "Замок",
+    pf_dome: "Купол",
+    pf_spiral: "Винтовая лестница",
+    pf_pillar: "Колонна",
     tpl_treasure: "Охота за сокровищами",
     tpl_treasure_d: "Найдите восемь сундуков как можно быстрее",
     tpl_tower: "Башня",
@@ -4960,6 +4984,10 @@ export const MORE = {
     offline_ready: "Готово к работе офлайн",
   },
   ja: {
+    pf_castle: "お城",
+    pf_dome: "ドーム",
+    pf_spiral: "らせん階段",
+    pf_pillar: "柱",
     tpl_treasure: "たからさがし",
     tpl_treasure_d: "8つの宝箱をできるだけ早く見つけよう",
     tpl_tower: "タワー",
@@ -5941,6 +5969,10 @@ export const MORE = {
     offline_ready: "オフラインで使えます",
   },
   zh: {
+    pf_castle: "城堡",
+    pf_dome: "穹顶",
+    pf_spiral: "螺旋楼梯",
+    pf_pillar: "柱子",
     tpl_treasure: "寻宝",
     tpl_treasure_d: "尽快找到八个宝箱",
     tpl_tower: "高塔",
@@ -6922,6 +6954,10 @@ export const MORE = {
     offline_ready: "已可离线使用",
   },
   ko: {
+    pf_castle: "성",
+    pf_dome: "돔",
+    pf_spiral: "나선 계단",
+    pf_pillar: "기둥",
     tpl_treasure: "보물찾기",
     tpl_treasure_d: "상자 여덟 개를 최대한 빨리 찾으세요",
     tpl_tower: "타워",
