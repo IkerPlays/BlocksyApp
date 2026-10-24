@@ -33,7 +33,7 @@ bool world_floor_solid(const World *w, int x, int y, int z) {
 	if (w->type == 5) return y >= 0 && y <= 2 && abs(x) <= 50 && abs(z) <= 50 && w->tgrid[(x + 50) * 101 + z + 50];     // troncos del bosque
 	if (w->type == 9) return y >= 0 && y < world_hill_h(w, x, z);
 	if (w->type == 10) return island_solid(w, x, y, z);
-	return w->type == 1 && y == 0 && abs(x) <= w->plaza_n && abs(z) <= w->plaza_n;
+	return (w->type == 1 || w->type == 3) && y == 0 && abs(x) <= w->plaza_n && abs(z) <= w->plaza_n;
 }
 
 // arbol de la web (tree() de world.js): tronco de 3, hojas en dos capas y una cruz arriba
@@ -220,6 +220,8 @@ void world_build(World *w, const char *name, int seed) {
 	else if (name && !strcmp(name, "city")) build_city(w, seed);
 	else if (name && !strcmp(name, "hills")) build_hills(w, seed);
 	else if (name && !strcmp(name, "islands")) build_islands(w, seed);
-	else if (name && !strcmp(name, "checker")) { w->type = 3; for (int x = -20; x <= 20; x++) for (int z = -20; z <= 20; z++) if (WORLD_MAX_CELLS > w->ncells + 0 && abs(x) < 12 && abs(z) < 12) add(w, x, 0, z, ((x + z) & 1) ? hexc("#ffffff") : hexc("#2b2f36")); w->spawn[1] = 1.2f; }
+	else if (name && !strcmp(name, "checker")) { w->type = 3; w->plaza_n = 20; w->spawn[1] = 1.2f; }          // tablero 41 x 41 calculado (como la plaza): no gasta celdas
 	else if (name && !strcmp(name, "void")) { w->type = 4; w->floor = false; w->void_y = -30; for (int x = -2; x <= 2; x++) for (int z = -2; z <= 2; z++) add(w, x, 0, z, ((x + z) & 1) ? hexc("#eceff1") : hexc("#9aa0a8")); w->spawn[1] = 1.2f; }
 }
+
+unsigned world_tile_color(const World *w, int x, int z) { return w->type == 3 ? hexc(((x + z) & 1) ? "#ffffff" : "#2b2f36") : world_plaza_color(x, z); }

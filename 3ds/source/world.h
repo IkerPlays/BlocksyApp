@@ -29,4 +29,5 @@ bool world_floor_solid(const World *w, int x, int y, int z);       // suelo espe
 int world_hill_h(const World *w, int x, int z);                    // colinas: altura de la columna (0 = sin colina); igual que hills() de web/src/world.js
 bool world_hill_top_sand(int x, int z);
 int world_island_depth(const World *w, int d, int x, int z);        // islas: grosor del disco d en esa columna (0 = fuera del disco)                            // la cima es arena (orilla)
-unsigned world_plaza_color(int x, int z);                          // color del suelo de la plaza en esa casilla
+unsigned world_plaza_color(int x, int z);
+unsigned world_tile_color(const World *w, int x, int z);            // suelo de baldosas calculado (plaza o tablero) en esa casilla                          // color del suelo de la plaza en esa casilla

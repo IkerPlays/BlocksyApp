@@ -51,5 +51,9 @@ int main(void) {
 		for (int x = -18; x <= 18; x++) for (int z = -18; z <= 18; z++) fl += ((unsigned long long)(unsigned)x * 73856093ULL) ^ ((unsigned long long)(unsigned)z * 83492791ULL) ^ ((unsigned long long)world_plaza_color(x, z) * 2654435761ULL);
 		if (w.ncells != 279 || up != 10450496665658069216ULL || fl != 4175807053795176298ULL) { printf("FALLA plaza: %d celdas, up %llu, suelo %llu\n", w.ncells, up, fl); return 1; }
 	}
+	// tablero: 41 x 41 baldosas calculadas (sin celdas)
+	world_build(&w, "checker", 1337);
+	assert(w.ncells == 0 && world_floor_solid(&w, 20, 0, -20) && !world_floor_solid(&w, 21, 0, 0) && !world_floor_solid(&w, 0, 1, 0));
+	assert(world_tile_color(&w, 0, 0) == 0xFF362F2B && world_tile_color(&w, 1, 0) == 0xFFFFFFFF);          // #2b2f36 y #ffffff en ABGR
 	puts("world: todo bien"); return 0;
 }
