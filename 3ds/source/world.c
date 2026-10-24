@@ -29,6 +29,7 @@ unsigned world_plaza_color(int x, int z) {
 }
 bool world_floor_solid(const World *w, int x, int y, int z) {
 	if (w->type == 5) return y >= 0 && y <= 2 && abs(x) <= 50 && abs(z) <= 50 && w->tgrid[(x + 50) * 101 + z + 50];     // troncos del bosque
+	if (w->type == 9) return y >= 0 && y < world_hill_h(w, x, z);
 	return w->type == 1 && y == 0 && abs(x) <= w->plaza_n && abs(z) <= w->plaza_n;
 }
 
@@ -136,6 +137,35 @@ static void build_city(World *w, int seed) {
 	}
 }
 
+
+// ---- colinas (type 9): altura por ruido, igual que hills() de la web. Las columnas no son celdas (serian miles): se calculan al vuelo ----
+static uint32_t hash2u(int x, int z, int seed) {
+	uint32_t h = (uint32_t)x * 374761393u + (uint32_t)z * 668265263u + (uint32_t)seed * 2147483647u;       // Math.imul + |0: aritmetica de 32 bits
+	h = (h ^ (h >> 13)) * 1274126177u; return h ^ (h >> 16);
+}
+static double hash2(int x, int z, int seed) { return hash2u(x, z, seed) / 4294967296.0; }
+static double noise2(double x, double z, int seed) {
+	double x0 = floor(x), z0 = floor(z), fx = x - x0, fz = z - z0, sx = fx * fx * (3 - 2 * fx), sz = fz * fz * (3 - 2 * fz);
+	int ix = (int)x0, iz = (int)z0; double a = hash2(ix, iz, seed), b = hash2(ix + 1, iz, seed), c = hash2(ix, iz + 1, seed), d = hash2(ix + 1, iz + 1, seed);
+	return a + (b - a) * sx + (c - a) * sz + (a - b - c + d) * sx * sz;
+}
+#define HILL_R 38
+int world_hill_h(const World *w, int x, int z) {
+	double d = hypot(x, z); if (d > HILL_R) return 0;
+	double h = 1.5 + noise2(x * 0.07, z * 0.07, w->seed) * 6 + noise2(x * 0.19, z * 0.19, w->seed + 7) * 2.2;
+	double k = (d - 4) / 10; k = k < 0 ? 0 : k > 1 ? 1 : k; h *= k;
+	int r = jsround(h); return r < 0 ? 0 : r;
+}
+bool world_hill_top_sand(int x, int z) { return hypot(x, z) > HILL_R - 6; }
+static void build_hills(World *w, int seed) {
+	w->type = 9; w->seed = seed; w->spawn[1] = 1.2f; w->spawn[0] = 0.5f; w->spawn[2] = 0.5f; rng_seed((uint32_t)seed);
+	for (int i = 0; i < 26; i++) {                                           // arboles: mismas posiciones que la web (el tronco es solido; la copa se dibuja aparte)
+		int x = jsround((rnd() * 2 - 1) * (HILL_R - 4)), z = jsround((rnd() * 2 - 1) * (HILL_R - 4));
+		double d = hypot(x, z); if (d < 9 || d > HILL_R - 3 || world_hill_h(w, x, z) <= 0) continue;
+		if (w->ntrees < 160) { w->tree[w->ntrees][0] = (short)x; w->tree[w->ntrees][1] = (short)z; w->ntrees++; }
+		int y = world_hill_h(w, x, z); for (int k = 0; k < 3; k++) add(w, x, y + k, z, hexc("#8b5e34"));
+	}
+}
 void world_build(World *w, const char *name, int seed) {
 	memset(w, 0, sizeof *w);
 	w->floor = true; w->void_y = -1000; w->spawn[0] = 0.5f; w->spawn[1] = 3; w->spawn[2] = 0.5f;
@@ -146,6 +176,7 @@ void world_build(World *w, const char *name, int seed) {
 	else if (name && !strcmp(name, "desert")) build_desert(w, seed);
 	else if (name && !strcmp(name, "caves")) build_caves(w, seed);
 	else if (name && !strcmp(name, "city")) build_city(w, seed);
+	else if (name && !strcmp(name, "hills")) build_hills(w, seed);
 	else if (name && !strcmp(name, "checker")) { w->type = 3; for (int x = -20; x <= 20; x++) for (int z = -20; z <= 20; z++) if (WORLD_MAX_CELLS > w->ncells + 0 && abs(x) < 12 && abs(z) < 12) add(w, x, 0, z, ((x + z) & 1) ? hexc("#ffffff") : hexc("#2b2f36")); w->spawn[1] = 1.2f; }
 	else if (name && !strcmp(name, "void")) { w->type = 4; w->floor = false; w->void_y = -30; plat(w, -2, 0, -2, 5, 5, hexc("#9aa0a8")); w->spawn[1] = 1.2f; }
 }

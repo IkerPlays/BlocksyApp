@@ -6,7 +6,8 @@
 #define WORLD_MAX_CELLS 640
 typedef struct { float x, y, z; int id; } Checkpoint;
 typedef struct {
-	int type;                           // 0 llanura, 1 plaza, 2 carrera (obby), 3 tablero, 4 vacío, 5 bosque oscuro, 6 desierto, 7 cuevas, 8 ciudad
+	int type;                           // 0 llanura, 1 plaza, 2 carrera (obby), 3 tablero, 4 vacío, 5 bosque oscuro, 6 desierto, 7 cuevas, 8 ciudad, 9 colinas
+	int seed;                           // semilla del mundo (colinas: altura de cada columna)
 	bool floor;                         // hay suelo infinito (y = 0)
 	float spawn[3];
 	float void_y;                       // caer por debajo = volver al último punto de control (solo sin suelo)
@@ -24,4 +25,6 @@ typedef struct {
 
 void world_build(World *w, const char *name, int seed);            // name: flat | plaza | obby | checker | void (otros = llanura)
 bool world_floor_solid(const World *w, int x, int y, int z);       // suelo especial de la plaza (y = 0 dentro de su recinto)
+int world_hill_h(const World *w, int x, int z);                    // colinas: altura de la columna (0 = sin colina); igual que hills() de web/src/world.js
+bool world_hill_top_sand(int x, int z);                            // la cima es arena (orilla)
 unsigned world_plaza_color(int x, int z);                          // color del suelo de la plaza en esa casilla
