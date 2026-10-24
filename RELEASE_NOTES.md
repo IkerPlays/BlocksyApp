@@ -1,5 +1,5 @@
-Devbuild 55: game pages and publishing
-- Every game now has its own page (/game/<id>): banner, icon, description, tags, screenshots, likes, favorites, private rooms and a Play button. Clicking a game opens it.
-- Publish settings in the Studio (new Game page button) and in the game editor: Public, Link only or Private.
-- Icon, banner and up to four screenshots: upload an image, capture it from the game or paste a link.
-- 3DS: private and link-only games are hidden from the lists (yours stay) and the game card shows the long description.
+Devbuild 56: Roblox-style Studio
+- New docked Studio layout like Roblox Studio: ribbon with grouped tools at the top, Explorer and Toolbox on the left, Properties, Environment, Game page and Versions on the right, and an Output panel at the bottom. Panels can be resized by dragging their edges.
+- Explorer: a real tree (Game, Workspace, Terrain, Models, Parts, Lighting, ServerScriptService, StarterGui) with search, drag and drop into models, right-click menu (rename, duplicate, group, ungroup, lock, hide, go to) and Ctrl+G, Ctrl+U and F.
+- Properties: collapsible categories (Appearance, Data, Transform, Behavior), edit several parts at once, and arrange tools for multi-selection.
+- Toolbox with parts, structures and your own structures; Output shows what your script prints.

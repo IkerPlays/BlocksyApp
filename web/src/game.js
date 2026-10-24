@@ -585,6 +585,8 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
         else if (k === 'fog') { scene.fog.far = settings.viewDistance * fogMul(); scene.fog.near = settings.viewDistance * 0.35 * fogMul() }
       },
       onScript: async () => { await studio.openScript(game) },
+      getUiEls: () => uiEls,
+      selectUi: id => { selUi = uiEls.find(x => x.id === id) ?? null; openInspector(); drawUi() },
       captureThumb: (w = 256, h = 144) => new Promise(res => { thumbReq = { res, w, h } }),
       onTestToggle: () => {
         testing = !testing

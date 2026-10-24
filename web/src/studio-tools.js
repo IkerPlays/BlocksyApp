@@ -5,6 +5,8 @@ import { t, getLang } from './i18n.js'
 import { checkLua, checkSyntax } from './script.js'
 import { gameInfoEditor } from './gamepage-edit.js'
 import { setKids as setKids_, closeModal as closeModal_ } from './pages.js'
+import { createDocks, tabbed, category, prop } from './studio-dock.js'
+import { scriptConsole } from './script-console.js'
 import { icon } from './icons.js'
 import { PRESET_HOUR } from './sky.js'
 import * as music from './music.js'
@@ -42,6 +44,9 @@ const SKIES = ['day', 'dawn', 'sunset', 'night', 'space']
 export function createStudio(ctx) {
   const { game, cfg, api, PALETTE, key, index, statics, setBlock, removeBlock, me, pick, scene, camera, canvas, rbx, showTitle, sys, sfx, burst, selectKind, onEnv, onTestToggle, onSave, onExit, onScript, onAddText, setUiTool, getHover, getConfig, captureThumb } = ctx
   const g = document.getElementById('game'), bar = document.getElementById('studio-bar')
+  const docks = createDocks(g); docks.top.append(bar)
+  let selNode = 'part'                                                   // elemento del Explorer que no es una pieza: game | workspace | lighting | script | terrain | ui:<id>
+  let leftTabs = null, rightTabs = null, exHost = null, propsHost = null, verHost = null, outHost = null
   const state = { terrR: 4, terrH: 4, terrMode: 'raise', tool: 'place', mode: 'fill', shape: 'sphere', sym: 'off', grid: 0.5, prefab: 'house', rot: 0, a: null, region: null, clip: null }
   const undoS = [], redoS = []
   const parts = cfg.parts = Array.isArray(cfg.parts) ? cfg.parts.slice(0, MAX_PARTS).map(p => ({ ...p })) : []
@@ -144,23 +149,93 @@ export function createStudio(ctx) {
   let testing = false
   const applyHidden = () => { for (let i = 0; i < parts.length; i++) { const o = rbx.partAt(i); if (o?.mesh) o.mesh.visible = testing || !parts[i].eh } }       // eh = oculta solo en el editor
   const refreshParts = () => { cfg.parts = parts; game.config = { ...(game.config ?? {}), parts }; rbx.reset(); rbx.spawnStatic(parts); applyHidden(); updateSelBox(); paintExplorer() }
-  // explorador: lista de piezas del juego (clic = seleccionar)
-  const explorer = h('div', { id: 'studio-explorer', class: 'hidden' }); g.append(explorer)
-  let exFilter = ''
-  function paintExplorer() {
-    if (explorer.classList.contains('hidden')) return
-    const groups = [...new Set(parts.map(p => p.group).filter(Boolean))], q = exFilter.toLowerCase()
-    const search = h('input', { type: 'search', class: 'ex-search', placeholder: t('st_search_parts'), value: exFilter }); search.oninput = () => { exFilter = search.value; paintExplorer(); document.querySelector('.ex-search')?.focus() }
-    const rows = parts.map((p, i) => ({ p, i })).filter(({ p }) => !q || p.name.toLowerCase().includes(q) || (p.group ?? '').toLowerCase().includes(q)).map(({ p, i }) => {
-      const nm = h('span', { class: 'ex-name', text: p.name })
-      nm.ondblclick = e => { e.stopPropagation(); const inp = h('input', { class: 'ex-rename', value: p.name, maxlength: 24 }); nm.replaceWith(inp); inp.focus(); inp.select(); const done = () => { const v = inp.value.replace(/[^\w ]/g, '').slice(0, 24).trim(); if (v) p.name = v; refreshParts(); openPartInspector() }; inp.onblur = done; inp.onkeydown = ev => { if (ev.key === 'Enter') inp.blur(); ev.stopPropagation() } }
-      const tog = (k, glyph, title) => h('span', { class: 'ex-tog' + (p[k] ? ' on' : ''), title, text: glyph, onclick: e => { e.stopPropagation(); p[k] = !p[k]; refreshParts() } })
-      return h('div', { class: 'ex-row' + (i === selPart ? ' on' : '') + (multi.has(i) ? ' multi' : ''), onclick: e => { if (e.shiftKey) { multi.has(i) ? multi.delete(i) : multi.add(i) } else { selPart = i; multi.clear() } setTool('part'); updateSelBox(); openPartInspector(); paintExplorer() } },
-        h('span', { text: p.type === 'spawn' ? 'S' : p.shape === 'Ball' ? 'O' : '[]' }), nm, p.group ? h('small', { text: '#' + p.group }) : null, tog('eh', '◌', t('st_hide')), tog('locked', '⚿', t('st_lock')))
-    })
-    explorer.replaceChildren(h('b', { text: `${t('st_explorer')} (${parts.length})` }), search, ...rows, !parts.length ? h('small', { text: t('no_games') }) : null, groups.length ? h('small', { text: groups.map(x => '#' + x).join(' ') }) : null)
+  // ---------- Explorer: árbol del juego como en Roblox Studio ----------
+  const open = new Set(['game', 'workspace', 'gui']); let exFilter = ''
+  const ICON = { game: 'globe', workspace: 'box', terrain: 'mountain', model: 'cube', part: 'cube', ball: 'sphere', spawn: 'flag', lighting: 'sliders', scripts: 'code', script: 'code', gui: 'chat', ui: 'chat' }
+  const ctxMenu = (e, items) => {
+    e.preventDefault(); document.getElementById('st-ctx')?.remove()
+    const m = h('div', { id: 'st-ctx' }, items.map(it => (it === '-' ? h('hr') : h('div', { text: it[0], onclick: () => { m.remove(); it[1]() } }))))
+    m.style.left = Math.min(e.clientX, innerWidth - 180) + 'px'; m.style.top = Math.min(e.clientY, innerHeight - 220) + 'px'; document.body.append(m)
+    const off = ev => { if (ev?.target && m.contains(ev.target)) return; m.remove(); removeEventListener('pointerdown', off, true) }; setTimeout(() => addEventListener('pointerdown', off, true), 0)
   }
-  const toggleExplorer = () => { explorer.classList.toggle('hidden'); paintExplorer() }
+  const nextName = base => { let n = 1; while (parts.some(p => p.name === base + n)) n++; return base + n }
+  function groupSelected() {
+    const idx = [selPart, ...multi].filter(i => parts[i]); if (!idx.length) return
+    const name = (prompt(t('st_group_name'), nextName('Model')) ?? '').replace(/[^\w]/g, '').slice(0, 16); if (!name) return
+    for (const i of idx) parts[i].group = name
+    open.add('m:' + name); refreshParts(); paintProps()
+  }
+  function ungroupSelected() { for (const i of [selPart, ...multi]) if (parts[i]) delete parts[i].group; refreshParts(); paintProps() }
+  function duplicateSelected() {
+    const src = [selPart, ...multi].filter(i => parts[i]); const made = []
+    for (const i of src) { if (parts.length >= MAX_PARTS) break; parts.push({ ...parts[i], name: parts[i].name.replace(/\d*$/, '') + (parts.length + 1), x: parts[i].x + 1, z: parts[i].z + 1 }); made.push(parts.length - 1) }
+    if (made.length) { selPart = made[0]; multi.clear(); made.slice(1).forEach(i => multi.add(i)); refreshParts(); paintProps(); sfx.place() }
+  }
+  const focusPart = i => { const q = parts[i]; if (!q) return; me.pos.set(q.x + 5, q.y + 3, q.z + 5); me.vel?.set?.(0, 0, 0) }
+  function pickPartNode(i, e) {
+    selNode = 'part'
+    if (e?.shiftKey || e?.ctrlKey || e?.metaKey) { if (i === selPart) { selPart = [...multi][0] ?? -1; multi.delete(selPart) } else if (!multi.delete(i)) { if (selPart < 0) selPart = i; else multi.add(i) } }
+    else { selPart = i; multi.clear() }
+    if (state.tool !== 'part') setTool('part'); updateSelBox(); paintProps(); paintExplorer(); rightTabs?.set('props')
+  }
+  function pickNode(id) {
+    selNode = id; selPart = -1; multi.clear(); updateSelBox()
+    if (id === 'lighting' || id === 'workspace') rightTabs?.set('env'); else if (id === 'game') rightTabs?.set('game'); else if (id === 'script') onScript(); else if (id === 'terrain') { showTitle(t('st_hint_terrain'), 2200); setTool('terrain'); rightTabs?.set('props') }
+    else if (id.startsWith('ui:')) { setTool('ui'); ctx.selectUi?.(id.slice(3)); rightTabs?.set('props') } else rightTabs?.set('props')
+    paintProps(); paintExplorer()
+  }
+  function paintExplorer() {
+    if (!exHost?.isConnected || leftTabs?.cur !== 'explorer' || !exHost.querySelector('.ex-tree')) return
+    const q = exFilter.trim().toLowerCase(), rows = []
+    const row = (id, depth, o) => {
+      const caret = o.children ? h('span', { class: 'ex-caret', text: open.has(id) ? '▾' : '▸', onclick: e => { e.stopPropagation(); open.has(id) ? open.delete(id) : open.add(id); paintExplorer() } }) : h('span', { class: 'ex-caret' })
+      const nm = h('span', { class: 'ex-name', text: o.name }), r = h('div', { class: 'ex-node' + (o.sel ? ' sel' : ''), style: `padding-left:${4 + depth * 14}px`, draggable: !!o.drag, onclick: o.click, oncontextmenu: o.menu ? e => o.menu(e) : null },
+        caret, h('span', { class: 'ex-ico', html: icon(o.icon, 14) }), nm, o.flags ? h('span', { class: 'ex-flags', text: o.flags }) : null, o.count != null ? h('span', { class: 'ex-count', text: String(o.count) }) : null)
+      if (o.rename) nm.ondblclick = e => { e.stopPropagation(); const inp = h('input', { class: 'ex-rename', value: o.name, maxlength: 24 }); nm.replaceWith(inp); inp.focus(); inp.select(); const done = () => o.rename(inp.value); inp.onblur = done; inp.onkeydown = ev => { if (ev.key === 'Enter') inp.blur(); else if (ev.key === 'Escape') { inp.onblur = null; paintExplorer() } ev.stopPropagation() } }
+      if (o.drag) r.ondragstart = e => { e.dataTransfer.setData('text/plain', 'part'); e.dataTransfer.effectAllowed = 'move'; if (!(i_in(o.drag) )) { selPart = o.drag; multi.clear() } }
+      if (o.drop) { r.ondragover = e => { e.preventDefault(); r.classList.add('drop') }; r.ondragleave = () => r.classList.remove('drop'); r.ondrop = e => { e.preventDefault(); r.classList.remove('drop'); o.drop() } }
+      rows.push(r)
+    }
+    const i_in = i => i === selPart || multi.has(i)
+    const partRow = (i, depth) => {
+      const p = parts[i], isSel = i_in(i)
+      row('p' + i, depth, { icon: p.type === 'spawn' ? ICON.spawn : p.shape === 'Ball' ? ICON.ball : ICON.part, name: p.name, sel: isSel && selNode === 'part', flags: (p.locked ? '⚿ ' : '') + (p.eh ? '◌' : ''), drag: i, rename: v => { const n = String(v).replace(/[^\w ]/g, '').slice(0, 24).trim(); if (n) p.name = n; refreshParts(); paintProps() }, click: e => pickPartNode(i, e),
+        menu: e => { if (!i_in(i)) { selPart = i; multi.clear(); selNode = 'part'; updateSelBox(); paintProps(); paintExplorer() } ctxMenu(e, [[t('cm_rename'), () => { selPart = i; paintExplorer() }], [t('st_dup') + ' (Ctrl+D)', duplicateSelected], [t('cm_group') + ' (Ctrl+G)', groupSelected], [t('cm_ungroup') + ' (Ctrl+U)', ungroupSelected], '-', [p.locked ? t('cm_unlock') : t('st_lock'), () => { for (const k of [selPart, ...multi]) if (parts[k]) parts[k].locked = !p.locked; refreshParts(); paintProps() }], [p.eh ? t('cm_show') : t('st_hide'), () => { for (const k of [selPart, ...multi]) if (parts[k]) parts[k].eh = !p.eh; refreshParts(); paintProps() }], [t('cm_focus') + ' (F)', () => focusPart(i)], '-', [t('st_del_part') + ' (Del)', deleteSelected]]) } })
+    }
+    const dropTo = group => () => { const mv = new Set([selPart, ...multi]); for (const k of mv) if (parts[k]) { if (group) parts[k].group = group; else delete parts[k].group } if (group) open.add('m:' + group); refreshParts(); paintProps() }
+    row('game', 0, { icon: ICON.game, name: game.name || 'Game', sel: selNode === 'game' && selPart < 0, children: true, click: () => pickNode('game') })
+    if (open.has('game')) {
+      row('workspace', 1, { icon: ICON.workspace, name: 'Workspace', sel: selNode === 'workspace', children: true, drop: dropTo(''), click: () => pickNode('workspace') })
+      if (open.has('workspace')) {
+        row('terrain', 2, { icon: ICON.terrain, name: 'Terrain', count: index.size, sel: selNode === 'terrain', click: () => pickNode('terrain') })
+        if (q) parts.forEach((p, i) => { if (p.name.toLowerCase().includes(q) || (p.group ?? '').toLowerCase().includes(q)) partRow(i, 2) })
+        else {
+          for (const gname of [...new Set(parts.map(p => p.group).filter(Boolean))]) {
+            const id = 'm:' + gname, members = parts.map((p, i) => (p.group === gname ? i : -1)).filter(i => i >= 0)
+            row(id, 2, { icon: ICON.model, name: gname, count: members.length, children: true, sel: members.length && members.every(i_in) && selNode === 'part', drop: dropTo(gname),
+              click: e => { selNode = 'part'; selPart = members[0]; multi.clear(); members.slice(1).forEach(i => multi.add(i)); setTool('part'); updateSelBox(); paintProps(); paintExplorer(); rightTabs?.set('props') },
+              menu: e => ctxMenu(e, [[t('cm_ungroup'), () => { for (const i of members) delete parts[i].group; refreshParts() }], [t('st_del_part'), () => { selPart = members[0]; multi.clear(); members.slice(1).forEach(i => multi.add(i)); deleteSelected() }]]) })
+            if (open.has(id)) members.forEach(i => partRow(i, 3))
+          }
+          parts.forEach((p, i) => { if (!p.group) partRow(i, 2) })
+        }
+      }
+      row('lighting', 1, { icon: ICON.lighting, name: 'Lighting', sel: selNode === 'lighting', click: () => pickNode('lighting') })
+      row('scripts', 1, { icon: ICON.scripts, name: 'ServerScriptService', children: true, click: () => { open.has('scripts') ? open.delete('scripts') : open.add('scripts'); paintExplorer() } })
+      if (open.has('scripts')) row('script', 2, { icon: ICON.script, name: 'Script', flags: game.script?.trim() ? '' : '○', sel: selNode === 'script', click: () => pickNode('script') })
+      const uis = ctx.getUiEls?.() ?? []
+      row('gui', 1, { icon: ICON.gui, name: 'StarterGui', children: true, count: uis.length, click: () => { open.has('gui') ? open.delete('gui') : open.add('gui'); paintExplorer() } })
+      if (open.has('gui')) uis.forEach(u => row('ui:' + u.id, 2, { icon: ICON.ui, name: 'TextLabel · ' + u.id, sel: selNode === 'ui:' + u.id, click: () => pickNode('ui:' + u.id) }))
+    }
+    exHost.querySelector('.ex-tree').replaceChildren(...rows)
+    const tot = exHost.querySelector('.ex-total'); if (tot) tot.textContent = `${parts.length} ${t('st_parts')} · ${index.size} ${t('st_blocks')}`
+  }
+  function renderExplorer(c) {
+    exHost = c
+    const search = h('input', { type: 'search', class: 'ex-search', placeholder: t('st_search_parts'), value: exFilter }); search.oninput = () => { exFilter = search.value; paintExplorer() }
+    c.append(search, h('div', { class: 'ex-tree' }), h('small', { class: 'ex-total muted', style: 'padding:4px 8px;display:block' })); paintExplorer()
+  }
+  const toggleExplorer = () => leftTabs?.set('explorer')
   // exportar el juego entero (.json) para guardarlo o pasarlo a otro juego (se importa desde Crear)
   function exportGame() {
     const blocks = []; for (const [k, e] of index) { const [x, y, z] = k.split(',').map(Number); blocks.push([x, y, z, e.kind]) }
@@ -176,13 +251,14 @@ export function createStudio(ctx) {
     if (!o) { if (state.tool === 'part' || selPart < 0) selWire.visible = false; return }
     const b = o.box; selWire.position.set((b[0] + b[3]) / 2, (b[1] + b[4]) / 2, (b[2] + b[5]) / 2); selWire.scale.set(b[3] - b[0] + 0.06, b[4] - b[1] + 0.06, b[5] - b[2] + 0.06); selWire.visible = true
   }
-  function newPart(type = 'part') {
+  function newPart(type = 'part', shape = 'Block') {
     if (parts.length >= MAX_PARTS) return showTitle(t('st_big', { n: MAX_PARTS }), 2000)
     const v = new THREE.Vector3(); camera.getWorldDirection(v)
     const hit = pick(canvas.clientWidth / 2 + canvas.getBoundingClientRect().left, canvas.clientHeight / 2 + canvas.getBoundingClientRect().top)
     const at = hit?.place ?? [Math.round(me.pos.x + v.x * 6), Math.max(0, Math.round(me.pos.y)), Math.round(me.pos.z + v.z * 6)]
     let n = 1; const base = type === 'spawn' ? 'Spawn' : type === 'torch' ? 'Torch' : type === 'lamp' ? 'Lamp' : 'Part'; while (parts.some(p => p.name === base + n)) n++
     const P = { name: base + n, type: type === 'spawn' ? 'spawn' : 'part', x: at[0] + 0.5, y: at[1] + (type === 'spawn' ? 0.25 : 0.5), z: at[2] + 0.5, sx: type === 'spawn' ? 4 : 2, sy: type === 'spawn' ? 0.5 : 1, sz: type === 'spawn' ? 4 : 2, color: type === 'spawn' ? '#4dd0ff' : '#ff9f43', shape: 'Block', material: 'Plastic', anchored: true, collide: true, transparency: 0, ry: 0 }
+    if (shape !== 'Block') Object.assign(P, { shape, sx: shape === 'Ball' ? 2 : 2, sy: shape === 'Ball' ? 2 : 1, sz: shape === 'Ball' ? 2 : 2 })
     if (type === 'torch') Object.assign(P, { y: at[1] + 0.9, sx: 0.3, sy: 1.6, sz: 0.3, color: '#ffb347', material: 'Neon', light: 1.6, lightColor: '#ffb347', lightRange: 16, collide: false })
     if (type === 'lamp') Object.assign(P, { y: at[1] + 3, sx: 1, sy: 1, sz: 1, shape: 'Ball', color: '#fff3c4', material: 'Neon', light: 2, lightColor: '#fff3c4', lightRange: 22 })
     parts.push(P)
@@ -190,55 +266,63 @@ export function createStudio(ctx) {
   }
   const SC = [['Ctrl+Z / Ctrl+Y', 'st_sc_undo'], ['Ctrl+C / Ctrl+V', 'st_sc_copy'], ['Ctrl+D', 'st_sc_dup'], ['Ctrl+A', 'st_sc_all'], ['Del', 'st_sc_del'], ['Esc', 'st_sc_desel'], ['Shift+click', 'st_sc_multi'], ['Alt+arrows', 'st_sc_nudge'], ['Shift+arrows', 'st_sc_movesel'], ['R', 'st_sc_rot'], ['Alt+1..4', 'st_sc_marks'], ['Alt+Shift+1..4', 'st_sc_savemarks'], ['F1', 'st_sc_help']]
   const helpBox = h('div', { id: 'studio-help', class: 'hidden' }, h('b', { text: t('st_shortcuts') }), ...SC.map(([k, v]) => h('div', { class: 'sc-row' }, h('kbd', { text: k }), h('span', { text: t(v) })))); g.append(helpBox)
-  const partInsp = h('div', { id: 'part-inspector', class: 'hidden' }); g.append(partInsp)
+  const partInsp = null
   const selIdx = () => [selPart, ...multi].filter(i => parts[i] && !parts[i].locked)
-  function alignSel(ax) { const ref = parts[selPart]; if (!ref) return; for (const i of selIdx()) parts[i][ax] = ref[ax]; refreshParts(); openPartInspector() }
-  function distributeSel(ax) { const l = selIdx().sort((a, b) => parts[a][ax] - parts[b][ax]); if (l.length < 3) return showTitle(t('st_need3'), 1600); const a = parts[l[0]][ax], b = parts[l[l.length - 1]][ax]; l.forEach((i, k) => { parts[i][ax] = +(a + (b - a) * k / (l.length - 1)).toFixed(3) }); refreshParts(); openPartInspector() }
-  function deleteSelected() { const del = new Set([selPart, ...multi]); for (const i of [...del].sort((a, b) => b - a)) if (parts[i]) parts.splice(i, 1); selPart = -1; multi.clear(); refreshParts(); partInsp.classList.add('hidden') }
-  function openPartInspector() {
-    const p = parts[selPart]; if (!p || state.tool !== 'part') return partInsp.classList.add('hidden')
-    const num = (k, step = 0.5, w = 62) => { const i = h('input', { type: 'number', step, value: +(+p[k]).toFixed(3) }); i.style.width = w + 'px'; i.oninput = () => { if (i.value !== '' && Number.isFinite(+i.value)) { p[k] = +i.value; refreshParts() } }; return i }
-    const nudge = (k, d) => h('button', { type: 'button', class: 'btn tiny', text: d > 0 ? '+' : '−', onclick: () => { const s = d * (state.grid || 1); movePart(selPart, k === 'x' ? s : 0, k === 'y' ? s : 0, k === 'z' ? s : 0); refreshParts(); openPartInspector() } })
-    const row = (label, ...c) => h('div', { class: 'pi-row' }, h('span', { text: label }), ...c)
-    const sel = (k, list, lab = x => x) => { const s = h('select', {}, list.map(v => h('option', { value: v, text: lab(v), selected: p[k] === v }))); s.onchange = () => { p[k] = s.value; refreshParts() }; return s }
-    const chk = k => { const i = h('input', { type: 'checkbox', checked: p[k] !== false }); i.onchange = () => { p[k] = i.checked; refreshParts() }; return i }
-    const name = h('input', { value: p.name, maxlength: 24 }); name.oninput = () => { p.name = name.value.replace(/[^\w ]/g, '').slice(0, 24) }
-    const grp = h('input', { value: p.group ?? '', maxlength: 16, placeholder: t('st_group_ph') }); grp.oninput = () => { p.group = grp.value.replace(/[^\w]/g, '').slice(0, 16) }
-    const col = h('input', { type: 'color', value: p.color || '#a3a2a5' }); col.oninput = () => { p.color = col.value; refreshParts() }
-    const tr = h('input', { type: 'range', min: 0, max: 1, step: 0.05, value: p.transparency || 0 }); tr.oninput = () => { p.transparency = +tr.value; refreshParts() }
-    partInsp.replaceChildren(
-      h('b', { text: p.type === 'spawn' ? t('st_add_spawn') : 'Part' }), row(t('st_part_name'), name), row(t('st_group'), grp),
-      row('X', num('x'), nudge('x', -1), nudge('x', 1)), row('Y', num('y'), nudge('y', -1), nudge('y', 1)), row('Z', num('z'), nudge('z', -1), nudge('z', 1)),
-      row(t('st_size3'), num('sx', 0.5, 48), num('sy', 0.5, 48), num('sz', 0.5, 48)), row(t('st_rot'), num('ry', 15, 62)),
-      row(t('st_shape'), sel('shape', SHAPES)), row(t('st_material'), sel('material', MATERIALS)), row(t('st_color'), col), row(t('st_transp'), tr),
-      row(t('st_lock'), (() => { const i = h('input', { type: 'checkbox', checked: !!p.locked }); i.onchange = () => { p.locked = i.checked; refreshParts() }; return i })()), row(t('st_hide'), (() => { const i = h('input', { type: 'checkbox', checked: !!p.eh }); i.onchange = () => { p.eh = i.checked; refreshParts() }; return i })()),
-      row(t('st_light'), num('light', 0.5, 48), (() => { const c = h('input', { type: 'color', value: p.lightColor || '#ffd9a0' }); c.oninput = () => { p.lightColor = c.value; refreshParts() }; return c })()),
-      row(t('st_anchored'), chk('anchored')), row(t('st_collide'), chk('collide')), row(t('st_climb'), (() => { const i = h('input', { type: 'checkbox', checked: !!p.climb }); i.onchange = () => { p.climb = i.checked; refreshParts() }; return i })()),
-      multi.size ? h('small', { class: 'muted', text: t('st_multi_n', { n: multi.size + 1 }) }) : null,
-      multi.size ? h('div', { class: 'pi-row wrap' }, ...[['x', 'st_align_x'], ['y', 'st_align_y'], ['z', 'st_align_z']].map(([ax, k]) => h('button', { type: 'button', class: 'btn tiny', text: t(k), onclick: () => alignSel(ax) })), ...[['x', 'st_dist_x'], ['z', 'st_dist_z']].map(([ax, k]) => h('button', { type: 'button', class: 'btn tiny', text: t(k), onclick: () => distributeSel(ax) }))) : null,
-      h('div', { class: 'pi-row' }, h('button', { type: 'button', class: 'btn', text: t('st_dup'), onclick: () => { parts.push({ ...p, name: p.name + '2', x: p.x + 1, z: p.z + 1 }); selPart = parts.length - 1; refreshParts(); openPartInspector() } }),
-        h('button', { type: 'button', class: 'btn danger', text: t('st_del_part'), onclick: deleteSelected })))
-    partInsp.classList.remove('hidden')
+  function alignSel(ax) { const ref = parts[selPart]; if (!ref) return; for (const i of selIdx()) parts[i][ax] = ref[ax]; refreshParts(); paintProps() }
+  function distributeSel(ax) { const l = selIdx().sort((a, b) => parts[a][ax] - parts[b][ax]); if (l.length < 3) return showTitle(t('st_need3'), 1600); const a = parts[l[0]][ax], b = parts[l[l.length - 1]][ax]; l.forEach((i, k) => { parts[i][ax] = +(a + (b - a) * k / (l.length - 1)).toFixed(3) }); refreshParts(); paintProps() }
+  function deleteSelected() { const del = new Set([selPart, ...multi]); for (const i of [...del].sort((a, b) => b - a)) if (parts[i]) parts.splice(i, 1); selPart = -1; multi.clear(); refreshParts(); paintProps() }
+  // ---------- Properties: propiedades por categorías, como Roblox Studio ----------
+  const openPartInspector = () => paintProps()
+  function paintProps() {
+    if (!propsHost?.isConnected || rightTabs?.cur !== 'props') return
+    const c = propsHost; c.replaceChildren()
+    const p = parts[selPart]
+    if (!p) {
+      const title = selNode === 'terrain' ? 'Terrain' : selNode === 'script' ? 'Script' : selNode.startsWith('ui:') ? 'TextLabel' : 'Game'
+      c.append(h('div', { class: 'st-head' }, h('b', { text: title }), h('small', { text: game.name ?? '' })),
+        category(t('pc_data'), prop(t('pp_name'), h('span', { text: game.name ?? '' })), prop(t('pp_mode'), h('span', { text: t('mode_' + (game.mode || 'build')) })), prop(t('pp_blocks'), h('span', { text: String(index.size) })), prop(t('pp_parts'), h('span', { text: `${parts.length} / ${MAX_PARTS}` })), prop(t('pp_visibility'), h('span', { text: t('vis_' + (game.config?.visibility ?? (game.config?.draft ? 'private' : 'public'))) }))),
+        h('div', { class: 'st-pad' }, h('small', { class: 'muted', text: t('pp_empty') }), h('button', { type: 'button', class: 'btn tiny', text: t('game_page'), onclick: () => rightTabs?.set('game') }), h('button', { type: 'button', class: 'btn tiny', text: t('st_env'), onclick: () => rightTabs?.set('env') })))
+      return
+    }
+    const sel = [selPart, ...multi].filter(i => parts[i])
+    const setAll = (k, v) => { for (const i of sel) parts[i][k] = v; refreshParts() }
+    const num = (k, step = 0.5, extra) => { const i = h('input', { type: 'number', step, value: +(+(p[k] ?? 0)).toFixed(3) }); i.oninput = () => { if (i.value !== '' && Number.isFinite(+i.value)) { if (extra === 'move') { const d = +i.value - p[k]; movePart(selPart, k === 'x' ? d : 0, k === 'y' ? d : 0, k === 'z' ? d : 0); refreshParts() } else setAll(k, +i.value) } }; return i }
+    const selb = (k, list, lab = x => x) => { const s = h('select', {}, list.map(v => h('option', { value: v, text: lab(v), selected: (p[k] ?? list[0]) === v }))); s.onchange = () => setAll(k, s.value); return s }
+    const chk = (k, d = true) => { const i = h('input', { type: 'checkbox', checked: d ? p[k] !== false : !!p[k] }); i.onchange = () => setAll(k, i.checked); return i }
+    const hex = h('input', { type: 'text', value: p.color || '#a3a2a5', maxlength: 7 }), col = h('input', { type: 'color', value: p.color || '#a3a2a5' })
+    col.oninput = () => { hex.value = col.value; setAll('color', col.value) }; hex.onchange = () => { if (/^#[0-9a-fA-F]{6}$/.test(hex.value)) { col.value = hex.value; setAll('color', hex.value) } }
+    const tr = h('input', { type: 'number', min: 0, max: 1, step: 0.05, value: p.transparency || 0 }); tr.oninput = () => setAll('transparency', Math.max(0, Math.min(1, +tr.value || 0)))
+    const name = h('input', { type: 'text', value: p.name, maxlength: 24 }); name.onchange = () => { const n = name.value.replace(/[^\w ]/g, '').slice(0, 24).trim(); if (n) { p.name = n; refreshParts() } }
+    const grp = h('input', { type: 'text', value: p.group ?? '', maxlength: 16, placeholder: '—' }); grp.onchange = () => { const v = grp.value.replace(/[^\w]/g, '').slice(0, 16); for (const i of sel) { if (v) parts[i].group = v; else delete parts[i].group } refreshParts() }
+    const lcol = h('input', { type: 'color', value: p.lightColor || '#ffd9a0' }); lcol.oninput = () => setAll('lightColor', lcol.value)
+    const cls = p.type === 'spawn' ? 'SpawnLocation' : p.shape === 'Ball' ? 'Part (Ball)' : p.shape === 'Cylinder' ? 'Part (Cylinder)' : 'Part'
+    c.append(h('div', { class: 'st-head' }, h('b', { text: p.name }), h('small', { text: sel.length > 1 ? t('st_multi_n', { n: sel.length }) : cls })),
+      category(t('pc_appearance'), prop(t('st_color'), col, hex), prop(t('st_material'), selb('material', MATERIALS)), prop(t('st_transp'), tr), prop(t('st_shape'), selb('shape', SHAPES))),
+      category(t('pc_data'), prop(t('pp_name'), name), prop('ClassName', h('span', { class: 'muted', text: cls })), prop(t('pp_model'), grp), prop(t('st_lock'), chk('locked', false)), prop(t('st_hide'), chk('eh', false))),
+      category(t('pc_transform'), prop('Position X', num('x', 0.5, 'move')), prop('Position Y', num('y', 0.5, 'move')), prop('Position Z', num('z', 0.5, 'move')), prop('Size X', num('sx')), prop('Size Y', num('sy')), prop('Size Z', num('sz')), prop(t('st_rot'), num('ry', 15))),
+      category(t('pc_behavior'), prop(t('st_anchored'), chk('anchored')), prop(t('st_collide'), chk('collide')), prop(t('st_climb'), chk('climb', false)), prop(t('st_light'), num('light'), lcol), prop(t('pp_range'), num('lightRange', 1))),
+      sel.length > 1 ? category(t('pc_arrange'), h('div', { class: 'st-pad' }, h('div', { class: 'row-btns' }, ...[['x', 'st_align_x'], ['y', 'st_align_y'], ['z', 'st_align_z']].map(([ax, k]) => h('button', { type: 'button', class: 'btn tiny', text: t(k), onclick: () => alignSel(ax) })), ...[['x', 'st_dist_x'], ['z', 'st_dist_z']].map(([ax, k]) => h('button', { type: 'button', class: 'btn tiny', text: t(k), onclick: () => distributeSel(ax) }))))) : null,
+      h('div', { class: 'st-pad' }, h('div', { class: 'row-btns' }, h('button', { type: 'button', class: 'btn tiny', text: t('st_dup'), onclick: duplicateSelected }), h('button', { type: 'button', class: 'btn tiny', text: t('cm_group'), onclick: groupSelected }), h('button', { type: 'button', class: 'btn tiny', text: t('cm_focus'), onclick: () => focusPart(selPart) }), h('button', { type: 'button', class: 'btn tiny danger', text: t('st_del_part'), onclick: deleteSelected }))))
   }
 
-  // ---------- panel de entorno ----------
-  const envBox = h('div', { id: 'studio-env', class: 'hidden' }); g.append(envBox)
-  function openEnv() {
-    emit('env')
-    if (!envBox.classList.contains('hidden')) return envBox.classList.add('hidden')
+  // ---------- entorno: iluminación, física y reglas (pestaña Environment) ----------
+  function buildEnv(c0) {
     const c = game.config = game.config ?? {}
-    const numf = (k, label, d, step = 1, min = -999, max = 999) => { const i = h('input', { type: 'number', step, min, max, value: c[k] ?? d }); i.oninput = () => { if (i.value === '') delete c[k]; else c[k] = +i.value; cfg[k] = c[k]; onEnv(k, c[k]) }; return h('label', {}, label, i) }
-    const bool = (k, label, d) => { const i = h('input', { type: 'checkbox', checked: c[k] ?? d }); i.onchange = () => { c[k] = i.checked; cfg[k] = i.checked; onEnv(k, i.checked) }; return h('label', { class: 'chk' }, i, label) }
+    const numf = (k, d, step = 1, min = -999, max = 999) => { const i = h('input', { type: 'number', step, min, max, value: c[k] ?? d }); i.oninput = () => { if (i.value === '') delete c[k]; else c[k] = +i.value; cfg[k] = c[k]; onEnv(k, c[k]) }; return i }
+    const bool = (k, d) => { const i = h('input', { type: 'checkbox', checked: c[k] ?? d }); i.onchange = () => { c[k] = i.checked; cfg[k] = i.checked; onEnv(k, i.checked) }; return i }
     const sky = h('select', {}, SKIES.map(s => h('option', { value: s, text: t('sky_' + s), selected: (c.sky ?? 'day') === s && c.time !== 0 })), h('option', { value: 'auto', text: t('ed_time').split(' (')[0] + ' ⟳', selected: c.time === 0 }))
-    const hour = h('input', { type: 'range', min: 1, max: 24, step: 1, value: c.time || 12 }); hour.oninput = () => { c.time = +hour.value; delete c.sky; cfg.time = c.time; cfg.sky = undefined; sky.value = 'auto'; sky.options[sky.options.length - 1].textContent = t('st_hour', { h: hour.value }); onEnv('hour', c.time) }
+    const hour = h('input', { type: 'range', min: 1, max: 24, step: 1, value: c.time || 12 }); hour.oninput = () => { c.time = +hour.value; delete c.sky; cfg.time = c.time; cfg.sky = undefined; sky.value = 'auto'; onEnv('hour', c.time) }
     sky.onchange = () => { if (sky.value === 'auto') { c.time = 0; delete c.sky } else { c.sky = sky.value; delete c.time }; cfg.sky = c.sky; cfg.time = c.time; onEnv('sky', sky.value) }
     const wx = h('select', { onchange: e => { c.weather = e.target.value; cfg.weather = c.weather; onEnv('weather', c.weather) } }, ['', 'rain', 'snow'].map(v => h('option', { value: v, text: t('weather_' + (v || 'none')), selected: (c.weather ?? '') === v })))
     const tr = h('select', { onchange: e => { c.track = e.target.value; cfg.track = c.track } }, h('option', { value: '', text: t('track_any') })); music.listTracks().then(l => l.forEach(x => tr.append(h('option', { value: x.file, text: x.title, selected: c.track === x.file }))))
-    const wel = h('input', { value: c.welcome ?? '', maxlength: 120, placeholder: t('env_welcome') }); wel.oninput = () => { c.welcome = wel.value; cfg.welcome = wel.value }
-    envBox.replaceChildren(h('b', { text: t('st_env') }), h('label', {}, t('ed_sky'), sky), h('label', {}, t('st_time_slider'), hour), numf('gravity', t('env_gravity'), 24, 1, 0, 80), numf('speed', t('env_speed'), 6, 0.5, 1, 30), numf('jump', t('env_jump'), 8.6, 0.5, 1, 30), numf('fog', t('env_fog'), 1, 0.1, 0.25, 2), h('label', {}, t('env_weather'), wx), h('label', {}, t('env_track'), tr), h('label', {}, t('env_welcome'), wel),
-      bool('allow_chat', t('env_chat'), true), bool('allow_emotes', t('env_emotes'), true), bool('allow_fly', t('env_fly'), true), bool('allow_build', t('env_build'), false), bool('double_jump', t('env_dj'), false), bool('allow_crouch', t('env_crouch'), true), bool('draft', t('env_draft'), false))
-    envBox.classList.remove('hidden')
+    const wel = h('input', { type: 'text', value: c.welcome ?? '', maxlength: 120, placeholder: t('env_welcome') }); wel.oninput = () => { c.welcome = wel.value; cfg.welcome = wel.value }
+    c0.append(h('div', { class: 'st-head' }, h('b', { text: t('st_env') }), h('small', { text: 'Lighting · Workspace' })),
+      category('Lighting', prop(t('ed_sky'), sky), prop(t('st_time_slider'), hour), prop(t('env_fog'), numf('fog', 1, 0.1, 0.25, 2)), prop(t('env_weather'), wx)),
+      category('Workspace', prop(t('env_gravity'), numf('gravity', 24, 1, 0, 80)), prop(t('env_speed'), numf('speed', 6, 0.5, 1, 30)), prop(t('env_jump'), numf('jump', 8.6, 0.5, 1, 30)), prop(t('env_dj'), bool('double_jump', false)), prop(t('env_crouch'), bool('allow_crouch', true)), prop(t('env_fly'), bool('allow_fly', true))),
+      category(t('pc_rules'), prop(t('env_chat'), bool('allow_chat', true)), prop(t('env_emotes'), bool('allow_emotes', true)), prop(t('env_build'), bool('allow_build', false))),
+      category(t('pc_audio'), prop(t('env_track'), tr), prop(t('env_welcome'), wel)))
   }
+  const openEnv = () => { emit('env'); rightTabs?.set('env') }
 
   // ---------- versiones (instantáneas locales) e indicador de guardado ----------
   const SNAP_KEY = `blocksy.snaps.${game.id}`, MAX_SNAPS = 10
@@ -261,19 +345,18 @@ export function createStudio(ctx) {
       const saveSym = state.sym; state.sym = 'off'; commit(ops); state.sym = saveSym
     }
     game.script = s.script; game.config = { ...s.config, ui: game.config?.ui, parts: game.config?.parts }
-    parts.length = 0; parts.push(...s.parts.map(p => ({ ...p }))); selPart = -1; multi.clear(); refreshParts(); partInsp.classList.add('hidden')
+    parts.length = 0; parts.push(...s.parts.map(p => ({ ...p }))); selPart = -1; multi.clear(); refreshParts(); paintProps()
     showTitle(t('st_snap_restored'), 1800)
   }
-  const versionsBox = h('div', { id: 'studio-versions', class: 'hidden' }); g.append(versionsBox)
   function paintVersions() {
-    if (versionsBox.classList.contains('hidden')) return
+    if (!verHost?.isConnected || rightTabs?.cur !== 'versions') return
     const l = readSnaps()
-    versionsBox.replaceChildren(h('b', { text: t('st_versions') }), h('button', { type: 'button', class: 'btn tiny primary', text: '+ ' + t('st_snap_new'), onclick: () => { takeSnapshot(t('st_snap_manual')); sfx.click() } }),
+    verHost.replaceChildren(h('b', { text: t('st_versions') }), h('button', { type: 'button', class: 'btn tiny primary', text: '+ ' + t('st_snap_new'), onclick: () => { takeSnapshot(t('st_snap_manual')); sfx.click() } }),
       ...l.map((s, i) => ({ s, i })).reverse().map(({ s, i }) => h('div', { class: 'ver-row' }, h('div', { class: 'grow' }, h('span', { text: s.label }), h('small', { text: `${new Date(s.at).toLocaleString(getLang())} · ${s.nb} ${t('st_blocks')}${s.blocks ? '' : ' (' + t('st_snap_noblocks') + ')'} · ${s.parts.length} ${t('st_parts')}` })),
         h('button', { type: 'button', class: 'btn tiny', text: t('st_snap_restore'), onclick: () => restoreSnapshot(i) }), h('button', { type: 'button', class: 'btn tiny danger', text: '×', onclick: () => { const q = readSnaps(); q.splice(i, 1); writeSnaps(q); paintVersions() } }))),
       !l.length ? h('small', { class: 'muted', text: t('st_snap_none') }) : null)
   }
-  const toggleVersions = () => { versionsBox.classList.toggle('hidden'); paintVersions() }
+  const toggleVersions = () => rightTabs?.set('versions')
   let lastSaved = 0, savedEl
   const paintSaved = () => { if (!savedEl) return; savedEl.textContent = lastSaved ? `✓ ${new Date(lastSaved).toLocaleTimeString(getLang(), { hour: '2-digit', minute: '2-digit' })}` : t('st_notsaved'); savedEl.classList.toggle('dirty', !lastSaved) }
   const doSave = async silent => { const ok = await onSave(silent); if (ok) { emit('save'); lastSaved = Date.now(); paintSaved(); if (silent !== true) takeSnapshot(t('st_snap_save')) } return ok }
@@ -314,7 +397,7 @@ export function createStudio(ctx) {
   }
   // ---------- barra de herramientas ----------
   const TOOLS = [['place', 'plus'], ['erase', 'trash'], ['paint', 'edit'], ['pick', 'search'], ['box', 'box'], ['shape', 'sphere'], ['line', 'line'], ['replace', 'replace'], ['select', 'select'], ['stamp', 'cube'], ['part', 'part'], ['terrain', 'mountain'], ['measure', 'ruler'], ['ui', 'chat']]
-  const opts = h('div', { id: 'studio-opts', class: 'hidden' }); g.append(opts)
+  const opts = h('div', { id: 'studio-opts', class: 'rb-opts hidden' }); docks.top.append(opts)
   const btnFor = {}
   function paintOpts() {
     const L = []
@@ -333,7 +416,7 @@ export function createStudio(ctx) {
     }
     if (state.tool === 'part') L.push(h('select', { onchange: e => { state.grid = Number(e.target.value) } }, [0, 0.25, 0.5, 1].map(v => h('option', { value: v, text: `${t('st_grid')}: ${v || t('st_sym_off')}`, selected: state.grid === v }))), h('button', { type: 'button', class: 'chip on', text: '+ ' + t('st_add_part'), onclick: () => newPart('part') }), h('button', { type: 'button', class: 'chip', text: '+ ' + t('st_add_spawn'), onclick: () => newPart('spawn') }), h('button', { type: 'button', class: 'chip', text: '+ ' + t('st_torch'), onclick: () => newPart('torch') }), h('button', { type: 'button', class: 'chip', text: '+ ' + t('st_lamp'), onclick: () => newPart('lamp') }))
     L.push(h('span', { class: 'hint', text: t('st_hint_' + state.tool) }))
-    opts.replaceChildren(...L); opts.classList.remove('hidden'); requestAnimationFrame(() => { opts.style.top = Math.round(bar.getBoundingClientRect().bottom + 8) + 'px' })
+    opts.replaceChildren(...L); opts.classList.remove('hidden'); docks.apply()
   }
   function setTool(n) {
     state.tool = n; state.a = null; wire.visible = false; stamp.visible = false; emit('tool:' + n)
@@ -341,22 +424,50 @@ export function createStudio(ctx) {
     setUiTool(n === 'ui')
     if (n !== 'measure') measureLine.visible = false
     if (n !== 'select') { state.region = null; if (selPart < 0 || n !== 'part') selWire.visible = false }
-    if (n === 'part') { openPartInspector(); updateSelBox() } else partInsp.classList.add('hidden')
+    if (n === 'part') { openPartInspector(); updateSelBox() } else paintProps()
     paintOpts()
   }
   let undoBtn, redoBtn
   function paintHistory() { if (undoBtn) { undoBtn.disabled = !undoS.length; redoBtn.disabled = !redoS.length } }
   const mkBtn = (id, ic, label, fn, cls = '') => { const b = h('button', { id, class: 'st-btn ' + cls, title: label, onclick: fn, html: icon(ic, 18) + `<span>${label}</span>` }); return b }
-  let compact = true; try { compact = localStorage.getItem('blocksy.studio.compact') !== '0' } catch {}
+  const rbBtn = (id, ic, label, fn, cls = '') => h('button', { id, type: 'button', class: 'rb-btn ' + cls, title: label, onclick: fn, html: icon(ic, 22) + `<span>${label}</span>` })
   function buildBar() {
-    const items = TOOLS.map(([k, ic]) => { const b = mkBtn('st-' + k, ic, t('st_' + k), () => setTool(k), k === 'place' ? 'on' : ''); btnFor[k] = b; return b })
-    const symBtn = mkBtn('st-sym', 'mirror', t('st_sym'), () => { state.sym = { off: 'x', x: 'z', z: 'xz', xz: 'off' }[state.sym]; symBtn.classList.toggle('on', state.sym !== 'off'); symBtn.title = `${t('st_sym')}: ${state.sym}`; showTitle(`${t('st_sym')}: ${state.sym === 'off' ? t('st_sym_off') : state.sym.toUpperCase()}`, 1200) })
-    undoBtn = mkBtn('st-undo', 'undo', t('st_undo'), undo); redoBtn = mkBtn('st-redo', 'redo', t('st_redo'), redo)
-    bar.classList.toggle('compact', compact)
-    bar.replaceChildren(mkBtn('st-compact', 'menu', t('st_compact'), () => { compact = !compact; try { localStorage.setItem('blocksy.studio.compact', compact ? '1' : '0') } catch {} buildBar() }, compact ? 'on' : ''), ...items, h('i', { class: 'st-sep' }), mkBtn('st-addtext', 'chat', t('st_addtext'), () => { onAddText(); setTool('ui') }), symBtn, undoBtn, redoBtn, mkBtn('st-grid', 'grid', t('st_gridview'), () => { gridHelper.visible = !gridHelper.visible; document.getElementById('st-grid')?.classList.toggle('on', gridHelper.visible) }), mkBtn('st-explorer', 'menu', t('st_explorer'), toggleExplorer), mkBtn('st-versions', 'undo', t('st_versions'), toggleVersions), mkBtn('st-check', 'check', t('st_checklist'), openChecklist), mkBtn('st-page', 'globe', t('game_page'), openGamePage), mkBtn('st-export', 'send', t('st_export'), exportGame), mkBtn('st-thumb', 'camera', t('st_thumb'), async () => { const d = await captureThumb?.(); if (!d) return showTitle(t('st_thumb_fail'), 1800); game.config = { ...(game.config ?? {}), thumb: d }; cfg.thumb = d; showTitle(t('st_thumb_ok'), 1800); sfx.click() }), mkBtn('st-env', 'sliders', t('st_env'), openEnv), mkBtn('st-script', 'code', t('ed_script'), onScript), mkBtn('st-help', 'search', t('st_shortcuts'), () => helpBox.classList.toggle('hidden')),
-      h('i', { class: 'st-sep' }), mkBtn('st-test', 'play', t('st_test'), onTestToggle, 'lbl'), mkBtn('st-save', 'check', t('save'), () => doSave(), 'primary lbl'), (savedEl = h('span', { class: 'st-saved dirty', text: t('st_notsaved') })), mkBtn('st-exit', 'back', t('close'), onExit, 'lbl'))
+    const tool = k => { const ic = TOOLS.find(x => x[0] === k)[1]; const b = rbBtn('st-' + k, ic, t('st_' + k), () => setTool(k), k === 'place' ? 'on' : ''); btnFor[k] = b; return b }
+    const group = (cap, cls, ...btns) => h('div', { class: 'rb-group ' + cls }, h('div', { class: 'rb-row' }, ...btns), h('div', { class: 'rb-cap', text: cap }))
+    const symBtn = rbBtn('st-sym', 'mirror', t('st_sym'), () => { state.sym = { off: 'x', x: 'z', z: 'xz', xz: 'off' }[state.sym]; symBtn.classList.toggle('on', state.sym !== 'off'); symBtn.title = `${t('st_sym')}: ${state.sym}`; showTitle(`${t('st_sym')}: ${state.sym === 'off' ? t('st_sym_off') : state.sym.toUpperCase()}`, 1200) })
+    undoBtn = rbBtn('st-undo', 'undo', t('st_undo'), undo); redoBtn = rbBtn('st-redo', 'redo', t('st_redo'), redo)
+    savedEl = h('span', { class: 'st-saved dirty', text: t('st_notsaved') })
+    bar.replaceChildren(
+      h('div', { class: 'rb-title' }, h('b', { text: 'Blocksy Studio' }), h('span', { text: '·' }), h('span', { text: game.name ?? '' }), h('span', { class: 'grow' }), savedEl,
+        h('button', { type: 'button', class: 'btn tiny', text: t('st_shortcuts'), onclick: () => helpBox.classList.toggle('hidden') })),
+      h('div', { class: 'rb-ribbon' },
+        group(t('rg_blocks'), '', tool('place'), tool('erase'), tool('paint'), tool('pick')),
+        group(t('rg_build'), '', tool('box'), tool('shape'), tool('line'), tool('replace'), tool('stamp'), tool('terrain')),
+        group(t('rg_parts'), '', tool('part'), rbBtn('st-newpart', 'cube', t('st_add_part'), () => newPart('part')), rbBtn('st-newspawn', 'flag', t('st_add_spawn'), () => newPart('spawn')), tool('select'), tool('measure')),
+        group(t('rg_edit'), '', undoBtn, redoBtn, symBtn, rbBtn('st-grid', 'grid', t('st_gridview'), () => { gridHelper.visible = !gridHelper.visible; document.getElementById('st-grid')?.classList.toggle('on', gridHelper.visible) })),
+        group('UI', '', tool('ui'), rbBtn('st-addtext', 'chat', t('st_addtext'), () => { onAddText(); setTool('ui') })),
+        group(t('rg_script'), '', rbBtn('st-script', 'code', t('ed_script'), onScript), rbBtn('st-check', 'check', t('st_checklist'), openChecklist), rbBtn('st-export', 'send', t('st_export'), exportGame), rbBtn('st-thumb', 'camera', t('st_thumb'), async () => { const d = await captureThumb?.(); if (!d) return showTitle(t('st_thumb_fail'), 1800); game.config = { ...(game.config ?? {}), thumb: d }; cfg.thumb = d; showTitle(t('st_thumb_ok'), 1800); sfx.click() })),
+        group(t('rg_test'), 'keep', rbBtn('st-test', 'play', t('st_test'), onTestToggle), rbBtn('st-save', 'check', t('save'), () => doSave(), 'primary'), rbBtn('st-page', 'globe', t('game_page'), () => rightTabs?.set('game')), rbBtn('st-exit', 'back', t('close'), onExit, 'danger'))))
     paintHistory(); setTool('place')
   }
+  // paneles: Explorer/Toolbox a la izquierda, Properties/Environment/Game/Versions a la derecha y Output abajo
+  const TB_PARTS = [['part', 'cube', 'tb_block', () => newPart('part')], ['ball', 'sphere', 'tb_ball', () => newPart('part', 'Ball')], ['cyl', 'cylinder', 'tb_cyl', () => newPart('part', 'Cylinder')], ['spawn', 'flag', 'st_add_spawn', () => newPart('spawn')], ['torch', 'sliders', 'st_torch', () => newPart('torch')], ['lamp', 'sphere', 'st_lamp', () => newPart('lamp')]]
+  function renderToolbox(c) {
+    const tile = (ic, label, fn) => h('button', { type: 'button', class: 'tb-item', onclick: fn, html: icon(ic, 22) + `<span>${label}</span>` })
+    c.append(h('div', { class: 'tb-title', text: t('tb_parts') }), h('div', { class: 'tb-grid' }, TB_PARTS.map(([, ic, k, fn]) => tile(ic, t(k), fn))),
+      h('div', { class: 'tb-title', text: t('tb_structures') }), h('div', { class: 'tb-grid' }, Object.keys(PREFABS).map(k => tile('cube', t('pf_' + k), () => { state.prefab = k; setTool('stamp') }))),
+      Object.keys(myPrefabs()).length ? [h('div', { class: 'tb-title', text: t('tb_mine') }), h('div', { class: 'tb-grid' }, Object.keys(myPrefabs()).map(n => tile('star', n, () => { state.prefab = 'my:' + n; setTool('stamp') })))] : null)
+  }
+  function paintOutput() {
+    if (!outHost?.isConnected) return
+    const L = scriptConsole.items.slice(-60)
+    outHost.querySelector('.out-body').replaceChildren(...(L.length ? L.map(it => h('div', { class: 'con-row ' + it.kind, text: (it.kind === 'error' ? '! ' : '› ') + it.text })) : [h('small', { class: 'muted', text: t('ed_console_empty') })]))
+    const b = outHost.querySelector('.out-body'); b.scrollTop = b.scrollHeight
+  }
+  scriptConsole.on(paintOutput)
+  leftTabs = tabbed(docks.left, [{ id: 'explorer', label: 'Explorer', render: renderExplorer }, { id: 'toolbox', label: 'Toolbox', render: renderToolbox }])
+  rightTabs = tabbed(docks.right, [{ id: 'props', label: 'Properties', render: c => { propsHost = c; paintProps() } }, { id: 'env', label: t('st_env'), render: c => buildEnv(c) }, { id: 'game', label: t('game_page'), render: c => c.append(h('div', { class: 'st-pad' }, gameInfoEditor(game, { capture: (w, hh) => captureThumb?.(w, hh) }))) }, { id: 'versions', label: t('st_versions'), render: c => { verHost = c; paintVersions() } }])
+  tabbed(docks.bottom, [{ id: 'out', label: 'Output', render: c => { outHost = c; c.append(h('div', { class: 'out-bar' }, h('small', { class: 'muted', text: t('ed_console') }), h('button', { type: 'button', class: 'btn tiny', text: t('clear'), onclick: () => scriptConsole.clear() })), h('div', { class: 'out-body' })); paintOutput() } }])
   buildBar(); tutReady = true; paintTut()
 
   // ---------- selección / copiar / pegar ----------
@@ -499,8 +610,11 @@ export function createStudio(ctx) {
     }
     if (ctrl && e.code === 'KeyD' && state.tool === 'part' && selPart >= 0) { e.preventDefault(); const src = [selPart, ...multi].filter(i => parts[i]); multi.clear(); let last = -1; for (const i of src) { if (parts.length >= MAX_PARTS) break; parts.push({ ...parts[i], name: parts[i].name.replace(/\d*$/, '') + (parts.length + 1), x: parts[i].x + 1, z: parts[i].z + 1 }); if (last >= 0) multi.add(last); last = parts.length - 1 } selPart = last; refreshParts(); openPartInspector(); sfx.place(); return true }
     if (ctrl && e.code === 'KeyA' && state.tool === 'part') { e.preventDefault(); multi.clear(); parts.forEach((_, i) => { if (i !== 0) multi.add(i) }); selPart = parts.length ? 0 : -1; updateSelBox(); openPartInspector(); paintExplorer(); return true }
-    if (e.code === 'Escape' && (selPart >= 0 || multi.size)) { selPart = -1; multi.clear(); updateSelBox(); partInsp.classList.add('hidden'); paintExplorer(); return true }
+    if (e.code === 'Escape' && (selPart >= 0 || multi.size)) { selPart = -1; multi.clear(); updateSelBox(); paintProps(); paintExplorer(); return true }
     if (e.code === 'F1') { e.preventDefault(); helpBox.classList.toggle('hidden'); return true }
+    if (ctrl && e.code === 'KeyG' && selPart >= 0) { e.preventDefault(); groupSelected(); return true }
+    if (ctrl && e.code === 'KeyU' && selPart >= 0) { e.preventDefault(); ungroupSelected(); return true }
+    if (e.code === 'KeyF' && !ctrl && selPart >= 0 && state.tool === 'part') { focusPart(selPart); return true }
     if (ctrl && e.code === 'KeyZ') { e.preventDefault(); e.shiftKey ? redo() : undo(); return true }
     if (ctrl && e.code === 'KeyY') { e.preventDefault(); redo(); return true }
     if (ctrl && e.code === 'KeyC' && state.tool === 'part' && selPart >= 0) { e.preventDefault(); partClip = targets(selPart).map(k => ({ ...parts[k] })); showTitle(t('st_done_n', { n: partClip.length }), 1000); return true }
@@ -524,7 +638,7 @@ export function createStudio(ctx) {
     }
     return false
   }
-  function setTesting(on) { testing = on; applyHidden(); bar.classList.toggle('testing', on); if (on) { opts.classList.add('hidden'); partInsp.classList.add('hidden'); envBox.classList.add('hidden'); wire.visible = stamp.visible = selWire.visible = false } else { paintOpts(); if (state.tool === 'part') openPartInspector(); rbx.reset(); rbx.spawnStatic(parts) } }
+  function setTesting(on) { testing = on; applyHidden(); bar.classList.toggle('testing', on); docks.left.style.display = docks.right.style.display = docks.bottom.style.display = on ? 'none' : ''; g.classList.toggle('st-testing', on); if (on) { opts.classList.add('hidden'); wire.visible = stamp.visible = selWire.visible = false } else { paintOpts(); if (state.tool === 'part') openPartInspector(); rbx.reset(); rbx.spawnStatic(parts) } }
   // arrastrar piezas con el ratón (Mayús = subir y bajar); el grupo entero se mueve a la vez
   const dragRay = new THREE.Raycaster(), dragPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), hitPt = new THREE.Vector3()
   const ndcOf = e => { const r = canvas.getBoundingClientRect(); return new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1) }
@@ -551,6 +665,6 @@ export function createStudio(ctx) {
   }
   function pointerUp() { if (!dragPart) return false; dragPart = null; refreshParts(); openPartInspector(); return true }
   refreshParts()
-  function dispose() { for (const o of [wire, stamp, selWire, gridHelper, measureLine, ...extraWires]) scene.remove(o); helpBox.remove(); stampGeo.dispose(); stampMat.dispose(); stamp.dispose(); opts.remove(); partInsp.remove(); envBox.remove(); explorer.remove(); versionsBox.remove(); listBox.remove(); tutEl?.remove(); clearInterval(tipTimer) }
+  function dispose() { for (const o of [wire, stamp, selWire, gridHelper, measureLine, ...extraWires]) scene.remove(o); helpBox.remove(); stampGeo.dispose(); stampMat.dispose(); stamp.dispose(); opts.remove(); listBox.remove(); tutEl?.remove(); clearInterval(tipTimer); g.append(bar); bar.replaceChildren(); docks.dispose(); document.getElementById('st-ctx')?.remove() }
   return { save: doSave, interact, update, keydown, pointerDown, pointerMove, pointerUp, undo, redo, setTool, setTesting, dispose, flush, get tool() { return state.tool }, get parts() { return parts } }
 }

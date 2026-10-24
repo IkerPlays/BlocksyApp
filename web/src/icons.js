@@ -47,6 +47,7 @@ const P = {
   replace: '<path d="M5 8h11l-3-3M19 16H8l3 3"/>',
   mirror: '<path d="M12 3v18M4 7l5 5-5 5zM20 7l-5 5 5 5z"/>',
   trophy: '<path d="M8 4h8v6a4 4 0 0 1-8 0z"/><path d="M8 6H4.5c0 3 1.5 4.5 3.5 4.5M16 6h3.5c0 3-1.5 4.5-3.5 4.5M12 14v4M8.5 20h7"/>',
+  cylinder: '<ellipse cx="12" cy="6" rx="6.5" ry="2.5"/><path d="M5.5 6v12c0 1.4 2.9 2.5 6.5 2.5s6.5-1.1 6.5-2.5V6"/>',
   mountain: '<path d="M3 19 9.5 7l4 7 2.5-4L21 19z"/>',
   ruler: '<path d="M3 15 15 3l6 6L9 21z"/><path d="m7 11 2 2M10 8l2 2M13 5l2 2"/>',
   grid: '<path d="M4 4h16v16H4zM4 12h16M12 4v16"/>',
