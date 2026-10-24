@@ -4,6 +4,7 @@ import { MORE } from './i18n-more.js'
 const D = {
   es: {
     lang_name: 'Español',
+    mod_kind_clanmsg: 'Chat de clan',
     tpl_dodge: 'Esquiva', tpl_dodge_d: 'Multijugador: esquiva los bloques que caen',
     tpl_koth: 'Rey de la colina', tpl_koth_d: 'Multijugador: quédate en el círculo',
     ach_clanmate: 'De clan', ach_clanmate_d: 'Crea un clan o únete a uno.', ach_planner: 'Organizador', ach_planner_d: 'Crea una quedada o apúntate a una.', ach_collaborator: 'En equipo', ach_collaborator_d: 'Edita un juego con otra persona en el Studio.', ach_animator: 'Animador', ach_animator_d: 'Aplica una animación a una pieza.',
@@ -137,6 +138,7 @@ const D = {
   },
   en: {
     lang_name: 'English',
+    mod_kind_clanmsg: 'Clan chat',
     tpl_dodge: 'Dodge', tpl_dodge_d: 'Multiplayer: dodge the falling blocks',
     tpl_koth: 'King of the hill', tpl_koth_d: 'Multiplayer: stay inside the circle',
     ach_clanmate: 'Clanmate', ach_clanmate_d: 'Create a clan or join one.', ach_planner: 'Organizer', ach_planner_d: 'Create a meetup or sign up for one.', ach_collaborator: 'Teamwork', ach_collaborator_d: 'Edit a game with someone else in the Studio.', ach_animator: 'Animator', ach_animator_d: 'Apply an animation to a part.',

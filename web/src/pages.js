@@ -191,12 +191,12 @@ function visitsStat(id) {
   social.gameVisits().then(v => { if (v[id] != null) { b.textContent = Number(v[id]).toLocaleString(getLang()); box.classList.remove('hidden') } })
   return box
 }
-function openReport(name, extra = '', msgId = null) {
+function openReport(name, extra = '', msgId = null, clanMsg = false) {
   const reasons = ['spam', 'abuse', 'cheating', 'inappropriate', 'other']
   const sel = el('select', {}, reasons.map(r => el('option', { value: r, text: t('rep_' + r) })))
   const det = el('textarea', { class: 'bio-edit', rows: 3, maxlength: 300, placeholder: t('rep_details') })
   setKids($('modal-card'), el('div', { class: 'detail-col' }, el('h2', { text: t('report') + ': ' + name }), el('label', { class: 'field' }, t('rep_reason'), sel), det,
-    el('div', { class: 'form-row' }, el('button', { class: 'btn danger', text: t('report'), onclick: async () => { try { if (msgId) await social.reportMessage(msgId, sel.value); else await social.reportUser(name, sel.value, (extra ? extra + ' | ' : '') + det.value); toast(t('rep_sent')); closeModal() } catch (e) { toast(e.message) } } }), el('button', { class: 'btn', text: t('cancel'), onclick: closeModal }))))
+    el('div', { class: 'form-row' }, el('button', { class: 'btn danger', text: t('report'), onclick: async () => { try { if (msgId && clanMsg) await social.reportClanMessage(msgId, sel.value); else if (msgId) await social.reportMessage(msgId, sel.value); else await social.reportUser(name, sel.value, (extra ? extra + ' | ' : '') + det.value); toast(t('rep_sent')); closeModal() } catch (e) { toast(e.message) } } }), el('button', { class: 'btn', text: t('cancel'), onclick: closeModal }))))
   $('modal').classList.remove('hidden')
 }
 export { openReport }

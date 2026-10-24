@@ -1,5 +1,5 @@
 // Clanes (chat y juegos compartidos) y quedadas con fecha. Necesita supabase/auth/v17.sql; sin él se explica qué falta.
-import { el, setKids, toast, avatarEl } from './pages.js'
+import { el, setKids, toast, avatarEl, openReport } from './pages.js'
 import { t, getLang } from './i18n.js'
 import { icon } from './icons.js'
 import * as social from './social.js'
@@ -34,7 +34,7 @@ export async function clanPage(root, ctx) {
   const names = Object.fromEntries(clan.members.map(m => [m.id, m]))
   const addMsg = m => {
     const mem = names[m.user_id], mine = m.user_id === me.id, atBottom = list.scrollHeight - list.scrollTop - list.clientHeight < 60
-    list.append(el('div', { class: `dm ${mine ? 'mine' : ''}` }, el('div', { class: 'bubble' }, mine ? null : el('b', { text: mem?.username ?? '?' }), el('span', { text: m.body }), el('small', { text: `${dayLabel(m.created_at)} ${fmtTime(m.created_at)}` }))))
+    list.append(el('div', { class: `dm ${mine ? 'mine' : ''}` }, el('div', { class: 'bubble' }, mine ? null : el('b', { text: mem?.username ?? '?' }), el('span', { text: m.body }), mine ? null : el('button', { class: 'btn tiny', html: icon('flag', 12), title: t('report'), onclick: () => openReport(mem?.username ?? '?', '', m.id, true) }), el('small', { text: `${dayLabel(m.created_at)} ${fmtTime(m.created_at)}` }))))
     if (atBottom) list.scrollTop = list.scrollHeight
   }
   const form = el('form', { class: 'dm-form', onsubmit: async e => { e.preventDefault(); const b = input.value.trim(); if (!b) return; input.value = ''; await run(() => social.clanSend(b)) } }, input, el('button', { class: 'btn blue', html: icon('send', 18), title: t('send') }))
@@ -118,13 +118,14 @@ export async function moderationPage(root, ctx) {
     return el('div', { class: 'panel mod-card' },
       el('div', { class: 'row-btns' }, el('span', { class: 'rarity ' + (r.kind === 'message' ? 'epic' : 'rare'), text: t('mod_kind_' + r.kind) }), el('b', { text: t('rep_' + r.reason) }), el('small', { class: 'muted', text: new Date(r.created_at).toLocaleString(getLang()) })),
       el('div', {}, el('a', { href: `/u/${encodeURIComponent(r.target)}`, text: r.target }), el('small', { class: 'muted', text: ' ' + t('mod_reported_by', { name: r.reporter }) + ' · ' + t('mod_reports_n', { n: r.reports_on_target }) }), r.banned ? el('b', { class: 'danger-txt', text: ' · ' + t('mod_is_banned') }) : null),
-      r.details ? (r.kind === 'message' ? media(r.details) : el('p', { class: 'muted', text: r.details })) : null,
+      r.details ? (r.kind === 'message' || r.kind === 'clanmsg' ? media(r.details) : el('p', { class: 'muted', text: r.details })) : null,
       r.note ? el('small', { class: 'muted', text: t('mod_note') + ': ' + r.note }) : null,
       el('div', { class: 'row-btns' },
         r.status === 'open' ? [el('button', { class: 'btn tiny', text: t('mod_dismiss'), onclick: () => act(() => social.modResolve(r.id, 'dismissed')) }), el('button', { class: 'btn tiny primary', text: t('mod_resolve'), onclick: () => { const n = prompt(t('mod_note'), ''); if (n !== null) act(() => social.modResolve(r.id, 'resolved', n)) } })]
           : el('button', { class: 'btn tiny', text: t('mod_reopen'), onclick: () => act(() => social.modResolve(r.id, 'open')) }),
         el('button', { class: 'btn tiny', text: t('mod_warn'), onclick: () => warn(r.target) }),
         el('button', { class: 'btn tiny danger', text: r.banned ? t('mod_unban') : t('mod_ban'), onclick: () => (r.banned ? act(() => social.modUnban(r.target)) : ban(r.target)) }),
+        (r.kind === 'clanmsg' && r.ref) ? el('button', { class: 'btn tiny danger', text: t('mod_del_msg'), onclick: () => { if (confirm(t('mod_del_msg') + '?')) act(() => social.modDeleteClanMessage(+r.ref)) } }) : null,
         r.kind === 'message' && r.ref ? el('button', { class: 'btn tiny danger', text: t('mod_del_msg'), onclick: () => { if (confirm(t('mod_del_msg') + '?')) act(() => social.modDeleteMessage(+r.ref)) } }) : null,
         gid ? el('button', { class: 'btn tiny danger', text: t('mod_block_game'), onclick: () => { const x = prompt(t('mod_reason'), ''); if (x !== null) act(() => social.modBlockGame(gid, x)) } }) : null))
   }

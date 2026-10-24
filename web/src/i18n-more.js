@@ -1,6 +1,7 @@
 // Traducciones completas de los textos añadidos desde la 1.3 (se mezclan en i18n.js; lo que ya esté traducido allí tiene prioridad).
 export const MORE = {
   pt: {
+    mod_kind_clanmsg: "Chat do clã",
     tpl_dodge: "Esquiva",
     tpl_dodge_d: "Multijogador: desvie dos blocos que caem",
     tpl_koth: "Rei da colina",
@@ -732,6 +733,7 @@ export const MORE = {
     lang_hint: "O idioma é aplicado na hora.",
   },
   fr: {
+    mod_kind_clanmsg: "Chat du clan",
     tpl_dodge: "Esquive",
     tpl_dodge_d: "Multijoueur : évite les blocs qui tombent",
     tpl_koth: "Roi de la colline",
@@ -1463,6 +1465,7 @@ export const MORE = {
     lang_hint: "La langue s'applique instantanément.",
   },
   de: {
+    mod_kind_clanmsg: "Clan-Chat",
     tpl_dodge: "Ausweichen",
     tpl_dodge_d: "Mehrspieler: weiche den fallenden Blöcken aus",
     tpl_koth: "König des Hügels",
@@ -2194,6 +2197,7 @@ export const MORE = {
     lang_hint: "Die Sprache wird sofort angewendet.",
   },
   it: {
+    mod_kind_clanmsg: "Chat del clan",
     tpl_dodge: "Schiva",
     tpl_dodge_d: "Multigiocatore: schiva i blocchi che cadono",
     tpl_koth: "Re della collina",
@@ -2942,6 +2946,7 @@ export const MORE = {
     invite_friends: "Invita amici",
   },
   pl: {
+    mod_kind_clanmsg: "Czat klanu",
     tpl_dodge: "Unik",
     tpl_dodge_d: "Wieloosobowa: unikaj spadających bloków",
     tpl_koth: "Król wzgórza",
@@ -3909,6 +3914,7 @@ export const MORE = {
     offline_ready: "Gotowe do użycia offline",
   },
   ru: {
+    mod_kind_clanmsg: "Чат клана",
     tpl_dodge: "Уворот",
     tpl_dodge_d: "Мультиплеер: уворачивайтесь от падающих блоков",
     tpl_koth: "Царь горы",
@@ -4876,6 +4882,7 @@ export const MORE = {
     offline_ready: "Готово к работе офлайн",
   },
   ja: {
+    mod_kind_clanmsg: "クランチャット",
     tpl_dodge: "よけまくれ",
     tpl_dodge_d: "マルチプレイ: 落ちてくるブロックをよけよう",
     tpl_koth: "キング・オブ・ザ・ヒル",
@@ -5843,6 +5850,7 @@ export const MORE = {
     offline_ready: "オフラインで使えます",
   },
   zh: {
+    mod_kind_clanmsg: "战队聊天",
     tpl_dodge: "躲避",
     tpl_dodge_d: "多人：躲开掉落的方块",
     tpl_koth: "山丘之王",
@@ -6810,6 +6818,7 @@ export const MORE = {
     offline_ready: "已可离线使用",
   },
   ko: {
+    mod_kind_clanmsg: "클랜 채팅",
     tpl_dodge: "피하기",
     tpl_dodge_d: "멀티플레이: 떨어지는 블록을 피하세요",
     tpl_koth: "언덕의 왕",

@@ -242,3 +242,5 @@ export const modBlocked = () => rpc('mod_blocked_list').then(r => r ?? [])
 let visits = null
 export async function gameVisits(force = false) { if (!visits || force) visits = await authDb.rpc('game_visit_counts').then(r => r.data ?? {}, () => ({})); return visits }
 export const visitGame = id => rpc('game_visit', { p_game: id }).then(n => { if (visits) visits[id] = Number(n); return n }, () => 0)
+export const reportClanMessage = (id, reason) => rpc('report_clan_message', { p_id: id, p_reason: reason })
+export const modDeleteClanMessage = id => rpc('mod_delete_clan_message', { p_id: id })

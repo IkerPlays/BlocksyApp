@@ -1,2 +1,3 @@
-Devbuild 78: Dodge template
-- New template: Dodge. Blocks fall at positions every player computes from the clock, so everyone sees the same ones without sending data. A hit sends you back to the center and resets your time; your best time stays on screen.
+Devbuild 79: report clan chat messages
+- Clan chat messages have a report button. Staff see them in Moderation (type Clan chat) and can delete the message.
+- Needs supabase/auth/v19.sql (after v17 and v18); without it the report button shows an error.
