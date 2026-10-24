@@ -129,6 +129,12 @@ jobs:
           echo "Title version: $n"
           echo "n=$n" >> "$GITHUB_OUTPUT"
 
+      - name: Native tests (updater core and Studio parts reader)
+        working-directory: 3ds
+        run: |
+          gcc -std=gnu11 -Wall -Isource tests/update_core_test.c source/update_core.c -o /tmp/uct && /tmp/uct
+          gcc -std=gnu11 -Wall -Isource tests/parts_test.c source/parts.c -o /tmp/pt -lm && /tmp/pt
+
       - name: Build .3dsx and .cia
         working-directory: 3ds
         run: make cia MAKEROM=makerom BANNERTOOL=bannertool BLOCKSY_VERSION=${{ needs.version.outputs.version }} APP_VER=${{ steps.tv.outputs.n }}
