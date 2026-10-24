@@ -141,7 +141,11 @@ function gameCard(g, counts, onOpen) {
   const thumb = el('div', { class: 'thumb' + (g.config?.thumb ? ' has-img' : ''), style: `--h:${g.hue ?? hueOf(g.id)}` + (g.config?.thumb ? `;background-image:url(${g.config.thumb})` : '') }, el('div', { class: 'cube' }),
     n ? el('span', { class: 'live', text: t('playing_n', { n }) }) : null, el('span', { class: 'mode-tag', text: modeLabel(g.mode) }))
   return el('div', { class: 'gcard', onclick: () => onOpen(g) }, thumb,
-    el('div', { class: 'gname', text: g.name }), el('div', { class: 'gmeta', text: t('by', { name: g.owner_name || 'Blocksy' }) }))
+    el('div', { class: 'gname', text: g.name }), (() => {
+      const m = el('div', { class: 'gmeta', text: t('by', { name: g.owner_name || 'Blocksy' }) })
+      social.gameVisits().then(v => { if (v[g.id] > 0) m.textContent += ' · ' + Number(v[g.id]).toLocaleString(getLang()) + ' ' + t('visits') })       // visitas totales (AUTH v18)
+      return m
+    })())
 }
 const grid = (games, counts, onOpen) => games.length
   ? el('div', { class: 'grid' }, games.map(g => gameCard(g, counts, onOpen)))
@@ -399,7 +403,7 @@ export const pages = {
         btns.push(el('button', { class: `btn ${eq ? '' : 'primary'}`, text: eq ? t('shop_unequip') : t('shop_equip'), onclick: () => run(async () => { eq ? await social.unequipSlot(it.kind) : await social.equipItem(it.id); tryOn = null; pv?.setStyle(style()) }) }))
       } else btns.push(el('button', { class: 'btn blue', text: t('shop_buy'), onclick: () => run(async () => { await social.buyItem(it.id); logBuy(it.name, it.price, it.kind); toast(t('shop_bought', { name: it.name })) }) }))
       if (['hat', 'face', 'back'].includes(it.kind) && !eq) btns.push(el('button', { class: 'btn', text: t('shop_try'), onclick: () => { tryOn = { kind: it.kind, id: it.id }; pv?.setStyle(style()) } }))
-      return el('div', { class: `shop-card ${it.rarity}` }, el('div', { class: 'sc-top' }, el('b', { text: it.name }), rarity(it.rarity)), el('small', { text: it.description }),
+      return el('div', { class: `shop-card ${it.rarity}` }, el('div', { class: 'sc-top' }, el('b', { text: it.name }), it.data?.reward ? el('span', { class: 'rarity epic', text: t('season_limited') }) : rarity(it.rarity)), el('small', { text: it.description }),
         el('div', { class: 'sc-bot' }, it.kind === 'crate' || !have ? price(it.price) : el('span', { class: 'owned', text: eq ? t('shop_equipped') : t('shop_owned') }), el('div', { class: 'sc-btns' }, btns)))
     }
     function showReward(r) {

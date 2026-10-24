@@ -709,7 +709,7 @@ static void list_game_row(float y, const GameInfo *g, bool sel, const char *btn)
 	if (sel) ui_rrect(PANE_X - 2, y, PANE_W + 2, row_h(P_HOME) - 3, 8, COL_PANEL2);
 	ui_thumb(PANE_X + 2, y + 3, 34, g->hue, 0);
 	char nm[48]; fit(nm, sizeof nm, g->name, 0.46f, btn ? 96 : 150); ui_text(PANE_X + 42, y + 3, 0.46f, COL_TEXT, 0, nm);
-	char sub[64]; if (g->players) snprintf(sub, sizeof sub, "%d jugando", g->players); else snprintf(sub, sizeof sub, "por %s", g->owner[0] ? g->owner : "Blocksy");
+	char sub[64]; if (g->players) snprintf(sub, sizeof sub, "%d jugando", g->players); else if (g->visits > 0) snprintf(sub, sizeof sub, "%ld visitas", g->visits); else snprintf(sub, sizeof sub, "por %s", g->owner[0] ? g->owner : "Blocksy");
 	char s2[64]; fit(s2, sizeof s2, sub, 0.34f, btn ? 90 : 150);
 	ui_text(PANE_X + 42, y + 21, 0.34f, g->players ? COL_GREEN : COL_MUTED, 0, s2);
 	if (btn) ui_button(PANE_X + PANE_W - 56, y + 6, 54, 26, COL_DANGER, false, btn, 0.4f);
