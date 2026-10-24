@@ -2,6 +2,7 @@
 #include <3ds.h>
 #include <citro2d.h>
 #include <math.h>
+#include <time.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -589,6 +590,10 @@ static bool play_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 	nblocks = nremotes = qn = nchat_new = 0; pry = 0; vy = 0; grounded = false; moving = 0; running = true; want_offline = false;
 	world_build(&world, cur_game.world, cur_game.seed);                         // mundo base (plaza, carrera...) igual que en la web
 	g_skymode = !strcmp(cur_game.sky, "dawn") ? 1 : !strcmp(cur_game.sky, "sunset") ? 2 : !strcmp(cur_game.sky, "night") ? 3 : !strcmp(cur_game.sky, "space") ? 4 : 0;
+	if (!cur_game.sky[0] && cur_game.hour >= 0) {                              // config.time: hora del dia (0 = sigue la hora real de la consola)
+		float hh = cur_game.hour; if (hh == 0) { time_t tt = time(NULL); struct tm *lt = localtime(&tt); hh = lt ? lt->tm_hour + lt->tm_min / 60.0f : 12; }
+		g_skymode = (hh < 5 || hh >= 21) ? 3 : hh < 8 ? 1 : (hh >= 17.5f ? 2 : 0);
+	}
 	nparts = 0;
 	if (cur_game.id[0]) {                  // piezas creadas en el Studio de la web
 		nparts = net_fetch_parts(cur_game.id, parts, MAX_PARTS);
