@@ -86,7 +86,7 @@ test('RemoteEvent viaja entre dos clientes y solo el servidor recibe OnServerEve
   assert.ok(prints(a).includes('servidor Beto 7')); assert.ok(prints(b).includes('cliente hola 4')); assert.ok(prints(a).includes('cliente hola 4'))
 })
 
-import { TAG, FLAG, WAVES, HIDE, ARENA, TEAMS, RACE, TOOLS, KOTH, DODGE, SIMON, ZONES, TREASURE, TOWER, MAZE, REFLEX } from '../src/modes.js'
+import { TAG, FLAG, WAVES, HIDE, ARENA, TEAMS, RACE, TOOLS, KOTH, DODGE, SIMON, ZONES, TREASURE, TOWER, MAZE, REFLEX, CRUMBLE } from '../src/modes.js'
 for (const [name, src] of [['pilla-pilla', TAG], ['bandera', FLAG], ['oleadas', WAVES], ['escondite', HIDE], ['arena pvp', ARENA], ['equipos', TEAMS], ['carrera con vueltas', RACE]]) {
   test(`modo ${name}: arranca sin errores con dos jugadores y avisa por RemoteEvent`, () => {
     const h = make(); h.dispatch('init', { me: 'Ana', code: transpile(src) }); h.dispatch('playerjoin', { name: 'Beto' })
@@ -161,4 +161,11 @@ test('reflejos: crea la loseta y arranca la espera sin errores', () => {
   const h = make(); h.dispatch('init', { me: 'Ana', code: transpile(REFLEX) })
   for (let i = 0; i < 30; i++) h.dispatch('step', { dt: 0.1, now: 1700000000 + i * 0.1, x: 0, y: 1, z: 0, others: [] })
   assert.deepEqual(h.errs, []); assert.ok(h.acts.some(a => a[0] === 'new' && a[2] === 'Part'), 'loseta')
+})
+
+test('piso que cae: crea la cuadricula y las losetas pisadas desaparecen', () => {
+  const h = make(); h.dispatch('init', { me: 'Ana', code: transpile(CRUMBLE) })
+  for (let i = 0; i < 30; i++) h.dispatch('step', { dt: 0.1, now: 1700000000 + i * 0.1, x: 0, y: 1, z: 4, others: [] })
+  assert.deepEqual(h.errs, []); assert.ok(h.acts.filter(a => a[0] === 'new' && a[2] === 'Part').length >= 80, 'cuadricula')
+  assert.ok(h.acts.some(a => a[0] === 'prop' && a[2] === 'Transparency' && a[3] === 1), 'la loseta pisada desaparece')
 })

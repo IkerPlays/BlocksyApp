@@ -795,3 +795,45 @@ task.spawn(function()
   end
 end)
 game.title("Pisa la loseta en cuanto se ponga verde", 2500)`
+
+// Piso que cae: cada loseta desaparece poco después de pisarla y vuelve a los pocos segundos. Cruza hasta la meta sin caer al vacío.
+export const CRUMBLE = `local Players = game:GetService("Players")
+local me = Players.LocalPlayer
+local W, L, S = 7, 12, 4
+local gui = Instance.new("ScreenGui"); gui.Parent = me.PlayerGui
+local label = Instance.new("TextLabel"); label.Size = UDim2.new(0, 380, 0, 44); label.Position = UDim2.new(0.5, 0, 0, 14); label.AnchorPoint = Vector2.new(0.5, 0)
+label.BackgroundColor3 = Color3.fromRGB(20, 20, 30); label.BackgroundTransparency = 0.25; label.TextColor3 = Color3.new(1, 1, 1); label.TextSize = 20; label.Parent = gui
+Instance.new("UICorner", label).CornerRadius = UDim.new(0, 12)
+local tiles = {}
+for ix = 1, W do for iz = 1, L do
+  local p = Instance.new("Part"); p.Size = Vector3.new(S - 0.3, 0.6, S - 0.3); p.Anchored = true; p.Color = Color3.fromHSV(((ix + iz) % 7) / 7, 0.45, 1)
+  p.Position = Vector3.new((ix - (W + 1) / 2) * S, 0, iz * S); p.Parent = workspace
+  tiles[#tiles + 1] = { part = p, x = (ix - (W + 1) / 2) * S, z = iz * S, hit = 0, gone = 0 }
+end end
+local goal = Instance.new("Part"); goal.Size = Vector3.new(W * S, 0.6, S * 2); goal.Anchored = true; goal.Material = Enum.Material.Neon; goal.Color = Color3.fromRGB(60, 220, 120)
+goal.Position = Vector3.new(0, 0, (L + 2) * S); goal.Parent = workspace
+local start = Instance.new("Part"); start.Size = Vector3.new(W * S, 0.6, S * 2); start.Anchored = true; start.Color = Color3.fromRGB(120, 130, 160); start.Position = Vector3.new(0, 0, -S); start.Parent = workspace
+local t0, best, wins = os.clock(), 0, 0
+local function reset() game.teleport(0, 2, -S); t0 = os.clock() end
+reset()
+task.spawn(function()
+  while true do
+    task.wait(0.1)
+    local c = me.Character; local r = c and c:FindFirstChild("HumanoidRootPart")
+    local now = os.clock()
+    for _, t in ipairs(tiles) do
+      if r and t.hit == 0 and t.gone == 0 and r.Position.Y < 2.2 and math.abs(r.Position.X - t.x) < S / 2 and math.abs(r.Position.Z - t.z) < S / 2 then t.hit = now; t.part.Color = Color3.fromRGB(255, 120, 80) end
+      if t.hit > 0 and now - t.hit > 0.7 then t.hit = 0; t.gone = now; t.part.Transparency = 1; t.part.CanCollide = false end
+      if t.gone > 0 and now - t.gone > 5 then t.gone = 0; t.part.Transparency = 0; t.part.CanCollide = true; t.part.Color = Color3.fromHSV(0.1, 0.45, 1) end
+    end
+    if r then
+      if r.Position.Y < -6 then game.sound("hit"); reset() end
+      if r.Position.Z > (L + 1) * S and r.Position.Y < 2.5 then
+        local tm = math.floor((now - t0) * 10) / 10; wins += 1; if best == 0 or tm < best then best = tm end
+        game.sound("win"); game.title("Meta! " .. tm .. " s (mejor " .. best .. " s)", 3000); reset()
+      end
+      label.Text = "Cruza sin caer  ·  " .. math.floor(now - t0) .. " s" .. (best > 0 and ("  ·  mejor " .. best .. " s") or "")
+    end
+  end
+end)
+game.title("Las losetas caen al pisarlas", 2500)`

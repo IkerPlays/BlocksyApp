@@ -1,6 +1,8 @@
 // Traducciones completas de los textos añadidos desde la 1.3 (se mezclan en i18n.js; lo que ya esté traducido allí tiene prioridad).
 export const MORE = {
   pt: {
+    tpl_crumble: "Piso que cai",
+    tpl_crumble_d: "Atravesse os ladrilhos antes que desapareçam",
     tpl_maze: "Labirinto",
     tpl_maze_d: "Encontre a saída; cada partida é um labirinto novo",
     tpl_reflex: "Reflexos",
@@ -754,6 +756,8 @@ export const MORE = {
     lang_hint: "O idioma é aplicado na hora.",
   },
   fr: {
+    tpl_crumble: "Sol qui s'effondre",
+    tpl_crumble_d: "Traverse les dalles avant qu'elles disparaissent",
     tpl_maze: "Labyrinthe",
     tpl_maze_d: "Trouve la sortie ; chaque partie est un nouveau labyrinthe",
     tpl_reflex: "Réflexes",
@@ -1507,6 +1511,8 @@ export const MORE = {
     lang_hint: "La langue s'applique instantanément.",
   },
   de: {
+    tpl_crumble: "Bröckelnder Boden",
+    tpl_crumble_d: "Überquere die Felder, bevor sie verschwinden",
     tpl_maze: "Labyrinth",
     tpl_maze_d: "Finde den Ausgang; jede Runde ist ein neues Labyrinth",
     tpl_reflex: "Reflexe",
@@ -2260,6 +2266,8 @@ export const MORE = {
     lang_hint: "Die Sprache wird sofort angewendet.",
   },
   it: {
+    tpl_crumble: "Pavimento che crolla",
+    tpl_crumble_d: "Attraversa le piastrelle prima che spariscano",
     tpl_maze: "Labirinto",
     tpl_maze_d: "Trova l'uscita; ogni partita è un labirinto nuovo",
     tpl_reflex: "Riflessi",
@@ -3030,6 +3038,8 @@ export const MORE = {
     invite_friends: "Invita amici",
   },
   pl: {
+    tpl_crumble: "Zapadająca podłoga",
+    tpl_crumble_d: "Przejdź po płytkach, zanim znikną",
     tpl_maze: "Labirynt",
     tpl_maze_d: "Znajdź wyjście; każda runda to nowy labirynt",
     tpl_reflex: "Refleks",
@@ -4019,6 +4029,8 @@ export const MORE = {
     offline_ready: "Gotowe do użycia offline",
   },
   ru: {
+    tpl_crumble: "Рушащийся пол",
+    tpl_crumble_d: "Пересеките плитки, пока они не исчезли",
     tpl_maze: "Лабиринт",
     tpl_maze_d: "Найдите выход; каждый раунд — новый лабиринт",
     tpl_reflex: "Реакция",
@@ -5008,6 +5020,8 @@ export const MORE = {
     offline_ready: "Готово к работе офлайн",
   },
   ja: {
+    tpl_crumble: "くずれる床",
+    tpl_crumble_d: "消える前にタイルをわたろう",
     tpl_maze: "めいろ",
     tpl_maze_d: "出口を見つけよう。毎回あたらしい迷路",
     tpl_reflex: "はんしゃ神経",
@@ -5997,6 +6011,8 @@ export const MORE = {
     offline_ready: "オフラインで使えます",
   },
   zh: {
+    tpl_crumble: "坍塌地板",
+    tpl_crumble_d: "在方块消失前跨过去",
     tpl_maze: "迷宫",
     tpl_maze_d: "找到出口；每局都是新迷宫",
     tpl_reflex: "反应力",
@@ -6986,6 +7002,8 @@ export const MORE = {
     offline_ready: "已可离线使用",
   },
   ko: {
+    tpl_crumble: "무너지는 바닥",
+    tpl_crumble_d: "타일이 사라지기 전에 건너세요",
     tpl_maze: "미로",
     tpl_maze_d: "출구를 찾으세요. 매 판마다 새로운 미로",
     tpl_reflex: "반응속도",
