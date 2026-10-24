@@ -30,6 +30,7 @@ int main(void) {
 	fprintf(g_out, "SCENE game\n"); game_preview(&top, &bot);
 	setenv("BLOCKSY_PREVIEW_WORLD", "plaza", 1); fprintf(g_out, "SCENE world_plaza\n"); game_preview(&top, &bot);
 	setenv("BLOCKSY_PREVIEW_WORLD", "obby", 1); fprintf(g_out, "SCENE world_obby\n"); game_preview(&top, &bot);
+	setenv("BLOCKSY_PREVIEW_WORLD", "flat", 1); fprintf(g_out, "SCENE world_flat\n"); game_preview(&top, &bot);
 	setenv("BLOCKSY_PREVIEW_WORLD", "forest", 1); fprintf(g_out, "SCENE world_forest\n"); game_preview(&top, &bot);
 	setenv("BLOCKSY_PREVIEW_WORLD", "plaza", 1); setenv("BLOCKSY_PREVIEW_PARTS", "1", 1); fprintf(g_out, "SCENE world_parts\n"); game_preview(&top, &bot); unsetenv("BLOCKSY_PREVIEW_PARTS");
 	unsetenv("BLOCKSY_PREVIEW_WORLD");

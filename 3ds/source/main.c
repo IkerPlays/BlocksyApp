@@ -383,6 +383,21 @@ static void render_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 	int nd = 0; float sx, sy, d;
 	for (int i = 0; i < nl; i++) if (project(local[i].x + .5f, local[i].y + .5f, local[i].z + .5f, &sx, &sy, &d) && d < fog_far + 6)
 		draw_list[nd++] = (Box){d, local[i].x, local[i].y, local[i].z, 1, 1, fogged(shade(local[i].kind < 0 ? local[i].color : PALETTE[local[i].kind % NPALETTE], (night ? 0.62f : 1.0f) * (((local[i].x * 7 + local[i].y * 13 + local[i].z * 5) & 3) == 0 ? 0.93f : 1.0f)), NIGHT_D(local[i].x + .5f, local[i].z + .5f, d)), -1};
+	if (!night && world.floor && (world.type == 0 || world.type == 1) && !nparts) {              // flores y matas de adorno (solo se ven: no estorban ni se sincronizan)
+		static const u32 FLOWER[4] = {0xFF3C4CE0, 0xFF3CC8F5, 0xFFF5F5F5, 0xFFD8609B};
+		int bx = (int)floorf(px), bz = (int)floorf(pz), rr = 6 + lvl;
+		for (int gx = -rr; gx <= rr; gx++) for (int gz = -rr; gz <= rr; gz++) {
+			int ax = bx + gx, az = bz + gz; unsigned h = ((unsigned)ax * 73856093u) ^ ((unsigned)az * 19349663u); h *= 2654435761u;
+			if ((h >> 8) % 10) continue;
+			bool plaza = world.type == 1 && abs(ax) <= world.plaza_n && abs(az) <= world.plaza_n; if (plaza) continue;
+			if (solid_at(ax, 0, az)) continue;
+			float fx = ax + 0.35f + ((h >> 4) & 7) * 0.04f, fz = az + 0.35f + ((h >> 12) & 7) * 0.04f;
+			if (!project(fx, 0.3f, fz, &sx, &sy, &d) || d > fog_far) continue;
+			float de = d;
+			draw_list[nd++] = (Box){de, fx, 0, fz, 0.08f, 0.32f, fogged(shade(0xFF3FA040, 1.0f), de), -1};
+			draw_list[nd++] = (Box){de - 0.05f, fx - 0.07f, 0.3f, fz - 0.07f, 0.22f, 0.12f, fogged(FLOWER[(h >> 20) & 3], de), -1};
+		}
+	}
 	for (int i = 0; i < nparts; i++) {                                                         // piezas del Studio
 		const Part *o = &parts[i]; float ext = fmaxf(o->sx, fmaxf(o->sy, o->sz)) * 0.5f;
 		if (!project(o->x, o->y, o->z, &sx, &sy, &d) || d > fog_far + 6 + ext) continue;
