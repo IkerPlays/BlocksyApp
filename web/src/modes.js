@@ -347,6 +347,7 @@ for i = 1, GATES do
 end
 local state, left, lap, nextGate, startAt, finished = "wait", 0, 1, 2, 0, false
 local progress, order = {}, {}
+local best = nil
 local function paint()
   for i, g in ipairs(gates) do g.part.Color = (i == nextGate and state == "go") and Color3.fromRGB(255, 220, 60) or ((i == 1) and Color3.fromRGB(80, 255, 120) or Color3.fromRGB(80, 180, 255)) end
   if state == "wait" then status.Text = "Esperando jugadores..."
@@ -395,7 +396,7 @@ task.spawn(function()
         local g = gates[nextGate]
         if g and (Vector3.new(g.x, r.Position.Y, g.z) - r.Position).Magnitude < 6 then
           if nextGate == 1 then lap += 1 end
-          if lap > LAPS then finished = true; remote:FireServer("finish"); status.Text = "¡Has terminado! " .. string.format("%.1f", os.clock() - startAt) .. " s"
+          if lap > LAPS then finished = true; remote:FireServer("finish"); local tt = os.clock() - startAt; if not best or tt < best then best = tt end; status.Text = "¡Has terminado! " .. string.format("%.1f", tt) .. " s  ·  mejor " .. string.format("%.1f", best) .. " s"
           else nextGate = nextGate % GATES + 1; remote:FireServer("prog", lap, nextGate); game.sound("checkpoint") end
         end
       end

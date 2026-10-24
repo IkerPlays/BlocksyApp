@@ -1,2 +1,2 @@
-Devbuild 88: snippets
-- The script editor snippet list has two new Lua examples: a Tool and a moving part.
+Devbuild 89: Lap race best time
+- Lap race shows your finishing time and your best time of the session.
