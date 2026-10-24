@@ -68,3 +68,12 @@ Tanda 64: Grupos o clanes, eventos con fecha, mensajes con imagen o voz (SQL)
 Tanda 65: Moderacion en servidor (panel de denuncias, SQL)
 Tanda 66: Idiomas completos (pt, fr, de) y sonido en la 3DS
 Estado: tandas 55 a 66 hechas (devbuilds 55 a 66). Pendiente de lo pedido: dibujar el icono y el banner de los juegos en la 3DS, subida real de imagenes (hoy son JPEG pequenos o enlaces), items/inventario en la 3DS (no ejecuta Lua), it/pl/ru/ja/zh/ko completos.
+
+# Hoja de ruta 1.5 (pendiente tras la estable 1.4.0)
+- Subida real de imagenes (Storage) para iconos, banners y capturas de los juegos; despues dibujarlos en la 3DS (stb_image).
+- Notificaciones push (Web Push) para recordatorios de quedadas con la app cerrada.
+- Aprobar a cada invitado en la edicion compartida del Studio (validacion en servidor) y sincronizar tambien el entorno y los ajustes.
+- Moderacion: sanciones automaticas por varias denuncias, historial por usuario, denunciar imagenes de la galeria.
+- 3DS: ver y usar tienda de temporadas, clanes y quedadas (hoy solo web).
+- Mas plantillas de modos (tower defense, capturar zonas, memoria) y balance de Arena/Equipos con partidas reales.
+- Revision de las traducciones de it, pl, ru, ja, zh y ko por personas nativas.
