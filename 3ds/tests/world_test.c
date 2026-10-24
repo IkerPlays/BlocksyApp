@@ -4,6 +4,7 @@
 #include "world.h"
 #include <assert.h>
 #include <stdio.h>
+#include <string.h>
 static World w;
 static unsigned long long sum_of(int seed) {
 	world_build(&w, "hills", seed); unsigned long long s = 0;
@@ -55,5 +56,17 @@ int main(void) {
 	world_build(&w, "checker", 1337);
 	assert(w.ncells == 0 && world_floor_solid(&w, 20, 0, -20) && !world_floor_solid(&w, 21, 0, 0) && !world_floor_solid(&w, 0, 1, 0));
 	assert(world_tile_color(&w, 0, 0) == 0xFF362F2B && world_tile_color(&w, 1, 0) == 0xFFFFFFFF);          // #2b2f36 y #ffffff en ABGR
+	// bosque: posicion de los 150 arboles y de los fragmentos de luz iguales a la web
+	{
+		static const struct { int seed; unsigned long long h; const char *orbs; } FO[2] = {
+			{1337, 540447535067380034ULL, "(-17.5,-16.5)(15.5,16.5)(15.5,-13.5)(-25.5,10.5)(8.5,-33.5)"},
+			{7, 6337077868349771635ULL, "(-6.5,24.5)(-23.5,-0.5)(33.5,14.5)(20.5,5.5)(-22.5,-22.5)"} };
+		for (int k = 0; k < 2; k++) {
+			world_build(&w, "forest", FO[k].seed); unsigned long long s = 0; char ob[160] = ""; size_t n = 0;
+			for (int i = 0; i < w.ntrees; i++) s = s * 31 + (unsigned long long)(((unsigned)w.tree[i][0] & 0xFFFF) * 65536u + ((unsigned)w.tree[i][1] & 0xFFFF));
+			for (int i = 0; i < w.norbs; i++) n += (size_t)snprintf(ob + n, sizeof ob - n, "(%g,%g)", w.orb[i][0], w.orb[i][2]);
+			if (w.ntrees != 150 || s != FO[k].h || strcmp(ob, FO[k].orbs)) { printf("FALLA bosque semilla %d: %d arboles, hash %llu, fragmentos %s\n", FO[k].seed, w.ntrees, s, ob); return 1; }
+		}
+	}
 	puts("world: todo bien"); return 0;
 }
