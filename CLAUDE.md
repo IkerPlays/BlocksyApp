@@ -49,3 +49,4 @@ Same release system as Iker's Tube.
 - 3DS preview with main.c: compile it separately with `-Dmain=blocksy_main -c`, link it with preview.c/stub.c (stub.c has update_*/audio_* stubs) and run from `3ds/` (`BLOCKSY_PREVIEW_PARTS=1` draws demo parts).
 - 3DS sky: `GameInfo.sky` (config.sky) -> `g_skymode` in main.c (SKT/SKH/DIM tables); the forest keeps its own night. Decor (hills, flowers) is visual only.
 - 3DS native tests: `update_core_test.c` and `parts_test.c` (see the command in each header); `parts.c` is the pure reader of `config.parts` used by `net_fetch_parts`.
+- Local 3DS syntax check: never use plain `-w`; add `-Werror=implicit-function-declaration` (missing `#include <math.h>` etc. only fail in devkitARM otherwise). CI also runs the native tests before building.
