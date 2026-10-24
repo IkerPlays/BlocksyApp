@@ -219,7 +219,8 @@ export const pages = {
       : el('div', { class: 'empty', text: t('home_no_friends') }))
     paintFriends(friends)
     // racha y recompensa diaria, "seguir jugando", amigos jugando y juego al azar
-    const streakBox = el('div', { class: 'home-chips' }), playingRow = el('div'), meetBox = el('div')
+    const streakBox = el('div', { class: 'home-chips' }), playingRow = el('div'), meetBox = el('div'), seasonBox = el('div', { class: 'home-chips' })
+    social.getSeason().then(se => { if (se?.tiers) setKids(seasonBox, el('a', { class: 'chip-info', href: '/shop', html: icon('trophy', 14) + ' ' + t('season_n', { n: se.season }) + ' · ' + t('season_level', { n: Math.min(10, Math.floor(se.xp / 100)), max: 10 }) })) }).catch(() => {})
     // próxima quedada a la que voy (AUTH v17; si falta el SQL no se muestra nada)
     social.listMeetups().then(list => {
       const m = list.find(x => x.me && new Date(x.starts_at).getTime() > Date.now() - 600_000)
@@ -238,7 +239,7 @@ export const pages = {
     paintPlaying(friends)
     setKids(root,
       el('div', { class: 'hero' }, avatar(ctx.profile.username, ctx.profile.avatar_color), el('h1', { text: t('hello', { name: ctx.profile.username }) }), random),
-      streakBox, meetBox,
+      streakBox, seasonBox, meetBox,
       last ? el('div', { class: 'continue-card' }, el('div', { class: 'thumb sm' + (last.config?.thumb ? ' has-img' : ''), style: `--h:${last.hue ?? hueOf(last.id)}` + (last.config?.thumb ? `;background-image:url(${last.config.thumb})` : '') }, el('div', { class: 'cube' })),
         el('div', { class: 'grow' }, el('small', { text: t('continue') }), el('h3', { text: last.name }), el('small', { text: (counts[last.id] ?? 0) ? t('playing_n', { n: counts[last.id] }) : t('no_one_playing') })),
         el('button', { class: 'btn primary', html: icon('play', 16) + ' ' + t('play'), onclick: () => ctx.play(last) })) : null,

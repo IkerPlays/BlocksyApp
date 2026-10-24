@@ -4,6 +4,7 @@ import { MORE } from './i18n-more.js'
 const D = {
   es: {
     lang_name: 'Español',
+    season_level: 'nivel {n}/{max}',
     mt_next: 'Tu próxima quedada',
     mt_calendar: 'Añadir al calendario',
     sort_visits: 'Más visitados',
@@ -133,6 +134,7 @@ const D = {
   },
   en: {
     lang_name: 'English',
+    season_level: 'level {n}/{max}',
     mt_next: 'Your next meetup',
     mt_calendar: 'Add to calendar',
     sort_visits: 'Most visited',

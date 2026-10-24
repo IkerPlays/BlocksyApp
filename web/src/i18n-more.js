@@ -1,6 +1,7 @@
 // Traducciones completas de los textos añadidos desde la 1.3 (se mezclan en i18n.js; lo que ya esté traducido allí tiene prioridad).
 export const MORE = {
   pt: {
+    season_level: "nível {n}/{max}",
     mt_next: "Seu próximo encontro",
     mt_calendar: "Adicionar ao calendário",
     sort_visits: "Mais visitados",
@@ -719,6 +720,7 @@ export const MORE = {
     lang_hint: "O idioma é aplicado na hora.",
   },
   fr: {
+    season_level: "niveau {n}/{max}",
     mt_next: "Ton prochain rendez-vous",
     mt_calendar: "Ajouter au calendrier",
     sort_visits: "Les plus visités",
@@ -1437,6 +1439,7 @@ export const MORE = {
     lang_hint: "La langue s'applique instantanément.",
   },
   de: {
+    season_level: "Stufe {n}/{max}",
     mt_next: "Dein nächstes Treffen",
     mt_calendar: "Zum Kalender hinzufügen",
     sort_visits: "Meistbesucht",
@@ -2155,6 +2158,7 @@ export const MORE = {
     lang_hint: "Die Sprache wird sofort angewendet.",
   },
   it: {
+    season_level: "livello {n}/{max}",
     mt_next: "Il tuo prossimo incontro",
     mt_calendar: "Aggiungi al calendario",
     sort_visits: "Più visitati",
@@ -2890,6 +2894,7 @@ export const MORE = {
     invite_friends: "Invita amici",
   },
   pl: {
+    season_level: "poziom {n}/{max}",
     mt_next: "Twoje następne spotkanie",
     mt_calendar: "Dodaj do kalendarza",
     sort_visits: "Najczęściej odwiedzane",
@@ -3844,6 +3849,7 @@ export const MORE = {
     offline_ready: "Gotowe do użycia offline",
   },
   ru: {
+    season_level: "уровень {n}/{max}",
     mt_next: "Ваша ближайшая встреча",
     mt_calendar: "Добавить в календарь",
     sort_visits: "Самые посещаемые",
@@ -4798,6 +4804,7 @@ export const MORE = {
     offline_ready: "Готово к работе офлайн",
   },
   ja: {
+    season_level: "レベル{n}/{max}",
     mt_next: "次の集まり",
     mt_calendar: "カレンダーに追加",
     sort_visits: "訪問数順",
@@ -5752,6 +5759,7 @@ export const MORE = {
     offline_ready: "オフラインで使えます",
   },
   zh: {
+    season_level: "等级 {n}/{max}",
     mt_next: "你的下一场聚会",
     mt_calendar: "添加到日历",
     sort_visits: "访问最多",
@@ -6706,6 +6714,7 @@ export const MORE = {
     offline_ready: "已可离线使用",
   },
   ko: {
+    season_level: "레벨 {n}/{max}",
     mt_next: "다음 모임",
     mt_calendar: "캘린더에 추가",
     sort_visits: "방문 많은 순",
