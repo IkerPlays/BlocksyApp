@@ -517,6 +517,7 @@ static void render_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 		ui_text(sx, sy - 12, 0.34f, C2D_Color32(255, 255, 255, 255), C2D_AlignCenter, rem[i].name);
 	}
 	// ---- HUD ----
+	if (app_coords_on()) { char cb[48]; snprintf(cb, sizeof cb, "%.1f  %.1f  %.1f", px, py, pz); ui_text(392, 38, 0.34f, COL_TEXT, C2D_AlignRight, cb); }
 	if (app_fps_on() && g_ft_avg > 1) { char fp[24]; snprintf(fp, sizeof fp, "%d FPS", (int)(1000.0f / g_ft_avg + 0.5f)); ui_text(392, 226, 0.34f, COL_TEXT, C2D_AlignRight, fp); }
 	if (night) {                                                                              // sombra de miedo cuando el monstruo esta cerca
 		float fear = hr.stun > 0 ? 0.8f : fmaxf(0, 1 - hr.dist / 22); int a = (int)(fear * 80);
