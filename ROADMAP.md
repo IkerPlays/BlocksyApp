@@ -73,6 +73,7 @@ Estado: tandas 55 a 66 hechas (devbuilds 55 a 66). Pendiente de lo pedido: dibuj
 - Actualizador de la 3DS reescrito: SHA-256 y tamano verificados, descarga reanudable, copia .bak y vuelta atras, prueba de descarga sin instalar, diagnostico de RAM/SD, copia local de la ultima respuesta de GitHub, musica en pausa durante la instalacion.
 - 3DS: piezas del Studio (cajas giradas, bolas, cilindros, translucidas, Neon, aparicion) con colision; cielos de config.sky/config.time; colinas, flores, calidad adaptativa, modo rapido de la New 3DS, FPS, mensaje de bienvenida y proxima quedada en Inicio.
 - 3DS: misiones y BCoins por jugar, clan/temporada/quedada en Inicio, filtro de modo en Descubrir, lista de juegos en cache, ajustes de fisica (doble salto, velocidad, gravedad, spawn, niebla).
+- 3DS: mundos Colinas e Islas (paridad probada con la web), textos de interfaz del Studio, frases rapidas, registro en la SD, chat/emotes desactivables por juego.
 - Plantillas nuevas: Memoria, Zonas, Cazatesoros, Torre, Laberinto, Reflejos y Piso que cae. Estructuras: castillo, cupula, escalera de caracol, columna.
 
 # Hoja de ruta 1.5 (pendiente tras la estable 1.4.0)
