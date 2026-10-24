@@ -19,6 +19,7 @@ typedef struct {
 
 typedef bool (*NetSink)(const void *data, size_t n, void *ud);   // recibe los datos descargados; false = abortar
 char *net_get_text(const char *url, char *err, size_t en);        // GET genérico (GitHub API); NULL si falla
+bool net_download_from(const char *url, unsigned long long from, NetSink sink, void *ud, volatile int *pct, bool *no_range, char *err, size_t en);   // desde el byte `from` (206); no_range = el servidor no reanuda
 bool net_download(const char *url, NetSink sink, void *ud, volatile int *pct, char *err, size_t en);
 
 bool net_init(void);

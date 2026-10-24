@@ -182,7 +182,8 @@ static volatile int g_account = 1;   // 0 = sesión por QR (sin token de Auth): 
 // ---------- actualizaciones (hilo de red) ----------
 static UpdateInfo g_upd; static volatile int g_upd_have;      // g_upd_have: ya se consultó GitHub
 static volatile int g_upd_state;                              // 0 reposo, 1 buscando, 2 descargando, 3 instalada, 4 error
-static volatile int g_upd_pct; static char g_upd_msg[100];
+static UpdateProgress g_prog; static char g_upd_msg[100]; static int g_upd_log;   // g_upd_log: la pantalla superior muestra los cambios
+#define g_upd_pct g_prog.pct
 static volatile int g_upd_auto;                               // 1 = instalar la estable nueva sola (una vez por sesion, como Iker's Tube)
 static volatile int g_upd_announce;                           // 1 = avisar con un toast de que hay versión nueva
 static int s_auto = 1;                                        // buscar al abrir (ajuste)
@@ -258,7 +259,7 @@ static void upd_install_job(int which) {
 	Rel r; LightLock_Lock(&lk); r = which ? g_upd.dev : g_upd.stable; LightLock_Unlock(&lk);
 	if (!r.valid) { snprintf(g_upd_msg, sizeof g_upd_msg, "No hay version publicada de ese tipo"); g_upd_state = 4; return; }
 	char err[100] = ""; g_upd_state = 2; g_upd_pct = 0; g_upd_msg[0] = 0;
-	bool ok = update_install(&r, &g_upd_pct, err, sizeof err);
+	bool ok = update_install(&r, &g_prog, err, sizeof err);
 	if (ok) update_mark_installed(r.tag);
 	if (ok) snprintf(g_upd_msg, sizeof g_upd_msg, update_is_cia() ? tr2("Instalada. Reiniciando Blocksy...", "Installed. Restarting Blocksy...") : tr2("Actualizada. Vuelve a abrirla desde el Homebrew Launcher", "Updated. Open it again from the Homebrew Launcher"));
 	else snprintf(g_upd_msg, sizeof g_upd_msg, "%s", err);
@@ -425,7 +426,7 @@ static int count_rows(const Ui *u, const Session *s) {
 	case P_SETTINGS: return 13;
 	case P_NOTIF: return nnotifs + 1;
 	case P_SHOP: return nshop + 1;
-	case P_UPDATE: return 3;
+	case P_UPDATE: return update_can_rollback() ? 5 : 4;
 	}
 	return 0;
 }
@@ -644,16 +645,29 @@ static void page_top(const Ui *u, const Session *s) {
 		}
 		ui_rect(26, 172, 348, 1, COL_LINE);
 		if (g_upd_state == 2) {
-			char p[40]; snprintf(p, sizeof p, "Descargando... %d%%", g_upd_pct); ui_text(30, 180, 0.44f, COL_TEXT, 0, p);
-			ui_rrect(30, 204, 340, 10, 5, COL_PANEL2); if (g_upd_pct > 0) ui_rrect(30, 204, 340.0f * g_upd_pct / 100, 10, 5, COL_GREEN);
+			static const char *const st[] = {"", "Preparando...", "Descargando", "Comprobando...", "Instalando...", "Listo"};
+			int sg = g_prog.stage; char p[96]; unsigned dn = g_prog.done, tt = g_prog.total, bps = g_prog.bps;
+			if (sg == 2 && tt) { char eta[24] = ""; if (bps > 1000) { unsigned sec = (tt - dn) / bps; snprintf(eta, sizeof eta, " - %u:%02u", sec / 60, sec % 60); }
+				snprintf(p, sizeof p, "%s %d%% (%u.%u/%u.%u MB, %u KB/s%s)", st[sg], g_prog.pct, dn >> 20, (dn >> 17) % 10 * 10 / 8 % 10, tt >> 20, (tt >> 17) % 10 * 10 / 8 % 10, bps >> 10, eta); }
+			else snprintf(p, sizeof p, "%s", st[sg > 5 ? 0 : sg]);
+			if (g_prog.attempt > 1) { char q[24]; snprintf(q, sizeof q, " [%d/5]", g_prog.attempt); strncat(p, q, sizeof p - strlen(p) - 1); }
+			char fp[96]; fit(fp, sizeof fp, p, 0.38f, 336); ui_text(30, 182, 0.38f, COL_TEXT, 0, fp);
+			ui_rrect(30, 204, 340, 10, 5, COL_PANEL2); if (g_prog.pct > 0) ui_rrect(30, 204, 340.0f * g_prog.pct / 100, 10, 5, COL_GREEN);
 		} else if (g_upd_state == 1) ui_text(30, 184, 0.44f, COL_MUTED, 0, "Buscando actualizaciones...");
 		else if (g_upd_msg[0]) { char m[100]; fit(m, sizeof m, g_upd_msg, 0.42f, 330); ui_text(30, 184, 0.42f, g_upd_state == 3 ? COL_GREEN : COL_RED, 0, m); }
 		else {
+			if (g_upd_log && g_upd.log[0]) {
+				static char ll_[6][96]; char flat2_[900]; snprintf(flat2_, sizeof flat2_, "%s", g_upd.log); for (char *q = flat2_; *q; q++) if (*q == '\n') *q = ' ';
+				int nl2_ = wrap(flat2_, 0.34f, 336, ll_, 6); for (int i = 0; i < nl2_ && i < 3; i++) ui_text(30, 178 + i * 15, 0.34f, COL_MUTED, 0, ll_[i]);
+				if (g_upd.n_newer > 1) { char c_[40]; snprintf(c_, sizeof c_, "%d versiones nuevas", g_upd.n_newer); ui_text(370, 224, 0.3f, COL_MUTED, C2D_AlignRight, c_); }
+			} else {
 			const Rel *nr_ = g_upd.stable.newer ? &g_upd.stable : (g_upd.dev.newer && (cur_is_dev() || s_showdev)) ? &g_upd.dev : g_upd.stable.valid ? &g_upd.stable : &g_upd.dev;
 			static char nl_[4][96]; char flat_[420]; snprintf(flat_, sizeof flat_, "%s", nr_->notes); for (char *q = flat_; *q; q++) if (*q == '\n') *q = ' ';
 			int nn_ = nr_->valid && flat_[0] ? wrap(flat_, 0.36f, 330, nl_, 4) : 0;       // notas de la release (resumen)
 			if (nn_) { for (int i = 0; i < nn_ && i < 3; i++) ui_text(30, 178 + i * 15, 0.36f, COL_MUTED, 0, nl_[i]); if (nn_ > 3) ui_text(30, 223, 0.3f, COL_MUTED, 0, "..."); }
 			else { ui_text(30, 180, 0.4f, COL_MUTED, 0, update_is_cia() ? "Se instalara como .cia (se reemplaza esta app)." : "Se instalara como .3dsx (se reemplaza este fichero)."); ui_text(30, 196, 0.38f, COL_MUTED, 0, "Tus datos y tu sesion se conservan."); }
+			if (nr_->valid && (nr_->cia_size || nr_->dsx_size)) { unsigned sz = update_is_cia() ? nr_->cia_size : nr_->dsx_size; char z_[40]; snprintf(z_, sizeof z_, "%u.%u MB%s", sz >> 20, (sz >> 17) % 10 * 10 / 8 % 10, nr_->date[0] ? " - " : ""); if (nr_->date[0]) strncat(z_, nr_->date, sizeof z_ - strlen(z_) - 1); ui_text(370, 224, 0.3f, COL_MUTED, C2D_AlignRight, z_); }
+			}
 		}
 		break; }
 	case P_SETTINGS: {
@@ -827,7 +841,8 @@ static void pane(const Ui *u, const Session *s) {
 		ui_button(PANE_X, LIST_Y + 2, PANE_W - 4, rh - 6, COL_PANEL2, u->cur == 0, l1, 0.46f);
 		ui_button(PANE_X, LIST_Y + 2 + rh, PANE_W - 4, rh - 6, g_upd.stable.valid && !busy && g_upd.stable.cmp > 0 ? COL_GREEN : COL_PANEL2, u->cur == 1, f2, 0.44f);
 		ui_button(PANE_X, LIST_Y + 2 + 2 * rh, PANE_W - 4, rh - 6, g_upd.dev.valid && !busy && g_upd.dev.cmp > 0 ? COL_GREEN : COL_PANEL2, u->cur == 2, f3, 0.44f);
-		ui_text(PANE_X, LIST_Y + 2 + 3 * rh + 4, 0.34f, COL_MUTED, 0, "Toca para instalar la version elegida.");
+		ui_button(PANE_X, LIST_Y + 2 + 3 * rh, PANE_W - 4, rh - 6, COL_PANEL2, u->cur == 3, g_upd_log ? "Ocultar cambios" : "Ver cambios", 0.44f);
+		if (update_can_rollback()) ui_button(PANE_X, LIST_Y + 2 + 4 * rh, PANE_W - 4, rh - 6, COL_PANEL2, u->cur == 4, "Volver a la version anterior", 0.44f);
 		if (g_upd_state == 2) { ui_rrect(PANE_X, 200, PANE_W - 4, 12, 6, COL_PANEL2); if (g_upd_pct > 0) ui_rrect(PANE_X, 200, (PANE_W - 4) * g_upd_pct / 100.0f, 12, 6, COL_GREEN); }
 		break; }
 	case P_SETTINGS: {
@@ -895,7 +910,7 @@ void app_preview(C3D_RenderTarget *top, C3D_RenderTarget *bot, int page, int mod
 	snprintf(g_upd.dev.tag, sizeof g_upd.dev.tag, "v0.1.0-dev.12"); g_upd.dev.valid = 1; g_upd.dev.is_dev = 1; g_upd.dev.newer = 1;
 	int dm_demo = modal == -20; if (dm_demo) modal = -1;
 	prev_demo = modal <= -6 ? -modal - 5 : 0; if (modal <= -6) modal = -1;
-	if (page == P_UPDATE) { g_upd_state = modal == -3 ? 2 : modal == -4 ? 3 : modal == -5 ? 4 : 0; g_upd_pct = 45; snprintf(g_upd_msg, sizeof g_upd_msg, modal == -5 ? "Descarga fallida: Couldn't resolve host" : "Instalada. Cierra Blocksy y abrela de nuevo desde HOME"); if (modal <= -3) modal = -1; }
+	if (page == P_UPDATE) { g_upd_state = modal == -3 ? 2 : modal == -4 ? 3 : modal == -5 ? 4 : 0; g_prog.stage = 2; g_prog.pct = 45; g_prog.done = 5400000; g_prog.total = 12000000; g_prog.bps = 380000; snprintf(g_upd.log, sizeof g_upd.log, "v0.1.0-dev.12: Nuevo contador de visitas. v0.1.0-dev.11: Mejor render 3D."); g_upd.n_newer = 2; snprintf(g_upd_msg, sizeof g_upd_msg, modal == -5 ? "Descarga fallida: Couldn't resolve host" : "Instalada. Cierra Blocksy y abrela de nuevo desde HOME"); if (modal <= -3) modal = -1; }
 	nshop = 6; wallet.bcoins = 340; wallet.can_claim = 1; wallet.ninv = 1; snprintf(wallet.inv[0], 32, "hat_cap"); snprintf(wallet.hat, 32, "hat_cap");
 	{ static const char *const sid[] = {"crate_basic", "hat_cap", "hat_halo", "hat_crown", "title_builder", "title_legend"}, *const sk[] = {"crate", "hat", "hat", "hat", "title", "title"}, *const sn[] = {"Cofre de botin", "Gorra", "Aureola", "Corona", "Constructor", "Leyenda"};
 	  static const int sp[] = {150, 100, 300, 500, 80, 400}, sr[] = {1, 0, 1, 2, 0, 2};
@@ -962,6 +977,7 @@ AppResult app_lobby(C3D_RenderTarget *top, C3D_RenderTarget *bot, Session *s, Ga
 			int bits = (wallet.bcoins >= 1000) | (wallet.ninv >= 1) << 1 | (wallet.ninv >= 5) << 2 | (nfriends >= 3) << 3 | (wallet.streak >= 3) << 4, nw = bits & ~s_ach;
 			if (nw) { for (int i = 0; i < 5; i++) if (nw & (1 << i)) { char m[64]; snprintf(m, sizeof m, "%s: %s", tr2("Logro", "Achievement"), AN[i]); toast(&u, m); break; } s_ach |= nw; save_settings(); }
 		}
+		{ static bool news_done; if (!news_done && W.seq > 0) { news_done = true; char f_[48], t_[48]; if (update_take_news(f_, t_, sizeof f_)) { char m[96]; snprintf(m, sizeof m, "%s %s", tr2("Actualizada a", "Updated to"), t_); toast(&u, m); } } }
 		if (g_upd_announce) { g_upd_announce = 0; char m[64]; snprintf(m, sizeof m, "Hay una version nueva: %s", g_upd.stable.newer ? g_upd.stable.tag : g_upd.dev.tag); toast(&u, m); }
 		if (down & KEY_START) { res = APP_QUIT; break; }
 		if (u.dm >= 0 && g_dm_seq != u.seen_dm) { u.seen_dm = g_dm_seq; sync_data(); if (u.dm_sel >= ndm) u.dm_sel = -1; }
@@ -1126,6 +1142,8 @@ AppResult app_lobby(C3D_RenderTarget *top, C3D_RenderTarget *bot, Session *s, Ga
 				break;
 			case P_UPDATE:
 				if (act_row == 0) request(RQ_UPD_CHECK, NULL, NULL, 0);
+				else if (act_row == 3) g_upd_log = !g_upd_log;
+				else if (act_row == 4) { char e_[80] = ""; if (g_upd_state == 2) toast(&u, tr2("Ya se esta descargando", "Already downloading")); else if (update_rollback(e_, sizeof e_)) { snprintf(g_upd_msg, sizeof g_upd_msg, "%s", tr2("Version anterior restaurada. Abre Blocksy de nuevo", "Previous version restored. Open Blocksy again")); g_upd_state = 3; } else toast(&u, e_); }
 				else if (g_upd_state == 2) toast(&u, tr2("Ya se esta descargando", "Already downloading"));
 				else if (act_row == 1) { if (!g_upd.stable.valid) toast(&u, tr2("No hay version estable publicada", "No stable release yet")); else if (g_upd.stable.cmp <= 0) toast(&u, tr2("Ya tienes esta version (o una mas nueva)", "You already have this version or newer")); else request(RQ_UPD_INSTALL, NULL, NULL, 0); }
 				else if (act_row == 2) { if (!g_upd.dev.valid) toast(&u, tr2("No hay devbuild publicada", "No devbuild yet")); else if (g_upd.dev.cmp <= 0) toast(&u, tr2("Ya tienes esta version (o una mas nueva)", "You already have this version or newer")); else request(RQ_UPD_INSTALL, NULL, NULL, 1); }

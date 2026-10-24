@@ -10,6 +10,8 @@ Blocksy is a multiplayer block-building game for the web and the Nintendo 3DS (h
 - Home shows your next meetup.
 - Health bar in Arena and Teams, and coin sounds on the 3DS shop.
 - Home shows your season level.
+- 3DS updater rewritten: verified downloads (SHA-256), resume after network loss, rollback for .3dsx, changes list and progress with speed.
+- New 3DS: full speed mode and a longer draw distance.
 - Kill feed in Arena and Teams.
 - Four new achievements for clans, meetups, collaboration and animations.
 - New King of the hill multiplayer template.

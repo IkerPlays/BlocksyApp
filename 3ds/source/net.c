@@ -159,9 +159,13 @@ char *net_get_text(const char *url, char *err, size_t en) {
 	return b.p;
 }
 
-typedef struct { NetSink sink; void *ud; volatile int *pct; size_t got; bool sink_failed; } DlCtx;
+typedef struct { NetSink sink; void *ud; volatile int *pct; size_t got; bool sink_failed; CURL *c; unsigned long long from; bool no_range, checked; } DlCtx;
 static size_t dl_write(char *d, size_t sz, size_t nm, void *u) {
 	DlCtx *c = u; size_t n = sz * nm;
+	if (!c->checked) {                                          // al llegar el primer dato ya se conoce la respuesta HTTP
+		c->checked = true; long code = 0; curl_easy_getinfo(c->c, CURLINFO_RESPONSE_CODE, &code);
+		if (c->from > 0 && code != 206) { c->no_range = true; return 0; }          // el servidor no sabe reanudar: se empezaria desde cero y se corromperia
+	}
 	if (!c->sink(d, n, c->ud)) { c->sink_failed = true; return 0; }
 	c->got += n; return n;
 }
@@ -170,30 +174,35 @@ static int dl_progress(void *u, curl_off_t dltotal, curl_off_t dlnow, curl_off_t
 	if (c->pct && dltotal > 0) *c->pct = (int)(dlnow * 100 / dltotal);
 	return 0;
 }
-// Descarga `url` (sigue redirecciones) y entrega los datos a `sink` a medida que llegan, sin guardarlos enteros en memoria.
-bool net_download(const char *url, NetSink sink, void *ud, volatile int *pct, char *err, size_t en) {
+// Descarga `url` (sigue redirecciones) desde el byte `from` y entrega los datos a `sink` a medida que llegan, sin guardarlos enteros en memoria.
+// Con from > 0 exige "206 Partial Content": si el servidor responde 200 no se entrega nada y *no_range = true.
+bool net_download_from(const char *url, unsigned long long from, NetSink sink, void *ud, volatile int *pct, bool *no_range, char *err, size_t en) {
+	if (no_range) *no_range = false;
 	if (!tl_curl) tl_curl = curl_easy_init();
 	CURL *c = tl_curl; if (!c) { snprintf(err, en, "curl_easy_init"); return false; }
 	curl_easy_reset(c);
-	DlCtx ctx = {sink, ud, pct, 0, false}; char errbuf[CURL_ERROR_SIZE]; errbuf[0] = 0;
+	DlCtx ctx = {sink, ud, pct, 0, false, c, from, false, false}; char errbuf[CURL_ERROR_SIZE]; errbuf[0] = 0;
 	curl_easy_setopt(c, CURLOPT_URL, url);
 	curl_easy_setopt(c, CURLOPT_SSL_VERIFYPEER, 0L); curl_easy_setopt(c, CURLOPT_SSL_VERIFYHOST, 0L);
 	curl_easy_setopt(c, CURLOPT_FOLLOWLOCATION, 1L); curl_easy_setopt(c, CURLOPT_MAXREDIRS, 6L);
 	curl_easy_setopt(c, CURLOPT_FAILONERROR, 1L);
-	curl_easy_setopt(c, CURLOPT_CONNECTTIMEOUT, 20L); curl_easy_setopt(c, CURLOPT_LOW_SPEED_LIMIT, 1024L); curl_easy_setopt(c, CURLOPT_LOW_SPEED_TIME, 30L);
+	curl_easy_setopt(c, CURLOPT_CONNECTTIMEOUT, 20L);
 	curl_easy_setopt(c, CURLOPT_NOSIGNAL, 1L);
 	curl_easy_setopt(c, CURLOPT_USERAGENT, "blocksy-3ds/" BLOCKSY_VERSION);
 	curl_easy_setopt(c, CURLOPT_WRITEFUNCTION, dl_write); curl_easy_setopt(c, CURLOPT_WRITEDATA, &ctx);
 	curl_easy_setopt(c, CURLOPT_NOPROGRESS, 0L); curl_easy_setopt(c, CURLOPT_XFERINFOFUNCTION, dl_progress); curl_easy_setopt(c, CURLOPT_XFERINFODATA, &ctx);
 	curl_easy_setopt(c, CURLOPT_ERRORBUFFER, errbuf); tune(c);
 	curl_easy_setopt(c, CURLOPT_LOW_SPEED_LIMIT, 1024L); curl_easy_setopt(c, CURLOPT_LOW_SPEED_TIME, 30L);
+	if (from > 0) curl_easy_setopt(c, CURLOPT_RESUME_FROM_LARGE, (curl_off_t)from);
 	CURLcode rc = curl_easy_perform(c);
 	long code = 0; curl_easy_getinfo(c, CURLINFO_RESPONSE_CODE, &code);
+	if (ctx.no_range) { if (no_range) *no_range = true; snprintf(err, en, "El servidor no permite reanudar la descarga"); return false; }
 	if (ctx.sink_failed) { snprintf(err, en, "No se pudo escribir la descarga"); return false; }
 	if (rc != CURLE_OK) { snprintf(err, en, "Descarga fallida: %.50s", errbuf[0] ? errbuf : curl_easy_strerror(rc)); return false; }
-	if (code != 200) { snprintf(err, en, "El servidor respondio %ld", code); return false; }
+	if (code != (from > 0 ? 206 : 200)) { snprintf(err, en, "El servidor respondio %ld", code); return false; }
 	return true;
 }
+bool net_download(const char *url, NetSink sink, void *ud, volatile int *pct, char *err, size_t en) { return net_download_from(url, 0, sink, ud, pct, NULL, err, en); }
 
 // ---------- Auth ----------
 static unsigned int parse_color(const char *hex) { // "#rrggbb" -> ABGR

@@ -192,6 +192,7 @@ static bool project(float x, float y, float z, float *sx, float *sy, float *dept
 }
 
 typedef struct { float depth; float x, y, z, w, h; u32 color; int av; } Box;   // av: -1 bloque, 0 yo, 1+i jugador remoto i
+static bool g_new3ds;                                     // New 3DS: 804 MHz y mas memoria => mas bloques y mas distancia
 static Box draw_list[MAX_LOCAL + MAX_PLAYERS * 2 + 4 + 700];
 
 static u32 shade(u32 c, float f) {
@@ -316,8 +317,8 @@ static void render_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 	u64 now = now_ms;
 	// ---- lista de dibujo ordenada por profundidad (con niebla) ----
 	static const int caps[3] = {150, 250, 320}, radii[3] = {7, 8, 9};
-	int lvl = app_draw_level(), cap = caps[lvl], R = radii[lvl];
-	fog_near = 12 + lvl * 4; fog_far = 26 + lvl * 8;
+	int lvl = app_draw_level(), cap = caps[lvl] + (g_new3ds ? 200 + lvl * 60 : 0), R = radii[lvl] + (g_new3ds ? 2 : 0);
+	fog_near = 12 + lvl * 4; fog_far = 26 + lvl * 8 + (g_new3ds ? 8 : 0);
 	bool night = world.type == 5;
 	if (night) { g_sky[0] = 0x04; g_sky[1] = 0x07; g_sky[2] = 0x10; fog_near = cam_dist + 1.5f; fog_far = cam_dist + 15 + lvl * 3; R = 7; }
 	else { g_sky[0] = 0xD8; g_sky[1] = 0xEC; g_sky[2] = 0xFF; }
@@ -666,7 +667,8 @@ static bool play_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 }
 
 int main(int argc, char **argv) {
-	gfxInitDefault(); C3D_Init(C3D_DEFAULT_CMDBUF_SIZE); C2D_Init(C2D_DEFAULT_MAX_OBJECTS); C2D_Prepare();
+	APT_CheckNew3DS(&g_new3ds); if (g_new3ds) osSetSpeedupEnable(true);
+	gfxInitDefault(); C3D_Init(C3D_DEFAULT_CMDBUF_SIZE); C2D_Init(g_new3ds ? C2D_DEFAULT_MAX_OBJECTS * 2 : C2D_DEFAULT_MAX_OBJECTS); C2D_Prepare();
 	C3D_RenderTarget *top = C2D_CreateScreenTarget(GFX_TOP, GFX_LEFT);
 	C3D_RenderTarget *bot = C2D_CreateScreenTarget(GFX_BOTTOM, GFX_LEFT);
 	ui_init();
