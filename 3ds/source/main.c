@@ -381,6 +381,7 @@ static void render_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 	cap = (int)(cap * q_adapt); if (cap < 90) cap = 90;
 	fog_near = 12 + lvl * 4; fog_far = 26 + lvl * 8 + (g_new3ds ? 8 : 0);
 	bool night = world.type == 5;
+	{ float fm = cur_game.fog > 0 ? (cur_game.fog < 0.25f ? 0.25f : cur_game.fog > 2 ? 2 : cur_game.fog) : 1; fog_near *= fm; fog_far *= fm; }      // config.fog (0.25 - 2)
 	if (night) { g_sky[0] = 0x04; g_sky[1] = 0x07; g_sky[2] = 0x10; fog_near = cam_dist + 1.5f; fog_far = cam_dist + 15 + lvl * 3; R = 7; }
 	int skm = night ? 0 : g_skymode; bool starry = night || skm >= 3;
 	static const unsigned char SKT[5][3] = {{0x4F, 0x9F, 0xE8}, {0x6A, 0x7C, 0xC8}, {0x58, 0x48, 0x98}, {0x02, 0x03, 0x0A}, {0x00, 0x00, 0x06}};     // arriba del cielo
