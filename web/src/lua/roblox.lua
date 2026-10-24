@@ -959,6 +959,7 @@ local DISPATCH = {}
 function DISPATCH.init(m)
   for store, kv in pairs(m.ds or {}) do dsCache[store] = {}; for k, j in pairs(kv) do dsCache[store][k] = j end end
   startGame(m.me)
+  if _G.__hotbarInit then pcall(_G.__hotbarInit) end
   for _, d in ipairs(m.parts or {}) do                                    -- piezas hechas en el Studio: estan en Workspace con su nombre
     local part = newInstance(d.type == "spawn" and "SpawnLocation" or "Part"); rawset(part, "_name", d.name or "Part")
     local pr = rawget(part, "_props")
@@ -1017,12 +1018,14 @@ function DISPATCH.guiclick(d)
 end
 function DISPATCH.key(d)
   keysDown[d.k] = d.down and true or nil
+  if d.down and _G.__hotbarKey then _G.__hotbarKey(d.k) end
   local inp = inputObject(d.k, nil, d.down and Enum.UserInputState.Begin or Enum.UserInputState.End)
   fire(UIS, d.down and "InputBegan" or "InputEnded", inp, false)
   if _G.__cas then for n, a in pairs(_G.__cas) do for _, k in ipairs(a.keys) do if k == Enum.KeyCode[d.k] or k == d.k then fireFn(a.fn, n, d.down and Enum.UserInputState.Begin or Enum.UserInputState.End, inp) end end end end
   if d.k == "Space" and d.down then fire(UIS, "JumpRequest") end
 end
 function DISPATCH.mouse(d)
+  if _G.__toolClick then _G.__toolClick(d.down) end
   local inp = inputObject("Unknown", Enum.UserInputType.MouseButton1, d.down and Enum.UserInputState.Begin or Enum.UserInputState.End)
   fire(UIS, d.down and "InputBegan" or "InputEnded", inp, false)
 end
@@ -1048,4 +1051,68 @@ function DISPATCH.join(d) legacyFire("join", d.name, "") end
 function DISPATCH.tick(d) legacyFire("tick", "", "") end
 function DISPATCH.command(d) local f = commands[d.name]; if f then fireFn(f, d.args, d.who) end; if localPlayer then fire(localPlayer, "Chatted", "/" .. d.name .. (d.args ~= "" and (" " .. d.args) or "")) end end
 function DISPATCH.respawned(d) local p = localPlayer; if p then local hum = Methods.FindFirstChildOfClass(rawget(p, "_props").Character or newInstance("Folder"), "Humanoid"); if hum then rawget(hum, "_props").Health = rawget(hum, "_props").MaxHealth end end end
+-- herramientas: Tool en la Backpack, barra de objetos abajo (teclas 1-9 o clic), Activated con el clic del raton
+standard("Tool", "Instance", { props = { ToolTip = "", CanBeDropped = true, RequiresHandle = false, Enabled = true, TextureId = "", ManualActivationOnly = false }, events = { "Activated", "Deactivated", "Equipped", "Unequipped" },
+  methods = { Activate = function(i) if rawget(i, "_props").Enabled then fire(i, "Activated") end end } })
+local tbar, tslots = nil, {}
+local function myChar() return localPlayer and rawget(localPlayer, "_props").Character end
+local function myPack() return localPlayer and Methods.FindFirstChild(localPlayer, "Backpack") end
+local function equippedTool() local c = myChar(); return c and Methods.FindFirstChildOfClass(c, "Tool") end
+local function toolList()
+  local out, seen = {}, {}
+  local e = equippedTool(); if e then out[#out + 1] = e; seen[e] = true end
+  local bp = myPack(); if bp then for _, t in ipairs(rawget(bp, "_kids")) do if rawget(t, "_class").name == "Tool" and not seen[t] then out[#out + 1] = t end end end
+  return out
+end
+local function unequipAll()
+  local e = equippedTool(); local bp = myPack()
+  if e and bp then setParent(e, bp); fire(e, "Unequipped") end
+end
+local function equip(t)
+  local c = myChar(); if not c or not t then return end
+  if equippedTool() == t then unequipAll(); return end
+  unequipAll(); setParent(t, c); fire(t, "Equipped", nil)
+end
+local refreshBar
+function refreshBar()
+  if not localPlayer then return end
+  local pg = Methods.FindFirstChild(localPlayer, "PlayerGui"); if not pg then return end
+  if not tbar then
+    local g = newInstance("ScreenGui"); rawset(g, "_name", "Hotbar"); setParent(g, pg)
+    tbar = newInstance("Frame"); local p = rawget(tbar, "_props")
+    p.Size = UDim2.new(0, 520, 0, 52); p.Position = UDim2.new(0.5, 0, 1, -92); p.AnchorPoint = Vector2.new(0.5, 0); p.BackgroundTransparency = 1
+    setParent(tbar, g)
+    local l = newInstance("UIListLayout"); rawget(l, "_props").FillDirection = Enum.FillDirection.Horizontal; rawget(l, "_props").HorizontalAlignment = Enum.HorizontalAlignment.Center; rawget(l, "_props").Padding = UDim.new(0, 6); setParent(l, tbar)
+  end
+  for _, s in ipairs(tslots) do s:Destroy() end
+  tslots = {}
+  local list, e = toolList(), equippedTool()
+  for n, t in ipairs(list) do
+    local b = newInstance("TextButton"); local p = rawget(b, "_props")
+    p.Size = UDim2.new(0, 56, 0, 52); p.TextSize = 13; p.TextWrapped = true; p.TextColor3 = Color3.new(1, 1, 1)
+    p.BackgroundColor3 = (t == e) and Color3.fromRGB(255, 190, 40) or Color3.fromRGB(30, 34, 46); p.BackgroundTransparency = 0.2
+    p.Text = n .. "\n" .. rawget(t, "_name")
+    local cr = newInstance("UICorner"); setParent(cr, b)
+    setParent(b, tbar); tslots[#tslots + 1] = b
+    b.MouseButton1Click:Connect(function() equip(t) end)
+  end
+end
+_G.__hotbarKey = function(k)
+  local n = ({ One = 1, Two = 2, Three = 3, Four = 4, Five = 5, Six = 6, Seven = 7, Eight = 8, Nine = 9 })[k]
+  if n then local t = toolList()[n]; if t then equip(t) end end
+end
+_G.__toolClick = function(down)
+  local e = equippedTool(); if not e then return end
+  if down then if rawget(e, "_props").Enabled then fire(e, "Activated") end else fire(e, "Deactivated") end
+end
+_G.__hotbarInit = function()
+  local bp = myPack(); if not bp then return end
+  bp.ChildAdded:Connect(refreshBar); bp.ChildRemoved:Connect(refreshBar)
+  localPlayer.CharacterAdded:Connect(function(c) c.ChildAdded:Connect(refreshBar); c.ChildRemoved:Connect(refreshBar); refreshBar() end)
+  local c = myChar(); if c then c.ChildAdded:Connect(refreshBar); c.ChildRemoved:Connect(refreshBar) end
+  refreshBar()
+end
+classes.Humanoid.methods.EquipTool = function(_, t) equip(t) end
+classes.Humanoid.methods.UnequipTools = function() unequipAll() end
+
 function __dispatch(kind, data) local f = DISPATCH[kind]; if f then f(data) end end

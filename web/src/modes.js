@@ -399,3 +399,31 @@ task.spawn(function()
   end
 end)
 paint()`
+
+// Herramientas equipables: aparecen en la barra de abajo (teclas 1-9). El clic las usa (Activated).
+export const TOOLS = `-- ARMERIA: tres herramientas en tu inventario. Pulsa 1, 2 o 3 para equiparlas y haz clic para usarlas.
+local Players = game:GetService("Players")
+local me = Players.LocalPlayer
+local function root() local c = me.Character; return c and c:FindFirstChild("HumanoidRootPart") end
+local function give(name, tip, fn)
+  local t = Instance.new("Tool"); t.Name = name; t.ToolTip = tip; t.Parent = me.Backpack
+  t.Activated:Connect(fn); return t
+end
+give("Espada", "Golpea", function()
+  local r = root(); if not r then return end
+  local s = Instance.new("Part"); s.Size = Vector3.new(0.3, 0.3, 3.2); s.Color = Color3.fromRGB(200, 230, 255); s.Material = Enum.Material.Neon
+  s.Anchored = true; s.CanCollide = false; s.Position = r.Position + Vector3.new(0, 1.2, 0); s.Parent = workspace
+  game.sound("laser"); task.delay(0.2, function() s:Destroy() end)
+end)
+give("Botiquin", "Cura 30 de vida", function()
+  local h = me.Character and me.Character:FindFirstChildOfClass("Humanoid")
+  if h then h.Health = h.Health + 30; game.sound("powerup"); game.title("+30 vida", 800) end
+end)
+give("Bengala", "Deja una luz", function()
+  local r = root(); if not r then return end
+  local p = Instance.new("Part"); p.Size = Vector3.new(0.6, 0.6, 0.6); p.Color = Color3.fromRGB(255, 150, 60); p.Material = Enum.Material.Neon
+  p.Anchored = true; p.CanCollide = false; p.Position = r.Position + Vector3.new(0, 0.5, 0); p.Parent = workspace
+  local l = Instance.new("PointLight"); l.Range = 18; l.Brightness = 2; l.Color = Color3.fromRGB(255, 160, 80); l.Parent = p
+  task.delay(15, function() p:Destroy() end)
+end)
+game.title("Pulsa 1, 2 o 3", 2500)`
