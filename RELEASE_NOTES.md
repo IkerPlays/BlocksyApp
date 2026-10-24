@@ -1,4 +1,4 @@
-Devbuild: Studio parts on the 3DS
-- Parts built in the web Studio (blocks, balls, cylinders, rotated pieces and spawn points) now show up in games on the 3DS.
-- Solid parts work as floors and walls; nearly invisible ones (water, glass) do not block you.
-- The update page shows progress in the first button and keeps the rollback button visible.
+Devbuild: new game templates and calmer updates
+- New templates: Memory (repeat the color sequence by stepping on tiles) and Zones (capture three circles, multiplayer).
+- The 3DS pauses the music while it installs an update, freeing memory for the installer.
+- Studio parts are drawn and collide on the 3DS (blocks, balls, cylinders, spawn points).

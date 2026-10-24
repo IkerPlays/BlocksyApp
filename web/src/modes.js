@@ -521,3 +521,106 @@ task.spawn(function()
 end)
 game.teleport(0, 2, 0)
 game.title("Esquiva los bloques", 2500)`
+
+// Memoria (Simon): cuatro losetas de colores se iluminan en orden; tienes que pisarlas en el mismo orden. Cada ronda añade una más.
+export const SIMON = `local Players = game:GetService("Players")
+local me = Players.LocalPlayer
+local COLS = { Color3.fromRGB(231, 76, 60), Color3.fromRGB(46, 204, 113), Color3.fromRGB(52, 152, 219), Color3.fromRGB(241, 196, 15) }
+local POS = { { -6, -6 }, { 6, -6 }, { -6, 6 }, { 6, 6 } }
+local gui = Instance.new("ScreenGui"); gui.Parent = me.PlayerGui
+local label = Instance.new("TextLabel"); label.Size = UDim2.new(0, 420, 0, 44); label.Position = UDim2.new(0.5, 0, 0, 14); label.AnchorPoint = Vector2.new(0.5, 0)
+label.BackgroundColor3 = Color3.fromRGB(20, 20, 30); label.BackgroundTransparency = 0.25; label.TextColor3 = Color3.new(1, 1, 1); label.TextSize = 20; label.Parent = gui
+Instance.new("UICorner", label).CornerRadius = UDim.new(0, 12)
+local pads = {}
+for i = 1, 4 do
+  local p = Instance.new("Part"); p.Size = Vector3.new(6, 0.5, 6); p.Anchored = true; p.Color = COLS[i]; p.Transparency = 0.5
+  p.Position = Vector3.new(POS[i][1], 0.25, POS[i][2]); p.Parent = workspace; pads[i] = p
+end
+local function flash(i) pads[i].Transparency = 0; game.sound("click"); task.wait(0.5); pads[i].Transparency = 0.5; task.wait(0.2) end
+local function padUnder()
+  local c = me.Character; local r = c and c:FindFirstChild("HumanoidRootPart"); if not r then return 0 end
+  for i = 1, 4 do if math.abs(r.Position.X - POS[i][1]) < 3 and math.abs(r.Position.Z - POS[i][2]) < 3 then return i end end
+  return 0
+end
+local seq, best = {}, 0
+task.spawn(function()
+  while true do
+    seq[#seq + 1] = math.random(1, 4)
+    label.Text = "Mira la secuencia (" .. #seq .. ")"
+    task.wait(1)
+    for _, v in ipairs(seq) do flash(v) end
+    label.Text = "Tu turno: pisa los colores en orden"
+    local ok = true
+    for i, v in ipairs(seq) do
+      local got, t0 = 0, os.clock()
+      while got == 0 and os.clock() - t0 < 10 do task.wait(0.1); got = padUnder() end
+      if got ~= v then ok = false; break end
+      flash(got)
+      while padUnder() ~= 0 do task.wait(0.1) end
+    end
+    if ok then
+      if #seq > best then best = #seq end
+      game.sound("coin"); game.title("Ronda " .. #seq .. " superada", 1200)
+    else
+      game.sound("hit"); game.title("Fallaste. Llegaste a " .. (#seq - 1) .. " (mejor " .. math.max(best, #seq - 1) .. ")", 2500)
+      seq = {}; task.wait(2.5)
+    end
+    task.wait(1)
+  end
+end)
+game.teleport(0, 2, 0)
+game.title("Memoriza y repite la secuencia", 2500)`
+
+// Zonas: tres círculos; quien está dentro suma un punto por segundo y se queda con la zona (se pinta de su color). Gana quien llega a la meta.
+export const ZONES = `local Players = game:GetService("Players")
+local me = Players.LocalPlayer
+local remote = Instance.new("RemoteEvent"); remote.Name = "Zones"; remote.Parent = game.ReplicatedStorage
+local GOAL, R = 40, 5
+local ZP = { { -12, -8 }, { 12, -8 }, { 0, 14 } }
+local gui = Instance.new("ScreenGui"); gui.Parent = me.PlayerGui
+local function label(w, h, x, y, ax, size)
+  local l = Instance.new("TextLabel"); l.Size = UDim2.new(0, w, 0, h); l.Position = UDim2.new(x, 0, 0, y); l.AnchorPoint = Vector2.new(ax, 0)
+  l.BackgroundColor3 = Color3.fromRGB(20, 20, 30); l.BackgroundTransparency = 0.25; l.TextColor3 = Color3.new(1, 1, 1); l.TextSize = size; l.Parent = gui
+  Instance.new("UICorner", l).CornerRadius = UDim.new(0, 12); return l
+end
+local status, board = label(420, 44, 0.5, 14, 0.5, 20), label(220, 140, 1, 70, 1, 16)
+board.TextXAlignment = Enum.TextXAlignment.Left
+local zones, owner, scores, mine, over = {}, {}, {}, 0, false
+for i = 1, 3 do
+  local z = Instance.new("Part"); z.Shape = Enum.PartType.Cylinder; z.Size = Vector3.new(0.4, R * 2, R * 2); z.Anchored = true; z.CanCollide = false
+  z.Material = Enum.Material.Neon; z.Color = Color3.fromRGB(255, 200, 60); z.Transparency = 0.5; z.Position = Vector3.new(ZP[i][1], 0.25, ZP[i][2]); z.Parent = workspace; zones[i] = z
+end
+local function paint(i)
+  local o = owner[i]
+  zones[i].Color = o == nil and Color3.fromRGB(255, 200, 60) or (o == me.Name and Color3.fromRGB(80, 220, 120) or Color3.fromRGB(235, 80, 80))
+end
+local function render()
+  local list = {}; for n, v in pairs(scores) do list[#list + 1] = { n = n, v = v } end
+  table.sort(list, function(a, b) return a.v > b.v end)
+  local t = "ZONAS (meta " .. GOAL .. ")\\n"; for i = 1, math.min(5, #list) do t = t .. list[i].n .. "  " .. list[i].v .. "\\n" end
+  board.Text = t
+  if not over then status.Text = "Conquista los círculos: verde = tuyo, rojo = rival" end
+end
+remote.OnClientEvent:Connect(function(kind, a, b, c)
+  if kind == "zone" then owner[a] = b; scores[b] = c; paint(a); render()
+  elseif kind == "win" then over = true; status.Text = tostring(a) .. " domina el mapa!"; game.title(tostring(a) .. " gana!", 4000); game.sound("win")
+  elseif kind == "reset" then over = false; scores = {}; owner = {}; mine = 0; for i = 1, 3 do paint(i) end; render() end
+end)
+remote.OnServerEvent:Connect(function(player, kind, i, v)
+  if kind == "hold" and not over and type(v) == "number" and ZP[i] then
+    scores[player.Name] = math.min(v, GOAL); owner[i] = player.Name; remote:FireAllClients("zone", i, player.Name, scores[player.Name])
+    if v >= GOAL then over = true; remote:FireAllClients("win", player.Name); task.delay(7, function() scores = {}; owner = {}; over = false; remote:FireAllClients("reset") end) end
+  end
+end)
+task.spawn(function()
+  while true do
+    task.wait(1)
+    local c = me.Character; local r = c and c:FindFirstChild("HumanoidRootPart")
+    if r and not over then
+      for i = 1, 3 do
+        if (Vector3.new(ZP[i][1], r.Position.Y, ZP[i][2]) - r.Position).Magnitude < R then mine += 1; game.sound("click"); remote:FireServer("hold", i, mine); break end
+      end
+    end
+  end
+end)
+render()`

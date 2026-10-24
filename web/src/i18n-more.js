@@ -1,6 +1,10 @@
 // Traducciones completas de los textos añadidos desde la 1.3 (se mezclan en i18n.js; lo que ya esté traducido allí tiene prioridad).
 export const MORE = {
   pt: {
+    tpl_simon: "Memória",
+    tpl_simon_d: "Repita a sequência de cores pisando nos ladrilhos",
+    tpl_zones: "Zonas",
+    tpl_zones_d: "Multijogador: conquiste os três círculos",
     ed_api_tools: "<p><b>Ferramentas</b>: <code>local t = Instance.new(\"Tool\"); t.Name = \"Espada\"; t.Parent = game.Players.LocalPlayer.Backpack</code>. Aparecem em uma barra embaixo (teclas 1-9 ou toque); <code>t.Activated</code> dispara com o clique, assim como <code>Equipped</code> / <code>Unequipped</code>. <b>Animações</b>: use o painel Animador do Studio. <b>Eventos de rede</b>: <code>RemoteEvent</code> com <code>FireServer</code> / <code>FireAllClients</code>.</p>",
     mod_kind_meetup: "Encontro",
     mt_cancel_staff: "Cancelar encontro",
@@ -738,6 +742,10 @@ export const MORE = {
     lang_hint: "O idioma é aplicado na hora.",
   },
   fr: {
+    tpl_simon: "Mémoire",
+    tpl_simon_d: "Répète la séquence de couleurs en marchant sur les dalles",
+    tpl_zones: "Zones",
+    tpl_zones_d: "Multijoueur : conquiers les trois cercles",
     ed_api_tools: "<p><b>Outils</b> : <code>local t = Instance.new(\"Tool\"); t.Name = \"Épée\"; t.Parent = game.Players.LocalPlayer.Backpack</code>. Ils apparaissent dans une barre en bas (touches 1-9 ou toucher) ; <code>t.Activated</code> se déclenche au clic, ainsi que <code>Equipped</code> / <code>Unequipped</code>. <b>Animations</b> : utilise le panneau Animateur du Studio. <b>Événements réseau</b> : <code>RemoteEvent</code> avec <code>FireServer</code> / <code>FireAllClients</code>.</p>",
     mod_kind_meetup: "Rendez-vous",
     mt_cancel_staff: "Annuler le rendez-vous",
@@ -1475,6 +1483,10 @@ export const MORE = {
     lang_hint: "La langue s'applique instantanément.",
   },
   de: {
+    tpl_simon: "Gedächtnis",
+    tpl_simon_d: "Wiederhole die Farbfolge, indem du auf die Felder trittst",
+    tpl_zones: "Zonen",
+    tpl_zones_d: "Mehrspieler: erobere die drei Kreise",
     ed_api_tools: "<p><b>Werkzeuge</b>: <code>local t = Instance.new(\"Tool\"); t.Name = \"Schwert\"; t.Parent = game.Players.LocalPlayer.Backpack</code>. Sie erscheinen in einer Leiste unten (Tasten 1-9 oder Antippen); <code>t.Activated</code> wird beim Klick ausgelöst, ebenso <code>Equipped</code> / <code>Unequipped</code>. <b>Animationen</b>: nutze das Animator-Panel im Studio. <b>Netzwerk-Ereignisse</b>: <code>RemoteEvent</code> mit <code>FireServer</code> / <code>FireAllClients</code>.</p>",
     mod_kind_meetup: "Treffen",
     mt_cancel_staff: "Treffen absagen",
@@ -2212,6 +2224,10 @@ export const MORE = {
     lang_hint: "Die Sprache wird sofort angewendet.",
   },
   it: {
+    tpl_simon: "Memoria",
+    tpl_simon_d: "Ripeti la sequenza di colori calpestando le piastrelle",
+    tpl_zones: "Zone",
+    tpl_zones_d: "Multigiocatore: conquista i tre cerchi",
     ed_api_tools: "<p><b>Strumenti</b>: <code>local t = Instance.new(\"Tool\"); t.Name = \"Spada\"; t.Parent = game.Players.LocalPlayer.Backpack</code>. Compaiono in una barra in basso (tasti 1-9 o tocco); <code>t.Activated</code> scatta con il clic, così come <code>Equipped</code> / <code>Unequipped</code>. <b>Animazioni</b>: usa il pannello Animatore dello Studio. <b>Eventi di rete</b>: <code>RemoteEvent</code> con <code>FireServer</code> / <code>FireAllClients</code>.</p>",
     mod_kind_meetup: "Incontro",
     mt_cancel_staff: "Annulla incontro",
@@ -2966,6 +2982,10 @@ export const MORE = {
     invite_friends: "Invita amici",
   },
   pl: {
+    tpl_simon: "Pamięć",
+    tpl_simon_d: "Powtórz sekwencję kolorów, wchodząc na płytki",
+    tpl_zones: "Strefy",
+    tpl_zones_d: "Wieloosobowa: zdobądź trzy koła",
     ed_api_tools: "<p><b>Narzędzia</b>: <code>local t = Instance.new(\"Tool\"); t.Name = \"Miecz\"; t.Parent = game.Players.LocalPlayer.Backpack</code>. Pojawiają się na pasku u dołu (klawisze 1-9 lub dotknięcie); <code>t.Activated</code> uruchamia się po kliknięciu, tak samo jak <code>Equipped</code> / <code>Unequipped</code>. <b>Animacje</b>: użyj panelu Animator w Studio. <b>Zdarzenia sieciowe</b>: <code>RemoteEvent</code> z <code>FireServer</code> / <code>FireAllClients</code>.</p>",
     mod_kind_meetup: "Spotkanie",
     mt_cancel_staff: "Anuluj spotkanie",
@@ -3939,6 +3959,10 @@ export const MORE = {
     offline_ready: "Gotowe do użycia offline",
   },
   ru: {
+    tpl_simon: "Память",
+    tpl_simon_d: "Повторите последовательность цветов, наступая на плитки",
+    tpl_zones: "Зоны",
+    tpl_zones_d: "Мультиплеер: захватите три круга",
     ed_api_tools: "<p><b>Инструменты</b>: <code>local t = Instance.new(\"Tool\"); t.Name = \"Меч\"; t.Parent = game.Players.LocalPlayer.Backpack</code>. Они появляются на панели внизу (клавиши 1-9 или касание); <code>t.Activated</code> срабатывает по клику, как и <code>Equipped</code> / <code>Unequipped</code>. <b>Анимации</b>: используйте панель «Аниматор» в Студии. <b>Сетевые события</b>: <code>RemoteEvent</code> с <code>FireServer</code> / <code>FireAllClients</code>.</p>",
     mod_kind_meetup: "Встреча",
     mt_cancel_staff: "Отменить встречу",
@@ -4912,6 +4936,10 @@ export const MORE = {
     offline_ready: "Готово к работе офлайн",
   },
   ja: {
+    tpl_simon: "きおく",
+    tpl_simon_d: "タイルを踏んで色の順番をくりかえそう",
+    tpl_zones: "ゾーン",
+    tpl_zones_d: "マルチプレイ: 3つの円をせんりょうしよう",
     ed_api_tools: "<p><b>ツール</b>: <code>local t = Instance.new(\"Tool\"); t.Name = \"剣\"; t.Parent = game.Players.LocalPlayer.Backpack</code>。画面下のバーに表示されます（キー1〜9またはタップ）。クリックで <code>t.Activated</code> が発火し、<code>Equipped</code> / <code>Unequipped</code> も使えます。<b>アニメーション</b>: スタジオのアニメーターパネルを使ってください。<b>ネットワークイベント</b>: <code>FireServer</code> / <code>FireAllClients</code> を使う <code>RemoteEvent</code>。</p>",
     mod_kind_meetup: "集まり",
     mt_cancel_staff: "集まりを中止",
@@ -5885,6 +5913,10 @@ export const MORE = {
     offline_ready: "オフラインで使えます",
   },
   zh: {
+    tpl_simon: "记忆",
+    tpl_simon_d: "踩上方块，重复颜色顺序",
+    tpl_zones: "区域",
+    tpl_zones_d: "多人：占领三个圆圈",
     ed_api_tools: "<p><b>工具</b>：<code>local t = Instance.new(\"Tool\"); t.Name = \"剑\"; t.Parent = game.Players.LocalPlayer.Backpack</code>。它们会显示在底部的栏中（按键 1-9 或点按）；点击时会触发 <code>t.Activated</code>，<code>Equipped</code> / <code>Unequipped</code> 也同样可用。<b>动画</b>：使用工作室的“动画师”面板。<b>网络事件</b>：带有 <code>FireServer</code> / <code>FireAllClients</code> 的 <code>RemoteEvent</code>。</p>",
     mod_kind_meetup: "聚会",
     mt_cancel_staff: "取消聚会",
@@ -6858,6 +6890,10 @@ export const MORE = {
     offline_ready: "已可离线使用",
   },
   ko: {
+    tpl_simon: "기억",
+    tpl_simon_d: "타일을 밟아 색 순서를 따라 하세요",
+    tpl_zones: "구역",
+    tpl_zones_d: "멀티플레이: 세 개의 원을 점령하세요",
     ed_api_tools: "<p><b>도구</b>: <code>local t = Instance.new(\"Tool\"); t.Name = \"검\"; t.Parent = game.Players.LocalPlayer.Backpack</code>. 화면 아래 바에 나타납니다(키 1-9 또는 탭). 클릭하면 <code>t.Activated</code>가 발생하며 <code>Equipped</code> / <code>Unequipped</code>도 사용할 수 있습니다. <b>애니메이션</b>: 스튜디오의 애니메이터 패널을 사용하세요. <b>네트워크 이벤트</b>: <code>FireServer</code> / <code>FireAllClients</code>를 쓰는 <code>RemoteEvent</code>.</p>",
     mod_kind_meetup: "모임",
     mt_cancel_staff: "모임 취소",
