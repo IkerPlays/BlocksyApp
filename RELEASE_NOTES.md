@@ -1,2 +1,2 @@
-Devbuild 82: harder Dodge
-- Dodge drops more blocks as time passes, and a lot more if you survive 20 seconds.
+Devbuild 83: shortcuts
+- The Ctrl+K palette and the g shortcuts reach the new pages: g c opens Clan and g e opens Meetups.
