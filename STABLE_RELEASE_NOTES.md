@@ -13,7 +13,8 @@ Blocksy is a multiplayer block-building game for the web and the Nintendo 3DS (h
 - 3DS updater rewritten: verified downloads (SHA-256), resume after network loss, rollback for .3dsx, changes list and progress with speed.
 - New 3DS: full speed mode and a longer draw distance.
 - Studio parts (blocks, balls, cylinders, spawn points) are drawn and collide on the 3DS.
-- New templates: Memory and Zones.
+- New templates: Memory, Zones, Treasure hunt and Tower.
+- 3DS: translucent and glowing Studio parts; setting to turn off automatic stable installs.
 - The 3DS pauses music during an update to free memory.
 - Kill feed in Arena and Teams.
 - Four new achievements for clans, meetups, collaboration and animations.

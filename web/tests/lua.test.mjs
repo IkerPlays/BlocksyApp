@@ -86,7 +86,7 @@ test('RemoteEvent viaja entre dos clientes y solo el servidor recibe OnServerEve
   assert.ok(prints(a).includes('servidor Beto 7')); assert.ok(prints(b).includes('cliente hola 4')); assert.ok(prints(a).includes('cliente hola 4'))
 })
 
-import { TAG, FLAG, WAVES, HIDE, ARENA, TEAMS, RACE, TOOLS, KOTH, DODGE, SIMON, ZONES } from '../src/modes.js'
+import { TAG, FLAG, WAVES, HIDE, ARENA, TEAMS, RACE, TOOLS, KOTH, DODGE, SIMON, ZONES, TREASURE, TOWER } from '../src/modes.js'
 for (const [name, src] of [['pilla-pilla', TAG], ['bandera', FLAG], ['oleadas', WAVES], ['escondite', HIDE], ['arena pvp', ARENA], ['equipos', TEAMS], ['carrera con vueltas', RACE]]) {
   test(`modo ${name}: arranca sin errores con dos jugadores y avisa por RemoteEvent`, () => {
     const h = make(); h.dispatch('init', { me: 'Ana', code: transpile(src) }); h.dispatch('playerjoin', { name: 'Beto' })
@@ -137,4 +137,16 @@ test('zonas: crea tres circulos y puntua al estar dentro', () => {
   const h = make(); h.dispatch('init', { me: 'Ana', code: transpile(ZONES) })
   for (let i = 0; i < 40; i++) h.dispatch('step', { dt: 0.1, now: 1700000000 + i * 0.1, x: -12, y: 1, z: -8, others: [] })
   assert.deepEqual(h.errs, []); assert.ok(h.acts.filter(a => a[0] === 'new' && a[2] === 'Part').length >= 3, 'tres zonas')
+})
+
+test('cazatesoros: crea ocho cofres y los recoge al pasar por encima', () => {
+  const h = make(); h.dispatch('init', { me: 'Ana', code: transpile(TREASURE) })
+  for (let i = 0; i < 20; i++) h.dispatch('step', { dt: 0.1, now: 1700000000 + i * 0.1, x: 0, y: 0, z: 0, others: [] })
+  assert.deepEqual(h.errs, []); assert.ok(h.acts.filter(a => a[0] === 'new' && a[2] === 'Part').length >= 8, 'ocho cofres')
+})
+
+test('torre: crea la espiral de plataformas sin errores', () => {
+  const h = make(); h.dispatch('init', { me: 'Ana', code: transpile(TOWER) })
+  for (let i = 0; i < 20; i++) h.dispatch('step', { dt: 0.1, now: 1700000000 + i * 0.1, x: 9, y: 5, z: 0, others: [] })
+  assert.deepEqual(h.errs, []); assert.ok(h.acts.filter(a => a[0] === 'new' && a[2] === 'Part').length >= 40, 'cuarenta plataformas')
 })

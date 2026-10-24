@@ -1,4 +1,4 @@
-import { TAG, FLAG, WAVES, HIDE, ARENA, TEAMS, RACE, TOOLS, KOTH, DODGE, SIMON, ZONES } from './modes.js'
+import { TAG, FLAG, WAVES, HIDE, ARENA, TEAMS, RACE, TOOLS, KOTH, DODGE, SIMON, ZONES, TREASURE, TOWER } from './modes.js'
 // Plantillas de juego completas para empezar rápido en la página Crear (modo, reglas, script Lua y piezas ya puestas)
 const COINS = `-- Recoge 10 monedas para ganar
 local Players = game:GetService("Players")
@@ -47,6 +47,8 @@ export const TEMPLATES = [
   { id: 'dodge', key: 'tpl_dodge', mode: 'arena', config: { world: 'plaza', allow_build: false, script_lang: 'lua', welcome: 'Esquiva los bloques que caen' }, script: DODGE },
   { id: 'simon', key: 'tpl_simon', mode: 'arena', config: { world: 'checker', allow_build: false, script_lang: 'lua', welcome: 'Memoria: repite la secuencia de colores' }, script: SIMON },
   { id: 'zones', key: 'tpl_zones', mode: 'arena', config: { world: 'plaza', allow_build: false, script_lang: 'lua', welcome: 'Zonas: conquista los tres círculos' }, script: ZONES },
+  { id: 'treasure', key: 'tpl_treasure', mode: 'adventure', config: { world: 'plaza', allow_build: false, script_lang: 'lua', welcome: 'Encuentra los 8 cofres dorados' }, script: TREASURE },
+  { id: 'tower', key: 'tpl_tower', mode: 'obby', config: { world: 'void', allow_build: false, script_lang: 'lua', welcome: 'Sube la torre en espiral' }, script: TOWER },
   { id: 'arena', key: 'tpl_arena', mode: 'arena', config: { world: 'plaza', allow_build: false, script_lang: 'lua', double_jump: true, welcome: 'Arena: clic o F para golpear. Gana quien llegue a 15 bajas' }, script: ARENA },
   { id: 'teams', key: 'tpl_teams', mode: 'arena', config: { world: 'plaza', allow_build: false, script_lang: 'lua', welcome: 'Rojo contra Azul: gana el primero en 20 bajas' }, script: TEAMS },
   { id: 'race', key: 'tpl_race', mode: 'obby', config: { world: 'flat', allow_build: false, script_lang: 'lua', welcome: 'Carrera de 3 vueltas: pasa por las puertas en orden' }, script: RACE },

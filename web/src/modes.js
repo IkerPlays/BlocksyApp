@@ -624,3 +624,83 @@ task.spawn(function()
   end
 end)
 render()`
+
+// Cazatesoros: ocho cofres escondidos en posiciones que salen de una semilla (todos ven los mismos); gana el tiempo.
+export const TREASURE = `local Players = game:GetService("Players")
+local me = Players.LocalPlayer
+local N = 8
+local gui = Instance.new("ScreenGui"); gui.Parent = me.PlayerGui
+local label = Instance.new("TextLabel"); label.Size = UDim2.new(0, 420, 0, 44); label.Position = UDim2.new(0.5, 0, 0, 14); label.AnchorPoint = Vector2.new(0.5, 0)
+label.BackgroundColor3 = Color3.fromRGB(20, 20, 30); label.BackgroundTransparency = 0.25; label.TextColor3 = Color3.new(1, 1, 1); label.TextSize = 20; label.Parent = gui
+Instance.new("UICorner", label).CornerRadius = UDim.new(0, 12)
+local chests, found, t0, best, round = {}, 0, os.clock(), 0, 0
+local function build()
+  round += 1; found = 0; t0 = os.clock()
+  local seed = 1234 + round * 977
+  for i = 1, N do
+    seed = (seed * 1103 + 12345) % 65521; local x = (seed / 65521 - 0.5) * 44
+    seed = (seed * 1103 + 12345) % 65521; local z = (seed / 65521 - 0.5) * 44
+    local c = Instance.new("Part"); c.Size = Vector3.new(1.2, 1, 1.2); c.Anchored = true; c.CanCollide = false; c.Material = Enum.Material.Neon
+    c.Color = Color3.fromRGB(255, 200, 40); c.Position = Vector3.new(x, 0.9, z); c.Parent = workspace; chests[i] = c
+  end
+end
+build()
+task.spawn(function()
+  while true do
+    task.wait(0.15)
+    local c = me.Character; local r = c and c:FindFirstChild("HumanoidRootPart")
+    if r then
+      for i = N, 1, -1 do
+        local ch = chests[i]
+        if ch and (Vector3.new(ch.Position.X, r.Position.Y, ch.Position.Z) - r.Position).Magnitude < 2.2 then
+          ch:Destroy(); chests[i] = nil; found += 1; game.sound("coin")
+          if found >= N then
+            local t = math.floor((os.clock() - t0) * 10) / 10
+            if best == 0 or t < best then best = t end
+            game.sound("win"); game.title("Todos! " .. t .. " s (mejor " .. best .. " s)", 3500)
+            task.wait(4); build()
+          end
+        end
+      end
+    end
+    label.Text = "Cofres " .. found .. "/" .. N .. "  ·  " .. math.floor(os.clock() - t0) .. " s" .. (best > 0 and ("  ·  mejor " .. best .. " s") or "")
+  end
+end)
+game.teleport(0, 2, 0)
+game.title("Encuentra los 8 cofres dorados", 2500)`
+
+// Torre: una espiral de plataformas hacia el cielo con puntos de control cada 10; si caes vuelves al último.
+export const TOWER = `local Players = game:GetService("Players")
+local me = Players.LocalPlayer
+local TOP = 40
+local gui = Instance.new("ScreenGui"); gui.Parent = me.PlayerGui
+local label = Instance.new("TextLabel"); label.Size = UDim2.new(0, 360, 0, 44); label.Position = UDim2.new(0.5, 0, 0, 14); label.AnchorPoint = Vector2.new(0.5, 0)
+label.BackgroundColor3 = Color3.fromRGB(20, 20, 30); label.BackgroundTransparency = 0.25; label.TextColor3 = Color3.new(1, 1, 1); label.TextSize = 20; label.Parent = gui
+Instance.new("UICorner", label).CornerRadius = UDim.new(0, 12)
+local pos = {}
+for i = 1, TOP do
+  local a = i * 0.85; local x, y, z = math.cos(a) * 9, i * 2.4, math.sin(a) * 9
+  pos[i] = { x, y, z }
+  local p = Instance.new("Part"); p.Size = Vector3.new(i % 10 == 0 and 7 or 4.5, 0.6, i % 10 == 0 and 7 or 4.5); p.Anchored = true
+  p.Color = i % 10 == 0 and Color3.fromRGB(80, 220, 120) or Color3.fromHSV((i * 0.037) % 1, 0.65, 1); p.Position = Vector3.new(x, y, z); p.Parent = workspace
+end
+local check, best, won = 0, 0, false
+task.spawn(function()
+  while true do
+    task.wait(0.2)
+    local c = me.Character; local r = c and c:FindFirstChild("HumanoidRootPart")
+    if r then
+      local y = r.Position.Y
+      if y > best then best = y end
+      for i = 10, TOP, 10 do if y > pos[i][2] - 1 and check < i then check = i; game.sound("coin"); game.title("Punto de control " .. i, 1200) end end
+      if y < -4 then
+        game.sound("hit")
+        if check == 0 then game.teleport(9, 3, 0) else game.teleport(pos[check][1], pos[check][2] + 2, pos[check][3]) end
+      end
+      if y > pos[TOP][2] - 1 and not won then won = true; game.sound("win"); game.title("Llegaste a la cima!", 4000); task.delay(8, function() won = false; check = 0; game.teleport(9, 3, 0) end) end
+      label.Text = "Altura " .. math.floor(y) .. " m  ·  máx " .. math.floor(best) .. " m  ·  control " .. check
+    end
+  end
+end)
+game.teleport(9, 3, 0)
+game.title("Sube la torre en espiral", 2500)`

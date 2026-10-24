@@ -1,6 +1,10 @@
 // Traducciones completas de los textos añadidos desde la 1.3 (se mezclan en i18n.js; lo que ya esté traducido allí tiene prioridad).
 export const MORE = {
   pt: {
+    tpl_treasure: "Caça ao tesouro",
+    tpl_treasure_d: "Encontre oito baús o mais rápido possível",
+    tpl_tower: "Torre",
+    tpl_tower_d: "Suba uma espiral de plataformas com checkpoints",
     tpl_simon: "Memória",
     tpl_simon_d: "Repita a sequência de cores pisando nos ladrilhos",
     tpl_zones: "Zonas",
@@ -742,6 +746,10 @@ export const MORE = {
     lang_hint: "O idioma é aplicado na hora.",
   },
   fr: {
+    tpl_treasure: "Chasse au trésor",
+    tpl_treasure_d: "Trouve huit coffres le plus vite possible",
+    tpl_tower: "Tour",
+    tpl_tower_d: "Monte une spirale de plateformes avec points de contrôle",
     tpl_simon: "Mémoire",
     tpl_simon_d: "Répète la séquence de couleurs en marchant sur les dalles",
     tpl_zones: "Zones",
@@ -1483,6 +1491,10 @@ export const MORE = {
     lang_hint: "La langue s'applique instantanément.",
   },
   de: {
+    tpl_treasure: "Schatzsuche",
+    tpl_treasure_d: "Finde acht Truhen so schnell du kannst",
+    tpl_tower: "Turm",
+    tpl_tower_d: "Klettere eine Plattformspirale mit Checkpoints hinauf",
     tpl_simon: "Gedächtnis",
     tpl_simon_d: "Wiederhole die Farbfolge, indem du auf die Felder trittst",
     tpl_zones: "Zonen",
@@ -2224,6 +2236,10 @@ export const MORE = {
     lang_hint: "Die Sprache wird sofort angewendet.",
   },
   it: {
+    tpl_treasure: "Caccia al tesoro",
+    tpl_treasure_d: "Trova otto forzieri il più in fretta possibile",
+    tpl_tower: "Torre",
+    tpl_tower_d: "Sali una spirale di piattaforme con checkpoint",
     tpl_simon: "Memoria",
     tpl_simon_d: "Ripeti la sequenza di colori calpestando le piastrelle",
     tpl_zones: "Zone",
@@ -2982,6 +2998,10 @@ export const MORE = {
     invite_friends: "Invita amici",
   },
   pl: {
+    tpl_treasure: "Polowanie na skarby",
+    tpl_treasure_d: "Znajdź osiem skrzyń jak najszybciej",
+    tpl_tower: "Wieża",
+    tpl_tower_d: "Wspinaj się po spirali platform z punktami kontrolnymi",
     tpl_simon: "Pamięć",
     tpl_simon_d: "Powtórz sekwencję kolorów, wchodząc na płytki",
     tpl_zones: "Strefy",
@@ -3959,6 +3979,10 @@ export const MORE = {
     offline_ready: "Gotowe do użycia offline",
   },
   ru: {
+    tpl_treasure: "Охота за сокровищами",
+    tpl_treasure_d: "Найдите восемь сундуков как можно быстрее",
+    tpl_tower: "Башня",
+    tpl_tower_d: "Поднимитесь по спирали платформ с контрольными точками",
     tpl_simon: "Память",
     tpl_simon_d: "Повторите последовательность цветов, наступая на плитки",
     tpl_zones: "Зоны",
@@ -4936,6 +4960,10 @@ export const MORE = {
     offline_ready: "Готово к работе офлайн",
   },
   ja: {
+    tpl_treasure: "たからさがし",
+    tpl_treasure_d: "8つの宝箱をできるだけ早く見つけよう",
+    tpl_tower: "タワー",
+    tpl_tower_d: "チェックポイント付きのらせん状の足場をのぼろう",
     tpl_simon: "きおく",
     tpl_simon_d: "タイルを踏んで色の順番をくりかえそう",
     tpl_zones: "ゾーン",
@@ -5913,6 +5941,10 @@ export const MORE = {
     offline_ready: "オフラインで使えます",
   },
   zh: {
+    tpl_treasure: "寻宝",
+    tpl_treasure_d: "尽快找到八个宝箱",
+    tpl_tower: "高塔",
+    tpl_tower_d: "沿着带检查点的螺旋平台向上爬",
     tpl_simon: "记忆",
     tpl_simon_d: "踩上方块，重复颜色顺序",
     tpl_zones: "区域",
@@ -6890,6 +6922,10 @@ export const MORE = {
     offline_ready: "已可离线使用",
   },
   ko: {
+    tpl_treasure: "보물찾기",
+    tpl_treasure_d: "상자 여덟 개를 최대한 빨리 찾으세요",
+    tpl_tower: "타워",
+    tpl_tower_d: "체크포인트가 있는 나선형 발판을 올라가세요",
     tpl_simon: "기억",
     tpl_simon_d: "타일을 밟아 색 순서를 따라 하세요",
     tpl_zones: "구역",
