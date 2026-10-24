@@ -1,3 +1,3 @@
-Devbuild 58: new multiplayer modes
-- New templates in the Studio: PvP Arena (sword with click or F, health, respawn with spawn protection, kill scoreboard, first to 15), Teams (Red vs Blue, no friendly fire, team score on screen, first to 20) and Lap race (8 neon gates, 3 laps, countdown, live standings, winner announcement).
-- All three are plain Lua scripts you can open and edit in the Studio.
+Devbuild 59: new worlds
+- Three new terrains in the Studio and in games: Desert (sand ground, cacti and a stepped pyramid), Caves (dark ground, stone pillars and glowing crystals) and City (asphalt, towers with windows).
+- They are generated the same way on the web and on the 3DS, so both versions show the same world for a game.

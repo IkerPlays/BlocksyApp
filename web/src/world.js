@@ -153,6 +153,46 @@ function forest(seed) {
   return { cells, floor: true, spawn: [0.5, 1.2, 0.5], voidY: null, orbs, monsterStart: [-26, 0.01, -26], radius: R, safe: 5, groundTint: '#26402b' }
 }
 
+// Desierto, cuevas y ciudad: decorados con pocas celdas (la 3DS admite 640) generados igual en 3ds/source/world.c (misma semilla = mismo mundo).
+function spaced(list, x, z, d) { return list.some(t => Math.hypot(t[0] - x, t[1] - z) < d) }
+function desert(seed) {
+  const r = rng(seed), cells = [], cacti = [], R = 40
+  for (let l = 0; l < 5; l++) for (let x = 14 - (4 - l); x <= 14 + (4 - l); x++) for (let z = -14 - (4 - l); z <= -14 + (4 - l); z++) cells.push([x, l, z, (x + z + l) & 1 ? '#d4b86a' : '#c9a84f'])
+  for (let tries = 0; cacti.length < 22 && tries < 2000; tries++) {
+    const x = Math.round((r() * 2 - 1) * R), z = Math.round((r() * 2 - 1) * R)
+    if (Math.hypot(x, z) < 8 || (Math.abs(x - 14) < 7 && Math.abs(z + 14) < 7) || spaced(cacti, x, z, 4)) continue
+    const h = 2 + Math.floor(r() * 3); cacti.push([x, z])
+    for (let y = 0; y < h; y++) cells.push([x, y, z, '#2f8f3a'])
+    if (h >= 3) cells.push([x + 1, 1, z, '#3aa347'], [x + 1, 2, z, '#3aa347'])
+  }
+  return { cells, floor: true, spawn: [0.5, 1.2, 0.5], voidY: null, groundTint: '#e0c987' }
+}
+function caves(seed) {
+  const r = rng(seed), cells = [], pil = [], R = 30, cr = ['#7be0ff', '#c77dff', '#ff7eb6']
+  for (let tries = 0; pil.length < 18 && tries < 2000; tries++) {
+    const x = Math.round((r() * 2 - 1) * R), z = Math.round((r() * 2 - 1) * R)
+    if (Math.hypot(x, z) < 7 || spaced(pil, x, z, 5)) continue
+    const h = 3 + Math.floor(r() * 4); pil.push([x, z])
+    for (let y = 0; y < h; y++) cells.push([x, y, z, y & 1 ? '#4a4f57' : '#5d636b'])
+    cells.push([x + 1, 0, z, '#5d636b'], [x - 1, 0, z, '#5d636b'], [x, 0, z + 1, '#5d636b'], [x, 0, z - 1, '#5d636b'])
+  }
+  for (let i = 0, tries = 0; i < 12 && tries < 2000; tries++) {
+    const x = Math.round((r() * 2 - 1) * R), z = Math.round((r() * 2 - 1) * R)
+    if (Math.hypot(x, z) < 5 || spaced(pil, x, z, 3)) continue
+    const c = cr[Math.floor(r() * 3)]; cells.push([x, 0, z, c], [x, 1, z, c]); i++
+  }
+  return { cells, floor: true, spawn: [0.5, 1.2, 0.5], voidY: null, groundTint: '#2b2e35' }
+}
+function city(seed) {
+  const r = rng(seed), cells = [], pal = ['#cfd4da', '#a9b4c2', '#e8d9c0', '#c9a0a0']
+  for (let i = -2; i <= 2; i++) for (let j = -2; j <= 2; j++) {
+    if ((i + j) & 1 || (i === 0 && j === 0)) continue
+    const h = 2 + Math.floor(r() * 5), c = pal[Math.floor(r() * 4)], bx = i * 9, bz = j * 9
+    for (let y = 0; y < h; y++) for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) cells.push([bx + dx, y, bz + dz, (y & 1) && (dx === 0 || dz === 0) ? '#8fc8ff' : c])
+  }
+  return { cells, floor: true, spawn: [0.5, 1.2, 0.5], voidY: null, groundTint: '#43464d' }
+}
+
 export function buildWorld(type = 'flat', seed = 1337) {
   switch (type) {
     case 'hills': return hills(seed)
@@ -162,6 +202,9 @@ export function buildWorld(type = 'flat', seed = 1337) {
     case 'void': return voidWorld()
     case 'obby': return obby(seed)
     case 'forest': return forest(seed)
+    case 'desert': return desert(seed)
+    case 'caves': return caves(seed)
+    case 'city': return city(seed)
     default: return { cells: [], floor: true, spawn: [0.5, 3, 0.5], voidY: null }
   }
 }

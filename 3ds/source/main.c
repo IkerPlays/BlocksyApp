@@ -380,7 +380,7 @@ static void render_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 			bool plaza = world.type == 1 && abs(ax) <= world.plaza_n && abs(az) <= world.plaza_n; float gy = plaza ? 1.0f : 0.0f;
 			for (int k = 0; k < 4; k++) { ok &= project(ax + cs4[k][0], gy, az + cs4[k][1], &p[k][0], &p[k][1], &dd); dm += dd; }
 			if (!ok) continue;
-			u32 base = plaza ? world_plaza_color(ax, az) : night ? (((ax + az) & 1) ? C2D_Color32(0x1E, 0x35, 0x25, 255) : C2D_Color32(0x1A, 0x2E, 0x21, 255)) : (((ax + az) & 1) ? C2D_Color32(0x5F, 0xAE, 0x5A, 255) : C2D_Color32(0x52, 0x9E, 0x4E, 255));
+			u32 base = plaza ? world_plaza_color(ax, az) : night ? (((ax + az) & 1) ? C2D_Color32(0x1E, 0x35, 0x25, 255) : C2D_Color32(0x1A, 0x2E, 0x21, 255)) : world.gcol[0] ? (((ax + az) & 1) ? world.gcol[0] : world.gcol[1]) : (((ax + az) & 1) ? C2D_Color32(0x5F, 0xAE, 0x5A, 255) : C2D_Color32(0x52, 0x9E, 0x4E, 255));
 			u32 c = fogged(base, NIGHT_D(ax + .5f, az + .5f, dm / 4));
 			C2D_DrawTriangle(p[0][0], p[0][1], c, p[1][0], p[1][1], c, p[2][0], p[2][1], c, 0);
 			C2D_DrawTriangle(p[0][0], p[0][1], c, p[2][0], p[2][1], c, p[3][0], p[3][1], c, 0);

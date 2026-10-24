@@ -6,7 +6,7 @@
 #define WORLD_MAX_CELLS 640
 typedef struct { float x, y, z; int id; } Checkpoint;
 typedef struct {
-	int type;                           // 0 llanura, 1 plaza, 2 carrera (obby), 3 tablero, 4 vacío, 5 bosque oscuro
+	int type;                           // 0 llanura, 1 plaza, 2 carrera (obby), 3 tablero, 4 vacío, 5 bosque oscuro, 6 desierto, 7 cuevas, 8 ciudad
 	bool floor;                         // hay suelo infinito (y = 0)
 	float spawn[3];
 	float void_y;                       // caer por debajo = volver al último punto de control (solo sin suelo)
@@ -14,6 +14,7 @@ typedef struct {
 	Checkpoint cp[8]; int ncp;
 	bool has_fin; float fin[3], fin_r;
 	int plaza_n;
+	unsigned gcol[2];                   // colores del suelo (ABGR) en los mundos nuevos; 0 = verde de siempre
 	// Bosque Oscuro (type 5): de noche, arboles que se dibujan aparte (tronco solido, copa no), fragmentos de luz y el monstruo
 	bool night; float radius, safe, mon_start[3];
 	int ntrees; short tree[160][2];

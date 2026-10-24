@@ -96,6 +96,46 @@ static void build_forest(World *w, int seed) {
 	for (int i = -3; i <= 3; i++) for (int y = 0; y < 3; y++) { add(w, i, y, -3, wood); if (i > -3 && i < 3) { add(w, -3, y, i, wood); add(w, 3, y, i, wood); } if (abs(i) > 1 || y > 1) add(w, i, y, 3, wood); }
 }
 
+static bool spaced(short (*l)[2], int n, int x, int z, double d) { for (int i = 0; i < n; i++) if (hypot(l[i][0] - x, l[i][1] - z) < d) return true; return false; }
+static void build_desert(World *w, int seed) {
+	w->type = 6; w->gcol[0] = hexc("#e0c987"); w->gcol[1] = hexc("#d9c07c"); w->spawn[1] = 1.2f; rng_seed((uint32_t)seed);
+	short cac[24][2]; int n = 0;
+	for (int l = 0; l < 5; l++) for (int x = 14 - (4 - l); x <= 14 + (4 - l); x++) for (int z = -14 - (4 - l); z <= -14 + (4 - l); z++) add(w, x, l, z, ((x + z + l) & 1) ? hexc("#d4b86a") : hexc("#c9a84f"));
+	for (int tries = 0; n < 22 && tries < 2000; tries++) {
+		int x = jsround((rnd() * 2 - 1) * 40), z = jsround((rnd() * 2 - 1) * 40);
+		if (hypot(x, z) < 8 || (abs(x - 14) < 7 && abs(z + 14) < 7) || spaced(cac, n, x, z, 4)) continue;
+		int h = 2 + (int)floor(rnd() * 3); cac[n][0] = (short)x; cac[n][1] = (short)z; n++;
+		for (int y = 0; y < h; y++) add(w, x, y, z, hexc("#2f8f3a"));
+		if (h >= 3) { add(w, x + 1, 1, z, hexc("#3aa347")); add(w, x + 1, 2, z, hexc("#3aa347")); }
+	}
+}
+static void build_caves(World *w, int seed) {
+	w->type = 7; w->gcol[0] = hexc("#2b2e35"); w->gcol[1] = hexc("#25282e"); w->spawn[1] = 1.2f; rng_seed((uint32_t)seed);
+	short pil[20][2]; int n = 0; const char *cr[3] = {"#7be0ff", "#c77dff", "#ff7eb6"};
+	for (int tries = 0; n < 18 && tries < 2000; tries++) {
+		int x = jsround((rnd() * 2 - 1) * 30), z = jsround((rnd() * 2 - 1) * 30);
+		if (hypot(x, z) < 7 || spaced(pil, n, x, z, 5)) continue;
+		int h = 3 + (int)floor(rnd() * 4); pil[n][0] = (short)x; pil[n][1] = (short)z; n++;
+		for (int y = 0; y < h; y++) add(w, x, y, z, (y & 1) ? hexc("#4a4f57") : hexc("#5d636b"));
+		unsigned b = hexc("#5d636b"); add(w, x + 1, 0, z, b); add(w, x - 1, 0, z, b); add(w, x, 0, z + 1, b); add(w, x, 0, z - 1, b);
+	}
+	int made = 0;
+	for (int tries = 0; made < 12 && tries < 2000; tries++) {
+		int x = jsround((rnd() * 2 - 1) * 30), z = jsround((rnd() * 2 - 1) * 30);
+		if (hypot(x, z) < 5 || spaced(pil, n, x, z, 3)) continue;
+		unsigned c = hexc(cr[(int)floor(rnd() * 3)]); add(w, x, 0, z, c); add(w, x, 1, z, c); made++;
+	}
+}
+static void build_city(World *w, int seed) {
+	w->type = 8; w->gcol[0] = hexc("#43464d"); w->gcol[1] = hexc("#3d4047"); w->spawn[1] = 1.2f; rng_seed((uint32_t)seed);
+	const char *pal[4] = {"#cfd4da", "#a9b4c2", "#e8d9c0", "#c9a0a0"};
+	for (int i = -2; i <= 2; i++) for (int j = -2; j <= 2; j++) {
+		if (((i + j) & 1) || (i == 0 && j == 0)) continue;
+		int h = 2 + (int)floor(rnd() * 5); unsigned c = hexc(pal[(int)floor(rnd() * 4)]), bx = 0; (void)bx;
+		for (int y = 0; y < h; y++) for (int dx = -1; dx <= 1; dx++) for (int dz = -1; dz <= 1; dz++) add(w, i * 9 + dx, y, j * 9 + dz, ((y & 1) && (dx == 0 || dz == 0)) ? hexc("#8fc8ff") : c);
+	}
+}
+
 void world_build(World *w, const char *name, int seed) {
 	memset(w, 0, sizeof *w);
 	w->floor = true; w->void_y = -1000; w->spawn[0] = 0.5f; w->spawn[1] = 3; w->spawn[2] = 0.5f;
@@ -103,6 +143,9 @@ void world_build(World *w, const char *name, int seed) {
 	if (name && !strcmp(name, "plaza")) build_plaza(w);
 	else if (name && !strcmp(name, "obby")) build_obby(w, seed);
 	else if (name && !strcmp(name, "forest")) build_forest(w, seed);
+	else if (name && !strcmp(name, "desert")) build_desert(w, seed);
+	else if (name && !strcmp(name, "caves")) build_caves(w, seed);
+	else if (name && !strcmp(name, "city")) build_city(w, seed);
 	else if (name && !strcmp(name, "checker")) { w->type = 3; for (int x = -20; x <= 20; x++) for (int z = -20; z <= 20; z++) if (WORLD_MAX_CELLS > w->ncells + 0 && abs(x) < 12 && abs(z) < 12) add(w, x, 0, z, ((x + z) & 1) ? hexc("#ffffff") : hexc("#2b2f36")); w->spawn[1] = 1.2f; }
 	else if (name && !strcmp(name, "void")) { w->type = 4; w->floor = false; w->void_y = -30; plat(w, -2, 0, -2, 5, 5, hexc("#9aa0a8")); w->spawn[1] = 1.2f; }
 }

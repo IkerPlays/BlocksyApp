@@ -791,7 +791,7 @@ export const pages = {
 }
 
 // ---------- editor avanzado ----------
-const TERRAINS = ['flat', 'hills', 'islands', 'plaza', 'checker', 'void', 'obby']
+const TERRAINS = ['flat', 'hills', 'islands', 'plaza', 'checker', 'void', 'obby', 'desert', 'caves', 'city']
 const SKIES = ['day', 'dawn', 'sunset', 'night', 'space']
 async function editor(root, ctx, id) {
   setKids(root, pageSkel())
