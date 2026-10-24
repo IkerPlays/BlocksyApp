@@ -144,3 +144,82 @@ export function missionAdd(key, n = 1) {
   pend[key] = (pend[key] ?? 0) + n
   clearTimeout(missionAdd.t); missionAdd.t = setTimeout(async () => { const p = { ...pend }; for (const k in pend) delete pend[k]; for (const [k, v] of Object.entries(p)) { try { await rpc('mission_add', { p_key: k, p_add: v }) } catch {} } }, 4000)
 }
+
+// ---------- Mensajes con imagen o voz (AUTH v17: bucket privado dm-media) ----------
+const MEDIA_BUCKET = 'dm-media'
+const uid = () => (crypto.randomUUID?.() ?? Math.random().toString(36).slice(2) + Date.now().toString(36)).replace(/[^0-9a-zA-Z-]/g, '').slice(0, 36)
+export async function imageBlob(file, max = 1280, q = 0.8) {
+  const bmp = await createImageBitmap(file), k = Math.min(1, max / Math.max(bmp.width, bmp.height))
+  const c = document.createElement('canvas'); c.width = Math.max(1, Math.round(bmp.width * k)); c.height = Math.max(1, Math.round(bmp.height * k)); c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height)
+  return new Promise((res, rej) => c.toBlob(b => (b ? res(b) : rej(new Error('image'))), 'image/jpeg', q))
+}
+async function sendBlob(to, myId, kind, blob, ext, mime, secs = 0) {
+  const path = `${myId}/${uid()}.${ext}`
+  const { error } = await authDb.storage.from(MEDIA_BUCKET).upload(path, blob, { contentType: mime, upsert: false })
+  if (error) throw error
+  try { await rpc('send_media', { p_to: to, p_kind: kind, p_path: path, p_secs: secs }) } catch (e) { authDb.storage.from(MEDIA_BUCKET).remove([path]); throw e }
+}
+export const sendImage = async (to, myId, file) => sendBlob(to, myId, 'img', await imageBlob(file), 'jpg', 'image/jpeg')
+export const sendVoice = (to, myId, blob, secs) => { const m = blob.type.includes('mp4') ? ['m4a', 'audio/mp4'] : blob.type.includes('ogg') ? ['ogg', 'audio/ogg'] : ['webm', 'audio/webm']; return sendBlob(to, myId, 'voice', blob, m[0], m[1], Math.round(secs)) }
+// "[img]ruta" / "[voice]segundos|ruta" -> { kind, path, secs } (o null si es texto normal)
+export function parseMedia(body) {
+  let m = /^\[img\](.+)$/.exec(body); if (m) return { kind: 'img', path: m[1] }
+  m = /^\[voice\](\d+)\|(.+)$/.exec(body); if (m) return { kind: 'voice', secs: +m[1], path: m[2] }
+  return null
+}
+const urls = new Map()
+export async function mediaUrl(path) {
+  const hit = urls.get(path); if (hit && hit.exp > Date.now()) return hit.url
+  const { data, error } = await authDb.storage.from(MEDIA_BUCKET).createSignedUrl(path, 3600); if (error) throw error
+  urls.set(path, { url: data.signedUrl, exp: Date.now() + 3000_000 }); return data.signedUrl
+}
+
+// ---------- Clanes ----------
+export const myClan = () => rpc('my_clan')
+export const listClans = (q = '') => rpc('list_clans', { p_search: q }).then(r => r ?? [])
+export const createClan = (name, tag, desc) => rpc('create_clan', { p_name: name, p_tag: tag, p_desc: desc })
+export const joinClan = id => rpc('join_clan', { p_clan: id })
+export const leaveClan = () => rpc('leave_clan')
+export const kickMember = id => rpc('kick_member', { p_user: id })
+export const clanSend = body => rpc('clan_send', { p_body: body })
+export const clanAddGame = (id, name) => rpc('clan_add_game', { p_game: id, p_name: name })
+export const clanRemoveGame = id => rpc('clan_remove_game', { p_game: id })
+export async function clanMessages(clanId, limit = 80) {
+  const { data } = await authDb.from('clan_messages').select('*').eq('clan_id', clanId).order('id', { ascending: false }).limit(limit)
+  return (data ?? []).reverse()
+}
+// Mensajes nuevos del clan en directo (con sondeo de respaldo). Devuelve la función para parar.
+export function watchClan(clanId, cb) {
+  let last = 0, stop = false
+  const ch = authDb.channel(`clan:${clanId}`).on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'clan_messages', filter: `clan_id=eq.${clanId}` }, p => { if (p.new.id > last) { last = p.new.id; cb(p.new) } }).subscribe()
+  const poll = setInterval(async () => { if (stop || document.hidden) return; const { data } = await authDb.from('clan_messages').select('*').eq('clan_id', clanId).gt('id', last).order('id').limit(30); for (const m of data ?? []) if (m.id > last) { last = m.id; cb(m) } }, 6000)
+  clanMessages(clanId, 1).then(l => { if (l[0]) last = Math.max(last, l[0].id) })
+  return () => { stop = true; clearInterval(poll); authDb.removeChannel(ch) }
+}
+
+// ---------- Quedadas con fecha y recordatorio ----------
+export const listMeetups = () => rpc('list_meetups').then(r => r ?? [])
+export const createMeetup = (title, game, gameName, startsAt, clanOnly) => rpc('create_meetup', { p_title: title, p_game: game || null, p_game_name: gameName || '', p_starts: startsAt, p_clan_only: !!clanOnly })
+export const rsvpMeetup = (id, going) => rpc('rsvp_meetup', { p_id: id, p_going: going })
+export const cancelMeetup = id => rpc('cancel_meetup', { p_id: id })
+// Avisa 10 minutos antes y al empezar de las quedadas a las que voy. Solo funciona con la app abierta. fire(meetup, 'soon' | 'now')
+export function startMeetupReminders(fire) {
+  let list = [], loadedAt = 0
+  const key = (m, s) => `blocksy.remind.${m.id}.${s}`
+  const done = (m, s) => { try { return !!localStorage.getItem(key(m, s)) } catch { return false } }
+  const mark = (m, s) => { try { localStorage.setItem(key(m, s), '1') } catch {} }
+  const tick = async () => {
+    if (document.hidden && Date.now() - loadedAt < 600_000) return
+    if (Date.now() - loadedAt > 300_000) { try { list = await listMeetups(); loadedAt = Date.now() } catch { return } }
+    const now = Date.now()
+    for (const m of list) {
+      if (!m.me) continue
+      const dt = new Date(m.starts_at).getTime() - now
+      if (dt <= 0 && dt > -600_000 && !done(m, 'now')) { mark(m, 'now'); mark(m, 'soon'); fire(m, 'now') }
+      else if (dt > 0 && dt <= 600_000 && !done(m, 'soon')) { mark(m, 'soon'); fire(m, 'soon') }
+    }
+  }
+  const timer = setInterval(tick, 30_000); setTimeout(tick, 4000)
+  return () => clearInterval(timer)
+}
+export const removeMedia = path => authDb.storage.from(MEDIA_BUCKET).remove([path]).catch(() => {})

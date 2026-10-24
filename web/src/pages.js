@@ -604,6 +604,9 @@ export const pages = {
     pv = createPreview(canvas, style()); paint()
   },
 
+  async clan(root, ctx) { setKids(root, pageSkel()); return (await import('./community.js')).clanPage(root, ctx) },
+  async events(root, ctx) { setKids(root, pageSkel()); return (await import('./community.js')).eventsPage(root, ctx) },
+
   // Amigos: se añaden por nombre exacto + solicitud que el otro debe aceptar. Chat, invitar y unirse.
   async friends(root, ctx) {
     const input = el('input', { placeholder: t('friend_ph'), maxlength: 20, autocapitalize: 'off', autocomplete: 'off', spellcheck: 'false' })

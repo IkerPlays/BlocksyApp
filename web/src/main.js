@@ -14,6 +14,7 @@ import { t, applyStatic, setLang, getPref, LANGS, langName, onLang } from './i18
 import { initNotifications, openInvite } from './social-ui.js'
 import { openScriptModal } from './studio-ui.js'
 import { cleanCode } from './collab.js'
+import { startMeetupReminders } from './social.js'
 import { registerSW, applyUpdate, canInstall, installApp, isInstalled } from './pwa.js'
 import { installErrorLog, isNewVersion } from './about.js'
 import { installPalette } from './palette.js'
@@ -24,7 +25,7 @@ import * as social from './social.js'
 import { icon } from './icons.js'
 
 const $ = id => document.getElementById(id)
-let profile = null, currentGame = null, stopGame = null, mode = 'login', stopNotif = null
+let profile = null, currentGame = null, stopGame = null, mode = 'login', stopNotif = null, stopRemind = null
 
 function showScreen(name) {
   $('auth').classList.toggle('hidden', name !== 'auth')
@@ -109,6 +110,7 @@ async function enterApp() {
   paintChip(); showScreen('app')
   auth.startPresence(() => currentGame?.id)
   stopNotif?.(); stopNotif = initNotifications(ctx)
+  stopRemind?.(); stopRemind = startMeetupReminders((m, stage) => { const msg = t(stage === 'now' ? 'mt_now' : 'mt_soon', { title: m.title }); toast(msg); try { if ('Notification' in window && Notification.permission === 'granted') new Notification('Blocksy', { body: msg, icon: '/icons/icon-192.png' }) } catch {} })
   social.onWallet(w => { $('coins').innerHTML = icon('coin', 18) + ' ' + (w.bcoins ?? 0) })
   social.loadWallet().catch(() => {})
   route()
@@ -163,7 +165,7 @@ $('auth-form').addEventListener('submit', async e => {
     msg.textContent = ''; await enterApp()
   } catch (err) { msg.className = 'msg err'; msg.textContent = err.message === 'Cuenta creada. Confirma tu email y vuelve a entrar.' ? t('account_created') : err.message }
 })
-$('logout').onclick = async () => { stopNotif?.(); stopNotif = null; await auth.signOut(); profile = null; showCreate(false); showScreen('auth') }
+$('logout').onclick = async () => { stopNotif?.(); stopNotif = null; stopRemind?.(); stopRemind = null; await auth.signOut(); profile = null; showCreate(false); showScreen('auth') }
 function buildLangSelect() {
   const s = $('auth-lang'); s.replaceChildren(...['auto', ...LANGS].map(l => { const o = document.createElement('option'); o.value = l; o.textContent = l === 'auto' ? t('lang_auto') : langName(l); o.selected = l === getPref(); return o }))
   s.onchange = () => setLang(s.value)

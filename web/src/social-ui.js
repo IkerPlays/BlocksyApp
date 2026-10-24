@@ -16,6 +16,17 @@ export const fmtTime = iso => new Date(iso).toLocaleTimeString(getLang(), { hour
 
 // ---------- chat privado ----------
 let openedChat = null     // { friendId, add(msg) } mientras la ventana está abierta
+const mediaPreview = b => { const m = social.parseMedia(b); return m ? (m.kind === 'img' ? '📷 ' + t('attach_image') : '🎤 ' + t('voice_rec')) : b }
+// imagen o nota de voz dentro de un mensaje (la URL firmada se pide al pintar)
+function mediaEl(md) {
+  if (md.kind === 'img') {
+    const img = el('img', { class: 'dm-img', alt: '', loading: 'lazy' }); social.mediaUrl(md.path).then(u => { img.src = u; img.onclick = e => { e.stopPropagation(); window.open(u, '_blank', 'noopener') } }, () => img.replaceWith(el('span', { text: t('media_gone') })))
+    return img
+  }
+  const a = el('audio', { class: 'dm-voice', controls: '', preload: 'none' }); social.mediaUrl(md.path).then(u => { a.src = u }, () => a.replaceWith(el('span', { text: t('media_gone') })))
+  a.onclick = e => e.stopPropagation()
+  return el('div', { class: 'dm-voice-box' }, el('small', { text: '🎤 ' + md.secs + ' s' }), a)
+}
 export function openChat(ctx, friend) {
   const me = ctx.profile
   const list = el('div', { class: 'dm-list' }), input = el('input', { placeholder: t('chat_ph'), maxlength: 500, autocomplete: 'off' })
@@ -40,11 +51,13 @@ export function openChat(ctx, friend) {
         setTimeout(() => ei.focus(), 0)
         return el('div', { class: 'dm mine' }, el('div', { class: 'bubble' }, ei, el('div', { class: 'dm-actions show' }, el('button', { class: 'btn', text: t('save'), onclick: save }), el('button', { class: 'btn', text: t('cancel'), onclick: () => { editing = null; refresh(true) } }))))
       }
+      const isMedia = !!social.parseMedia(m.body)
       const acts = mine ? el('div', { class: `dm-actions ${selected === m.id ? 'show' : ''}` },
-        el('button', { class: 'btn', html: icon('edit', 14), title: t('edit'), onclick: e => { e.stopPropagation(); editing = m.id; refresh(true) } }),
-        el('button', { class: 'btn danger', html: icon('trash', 14), title: t('delete'), onclick: async e => { e.stopPropagation(); if (confirm(t('msg_confirm_delete'))) { try { await social.deleteMessage(m.id) } catch (er) { toast(er.message) } refresh(true) } } })) : null
+        isMedia ? null : el('button', { class: 'btn', html: icon('edit', 14), title: t('edit'), onclick: e => { e.stopPropagation(); editing = m.id; refresh(true) } }),
+        el('button', { class: 'btn danger', html: icon('trash', 14), title: t('delete'), onclick: async e => { e.stopPropagation(); if (confirm(t('msg_confirm_delete'))) { try { await social.deleteMessage(m.id); const md = social.parseMedia(m.body); if (md) social.removeMedia(md.path) } catch (er) { toast(er.message) } refresh(true) } } })) : null
+      const media = social.parseMedia(m.body)
       return el('div', { class: `dm ${mine ? 'mine' : ''}`, onclick: () => { if (mine) { selected = selected === m.id ? null : m.id; refresh(true) } } },
-        el('div', { class: 'bubble' }, el('span', { text: m.body }), el('small', { text: (m.edited_at ? t('msg_edited') + ' · ' : '') + fmtTime(m.created_at) })), acts)
+        el('div', { class: 'bubble' }, media ? mediaEl(media) : el('span', { text: m.body }), el('small', { text: (m.edited_at ? t('msg_edited') + ' · ' : '') + fmtTime(m.created_at) })), acts)
     }
     if (atBottom) list.scrollTop = list.scrollHeight
   }
@@ -53,6 +66,31 @@ export function openChat(ctx, friend) {
     e.preventDefault(); const body = input.value.trim(); if (!body) return; input.value = ''
     try { await social.sendMessage(friend.id, body); await refresh() } catch (er) { toast(er.message) }
   } }, input, el('button', { class: 'btn blue', html: icon('send', 18), title: t('send') }))
+  // adjuntar imagen y grabar nota de voz
+  const fileIn = el('input', { type: 'file', accept: 'image/*', class: 'hidden' })
+  fileIn.onchange = async () => { const f = fileIn.files[0]; fileIn.value = ''; if (!f) return; try { await social.sendImage(friend.id, me.id, f); await refresh() } catch (er) { toast(t('media_fail', { e: er.message })) } }
+  let rec = null
+  const micBtn = el('button', { type: 'button', class: 'btn', html: icon('mic', 18), title: t('voice_rec') })
+  const stopRec = send => { if (!rec) return; rec.send = send; rec.mr.state !== 'inactive' && rec.mr.stop() }
+  micBtn.onclick = async () => {
+    if (rec) return stopRec(true)
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') return toast(t('voice_unsupported'))
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true }), mr = new MediaRecorder(stream), chunks = [], t0 = Date.now()
+      rec = { mr, send: true }; micBtn.classList.add('rec'); micBtn.textContent = '■ 0s'
+      const tick = setInterval(() => { const s = Math.round((Date.now() - t0) / 1000); micBtn.textContent = '■ ' + s + 's'; if (s >= 60) stopRec(true) }, 500)
+      mr.ondataavailable = e => e.data.size && chunks.push(e.data)
+      mr.onstop = async () => {
+        clearInterval(tick); stream.getTracks().forEach(x => x.stop()); const doSend = rec?.send; rec = null; micBtn.classList.remove('rec'); micBtn.innerHTML = icon('mic', 18)
+        const secs = (Date.now() - t0) / 1000
+        if (!doSend || secs < 0.7) return
+        try { await social.sendVoice(friend.id, me.id, new Blob(chunks, { type: mr.mimeType || 'audio/webm' }), secs); await refresh() } catch (er) { toast(t('media_fail', { e: er.message })) }
+      }
+      mr.start()
+    } catch { toast(t('voice_denied')) }
+  }
+  form.insertBefore(el('button', { type: 'button', class: 'btn', html: icon('camera', 18), title: t('attach_image'), onclick: () => fileIn.click() }), input)
+  form.insertBefore(micBtn, input); form.append(fileIn)
   async function refresh(local) {
     if (!local || !last.length) last = await social.conversation(me.id, friend.id)
     shown = ''; draw(last)
@@ -65,7 +103,7 @@ export function openChat(ctx, friend) {
     list, attachEmoticons(input), form))
   $('modal').classList.remove('hidden'); refresh(); input.focus()
   const timer = setInterval(() => { if (!editing) refresh() }, 4000)
-  const stop = () => { clearInterval(timer); openedChat = null }
+  const stop = () => { clearInterval(timer); openedChat = null; stopRec(false) }
   openedChat = { friendId: friend.id, refresh, stop }
   const mo = new MutationObserver(() => { if ($('modal').classList.contains('hidden')) { stop(); mo.disconnect() } })
   mo.observe($('modal'), { attributes: true, attributeFilter: ['class'] })
@@ -149,7 +187,7 @@ export function initNotifications(ctx) {
     if (kind === 'message') {
       if (chatOpenWith() === row.from_id) { openedChat.refresh(); return }
       const f = (await social.listFriends(ctx.profile.id)).find(x => x.id === row.from_id)
-      if (f) popup(f.username, row.body, () => openChat(ctx, f))
+      if (f) popup(f.username, mediaPreview(row.body), () => openChat(ctx, f))
     } else if (kind === 'notification') {
       popup('Blocksy', text(row), () => (row.kind === 'invite' ? api.getGame(row.payload?.game_id).then(g => (g ? ctx.play(g, { room: api.roomFromName(row.payload?.game_name) }) : toast(t('invite_game_gone')))) : ctx.go('friends')), row.kind)
     }
