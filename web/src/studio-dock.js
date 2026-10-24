@@ -27,7 +27,8 @@ export function createDocks(g) {
     grip.addEventListener('pointermove', mv); grip.addEventListener('pointerup', up)
   })
   drag(gl, 'l', 1, 180, 520); drag(gr, 'r', -1, 220, 560); drag(gb, 'b', -1, 70, 420)
-  return { top, left, right, bottom, apply, dispose() { ro.disconnect(); for (const e of [top, left, right, bottom]) e.remove(); g.classList.remove('studio-docked'); for (const k of ['--st-l', '--st-r', '--st-b', '--st-t']) g.style.removeProperty(k) } }
+  const minBottom = px => { if (st.b < px) { st.b = px; apply() } }       // abre más el panel de abajo si se queda corto (no se guarda)
+  return { top, left, right, bottom, apply, minBottom, dispose() { ro.disconnect(); for (const e of [top, left, right, bottom]) e.remove(); g.classList.remove('studio-docked'); for (const k of ['--st-l', '--st-r', '--st-b', '--st-t']) g.style.removeProperty(k) } }
 }
 
 // Pestañas: tabs = [{ id, label, render }]; render(container) se llama al abrir la pestaña y al pedir paint()

@@ -10,6 +10,9 @@ import { scriptConsole } from './script-console.js'
 import { icon } from './icons.js'
 import { PRESET_HOUR } from './sky.js'
 import * as music from './music.js'
+import { listComponents, addComponent, removeComponent, renameComponent, packParts, unpackParts, exportComponents, importComponents } from './components.js'
+import { buildAnimator } from './animator.js'
+import { styleFor } from './avatar.js'
 
 const MAX_VOL = 6000                      // bloques por operación
 const SEND_CHUNK = 400
@@ -42,7 +45,7 @@ const SHAPES = ['Block', 'Ball', 'Cylinder'], MATERIALS = ['Plastic', 'Neon', 'G
 const SKIES = ['day', 'dawn', 'sunset', 'night', 'space']
 
 export function createStudio(ctx) {
-  const { game, cfg, api, PALETTE, key, index, statics, setBlock, removeBlock, me, pick, scene, camera, canvas, rbx, showTitle, sys, sfx, burst, selectKind, onEnv, onTestToggle, onSave, onExit, onScript, onAddText, setUiTool, getHover, getConfig, captureThumb } = ctx
+  const { game, cfg, api, PALETTE, key, index, statics, setBlock, removeBlock, me, pick, scene, camera, canvas, rbx, showTitle, sys, sfx, burst, selectKind, onEnv, onTestToggle, onSave, onExit, onScript, refreshEmotes, onAddText, setUiTool, getHover, getConfig, captureThumb } = ctx
   const g = document.getElementById('game'), bar = document.getElementById('studio-bar')
   const docks = createDocks(g); docks.top.append(bar)
   let selNode = 'part'                                                   // elemento del Explorer que no es una pieza: game | workspace | lighting | script | terrain | ui:<id>
@@ -147,6 +150,8 @@ export function createStudio(ctx) {
 
   // ---------- piezas (Part): guardadas en config.parts ----------
   let testing = false
+  let bottomTabs = null, animator = null
+  const animEnv = { parts, cfg, game, getSel: () => selPart, refreshParts: () => refreshParts(), showTitle, rbx, refreshEmotes, onScriptChanged: () => paintExplorer(), style: () => styleFor('Blocksy', '#4da6ff') }
   const applyHidden = () => { for (let i = 0; i < parts.length; i++) { const o = rbx.partAt(i); if (o?.mesh) o.mesh.visible = testing || !parts[i].eh } }       // eh = oculta solo en el editor
   const refreshParts = () => { cfg.parts = parts; game.config = { ...(game.config ?? {}), parts }; rbx.reset(); rbx.spawnStatic(parts); applyHidden(); updateSelBox(); paintExplorer() }
   // ---------- Explorer: árbol del juego como en Roblox Studio ----------
@@ -273,7 +278,9 @@ export function createStudio(ctx) {
   function deleteSelected() { const del = new Set([selPart, ...multi]); for (const i of [...del].sort((a, b) => b - a)) if (parts[i]) parts.splice(i, 1); selPart = -1; multi.clear(); refreshParts(); paintProps() }
   // ---------- Properties: propiedades por categorías, como Roblox Studio ----------
   const openPartInspector = () => paintProps()
+  let lastAnimSel = -2
   function paintProps() {
+    if (bottomTabs?.cur === 'anim' && selPart !== lastAnimSel) { lastAnimSel = selPart; animator?.redraw() }
     if (!propsHost?.isConnected || rightTabs?.cur !== 'props') return
     const c = propsHost; c.replaceChildren()
     const p = parts[selPart]
@@ -452,10 +459,47 @@ export function createStudio(ctx) {
   }
   // paneles: Explorer/Toolbox a la izquierda, Properties/Environment/Game/Versions a la derecha y Output abajo
   const TB_PARTS = [['part', 'cube', 'tb_block', () => newPart('part')], ['ball', 'sphere', 'tb_ball', () => newPart('part', 'Ball')], ['cyl', 'cylinder', 'tb_cyl', () => newPart('part', 'Cylinder')], ['spawn', 'flag', 'st_add_spawn', () => newPart('spawn')], ['torch', 'sliders', 'st_torch', () => newPart('torch')], ['lamp', 'sphere', 'st_lamp', () => newPart('lamp')]]
+  // ---------- componentes reutilizables (piezas y scripts guardados para todos tus juegos) ----------
+  const aimAt = () => { const v = new THREE.Vector3(); camera.getWorldDirection(v); const hit = pick(canvas.clientWidth / 2 + canvas.getBoundingClientRect().left, canvas.clientHeight / 2 + canvas.getBoundingClientRect().top); return hit?.place ?? [Math.round(me.pos.x + v.x * 6), Math.max(0, Math.round(me.pos.y)), Math.round(me.pos.z + v.z * 6)] }
+  const repaintToolbox = () => { if (leftTabs?.cur === 'toolbox') leftTabs.paint() }
+  function saveSelectionComponent() {
+    const idx = [selPart, ...multi].filter(i => parts[i]); if (!idx.length) return showTitle(t('cmp_pick'), 1800)
+    const name = prompt(t('cmp_name'), parts[idx[0]].group ?? parts[idx[0]].name); if (name == null) return
+    if (!addComponent('parts', name, packParts(idx.map(i => ({ ...parts[i] }))))) return showTitle(t('cmp_full'), 2200)
+    showTitle(t('cmp_saved'), 1500); repaintToolbox()
+  }
+  function saveScriptComponent() {
+    if (!game.script?.trim()) return showTitle(t('cmp_no_script'), 1800)
+    const name = prompt(t('cmp_name'), 'Script'); if (name == null) return
+    if (!addComponent('script', name, game.script, { lang: cfg.script_lang })) return showTitle(t('cmp_full'), 2200)
+    showTitle(t('cmp_saved'), 1500); repaintToolbox()
+  }
+  function useComponent(c) {
+    if (c.kind === 'parts') {
+      if (parts.length + c.data.length > MAX_PARTS) return showTitle(t('st_big', { n: MAX_PARTS }), 2000)
+      const made = unpackParts(c.data, aimAt(), parts); parts.push(...made)
+      selPart = parts.length - made.length; multi.clear(); made.slice(1).forEach((_, k) => multi.add(selPart + k + 1)); refreshParts(); paintProps(); sfx.place(); return
+    }
+    const lang = c.lang === 'lua' ? 'lua' : 'js', cur = game.script ?? ''
+    if (cur.trim() && (cfg.script_lang === 'lua' ? 'lua' : 'js') !== lang) return showTitle(t('cmp_lang'), 3000)
+    if (!cur.trim()) cfg.script_lang = lang
+    game.script = (cur.trim() ? cur.trimEnd() + '\n\n' : '') + (lang === 'lua' ? '-- componente: ' : '// componente: ') + c.name + '\n' + c.data + '\n'
+    showTitle(t('cmp_added'), 1800); paintExplorer()
+  }
+  function componentsBlock() {
+    const L = listComponents()
+    const tile = c => { const b = h('button', { type: 'button', class: 'tb-item', title: t('cmp_hint'), onclick: () => useComponent(c), html: icon(c.kind === 'parts' ? 'cube' : 'code', 22) + `<span>${c.name.replace(/</g, '&lt;')}</span>` }); b.oncontextmenu = e => ctxMenu(e, [[t('cm_rename'), () => { const n = prompt(t('cmp_name'), c.name); if (n) { renameComponent(c.id, n); repaintToolbox() } }], [t('st_del_part'), () => { removeComponent(c.id); repaintToolbox() }]]); return b }
+    return [h('div', { class: 'tb-title', text: t('tb_components') }),
+      h('div', { class: 'row-btns st-pad' }, h('button', { type: 'button', class: 'btn tiny', text: t('cmp_save_sel'), onclick: saveSelectionComponent }), h('button', { type: 'button', class: 'btn tiny', text: t('cmp_save_script'), onclick: saveScriptComponent })),
+      L.length ? h('div', { class: 'tb-grid' }, L.map(tile)) : h('small', { class: 'muted st-pad', text: t('cmp_empty') }),
+      h('div', { class: 'row-btns st-pad' }, h('button', { type: 'button', class: 'btn tiny', text: t('cmp_export'), onclick: exportComponents, disabled: !L.length }),
+        h('button', { type: 'button', class: 'btn tiny', text: t('cmp_import'), onclick: () => { const f = h('input', { type: 'file', accept: '.json,application/json' }); f.onchange = async () => { try { const n = importComponents(await f.files[0].text()); showTitle(t('cmp_imported', { n }), 2000); repaintToolbox() } catch { showTitle(t('cmp_bad'), 2400) } }; f.click() } })) ]
+  }
   function renderToolbox(c) {
     const tile = (ic, label, fn) => h('button', { type: 'button', class: 'tb-item', onclick: fn, html: icon(ic, 22) + `<span>${label}</span>` })
     c.append(h('div', { class: 'tb-title', text: t('tb_parts') }), h('div', { class: 'tb-grid' }, TB_PARTS.map(([, ic, k, fn]) => tile(ic, t(k), fn))),
       h('div', { class: 'tb-title', text: t('tb_structures') }), h('div', { class: 'tb-grid' }, Object.keys(PREFABS).map(k => tile('cube', t('pf_' + k), () => { state.prefab = k; setTool('stamp') }))),
+      ...componentsBlock(),
       Object.keys(myPrefabs()).length ? [h('div', { class: 'tb-title', text: t('tb_mine') }), h('div', { class: 'tb-grid' }, Object.keys(myPrefabs()).map(n => tile('star', n, () => { state.prefab = 'my:' + n; setTool('stamp') })))] : null)
   }
   function paintOutput() {
@@ -467,7 +511,7 @@ export function createStudio(ctx) {
   scriptConsole.on(paintOutput)
   leftTabs = tabbed(docks.left, [{ id: 'explorer', label: 'Explorer', render: renderExplorer }, { id: 'toolbox', label: 'Toolbox', render: renderToolbox }])
   rightTabs = tabbed(docks.right, [{ id: 'props', label: 'Properties', render: c => { propsHost = c; paintProps() } }, { id: 'env', label: t('st_env'), render: c => buildEnv(c) }, { id: 'game', label: t('game_page'), render: c => c.append(h('div', { class: 'st-pad' }, gameInfoEditor(game, { capture: (w, hh) => captureThumb?.(w, hh) }))) }, { id: 'versions', label: t('st_versions'), render: c => { verHost = c; paintVersions() } }])
-  tabbed(docks.bottom, [{ id: 'out', label: 'Output', render: c => { outHost = c; c.append(h('div', { class: 'out-bar' }, h('small', { class: 'muted', text: t('ed_console') }), h('button', { type: 'button', class: 'btn tiny', text: t('clear'), onclick: () => scriptConsole.clear() })), h('div', { class: 'out-body' })); paintOutput() } }])
+  bottomTabs = tabbed(docks.bottom, [{ id: 'anim', label: t('an_title'), render: c => { animator?.dispose(); docks.minBottom(300); animator = buildAnimator(c, animEnv) } }, { id: 'out', label: 'Output', render: c => { outHost = c; c.append(h('div', { class: 'out-bar' }, h('small', { class: 'muted', text: t('ed_console') }), h('button', { type: 'button', class: 'btn tiny', text: t('clear'), onclick: () => scriptConsole.clear() })), h('div', { class: 'out-body' })); paintOutput() } }], 'out')
   buildBar(); tutReady = true; paintTut()
 
   // ---------- selección / copiar / pegar ----------
@@ -665,6 +709,6 @@ export function createStudio(ctx) {
   }
   function pointerUp() { if (!dragPart) return false; dragPart = null; refreshParts(); openPartInspector(); return true }
   refreshParts()
-  function dispose() { for (const o of [wire, stamp, selWire, gridHelper, measureLine, ...extraWires]) scene.remove(o); helpBox.remove(); stampGeo.dispose(); stampMat.dispose(); stamp.dispose(); opts.remove(); listBox.remove(); tutEl?.remove(); clearInterval(tipTimer); g.append(bar); bar.replaceChildren(); docks.dispose(); document.getElementById('st-ctx')?.remove() }
+  function dispose() { animator?.dispose(); for (const o of [wire, stamp, selWire, gridHelper, measureLine, ...extraWires]) scene.remove(o); helpBox.remove(); stampGeo.dispose(); stampMat.dispose(); stamp.dispose(); opts.remove(); listBox.remove(); tutEl?.remove(); clearInterval(tipTimer); g.append(bar); bar.replaceChildren(); docks.dispose(); document.getElementById('st-ctx')?.remove() }
   return { save: doSave, interact, update, keydown, pointerDown, pointerMove, pointerUp, undo, redo, setTool, setTesting, dispose, flush, get tool() { return state.tool }, get parts() { return parts } }
 }

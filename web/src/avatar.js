@@ -18,6 +18,27 @@ export const EMOTES = [
   { id: 'point', label: 'Senalar' },
   { id: 'flex', label: 'Presumir' },
 ]
+// Emotes propios de un juego (c1-c3): fotogramas con el ángulo de cada miembro. Se guardan en config.emotes y los ve todo el que juegue.
+export const POSE_CHANNELS = ['legL', 'legR', 'armLx', 'armRx', 'armLz', 'armRz', 'headX', 'bodyY']
+const custom = {}
+export function setCustomEmotes(map) {
+  for (let i = EMOTES.length - 1; i >= 0; i--) if (EMOTES[i].custom) EMOTES.splice(i, 1)
+  for (const k of Object.keys(custom)) delete custom[k]
+  for (const [id, e] of Object.entries(map ?? {})) {
+    if (!/^c[1-3]$/.test(id) || !Array.isArray(e?.keys) || e.keys.length < 2) continue
+    const keys = e.keys.map(k => ({ t: Math.max(0, +k.t || 0), ...Object.fromEntries(POSE_CHANNELS.map(c => [c, Math.max(-6.3, Math.min(6.3, +k[c] || 0))])) })).sort((x, y) => x.t - y.t)
+    custom[id] = { keys, back: Math.max(0.1, +e.back || 0.4) }; EMOTES.push({ id, label: String(e.name ?? id).slice(0, 14), custom: true })
+  }
+}
+// Pose de un emote propio en el instante `time` (segundos); vuelve suavemente al primer fotograma y se repite
+export function customPose(id, time) {
+  const c = custom[id]; if (!c) return null
+  const pts = [...c.keys, { ...c.keys[0], t: c.keys[c.keys.length - 1].t + c.back }], dur = pts[pts.length - 1].t
+  const tm = dur > 0 ? time % dur : 0
+  let i = 1; while (i < pts.length - 1 && pts[i].t < tm) i++
+  const a = pts[i - 1], b = pts[i], span = b.t - a.t, f = span > 0 ? Math.min(1, Math.max(0, (tm - a.t) / span)) : 1, e = (1 - Math.cos(f * Math.PI)) / 2
+  return Object.fromEntries(POSE_CHANNELS.map(ch => [ch, a[ch] + (b[ch] - a[ch]) * e]))
+}
 export const isEmote = a => EMOTES.some(e => e.id === a)
 
 export function hash32(s) {                    // FNV-1a de 32 bits sobre los bytes UTF-8
@@ -155,7 +176,9 @@ export function poseAvatar(g, anim, dt, t) {
   const lerp = (o, p, v) => { o.rotation[p] += (v - o.rotation[p]) * k }
   const s = Math.sin(u.phase)
   let legL = 0, legR = 0, armLx = 0, armRx = 0, armLz = 0, armRz = 0, bodyY = 0, headX = 0
-  switch (anim) {
+  const cp = customPose(anim, u.phase / 7)
+  if (cp) ({ legL, legR, armLx, armRx, armLz, armRz, headX, bodyY } = cp)
+  else switch (anim) {
     case 'walk': legL = s * 0.85; legR = -s * 0.85; armLx = -s * 0.8; armRx = s * 0.8; break
     case 'jump': legL = 0.35; legR = -0.25; armLx = -2.5; armRx = -2.5; break
     case 'wave': armRz = 2.6 + Math.sin(u.phase * 1.6) * 0.35; armLx = Math.sin(t * 1.6) * 0.04; break          // brazo derecho arriba saludando

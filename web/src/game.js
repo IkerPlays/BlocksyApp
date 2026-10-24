@@ -6,7 +6,7 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js'
 import { gameDb } from './supabase.js'
 import * as api from './api.js'
 import { settings, saveSettings, onSettings, bump, visited, bestTime, bumpGame } from './settings.js'
-import { buildAvatar, poseAvatar, styleFor, EMOTES, headshot, packLoadout, parseLoadout, loadoutStyle, buildPet, trailColor } from './avatar.js'
+import { buildAvatar, poseAvatar, styleFor, EMOTES, setCustomEmotes, headshot, packLoadout, parseLoadout, loadoutStyle, buildPet, trailColor } from './avatar.js'
 import { t, onLang, getLang } from './i18n.js'
 import { createSky } from './sky.js'
 import { buildWorld } from './world.js'
@@ -448,9 +448,14 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
   $('copy-link').onclick = async () => { const r = await shareGame(game); if (r === 'copied') sys(t('link_copied')); setPaused(false) }
   // ----- emotes -----
   const emotePanel = $('emote-panel')
-  emotePanel.replaceChildren(...EMOTES.map(e => { const b = document.createElement('button'); b.className = 'emote'; b.dataset.id = e.id; b.textContent = t('emote_' + e.id); b.onclick = () => { if (!cfg.allow_emotes) return; if (me.grounded || me.fly) { me.fly = false; me.emote = e.id } emotePanel.classList.add('hidden') }; return b }))
-  layoutWheel(emotePanel)
-  onLang(() => emotePanel.querySelectorAll('.emote').forEach(b => (b.textContent = t('emote_' + b.dataset.id))))
+  const emoteLabel = e => (e.custom ? e.label : t('emote_' + e.id))
+  const buildEmotes = () => {
+    setCustomEmotes(cfg.emotes)
+    emotePanel.replaceChildren(...EMOTES.map(e => { const b = document.createElement('button'); b.className = 'emote'; b.dataset.id = e.id; b.textContent = emoteLabel(e); b.onclick = () => { if (!cfg.allow_emotes) return; if (me.grounded || me.fly) { me.fly = false; me.emote = e.id } emotePanel.classList.add('hidden') }; return b }))
+    layoutWheel(emotePanel)
+  }
+  buildEmotes()
+  onLang(() => emotePanel.querySelectorAll('.emote').forEach(b => { const e = EMOTES.find(x => x.id === b.dataset.id); if (e) b.textContent = emoteLabel(e) }))
   $('emote-btn').onclick = () => emotePanel.classList.toggle('hidden')
   $('emote-btn').classList.toggle('hidden', !cfg.allow_emotes)
   $('players-btn').onclick = () => { drawRoster(); roster.classList.toggle('hidden') }
@@ -574,7 +579,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
   let sd = null
   if (ST) {
     const g = $('game'); g.classList.add('studio'); $('studio-bar').classList.remove('hidden')
-    sd = createStudio({ game, cfg, api, PALETTE, key, index, statics, setBlock, removeBlock, me, pick, scene, camera, canvas, rbx, showTitle, sys, sfx, burst, selectKind, getHover: () => hoverPt,
+    sd = createStudio({ refreshEmotes: buildEmotes, game, cfg, api, PALETTE, key, index, statics, setBlock, removeBlock, me, pick, scene, camera, canvas, rbx, showTitle, sys, sfx, burst, selectKind, getHover: () => hoverPt,
       setUiTool: on => { if (!on) { selUi = null; openInspector(); drawUi() } },
       onAddText: () => { let n = 1; while (uiEls.some(x => x.id === 'texto' + n)) n++; const e = { id: 'texto' + n, text: 'Texto', x: 50, y: 18, size: 32, color: '#ffffff' }; uiEls.push(e); selUi = e; drawUi(); openInspector() },
       onEnv: (k, v) => {

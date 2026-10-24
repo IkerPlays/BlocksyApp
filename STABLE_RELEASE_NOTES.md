@@ -10,6 +10,7 @@ Blocksy is a multiplayer block-building game for the web and the Nintendo 3DS (h
 - New worlds: Desert, Caves and City, identical on the web and on the 3DS.
 - Equippable tools with an in-game hotbar (Lua Tool objects) and an Armory template; mouse clicks now reach scripts.
 - Weekly missions and seasons with limited cosmetic rewards (needs supabase/auth/v16.sql and supabase/store/v16.sql).
+- Reusable components (save parts or scripts and reuse them across games) and an Animator for parts and custom avatar emotes.
 
 ## Installing
 - Install `Blocksy.cia` with FBI, or copy `Blocksy.3dsx` to the `3ds` folder of the SD card and run it from the Homebrew Launcher.
