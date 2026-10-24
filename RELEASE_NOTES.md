@@ -1,6 +1,4 @@
-Devbuild: updater rewritten
-- 3DS updater rebuilt from scratch: downloads are verified (size and SHA-256 published by GitHub) before anything is installed.
-- Interrupted downloads resume from the byte where they stopped; staged progress with speed and time left.
-- .3dsx updates keep a backup and can go back to the previous version; a toast confirms the new version after restarting.
-- The update page lists what changes in each new version and the download size.
-- New 3DS: runs at full speed and draws more blocks at a longer distance.
+Devbuild: Studio parts on the 3DS
+- Parts built in the web Studio (blocks, balls, cylinders, rotated pieces and spawn points) now show up in games on the 3DS.
+- Solid parts work as floors and walls; nearly invisible ones (water, glass) do not block you.
+- The update page shows progress in the first button and keeps the rollback button visible.

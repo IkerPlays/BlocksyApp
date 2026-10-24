@@ -150,9 +150,26 @@ static void ht_build(const Block *bl, int n) {
 	memset(ht, 0, sizeof ht);
 	for (int i = 0; i < n; i++) { unsigned h = hkey(bl[i].x, bl[i].y, bl[i].z); while (ht[h]) h = (h + 1) & (HT_SIZE - 1); ht[h] = (short)(i + 1); }
 }
+// ---- piezas del Studio: cajas giradas, bolas y cilindros (la 3DS las dibuja con su volumen y las usa de suelo/paredes) ----
+static Part parts[MAX_PARTS]; static int nparts;
+// ¿La celda (x,y,z) esta ocupada por una pieza con colision? (se mira el centro de la celda dentro de la caja girada)
+static bool part_solid(int x, int y, int z) {
+	for (int i = 0; i < nparts; i++) {
+		const Part *o = &parts[i]; if (!o->collide) continue;
+		float dx = x + 0.5f - o->x, dy = y + 0.5f - o->y, dz = z + 0.5f - o->z;
+		if (fabsf(dy) >= o->sy * 0.5f + 0.25f) continue;
+		float c = cosf(o->ry), s = sinf(o->ry), lx = dx * c - dz * s, lz = dx * s + dz * c;
+		float hx = o->sx * 0.5f + 0.25f, hz = o->sz * 0.5f + 0.25f;
+		if (o->shape == 1 || o->shape == 2) { float nx = lx / (hx - 0.1f), nz = lz / (hz - 0.1f); if (o->shape == 1) { float ny = dy / (o->sy * 0.5f + 0.15f); if (nx * nx + nz * nz + ny * ny > 1) continue; } else if (nx * nx + nz * nz > 1) continue; }
+		else if (fabsf(lx) >= hx || fabsf(lz) >= hz) continue;
+		return true;
+	}
+	return false;
+}
 static const Block *local_blocks; 
 static bool solid_at(int x, int y, int z) {
 	if (world_floor_solid(&world, x, y, z)) return true;
+	if (nparts && part_solid(x, y, z)) return true;
 	if (!local_blocks) return false;
 	for (unsigned h = hkey(x, y, z); ht[h]; h = (h + 1) & (HT_SIZE - 1)) {
 		const Block *b = &local_blocks[ht[h] - 1];
@@ -191,7 +208,7 @@ static bool project(float x, float y, float z, float *sx, float *sy, float *dept
 	return true;
 }
 
-typedef struct { float depth; float x, y, z, w, h; u32 color; int av; } Box;   // av: -1 bloque, 0 yo, 1+i jugador remoto i
+typedef struct { float depth; float x, y, z, w, h; u32 color; int av; int pi; } Box;   // av: -1 bloque, 0 yo, 1+i jugador remoto i
 static bool g_new3ds;                                     // New 3DS: 804 MHz y mas memoria => mas bloques y mas distancia
 static Box draw_list[MAX_LOCAL + MAX_PLAYERS * 2 + 4 + 700];
 
@@ -210,10 +227,9 @@ static u32 fogged(u32 c, float depth) {
 	return C2D_Color32((u32)r, (u32)g, (u32)b, 255);
 }
 
-static void draw_box(float x, float y, float z, float w, float h, u32 color) {
+static void draw_poly(float v[8][3], u32 color) {
 	static const int F[6][4] = {{0,1,2,3},{4,5,6,7},{0,1,5,4},{2,3,7,6},{0,3,7,4},{1,2,6,5}};
 	static const float lum[6] = {0.55f, 1.0f, 0.75f, 0.75f, 0.65f, 0.85f};
-	float v[8][3] = {{x,y,z},{x+w,y,z},{x+w,y,z+w},{x,y,z+w},{x,y+h,z},{x+w,y+h,z},{x+w,y+h,z+w},{x,y+h,z+w}};
 	float sx[8], sy[8], d[8];
 	for (int i = 0; i < 8; i++) if (!project(v[i][0], v[i][1], v[i][2], &sx[i], &sy[i], &d[i])) return;
 	// Pinta de atrás a delante las caras; descarta las traseras por orientación en pantalla
@@ -227,6 +243,23 @@ static void draw_box(float x, float y, float z, float w, float h, u32 color) {
 		C2D_DrawTriangle(sx[q[0]], sy[q[0]], cv[0], sx[q[1]], sy[q[1]], cv[1], sx[q[2]], sy[q[2]], cv[2], 0);
 		C2D_DrawTriangle(sx[q[0]], sy[q[0]], cv[0], sx[q[2]], sy[q[2]], cv[2], sx[q[3]], sy[q[3]], cv[3], 0);
 	}
+}
+static void draw_box(float x, float y, float z, float w, float h, u32 color) {
+	float v[8][3] = {{x,y,z},{x+w,y,z},{x+w,y,z+w},{x,y,z+w},{x,y+h,z},{x+w,y+h,z},{x+w,y+h,z+w},{x,y+h,z+w}};
+	draw_poly(v, color);
+}
+// Pieza del Studio: caja girada (cilindros algo mas finos) o bola (circulo con brillo)
+static void draw_part(const Part *o, u32 color) {
+	if (o->shape == 1) {
+		float gx, gy, gd; if (!project(o->x, o->y, o->z, &gx, &gy, &gd)) return;
+		float r = fmaxf(o->sx, fmaxf(o->sy, o->sz)) * 0.5f * FOV / gd;
+		C2D_DrawCircleSolid(gx, gy, 0, r, shade(color, 0.72f)); C2D_DrawCircleSolid(gx - r * 0.18f, gy - r * 0.2f, 0, r * 0.78f, color); C2D_DrawCircleSolid(gx - r * 0.34f, gy - r * 0.38f, 0, r * 0.3f, shade(color, 1.25f));
+		return;
+	}
+	float k = o->shape == 2 ? 0.88f : 1.0f, hx = o->sx * 0.5f * k, hy = o->sy * 0.5f, hz = o->sz * 0.5f * k, c = cosf(o->ry), s = sinf(o->ry), v[8][3];
+	static const int sg[8][3] = {{-1,-1,-1},{1,-1,-1},{1,-1,1},{-1,-1,1},{-1,1,-1},{1,1,-1},{1,1,1},{-1,1,1}};
+	for (int i = 0; i < 8; i++) { float lx = sg[i][0] * hx, lz = sg[i][2] * hz; v[i][0] = o->x + lx * c + lz * s; v[i][1] = o->y + sg[i][1] * hy; v[i][2] = o->z - lx * s + lz * c; }
+	draw_poly(v, color);
 }
 // Contorno de un cubo (el bloque al que apuntas)
 static void draw_outline(int bx, int by, int bz, u32 color) {
@@ -327,6 +360,11 @@ static void render_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 	int nd = 0; float sx, sy, d;
 	for (int i = 0; i < nl; i++) if (project(local[i].x + .5f, local[i].y + .5f, local[i].z + .5f, &sx, &sy, &d) && d < fog_far + 6)
 		draw_list[nd++] = (Box){d, local[i].x, local[i].y, local[i].z, 1, 1, fogged(shade(local[i].kind < 0 ? local[i].color : PALETTE[local[i].kind % NPALETTE], (night ? 0.62f : 1.0f) * (((local[i].x * 7 + local[i].y * 13 + local[i].z * 5) & 3) == 0 ? 0.93f : 1.0f)), NIGHT_D(local[i].x + .5f, local[i].z + .5f, d)), -1};
+	for (int i = 0; i < nparts; i++) {                                                         // piezas del Studio
+		const Part *o = &parts[i]; float ext = fmaxf(o->sx, fmaxf(o->sy, o->sz)) * 0.5f;
+		if (!project(o->x, o->y, o->z, &sx, &sy, &d) || d > fog_far + 6 + ext) continue;
+		draw_list[nd++] = (Box){d + 0.35f * fmaxf(o->sx, o->sz) + (o->sy <= 1.5f ? 0.5f * fmaxf(o->sx, o->sz) : 0), o->x, o->y, o->z, 0, 0, fogged(shade(o->color, night ? 0.62f : 1.0f), NIGHT_D(o->x, o->z, d)), -3, i};
+	}
 	if (night) {                                                                           // arboles (tronco + copa en 3 capas), fragmentos y monstruo
 		static const u32 WOOD = 0xFF345E8B;
 		float camx = cx_ + sinf(cam_yaw) * cosf(cam_pitch) * cam_dist, camz = cz_ + cosf(cam_yaw) * cosf(cam_pitch) * cam_dist, camy = cy_ + sinf(cam_pitch) * cam_dist;
@@ -410,7 +448,8 @@ static void render_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 			float leg = hr.mmoving ? sinf(hr.walk_ph) * 0.25f : 0; draw_box(b->x + leg * 0.3f, 0, b->z, b->w, 1.3f, C2D_Color32(0x12, 0x14, 0x1a, 255)); draw_box(b->x, 1.3f, b->z, b->w, 1.5f, C2D_Color32(0x1a, 0x1c, 0x24, 255)); draw_box(b->x + 0.1f, 2.8f, b->z + 0.1f, 0.7f, 0.7f, C2D_Color32(0x16, 0x18, 0x20, 255));
 			float ex = sinf(hr.mry), ez = cosf(hr.mry), cx = hr.mx + ex * 0.4f, cz = hr.mz + ez * 0.4f, rx = ez * 0.16f, rz = -ex * 0.16f, ax, ay, ad;
 			for (int e = -1; e <= 1; e += 2) if (project(cx + rx * e, 3.12f, cz + rz * e, &ax, &ay, &ad)) C2D_DrawRectSolid(ax - 2.5f, ay - 1.5f, 0, 5, 3, C2D_Color32(0xFF, 0x2A, 0x2A, 255));
-		} else if (b->av < 0) draw_box(b->x, b->y, b->z, b->w, b->h, b->color);
+		} else if (b->av == -3) draw_part(&parts[b->pi], b->color);
+		else if (b->av < 0) draw_box(b->x, b->y, b->z, b->w, b->h, b->color);
 		else if (b->av == 0) av_draw(&cam, px, py, pz, self_yaw, &self_style, &pose_self, fog_near, fog_far);       // avatares 3D (modelo con partes)
 		else { int j = b->av - 1; rem_style[j] = av_style(rem[j].name, rem[j].color); av_apply_loadout(&rem_style[j], rem[j].hat); av_draw(&cam, rem[j].x, rem[j].y, rem[j].z, rem[j].ry, &rem_style[j], &rem_pose[j], fog_near, fog_far); }
 	}
@@ -497,6 +536,11 @@ static bool play_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 	LightLock_Init(&lock);
 	nblocks = nremotes = qn = nchat_new = 0; pry = 0; vy = 0; grounded = false; moving = 0; running = true; want_offline = false;
 	world_build(&world, cur_game.world, cur_game.seed);                         // mundo base (plaza, carrera...) igual que en la web
+	nparts = 0;
+	if (cur_game.id[0]) {                  // piezas creadas en el Studio de la web
+		nparts = net_fetch_parts(cur_game.id, parts, MAX_PARTS);
+		for (int i = 0; i < nparts; i++) if (parts[i].spawn) { world.spawn[0] = parts[i].x; world.spawn[1] = parts[i].y + parts[i].sy * 0.5f + 0.05f; world.spawn[2] = parts[i].z; break; }
+	}
 	px = world.spawn[0]; py = world.spawn[1]; pz = world.spawn[2]; rsp_x = px; rsp_y = py; rsp_z = pz;
 	can_build = cur_game.allow_build >= 0 ? cur_game.allow_build > 0 : !strcmp(cur_game.mode, "build");   // solo los juegos de bloques dejan construir
 	ui_build_ui = can_build;
@@ -699,6 +743,11 @@ void game_preview(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 	{ const char *pw = getenv("BLOCKSY_PREVIEW_WORLD"); world_build(&world, pw ? pw : "", 0); can_build = true; ui_build_ui = true; }
 	snprintf(sess.username, sizeof sess.username, "IkerPlays"); sess.color = 0xFF439FFF; snprintf(cur_game.name, sizeof cur_game.name, "Spawn Plaza");
 	nl = 0;
+	nparts = 0;
+	if (getenv("BLOCKSY_PREVIEW_PARTS")) {                                                  // piezas de ejemplo del Studio
+		Part d[] = {{4, 0.5f, 2, 4, 1, 4, 0.5f, 0xFF3C9FFF, 0, 1, 0}, {-3, 1.5f, 4, 2, 3, 2, 0, 0xFF4F4FE0, 2, 1, 0}, {0, 3.5f, -3, 3, 3, 3, 0, 0xFFFFD34D, 1, 0, 0}, {-5, 0.25f, -2, 4, 0.5f, 4, 0.8f, 0xFF50D060, 0, 1, 1}, {6, 2, -4, 1, 4, 6, 0.3f, 0xFFB26AE0, 0, 1, 0}};
+		memcpy(parts, d, sizeof d); nparts = (int)(sizeof d / sizeof d[0]);
+	}
 	if (getenv("BLOCKSY_PREVIEW_WORLD")) { memset(&hr, 0, sizeof hr); hr.on = world.type == 5; hr.flash = true; hr.mx = -9; hr.mz = -7; hr.mry = 0.7f; hr.dist = 8; hr.ngot = 2; hr.got[0] = hr.got[1] = true; for (int i = 0; i < world.ncells; i++) local[nl++] = world.cells[i]; ht_build(local, nl); local_blocks = local; nr = 0; px = world.spawn[0]; py = world.spawn[1]; pz = world.spawn[2]; if (world.type == 5) { px = 3; pz = 7; hr.mx = -3; hr.mz = -1; hr.mry = 0.4f; hr.dist = 6; } pry = 0.3f; cam_yaw = 0.2f; cam_pitch = 0.45f; cam_dist = 9; cx_ = px; cy_ = py + 1; cz_ = pz; now_ms = 20000; t_start = 0; self_yaw = 0.3f; kind = 2; tx = 0; tz = 0; break_y = place_y = -1; overlap = false; pose_self.legY = 0.74f; render_game(top, bot); return; }
 	for (int x = -6; x <= 6; x++) for (int z = -6; z <= 6; z++) if ((x + z) % 4 == 0) local[nl++] = (Block){x, 0, z, 4};
 	for (int y = 0; y < 3; y++) for (int i = -5; i <= 5; i++) { local[nl++] = (Block){i, y, -5, 1}; local[nl++] = (Block){-5, y, i, 2}; if (i % 2) local[nl++] = (Block){i, y, 5, 3}; }

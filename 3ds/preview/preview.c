@@ -31,6 +31,7 @@ int main(void) {
 	setenv("BLOCKSY_PREVIEW_WORLD", "plaza", 1); fprintf(g_out, "SCENE world_plaza\n"); game_preview(&top, &bot);
 	setenv("BLOCKSY_PREVIEW_WORLD", "obby", 1); fprintf(g_out, "SCENE world_obby\n"); game_preview(&top, &bot);
 	setenv("BLOCKSY_PREVIEW_WORLD", "forest", 1); fprintf(g_out, "SCENE world_forest\n"); game_preview(&top, &bot);
+	setenv("BLOCKSY_PREVIEW_WORLD", "plaza", 1); setenv("BLOCKSY_PREVIEW_PARTS", "1", 1); fprintf(g_out, "SCENE world_parts\n"); game_preview(&top, &bot); unsetenv("BLOCKSY_PREVIEW_PARTS");
 	unsetenv("BLOCKSY_PREVIEW_WORLD");
 	fprintf(g_out, "SCENE game_bottom\n");
 	static Session s; snprintf(s.username, sizeof s.username, "Iker"); s.color = 0xFF439FFF;

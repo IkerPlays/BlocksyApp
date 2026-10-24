@@ -39,3 +39,16 @@ void C2D_ViewReset(void) {}
 bool C3D_FrameBegin(u8 f) { (void)f; return true; }
 void C3D_FrameEnd(u8 f) { (void)f; }
 bool C2D_DrawLine(float x0, float y0, u32 c0, float x1, float y1, u32 c1, float t, float z) { (void)c1; (void)z; fprintf(g_out, "LINE %d %.1f %.1f %.1f %.1f %.1f %u\n", g_target, x0, y0, x1, y1, t, c0); return true; }
+
+// Actualizador: en el ordenador no hay nada que instalar (update.c necesita AM/curl)
+#include "update.h"
+bool update_can_rollback(void) { return true; }
+bool update_is_cia(void) { return true; }
+bool update_rollback(char *err, size_t en) { return false; }
+bool update_take_news(char *from, char *to, size_t n) { return false; }
+#include "audio.h"
+void audio_init(void) {}
+void audio_exit(void) {}
+bool audio_available(void) { return true; }
+void audio_game(bool on, const char *track) {}
+bool audio_take_note(char *out, size_t n) { return false; }

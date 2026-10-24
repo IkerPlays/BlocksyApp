@@ -833,7 +833,7 @@ static void pane(const Ui *u, const Session *s) {
 		break; }
 	case P_UPDATE: {
 		char l1[64], l2[64], l3[64];
-		snprintf(l1, sizeof l1, "Buscar actualizaciones");
+		if (g_upd_state == 2) snprintf(l1, sizeof l1, "Instalando... %d%%", g_prog.pct); else if (g_upd_state == 1) snprintf(l1, sizeof l1, "Buscando..."); else snprintf(l1, sizeof l1, "Buscar actualizaciones");
 		snprintf(l2, sizeof l2, g_upd.stable.valid ? "Estable %s%s" : "Estable (sin publicar)", g_upd.stable.tag, g_upd.stable.cmp > 0 ? " - nueva" : g_upd.stable.cmp == 0 ? " (instalada)" : "");
 		snprintf(l3, sizeof l3, g_upd.dev.valid ? "Devbuild %s%s" : "Devbuild (sin publicar)", g_upd.dev.tag, g_upd.dev.cmp > 0 ? " - nueva" : g_upd.dev.cmp == 0 ? " (instalada)" : "");
 		char f2[64], f3[64]; fit(f2, sizeof f2, l2, 0.44f, PANE_W - 24); fit(f3, sizeof f3, l3, 0.44f, PANE_W - 24);
@@ -843,7 +843,6 @@ static void pane(const Ui *u, const Session *s) {
 		ui_button(PANE_X, LIST_Y + 2 + 2 * rh, PANE_W - 4, rh - 6, g_upd.dev.valid && !busy && g_upd.dev.cmp > 0 ? COL_GREEN : COL_PANEL2, u->cur == 2, f3, 0.44f);
 		ui_button(PANE_X, LIST_Y + 2 + 3 * rh, PANE_W - 4, rh - 6, COL_PANEL2, u->cur == 3, g_upd_log ? "Ocultar cambios" : "Ver cambios", 0.44f);
 		if (update_can_rollback()) ui_button(PANE_X, LIST_Y + 2 + 4 * rh, PANE_W - 4, rh - 6, COL_PANEL2, u->cur == 4, "Volver a la version anterior", 0.44f);
-		if (g_upd_state == 2) { ui_rrect(PANE_X, 200, PANE_W - 4, 12, 6, COL_PANEL2); if (g_upd_pct > 0) ui_rrect(PANE_X, 200, (PANE_W - 4) * g_upd_pct / 100.0f, 12, 6, COL_GREEN); }
 		break; }
 	case P_SETTINGS: {
 		const char *dn[3] = {tr2("Corta", "Short"), tr2("Media", "Medium"), tr2("Larga", "Long")};

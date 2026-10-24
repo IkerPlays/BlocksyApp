@@ -576,6 +576,41 @@ int net_list_games(GameInfo *out, int max) {
 	}
 	free(r); return n;
 }
+// ---- Piezas del Studio (config.parts): se piden al entrar en un juego y se dibujan/colisionan en main.c ----
+static unsigned part_color(const char *s) {
+	unsigned v = 0; if (*s == '#') s++;
+	for (int i = 0; i < 6 && s[i]; i++) { char ch = s[i]; v = v * 16 + (ch >= 'a' ? ch - 'a' + 10 : ch >= 'A' ? ch - 'A' + 10 : ch - '0'); }
+	return 0xFF000000u | ((v & 0xFF) << 16) | (v & 0xFF00) | ((v >> 16) & 0xFF);
+}
+int net_fetch_parts(const char *game_id, Part *out, int max) {
+	char url[300];
+	for (const char *q = game_id; *q; q++) if (!((*q >= '0' && *q <= '9') || (*q >= 'a' && *q <= 'z') || (*q >= 'A' && *q <= 'Z') || *q == '-' || *q == '_')) return 0;
+	if (HAS_STORE) snprintf(url, sizeof url, STORE_URL "/rest/v1/games?id=eq.%s&select=parts:config->parts", game_id);
+	else snprintf(url, sizeof url, GAME_URL "/rest/v1/games?id=eq.%s&select=parts:config->parts", game_id);
+	char *r = http(M_GET, url, HAS_STORE ? STORE_ANON_KEY : GAME_ANON_KEY, NULL, NULL, NULL);
+	if (!r) return 0;
+	int n = 0; const char *p = strstr(r, "\"parts\""), *end;
+	if (p && (p = strchr(p, '['))) {
+		p++;
+		while (n < max && (p = next_obj(p, &end))) {
+			const char *st = p; p = end + 1;
+			char ty[12] = "part", sh[12] = "Block", col[12] = "";
+			jstr(st, end, "type", ty, sizeof ty); jstr(st, end, "shape", sh, sizeof sh); jstr(st, end, "color", col, sizeof col);
+			float tr = jnum(st, end, "transparency"); const char *cl = json_find_from(st, end, "collide");
+			Part *o = &out[n]; memset(o, 0, sizeof *o);
+			o->x = jnum(st, end, "x"); o->y = jnum(st, end, "y"); o->z = jnum(st, end, "z");
+			o->sx = jnum(st, end, "sx"); o->sy = jnum(st, end, "sy"); o->sz = jnum(st, end, "sz"); o->ry = jnum(st, end, "ry") * 0.0174533f;
+			if (o->sx < 0.05f) o->sx = 0.05f; if (o->sy < 0.05f) o->sy = 0.05f; if (o->sz < 0.05f) o->sz = 0.05f;
+			o->color = part_color(col[0] ? col : "a3a3a6");
+			o->shape = !strcmp(sh, "Ball") ? 1 : !strcmp(sh, "Cylinder") ? 2 : 0;
+			o->spawn = !strcmp(ty, "spawn");
+			o->collide = !o->spawn && !(cl && *cl == 'f') && tr < 0.7f;                 // lo casi invisible (agua, cristal) no bloquea
+			if (tr >= 0.85f) continue;                                                  // invisible: ni se dibuja
+			n++;
+		}
+	}
+	free(r); return n;
+}
 // Rellena g[i].players con los jugadores activos (visto en los últimos 15 s)
 void net_player_counts(GameInfo *g, int n) {
 	char url[220];

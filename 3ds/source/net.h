@@ -42,6 +42,9 @@ void net_presence(const Session *s, const char *game);   // touch_presence(); ga
 void net_offline(const Session *s);
 
 // Lobby (listas, amigos, avatar). Los de amigos devuelven -2 si la sesión no tiene token de Auth (entrada por QR)
+#define MAX_PARTS 160
+typedef struct { float x, y, z, sx, sy, sz, ry; unsigned int color; unsigned char shape, collide, spawn; } Part;   // pieza del Studio (config.parts); shape 0 bloque, 1 bola, 2 cilindro; ry en radianes
+int  net_fetch_parts(const char *game_id, Part *out, int max);              // piezas del Studio de un juego (0 si no hay o falla)
 int  net_list_games(GameInfo *out, int max);
 void net_player_counts(GameInfo *g, int n);
 int  net_list_friends(const Session *s, Person *out, int max);
