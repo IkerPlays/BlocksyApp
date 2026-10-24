@@ -1,2 +1,2 @@
-Devbuild 89: Lap race best time
-- Lap race shows your finishing time and your best time of the session.
+Devbuild 90: Dodge milestones
+- Dodge plays a sound and shows a message every 10 seconds you survive.

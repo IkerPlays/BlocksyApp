@@ -507,6 +507,7 @@ task.spawn(function()
       if (k % 2 == 0) then spawnAt(field(k, 4513, 421), field(k, 3571, 1291)) end                -- más bloques a medida que pasa el tiempo
       if alive >= 20 then spawnAt(field(k, 2399, 733), field(k, 6173, 89)) end
       label.Text = "Aguantas " .. alive .. " s  ·  mejor " .. best .. " s"
+      if alive % 10 == 0 then game.sound("coin"); game.title(alive .. " s!", 700) end
     end
     local c = me.Character; local r = c and c:FindFirstChild("HumanoidRootPart")
     for i = #falling, 1, -1 do

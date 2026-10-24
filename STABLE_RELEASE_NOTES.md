@@ -24,6 +24,7 @@ Blocksy is a multiplayer block-building game for the web and the Nintendo 3DS (h
 - API reference documents Tool objects, animations and RemoteEvent.
 - New Lua snippets: Tool and part animation.
 - Lap race shows your best time.
+- Dodge celebrates every 10 seconds survived.
 
 ## Installing
 - Install `Blocksy.cia` with FBI, or copy `Blocksy.3dsx` to the `3ds` folder of the SD card and run it from the Homebrew Launcher.
