@@ -13,6 +13,7 @@ Blocksy is a multiplayer block-building game for the web and the Nintendo 3DS (h
 - Health bar in Arena and Teams, and coin sounds on the 3DS shop.
 - Home shows your season level.
 - Kill feed in Arena and Teams.
+- Four new achievements for clans, meetups, collaboration and animations.
 
 ## Installing
 - Install `Blocksy.cia` with FBI, or copy `Blocksy.3dsx` to the `3ds` folder of the SD card and run it from the Homebrew Launcher.

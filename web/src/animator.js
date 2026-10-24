@@ -3,6 +3,7 @@
 import { t } from './i18n.js'
 import { createPreview, styleFor, setCustomEmotes, POSE_CHANNELS } from './avatar.js'
 import { h } from './studio-dock.js'
+import { bump } from './settings.js'
 
 const BEGIN = '-- BLOCKSY-ANIM-BEGIN (generado por el editor de animaciones: lo reescribe el boton Aplicar)'
 const END = '-- BLOCKSY-ANIM-END'
@@ -84,7 +85,7 @@ export function buildAnimator(c, env) {
   }
   function apply(silent) {
     if (!applyAnims(game, cfg, parts)) return showTitle(t('an_need_lua'), 3200)
-    if (!silent) showTitle(t('an_applied'), 1800)
+    if (!silent) { showTitle(t('an_applied'), 1800); bump('anims') }
     env.onScriptChanged?.()
   }
   // vista previa: mueve la malla con las claves (posición, giro y tamaño); al terminar se restaura la pieza

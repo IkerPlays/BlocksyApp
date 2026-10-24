@@ -13,6 +13,7 @@ import * as music from './music.js'
 import { listComponents, addComponent, removeComponent, renameComponent, packParts, unpackParts, exportComponents, importComponents } from './components.js'
 import { buildAnimator } from './animator.js'
 import { styleFor } from './avatar.js'
+import { bump } from './settings.js'
 import { startCollab, genCode, cleanCode } from './collab.js'
 
 const MAX_VOL = 6000                      // bloques por operación
@@ -488,7 +489,7 @@ export function createStudio(ctx) {
       onParts: () => { if (selPart >= parts.length) selPart = -1; refreshParts(); paintProps(); paintRemoteSel() },
       onPeers: l => { peers = l; paintPeers(); paintCollabPanel() }, onSelections: paintRemoteSel,
       onStatus: s => { collabState = s; paintCollabPanel() } })
-    collabState = 'on'; paintCollabPanel()
+    collabState = 'on'; bump('collab'); paintCollabPanel()
   }
   function stopCollab() { session?.stop(); session = null; peers = []; collabState = 'off'; paintPeers(); clearRemoteWires(); paintCollabPanel() }
   const collabPanel = h('div', { id: 'st-collab', class: 'hidden' })

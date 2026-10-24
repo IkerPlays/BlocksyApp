@@ -1,2 +1,2 @@
-Devbuild 75: kill feed
-- Arena and Teams show who eliminated whom for a moment, and the killer hears a coin sound.
+Devbuild 76: four new achievements
+- New achievements: Clanmate (create or join a clan), Organizer (create or join a meetup), Teamwork (edit a game with someone in the Studio) and Animator (apply an animation to a part). They are translated into all languages.

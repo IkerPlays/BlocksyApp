@@ -4,6 +4,7 @@ import { MORE } from './i18n-more.js'
 const D = {
   es: {
     lang_name: 'Español',
+    ach_clanmate: 'De clan', ach_clanmate_d: 'Crea un clan o únete a uno.', ach_planner: 'Organizador', ach_planner_d: 'Crea una quedada o apúntate a una.', ach_collaborator: 'En equipo', ach_collaborator_d: 'Edita un juego con otra persona en el Studio.', ach_animator: 'Animador', ach_animator_d: 'Aplica una animación a una pieza.',
     season_level: 'nivel {n}/{max}',
     mt_next: 'Tu próxima quedada',
     mt_calendar: 'Añadir al calendario',
@@ -134,6 +135,7 @@ const D = {
   },
   en: {
     lang_name: 'English',
+    ach_clanmate: 'Clanmate', ach_clanmate_d: 'Create a clan or join one.', ach_planner: 'Organizer', ach_planner_d: 'Create a meetup or sign up for one.', ach_collaborator: 'Teamwork', ach_collaborator_d: 'Edit a game with someone else in the Studio.', ach_animator: 'Animator', ach_animator_d: 'Apply an animation to a part.',
     season_level: 'level {n}/{max}',
     mt_next: 'Your next meetup',
     mt_calendar: 'Add to calendar',
