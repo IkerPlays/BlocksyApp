@@ -1,6 +1,7 @@
 // Prueba del nucleo del actualizador en el ordenador:  gcc -std=gnu11 -Isource tests/update_core_test.c source/update_core.c -o /tmp/uct && /tmp/uct
 #include "update.h"
 #include <assert.h>
+#include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -57,5 +58,16 @@ int main(void) {
 	// Atom
 	const char *atom = "<feed><entry><link rel=\"alternate\" href=\"https://github.com/IkerPlays/BlocksyApp/releases/tag/v1.4.0\"/></entry><entry><link href=\"https://github.com/IkerPlays/BlocksyApp/releases/tag/v1.4.1-dev.20\"/></entry><entry><link href=\"https://github.com/IkerPlays/BlocksyApp/releases/tag/v1.4.0\"/></entry></feed>";
 	static ParsedRel at[8]; int na = core_parse_atom(atom, "IkerPlays/BlocksyApp", at, 8); assert(na == 2 && at[1].pre && strstr(at[0].cia, "/download/v1.4.0/Blocksy.cia"));
+	// Respuesta real de la API de GitHub (3 releases guardadas en tests/releases_sample.json): tamano, SHA-256 y fecha salen del JSON verdadero
+	{
+		FILE *f = fopen("tests/releases_sample.json", "rb"); assert(f);
+		fseek(f, 0, SEEK_END); long fn = ftell(f); fseek(f, 0, SEEK_SET); char *js = malloc((size_t)fn + 1); assert(js && fread(js, 1, (size_t)fn, f) == (size_t)fn); js[fn] = 0; fclose(f);
+		static ParsedRel rr[8]; int nr = core_parse_api(js, rr, 8); assert(nr == 3);
+		static UpdateInfo ri; core_select(rr, nr, "1.4.0", &ri);
+		assert(ri.stable.valid && !strcmp(ri.stable.tag, "v1.4.0") && ri.stable.cia_size > 500000 && strlen(ri.stable.cia_sha) == 64 && strlen(ri.stable.dsx_sha) == 64);
+		assert(ri.dev.valid && ri.dev.is_dev && !strcmp(ri.dev.tag, "v1.4.1-dev.121") && ri.dev.newer && ri.dev.cia_size > 500000 && ri.dev.dsx_size > 500000);
+		assert(!strcmp(ri.dev.date, "2026-10-24") && strstr(ri.dev.cia, "/releases/download/v1.4.1-dev.121/Blocksy.cia"));
+		free(js);
+	}
 	puts("update_core: todo bien"); return 0;
 }
