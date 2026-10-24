@@ -77,7 +77,7 @@ static void push_action(Action a) { LightLock_Lock(&lock); if (qn < QMAX) queue[
 static void net_thread(void *arg) {
 	(void)arg;
 	u64 last_blocks = 0, last_presence = 0, last_chat = 0, last_token = osGetTime(), last_alerts = 0; long alert_id = -1; int alert_un = -1;
-	long chat_last = -1;
+	long chat_last = -1; int m_place = 0, m_chat = 0, m_play = 0; u64 last_missions = osGetTime();      // progreso de misiones diarias/semanales que se envia por lotes
 	net_visit(&sess, net_game());
 	if (world.has_fin) { TopTime tt[5]; int tn = net_best_times(tt, 5); if (tn >= 0) { LightLock_Lock(&lock); memcpy(g_top, tt, sizeof tt); g_ntop = tn; LightLock_Unlock(&lock); } }
 	while (running) {
@@ -89,11 +89,11 @@ static void net_thread(void *arg) {
 		LightLock_Unlock(&lock);
 
 		if (have) {
-			if (a.type == PLACE) net_place_block(&sess, a.x, a.y, a.z, a.kind);
+			if (a.type == PLACE) { net_place_block(&sess, a.x, a.y, a.z, a.kind); m_place++; }
 			else if (a.type == BREAK) net_break_block(&sess, a.x, a.y, a.z);
 			else if (a.type == EVT) net_game_event(&sess, a.text, a.x);
 			else if (a.type == TIME) { int rk = net_submit_time(&sess, a.x); if (rk > 0) race_rank = rk; TopTime tt[5]; int tn = net_best_times(tt, 5); if (tn >= 0) { LightLock_Lock(&lock); memcpy(g_top, tt, sizeof tt); g_ntop = tn; LightLock_Unlock(&lock); } }
-			else net_say(&sess, a.text);
+			else { net_say(&sess, a.text); m_chat++; }
 		}
 		{ u64 t0 = osGetTime(); net_send_state(&sess, x, y, z, ry, anim); int d = (int)(osGetTime() - t0); g_ping = g_ping ? (g_ping * 3 + d) / 4 : d; }
 
@@ -127,7 +127,13 @@ static void net_thread(void *arg) {
 			if (net_refresh(&sess, true)) ui_save_session(&sess);
 			last_token = now;
 		}
-		if (now - last_presence > 30000) { net_presence(&sess, net_game()); last_presence = now; }
+		if (now - last_presence > 30000) { net_presence(&sess, net_game()); last_presence = now; m_play++; }
+		if (sess.token[0] && now - last_missions > 20000) {                          // misiones (como en la web: colocar 50, chat 5, jugar 10 min)
+			last_missions = now;
+			if (m_place > 0) { int k = m_place > 20 ? 20 : m_place; if (net_mission_add(&sess, "place_50", k)) m_place -= k; }
+			if (m_chat > 0) { int k = m_chat > 20 ? 20 : m_chat; if (net_mission_add(&sess, "chat_5", k)) m_chat -= k; }
+			if (m_play >= 2) { if (net_mission_add(&sess, "play_10", m_play / 2)) m_play %= 2; }          // 1 punto por minuto jugado
+		}
 		if (sess.token[0] && app_notif_on() && now - last_alerts > 12000) {          // avisos de amigos también durante la partida
 			last_alerts = now; static Notif an[6]; int c = net_list_notifs(&sess, an, 6); int un = net_unread_total(&sess); char msg[96] = "";
 			if (c >= 0) { for (int i = 0; i < c; i++) { if (alert_id >= 0 && an[i].id > alert_id && !an[i].read && !msg[0]) app_notif_text(&an[i], msg, sizeof msg); } long mx_id = 0; for (int i = 0; i < c; i++) if (an[i].id > mx_id) mx_id = an[i].id; if (mx_id > alert_id) alert_id = mx_id; if (alert_id < 0) alert_id = 0; }

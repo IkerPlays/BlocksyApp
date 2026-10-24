@@ -644,6 +644,12 @@ static bool auth_rpc_ok(const Session *s, const char *fn, const char *body) {
 	char *r = http(M_POST, url, AUTH_ANON_KEY, s->token, body, NULL);
 	bool ok = r != NULL; free(r); return ok;
 }
+bool net_mission_add(const Session *s, const char *key, int n) {
+	if (!s->token[0] || n <= 0) return false;
+	char body[80]; snprintf(body, sizeof body, "{\"p_key\":\"%s\",\"p_add\":%d}", key, n > 20 ? 20 : n);
+	char *r = http(M_POST, AUTH_URL "/rest/v1/rpc/mission_add", AUTH_ANON_KEY, s->token, body, NULL);
+	bool ok = r != NULL; free(r); return ok;
+}
 int net_season(const Session *s, int *season, int *xp) {
 	if (!s->token[0]) return -2;
 	char *r = http(M_POST, AUTH_URL "/rest/v1/rpc/season_info", AUTH_ANON_KEY, s->token, "{}", NULL);

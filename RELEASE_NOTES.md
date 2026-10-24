@@ -27,3 +27,4 @@ Devbuild: new 3DS updater, Studio parts and skies on the 3DS, more templates
 - 3DS: Home shows your clan (tag, name and members) and your season level.
 - 3DS: new setting "Show coordinates" prints your X Y Z position in games (handy for placing Studio parts).
 - 3DS: Discover can be filtered by game mode with SELECT (all, build, social, obby, arena, adventure).
+- 3DS: playing, placing blocks and chatting on the 3DS now count towards your daily and weekly missions and season points (email login needed).
