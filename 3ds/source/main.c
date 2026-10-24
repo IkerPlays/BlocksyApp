@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "net.h"
+#include "audio.h"
 #include "ui.h"
 #include "app.h"
 #include "update.h"
@@ -498,7 +499,7 @@ static bool play_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 	ui_build_ui = can_build;
 	jump_v = cur_game.jump > 1 ? cur_game.jump : 8.6f; memset(&race, 0, sizeof race); big_msg[0] = 0; big_until = 0; photo_mode = false; memset(puff, 0, sizeof puff);
 	cam_yaw = 0; cam_pitch = 0.5f; cam_dist = 9; cx_ = px; cy_ = py + 1; cz_ = pz;
-	net_set_game(cur_game.id); g_weather = !strcmp(cur_game.weather, "rain") ? 1 : !strcmp(cur_game.weather, "snow") ? 2 : 0; g_ntop = 0;
+	audio_game(true, cur_game.track); net_set_game(cur_game.id); g_weather = !strcmp(cur_game.weather, "rain") ? 1 : !strcmp(cur_game.weather, "snow") ? 2 : 0; g_ntop = 0;
 	memset(&hr, 0, sizeof hr); ev_last = -1; hr.on = world.type == 5; hr.flash = true; hr.mx = hr.mtx = world.mon_start[0]; hr.mz = hr.mtz = world.mon_start[2]; hr.dist = 99;
 	if (hr.on) { snprintf(big_msg, sizeof big_msg, "Recoge %d fragmentos y huye", world.norbs); big_until = osGetTime() + 5000; }
 	s32 prio = 0; svcGetThreadPriority(&prio, CUR_THREAD_HANDLE);
@@ -612,6 +613,7 @@ static bool play_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 			px = rsp_x; py = rsp_y; pz = rsp_z; vy = 0; cx_ = px; cy_ = py + 1; cz_ = pz;
 			snprintf(big_msg, sizeof big_msg, "Has caido"); big_until = now + 1200;
 		}
+		{ char tn[64]; if (audio_take_note(tn, sizeof tn)) { snprintf(big_msg, sizeof big_msg, "Musica: %.40s", tn); big_until = now + 3000; } }
 		if (race_rank > 0 && race.done) { int rk = race_rank; race_rank = 0; snprintf(big_msg, sizeof big_msg, "Puesto %d en el top", rk); big_until = now + 4000; }
 		if (world.ncp || world.has_fin) {                                      // carrera: cronómetro, puntos de control y meta
 			if (!race.start && moving) race.start = now;
@@ -653,6 +655,7 @@ static bool play_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 		now_ms = now; render_game(top, bot);
 	}
 
+	audio_game(false, NULL);
 	want_offline = !back;
 	running = false;
 	if (th) { threadJoin(th, U64_MAX); threadFree(th); }
@@ -669,6 +672,7 @@ int main(int argc, char **argv) {
 		ui_message(top, bot, "Sin red", "No se pudo iniciar la red.\nComprueba que el WiFi esta activado.");
 		ui_exit(); C2D_Fini(); C3D_Fini(); gfxExit(); return 1;
 	}
+	audio_init();                                           // musica de la playlist (si hay DSP)
 	bool quit = false;
 	while (!quit) {
 		if (!ui_login(top, bot, &sess, BLOCKSY_VERSION)) break;
@@ -680,7 +684,7 @@ int main(int argc, char **argv) {
 			break;
 		}
 	}
-	ui_exit(); net_exit(); C2D_Fini(); C3D_Fini(); gfxExit();
+	audio_exit(); ui_exit(); net_exit(); C2D_Fini(); C3D_Fini(); gfxExit();
 	return 0;
 }
 
