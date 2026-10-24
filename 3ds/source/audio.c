@@ -47,16 +47,18 @@ static bool load_list(void) {
 static void title_of(const char *f, char *o, size_t n) { snprintf(o, n, "%s", f); char *d = strrchr(o, '.'); if (d) *d = 0; for (char *c = o; *c; c++) if (*c == '_') *c = ' '; }
 
 // Reproduce una cancion entera; true si termino bien (o la saltaron), false si no se pudo descargar/decodificar
+static volatile bool g_hold, g_playing;                          // g_hold: pausa mientras se actualiza (libera la RAM de la cancion)
+#define ACTIVE (g_active && !g_hold)
 static bool play_track(const char *file) {
 	char url[260] = WEB_BASE, enc[200]; url_encode(file, enc, sizeof enc); strncat(url, enc, sizeof url - strlen(url) - 1);
-	Mem m = {0}; char err[100] = ""; volatile int pct = 0;
-	if (!net_download(url, mem_sink, &m, &pct, err, sizeof err)) { free(m.p); return false; }
+	Mem m = {0}; char err[100] = ""; volatile int pct = 0; g_playing = true;
+	if (!net_download(url, mem_sink, &m, &pct, err, sizeof err)) { free(m.p); g_playing = false; return false; }
 	title_of(file, g_note, sizeof g_note); g_note_new = true;
 	static mp3dec_t dec; mp3dec_init(&dec); mp3d_sample_t frame[MINIMP3_MAX_SAMPLES_PER_FRAME];
 	size_t pos = 0; int rate = 0, chans = 0, cur = 0; bool started = false;
-	while (!g_quit && g_active && !g_skip && pos < m.n) {
-		while (!g_quit && g_active && !g_skip && g_wb[cur].status != NDSP_WBUF_DONE && g_wb[cur].status != NDSP_WBUF_FREE) svcSleepThread(8000000LL);
-		if (g_quit || !g_active || g_skip) break;
+	while (!g_quit && ACTIVE && !g_skip && pos < m.n) {
+		while (!g_quit && ACTIVE && !g_skip && g_wb[cur].status != NDSP_WBUF_DONE && g_wb[cur].status != NDSP_WBUF_FREE) svcSleepThread(8000000LL);
+		if (g_quit || !ACTIVE || g_skip) break;
 		int filled = 0;
 		while (filled + 1152 <= BUF_FRAMES && pos < m.n) {
 			mp3dec_frame_info_t info; int s = mp3dec_decode_frame(&dec, m.p + pos, (int)(m.n - pos), frame, &info);
@@ -72,15 +74,15 @@ static bool play_track(const char *file) {
 			ndspChnWaveBufAdd(0, &g_wb[cur]); cur = (cur + 1) % NBUF;
 		}
 	}
-	free(m.p);
-	for (int w = 0; w < 400 && !g_quit && g_active && !g_skip; w++) { bool busy = false; for (int i = 0; i < NBUF; i++) if (g_wb[i].status == NDSP_WBUF_QUEUED || g_wb[i].status == NDSP_WBUF_PLAYING) busy = true; if (!busy) break; svcSleepThread(30000000LL); }
+	free(m.p); g_playing = false;
+	for (int w = 0; w < 400 && !g_quit && ACTIVE && !g_skip; w++) { bool busy = false; for (int i = 0; i < NBUF; i++) if (g_wb[i].status == NDSP_WBUF_QUEUED || g_wb[i].status == NDSP_WBUF_PLAYING) busy = true; if (!busy) break; svcSleepThread(30000000LL); }
 	ndspChnWaveBufClear(0); for (int i = 0; i < NBUF; i++) g_wb[i].status = NDSP_WBUF_FREE;
 	g_skip = false; return started;
 }
 static void audio_thread(void *arg) {
 	(void)arg; int idx = -1, fails = 0;
 	while (!g_quit) {
-		if (!g_active || !app_music_on()) { idx = -1; svcSleepThread(200000000LL); continue; }
+		if (!ACTIVE || !app_music_on()) { idx = -1; svcSleepThread(200000000LL); continue; }
 		if (!g_nfiles && !load_list()) { svcSleepThread(5000000000LL); continue; }
 		if (idx < 0) { srand((unsigned)osGetTime()); idx = rand() % g_nfiles; for (int i = 0; g_pref[0] && i < g_nfiles; i++) { char t[64]; title_of(g_files[i], t, sizeof t); if (!strcmp(g_files[i], g_pref) || !strcmp(t, g_pref)) { idx = i; break; } } }
 		else idx = (idx + 1) % g_nfiles;
@@ -106,3 +108,5 @@ bool audio_available(void) { return g_ok; }
 void audio_game(bool on, const char *track) { snprintf(g_pref, sizeof g_pref, "%s", track ? track : ""); g_skip = !on; g_active = on && g_ok; if (on) g_skip = false; }
 bool audio_take_note(char *out, size_t n) { if (!g_note_new) return false; g_note_new = false; snprintf(out, n, "%s", g_note); return true; }
 void audio_skip(void) { g_skip = true; }
+// Durante una actualizacion: para la musica y libera la cancion en memoria (el instalador necesita la RAM). Espera hasta 3 s a que termine.
+void audio_hold(bool on) { g_hold = on; if (on) for (int w = 0; w < 100 && g_playing; w++) svcSleepThread(30000000LL); }

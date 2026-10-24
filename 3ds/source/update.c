@@ -5,6 +5,7 @@
 //  - Si la red se corta a mitad, la descarga continua desde el byte donde se quedo (no empieza otra vez).
 #include "update.h"
 #include "net.h"
+#include "audio.h"
 #include <3ds.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -219,7 +220,9 @@ bool update_install(const Rel *r, UpdateProgress *prog, char *err, size_t en) {
 	unsigned size = update_is_cia() ? r->cia_size : r->dsx_size; prog->total = size;
 	u64 fr = sd_free(), need = (u64)size * 3 + (24ULL << 20);                  // el .cia, su copia temporal de instalacion y un margen
 	if (fr && fr < need) { snprintf(err, en, "La SD casi no tiene espacio (%u MB libres, hacen falta %u MB)", (unsigned)(fr >> 20), (unsigned)(need >> 20)); prog->stage = UPD_IDLE; return false; }
+	audio_hold(true);                                                          // la musica guarda la cancion entera en RAM: se libera para el instalador
 	bool ok = update_is_cia() ? install_cia(r, prog, err, en) : install_3dsx(r, prog, err, en);
+	audio_hold(false);
 	prog->stage = ok ? UPD_DONE : UPD_IDLE;
 	if (ok) { prog->pct = 100; prog->done = prog->total; }
 	return ok;

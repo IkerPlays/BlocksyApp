@@ -8,3 +8,4 @@ bool audio_available(void);                        // false si no hay DSP (falta
 void audio_game(bool on, const char *track);       // entra / sale de un juego; track = cancion elegida por el creador (puede ser "")
 bool audio_take_note(char *out, size_t n);         // true una vez por cancion nueva: "titulo" para mostrar en pantalla
 void audio_skip(void);                             // siguiente cancion
+void audio_hold(bool on);                          // pausa la musica y libera su memoria (durante una actualizacion)
