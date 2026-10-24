@@ -3,6 +3,7 @@ import { EXTRA } from './i18n-extra.js'
 const D = {
   es: {
     lang_name: 'Español',
+    weekly: 'Misiones semanales', ends_on: 'hasta {d}', season_n: 'Temporada {n}', season_xp: '{n} puntos', season_how: 'Las misiones diarias dan 10 puntos y las semanales 60. Cada 100 puntos, un nivel.', season_trail: 'Estela limitada', season_title: 'Título limitado', season_limited: 'cosmético limitado', mis_w_place_300: 'Coloca 300 bloques', mis_w_play_120: 'Juega 120 minutos', mis_w_obby_5: 'Gana 5 carreras', mis_w_chat_40: 'Escribe 40 mensajes', mis_w_friend_3: 'Haz 3 amistades',
     tpl_tools: 'Armería', tpl_tools_d: 'Inventario con espada, botiquín y bengala',
     ter_desert: 'Desierto', ter_caves: 'Cuevas', ter_city: 'Ciudad',
     tpl_arena: 'Arena PvP', tpl_arena_d: 'Multijugador: espada, vida y reaparición', tpl_teams: 'Equipos', tpl_teams_d: 'Rojo contra Azul con marcador', tpl_race: 'Carrera con vueltas', tpl_race_d: 'Multijugador: 3 vueltas y clasificación',
@@ -124,6 +125,7 @@ const D = {
   },
   en: {
     lang_name: 'English',
+    weekly: 'Weekly missions', ends_on: 'until {d}', season_n: 'Season {n}', season_xp: '{n} points', season_how: 'Daily missions give 10 points and weekly ones 60. Every 100 points is a level.', season_trail: 'Limited trail', season_title: 'Limited title', season_limited: 'limited cosmetic', mis_w_place_300: 'Place 300 blocks', mis_w_play_120: 'Play for 120 minutes', mis_w_obby_5: 'Win 5 races', mis_w_chat_40: 'Send 40 messages', mis_w_friend_3: 'Make 3 friends',
     tpl_tools: 'Armory', tpl_tools_d: 'Inventory with sword, medkit and flare',
     ter_desert: 'Desert', ter_caves: 'Caves', ter_city: 'City',
     tpl_arena: 'PvP Arena', tpl_arena_d: 'Multiplayer: sword, health and respawn', tpl_teams: 'Teams', tpl_teams_d: 'Red vs Blue with a scoreboard', tpl_race: 'Lap race', tpl_race_d: 'Multiplayer: 3 laps and standings',

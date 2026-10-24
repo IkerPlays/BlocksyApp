@@ -118,6 +118,10 @@ export const unblockUser = async name => { const r = await rpc('unblock_user', {
 export const reportUser = (name, reason, details = '') => rpc('report_user', { p_username: name, p_reason: reason, p_details: details })
 export const isBlockedName = name => !!blockedCache?.some(b => b.username.toLowerCase() === String(name).toLowerCase())
 export const getMissions = async () => (await rpc('my_missions')) ?? []
+export const getWeekly = async () => (await rpc('my_weekly')) ?? { list: [] }
+export const claimWeekly = async key => { const r = await rpc('weekly_claim', { p_key: key }); await loadWallet(); return r }
+export const getSeason = async () => await rpc('season_info')
+export const claimSeason = async () => { const r = await rpc('season_claim'); await loadWallet(); return r }
 export const claimMission = async key => { const r = await rpc('mission_claim', { p_key: key }); await loadWallet(); return r }
 // Suma progreso a una misión (en lotes pequeños para no saturar el servidor)
 const pend = {}

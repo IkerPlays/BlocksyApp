@@ -366,7 +366,8 @@ export const pages = {
   // Tienda: BCoins, sombreros, títulos y cofres de botín
   async shop(root, ctx) {
     setKids(root, pageSkel())
-    const [items, w0] = await Promise.all([social.listShop(), social.loadWallet()])
+    const [allItems, w0] = await Promise.all([social.listShop(), social.loadWallet()])
+    const items = allItems.filter(i => !i.data?.reward || (social.getWallet()?.inventory ?? []).includes(i.id))        // los cosméticos de temporada no se compran: solo se ven si ya son tuyos
     const canvas = el('canvas', { class: 'avatar-3d' }), coins = el('b', { class: 'coin-big' }), daily = el('div'), body = el('div')
     let pv = null, tryOn = null
     const equipped = () => social.getWallet()?.equipped ?? {}
@@ -442,9 +443,28 @@ export const pages = {
         el('span', { class: 'price', html: icon('coin', 16) + ' ' + m.reward }),
         m.claimed ? el('span', { class: 'owned', text: t('mis_done') }) : el('button', { class: 'btn primary', text: t('shop_claim'), disabled: m.n < m.goal, onclick: () => run(async () => { await social.claimMission(m.key); toast(t('shop_got', { n: m.reward })); paintMissions() }) }))))] : null)
     }
-    setKids(root, el('div', { class: 'section' }, el('h1', { class: 'page-title', text: t('nav_shop') }), coins), daily, missionsBox,
+    const weeklyBox = el('div'), seasonBox = el('div')
+    const paintWeekly = async () => {
+      let wk = { list: [] }; try { wk = await social.getWeekly() } catch {}
+      setKids(weeklyBox, wk.list?.length ? [el('div', { class: 'section' }, el('h2', { text: t('weekly') + (wk.ends ? ' · ' + t('ends_on', { d: wk.ends }) : '') })), el('div', { class: 'panel' }, wk.list.map(m => el('div', { class: 'person' },
+        el('div', { class: 'grow' }, el('b', { text: t('mis_' + m.key) }), el('div', { class: 'prog' }, el('i', { style: `width:${Math.round(m.n / m.goal * 100)}%` })), el('small', { text: `${m.n}/${m.goal}` })),
+        el('span', { class: 'price', html: icon('coin', 16) + ' ' + m.reward }),
+        m.claimed ? el('span', { class: 'owned', text: t('mis_done') }) : el('button', { class: 'btn primary', text: t('shop_claim'), disabled: m.n < m.goal, onclick: () => run(async () => { await social.claimWeekly(m.key); toast(t('shop_got', { n: m.reward })); paintWeekly(); paintSeason() }) }))))] : null)
+    }
+    const paintSeason = async () => {
+      let se = null; try { se = await social.getSeason() } catch {}
+      if (!se || !se.tiers) return setKids(seasonBox, null)
+      const into = se.xp - se.claimed * 100, ready = se.claimed < 10 && se.xp >= (se.claimed + 1) * 100
+      const rewardOf = tr => tr.item ? t(tr.item.endsWith('trail') ? 'season_trail' : 'season_title') : '+' + tr.coins
+      setKids(seasonBox, el('div', { class: 'section' }, el('h2', { text: t('season_n', { n: se.season }) + ' · ' + t('ends_on', { d: se.ends }) })), el('div', { class: 'panel' },
+        el('div', { class: 'season-tiers' }, se.tiers.map(tr => el('div', { class: `season-tier ${tr.tier <= se.claimed ? 'done' : tr.tier === se.claimed + 1 ? 'next' : ''} ${tr.item ? 'big' : ''}` }, el('b', { text: tr.tier }), el('small', { text: rewardOf(tr) })))),
+        el('div', { class: 'prog' }, el('i', { style: `width:${se.claimed >= 10 ? 100 : Math.min(100, Math.max(0, into))}%` })),
+        el('div', { class: 'person' }, el('div', { class: 'grow' }, el('small', { text: t('season_xp', { n: se.xp }) + ' · ' + t('season_how') })),
+          el('button', { class: 'btn primary', text: se.claimed >= 10 ? t('mis_done') : t('shop_claim'), disabled: !ready, onclick: () => run(async () => { const r = await social.claimSeason(); toast(t('shop_got', { n: r.coins }) + (r.item ? ' + ' + t('season_limited') : '')); await Promise.all([paintSeason(), social.loadWallet().then(() => draw())]) }) }))))
+    }
+    setKids(root, el('div', { class: 'section' }, el('h1', { class: 'page-title', text: t('nav_shop') }), coins), daily, seasonBox, missionsBox, weeklyBox,
       filterBar, el('div', { class: 'shop-layout' }, el('div', { class: 'preview' }, canvas), body))
-    pv = createPreview(canvas, style()); paintFilters(); draw(); paintMissions()
+    pv = createPreview(canvas, style()); paintFilters(); draw(); paintMissions(); paintWeekly(); paintSeason()
   },
 
   // Perfil: /profile (el tuyo) o /u/<usuario>
