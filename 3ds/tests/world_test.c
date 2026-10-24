@@ -28,5 +28,21 @@ int main(void) {
 		}
 		assert(s == ISL[k] && w.ntrees == NT[k] && !w.floor);
 	}
+	// mundos de bloques fijos: posicion y color de cada celda iguales a la web (hash que no depende del orden)
+	static const struct { const char *n; int seed, cells; unsigned long long h; } CW[] = {
+		{"obby", 1337, 198, 4804154267183903599ULL}, {"obby", 99, 205, 13136574405191394120ULL},
+		{"void", 1337, 25, 5251627199191438446ULL}, {"void", 99, 25, 5251627199191438446ULL},
+		{"desert", 1337, 245, 10236044349245789569ULL}, {"desert", 99, 260, 7854319578361043195ULL},
+		{"caves", 1337, 178, 8447387735938173756ULL}, {"caves", 99, 182, 9767940319837599462ULL},
+		{"city", 1337, 450, 4593300192577047480ULL}, {"city", 99, 495, 4868970053000107611ULL},
+	};
+	for (unsigned k = 0; k < sizeof CW / sizeof CW[0]; k++) {
+		world_build(&w, CW[k].n, CW[k].seed); unsigned long long s = 0;
+		for (int i = 0; i < w.ncells; i++) {
+			unsigned long long x = (unsigned)w.cells[i].x, y = (unsigned)w.cells[i].y, z = (unsigned)w.cells[i].z;
+			s += (x * 73856093ULL) ^ (y * 19349663ULL) ^ (z * 83492791ULL) ^ ((unsigned long long)w.cells[i].color * 2654435761ULL);
+		}
+		if (w.ncells != CW[k].cells || s != CW[k].h) { printf("FALLA %s semilla %d: %d celdas (esperadas %d), hash %llu\n", CW[k].n, CW[k].seed, w.ncells, CW[k].cells, s); return 1; }
+	}
 	puts("world: todo bien"); return 0;
 }
