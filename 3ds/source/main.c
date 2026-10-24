@@ -598,6 +598,11 @@ static bool play_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 	can_build = cur_game.allow_build >= 0 ? cur_game.allow_build > 0 : !strcmp(cur_game.mode, "build");   // solo los juegos de bloques dejan construir
 	ui_build_ui = can_build;
 	jump_v = cur_game.jump > 1 ? cur_game.jump : 8.6f; memset(&race, 0, sizeof race); big_msg[0] = 0; big_until = 0; photo_mode = false; memset(puff, 0, sizeof puff);
+	if (cur_game.welcome[0]) {                                                  // mensaje de bienvenida del creador (como en la web), cortado en una palabra para que quepa
+		snprintf(big_msg, sizeof big_msg, "%s", cur_game.welcome);
+		if (strlen(big_msg) > 38) { size_t k = 38; while (k > 10 && big_msg[k] != ' ') k--; if (k <= 10) k = 38; while (k > 0 && ((unsigned char)big_msg[k] & 0xC0) == 0x80) k--; big_msg[k] = 0; }
+		big_until = osGetTime() + 4200;
+	}
 	cam_yaw = 0; cam_pitch = 0.5f; cam_dist = 9; cx_ = px; cy_ = py + 1; cz_ = pz;
 	audio_game(true, cur_game.track); net_set_game(cur_game.id); g_weather = !strcmp(cur_game.weather, "rain") ? 1 : !strcmp(cur_game.weather, "snow") ? 2 : 0; g_ntop = 0;
 	memset(&hr, 0, sizeof hr); ev_last = -1; hr.on = world.type == 5; hr.flash = true; hr.mx = hr.mtx = world.mon_start[0]; hr.mz = hr.mtz = world.mon_start[2]; hr.dist = 99;

@@ -12,3 +12,5 @@ Devbuild: four new templates and translucent 3DS parts
 - 3DS: games use their sky setting (dawn, sunset, night, space): sky colors, fog, dimmer blocks, stars and moon.
 - 3DS: new setting "Show FPS" prints the frame rate during games.
 - New template: Crumbling floor (tiles vanish after you step on them).
+- 3DS: the creator's welcome message is shown when you enter a game (like on the web).
+- 3DS: downloads use bigger network chunks.

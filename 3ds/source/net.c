@@ -193,6 +193,7 @@ bool net_download_from(const char *url, unsigned long long from, NetSink sink, v
 	curl_easy_setopt(c, CURLOPT_NOPROGRESS, 0L); curl_easy_setopt(c, CURLOPT_XFERINFOFUNCTION, dl_progress); curl_easy_setopt(c, CURLOPT_XFERINFODATA, &ctx);
 	curl_easy_setopt(c, CURLOPT_ERRORBUFFER, errbuf); tune(c);
 	curl_easy_setopt(c, CURLOPT_LOW_SPEED_LIMIT, 1024L); curl_easy_setopt(c, CURLOPT_LOW_SPEED_TIME, 30L);
+	curl_easy_setopt(c, CURLOPT_BUFFERSIZE, 65536L);                                   // trozos grandes: menos llamadas al escribir en la SD
 	if (from > 0) curl_easy_setopt(c, CURLOPT_RESUME_FROM_LARGE, (curl_off_t)from);
 	CURLcode rc = curl_easy_perform(c);
 	long code = 0; curl_easy_getinfo(c, CURLINFO_RESPONSE_CODE, &code);
@@ -567,7 +568,7 @@ int net_list_games(GameInfo *out, int max) {
 			const char *ce = strchr(cf, '}'); if (!ce) ce = end;
 			jstr(cf, ce, "world", g->world, sizeof g->world); jstr(cf, ce, "weather", g->weather, sizeof g->weather);
 			{ char vs[12] = ""; jstr(cf, ce, "visibility", vs, sizeof vs); g->vis = !strcmp(vs, "private") ? 2 : !strcmp(vs, "unlisted") ? 1 : 0; if (!vs[0]) { const char *dr = json_find_from(cf, ce, "draft"); if (dr && *dr == 't') g->vis = 2; } }
-			jstr(cf, ce, "sky", g->sky, sizeof g->sky); jstr(cf, ce, "about", g->about, sizeof g->about); jstr(cf, ce, "track", g->track, sizeof g->track); for (char *q = g->about; *q; q++) if (*q == '\n') *q = ' ';
+			jstr(cf, ce, "sky", g->sky, sizeof g->sky); jstr(cf, ce, "welcome", g->welcome, sizeof g->welcome); for (char *q = g->welcome; *q; q++) if (*q == '\n') *q = ' '; jstr(cf, ce, "about", g->about, sizeof g->about); jstr(cf, ce, "track", g->track, sizeof g->track); for (char *q = g->about; *q; q++) if (*q == '\n') *q = ' ';
 			const char *ab = json_find_from(cf, ce, "allow_build"); if (ab) g->allow_build = *ab == 't';
 			const char *jp = json_find_from(cf, ce, "jump"); if (jp) g->jump = strtof(jp, NULL);
 			const char *sd = json_find_from(cf, ce, "seed"); if (sd) g->seed = (int)strtof(sd, NULL);
