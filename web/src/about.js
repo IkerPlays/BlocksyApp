@@ -27,17 +27,17 @@ export function reportUrl(extra = '') {
 
 // ---- Novedades (se muestran una vez tras cada actualización) ----
 const NEWS = { es: [
-  'Nuevos accesorios: caras, mochilas, estelas y mascotas, con aspecto de avatar editable.',
-  'Estudio 2: herramientas de bloques, partes, símbolos, explorador y scripts Lua estilo Roblox.',
-  'Modos de juego: tag, capturar la bandera, oleadas y escondite, además del Bosque Oscuro.',
-  'Salas privadas, favoritos, votos, logros y ranking de BCoins.',
-  'Accesibilidad: modo daltónico, tamaño de texto, subtítulos y teclas redefinibles.',
+  'Plantillas nuevas: Memoria, Zonas, Cazatesoros, Torre, Laberinto, Reflejos, Piso que cae y Preguntas, con filtros y búsqueda.',
+  'Estudio: castillo, cúpula, escalera de caracol y columna; aviso si pasas de 160 piezas (límite de la 3DS).',
+  'La 3DS dibuja las piezas del Estudio, cielos y horas del día, y muestra tu clan, temporada y próxima quedada.',
+  'Actualizador de la 3DS nuevo: descargas verificadas, reanudables y con vuelta atrás.',
+  'Seis logros nuevos y clanes, quedadas, temporadas y moderación.',
 ], en: [
-  'New accessories: faces, backpacks, trails and pets, with an editable avatar look.',
-  'Studio 2: block tools, parts, prefabs, explorer and Roblox-style Lua scripts.',
-  'Game modes: tag, capture the flag, waves and hide and seek, plus the Dark Forest.',
-  'Private rooms, favorites, votes, achievements and a BCoins ranking.',
-  'Accessibility: colorblind mode, text size, sound captions and rebindable keys.',
+  'New templates: Memory, Zones, Treasure hunt, Tower, Maze, Reflexes, Crumbling floor and Quiz, with filters and search.',
+  'Studio: castle, dome, spiral staircase and pillar; a warning above 160 parts (the 3DS limit).',
+  'The 3DS draws Studio parts, skies and times of day, and shows your clan, season and next meetup.',
+  'New 3DS updater: verified, resumable downloads with rollback.',
+  'Six new achievements, plus clans, meetups, seasons and moderation.',
 ] }
 export function whatsNew() { return (NEWS[document.documentElement.lang] ?? NEWS.en).slice() }
 export const isNewVersion = () => { try { return localStorage.getItem(SEEN_KEY) !== APP_VERSION } catch { return false } }
