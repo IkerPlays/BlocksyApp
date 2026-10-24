@@ -5,3 +5,4 @@ Devbuild: four new templates and translucent 3DS parts
 - 3DS: music pauses while an update installs, freeing memory.
 - 3DS updater: new "Test download (no install)" button that downloads and verifies the update without installing it, and a line with free RAM and SD space.
 - 3DS: adaptive draw quality keeps the frame rate steady and draws more when there is spare time.
+- 3DS: Home shows your next meetup (from the web calendar) next to the greeting.

@@ -665,6 +665,21 @@ static bool auth_rpc_ok(const Session *s, const char *fn, const char *body) {
 	char *r = http(M_POST, url, AUTH_ANON_KEY, s->token, body, NULL);
 	bool ok = r != NULL; free(r); return ok;
 }
+// Proxima quedada visible (las de las ultimas 2 horas siguen contando): la primera de list_meetups, que viene ordenada por fecha
+int net_next_meetup(const Session *s, Meetup *m) {
+	if (!s->token[0]) return -2;
+	char *r = http(M_POST, AUTH_URL "/rest/v1/rpc/list_meetups", AUTH_ANON_KEY, s->token, "{}", NULL);
+	if (!r) return -1;
+	memset(m, 0, sizeof *m); int found = 0; const char *p = r, *end;
+	if ((p = next_obj(p, &end))) {
+		char at[40] = ""; jstr(p, end, "starts_at", at, sizeof at); time_t t = parse_iso(at);
+		if (t) {
+			found = 1; m->starts = (long)t; jstr(p, end, "title", m->title, sizeof m->title); jstr(p, end, "game_name", m->game, sizeof m->game); jstr(p, end, "host", m->host, sizeof m->host);
+			m->going = (int)jnum(p, end, "going"); m->me = jbool(p, end, "me"); m->clan = jbool(p, end, "clan");
+		}
+	}
+	free(r); return found;
+}
 int net_list_requests(const Session *s, FriendReq *out, int max) {
 	if (!s->token[0]) return -2;
 	char *r = http(M_POST, AUTH_URL "/rest/v1/rpc/my_requests", AUTH_ANON_KEY, s->token, "{}", NULL);

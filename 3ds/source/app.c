@@ -135,6 +135,11 @@ static const char *const PT_TR[][2] = {
 	{"Music", "Musica"},
 	{"Music volume", "Volume da musica"},
 	{"Sound effects", "Efeitos sonoros"},
+	{"Next meetup", "Proximo encontro"},
+	{"now", "agora"},
+	{"in %ld min", "em %ld min"},
+	{"in %ld h", "em %ld h"},
+	{"in %ld d", "em %ld d"},
 	{"Auto-install stable", "Instalar estaveis sozinho"},
 	{"Show changes", "Ver mudancas"},
 	{"Music needs dspfirm.cdc (DSP firmware dump)", "A musica exige dspfirm.cdc (copia do firmware do DSP)"},
@@ -188,6 +193,7 @@ static UpdateProgress g_prog; static char g_upd_msg[100]; static int g_upd_log; 
 #define g_upd_pct g_prog.pct
 static volatile int g_upd_auto;                               // 1 = instalar la estable nueva sola (una vez por sesion, como Iker's Tube)
 static volatile int g_upd_announce;                           // 1 = avisar con un toast de que hay versión nueva
+static Meetup g_meetup; static volatile int g_has_meetup;                // proxima quedada (AUTH v17), se ve en Inicio
 static int s_auto = 1;                                        // buscar al abrir (ajuste)
 
 static bool cur_is_dev(void) { return strstr(g_upd.cur, "-dev") != NULL || !strcmp(g_upd.cur, "dev"); }
@@ -224,6 +230,7 @@ static void refresh_all(void) {
 		ng = net_hide_blocked(tg, ng); net_game_visits(tg, ng); net_player_counts(tg, ng); { static char fid[64][40]; int nfv = net_favorites(W.s, fid, 64); for (int i = 0; i < ng; i++) { tg[i].fav = 0; for (int k = 0; k < nfv; k++) if (!strcmp(tg[i].id, fid[k])) tg[i].fav = 1; } } LightLock_Lock(&lk); memcpy(g_games, tg, sizeof(GameInfo) * ng); g_ngames = ng; LightLock_Unlock(&lk); }
 	else snprintf(W.msg, sizeof W.msg, "%s", net_login_error());
 	int nf = net_list_friends(W.s, tf, MAX_PEOPLE), nr = net_list_requests(W.s, tr, MAX_PEOPLE);
+	{ static Meetup tm; int mr = net_next_meetup(W.s, &tm); if (mr >= 0) { LightLock_Lock(&lk); g_meetup = tm; g_has_meetup = mr; LightLock_Unlock(&lk); } }
 	int un = net_unread_total(W.s); if (un >= 0) { if (un > g_unread) sfx_play(SFX_NOTIFY); g_unread = un; }
 	{	// BCoins y tienda
 		static Wallet tw; static ShopItem ts[40];
@@ -536,6 +543,15 @@ static void page_top(const Ui *u, const Session *s) {
 		int first = u->cur > 4 ? u->cur - 4 : 0;
 		for (int i = 0; i < 5 && first + i < n; i++) game_card(14 + i * 76, 154, 58, &games[view[first + i]], first + i == u->cur, true);
 		if (!n) ui_text(14, 160, 0.45f, COL_MUTED, 0, "Cargando juegos...");
+		if (g_has_meetup) {                                                                         // proxima quedada: junto al saludo si cabe
+			float x0 = 58 + ui_text_width(hi, 0.8f) + 10; if (x0 < 214) x0 = 214;
+			if (386 - x0 >= 100) {
+				long dt = g_meetup.starts - (long)time(NULL); char w_[40], mt_[110], f_[110];
+				if (dt <= 0) snprintf(w_, sizeof w_, "%s", tr2("ahora", "now")); else if (dt < 3600) snprintf(w_, sizeof w_, tr2("en %ld min", "in %ld min"), dt / 60 + 1); else if (dt < 86400) snprintf(w_, sizeof w_, tr2("en %ld h", "in %ld h"), dt / 3600); else snprintf(w_, sizeof w_, tr2("en %ld d", "in %ld d"), dt / 86400);
+				snprintf(mt_, sizeof mt_, "%s %s (%d)", g_meetup.title, w_, g_meetup.going); fit(f_, sizeof f_, mt_, 0.34f, 386 - x0 - 12);
+				ui_rrect(x0, 36, 386 - x0, 28, 9, COL_PANEL2); ui_text(x0 + 8, 37, 0.28f, COL_MUTED, 0, tr2("Proxima quedada", "Next meetup")); ui_text(x0 + 8, 48, 0.34f, g_meetup.me ? COL_GREEN : COL_TEXT, 0, f_);
+			}
+		}
 		break; }
 	case P_DISCOVER: {
 		ui_text(14, 33, 0.8f, COL_TEXT, 0, "Descubrir");
@@ -916,6 +932,7 @@ void app_preview(C3D_RenderTarget *top, C3D_RenderTarget *bot, int page, int mod
 	ngames = 6; static const char *fn[] = {"Marta", "Dani", "Lucia", "Pablo", "Nora"};
 	for (int i = 0; i < 5; i++) { Person *p = &friends[i]; memset(p, 0, sizeof *p); snprintf(p->name, 24, "%s", fn[i]); p->color = parse_hex(AVATAR_COLORS[i + 1]); p->online = i < 3; p->in_game = i == 1; snprintf(p->id, 40, "f%d", i); }
 	nfriends = 5; nreqs = 1; snprintf(reqs[0].name, 24, "Carlos"); reqs[0].color = parse_hex("#1abc9c"); unread = 2; g_account = 1;
+	snprintf(g_meetup.title, sizeof g_meetup.title, "Torneo de obby"); g_meetup.starts = (long)time(NULL) + 5400; g_meetup.going = 4; g_has_meetup = 1;
 	snprintf(g_upd.cur, sizeof g_upd.cur, "0.1.0-dev.9"); g_upd_have = 1;
 	snprintf(g_upd.dev.tag, sizeof g_upd.dev.tag, "v0.1.0-dev.12"); g_upd.dev.valid = 1; g_upd.dev.is_dev = 1; g_upd.dev.newer = 1;
 	int dm_demo = modal == -20; if (dm_demo) modal = -1;
