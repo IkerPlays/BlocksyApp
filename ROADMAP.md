@@ -53,3 +53,17 @@ Devbuild 51 (idiomas y novedades): 185 Detector de textos sin traducir | 186 Pag
 Devbuild 52 (3DS): 189 Caras | 190 Mochilas | 191 Brujula | 192 Ping en pantalla
 Devbuild 53 (3DS): 193 Logros | 194 Historial de chat largo | 195 Favoritos primero en Descubrir | 196 Atajo para volver al punto de inicio
 Devbuild 54 (creadores): 197 Tutorial del Studio | 198 Consejos del Studio | 199 Visitas por dia | 200 Lista de comprobacion antes de publicar
+
+# Hoja de ruta 1.4 (pedido del dueno; se hace por tandas, cada una con su devbuild)
+Tanda 55: Pagina propia de cada juego (web y 3DS), publicar / no listado / privado, imagenes (icono, banner, capturas) y botones en el Studio
+Tanda 56: Studio estilo Roblox: Explorer en arbol, Properties por categorias, Output, Toolbox, paneles acoplados
+Tanda 57: Musica de la playlist en la 3DS (audio) + guia de como subir canciones
+Tanda 58: Modos: carreras con vueltas, arena PvP (espadas, vida, respawn), equipos con marcador
+Tanda 59: Mundos nuevos: desierto, cuevas, ciudad (web + 3DS)
+Tanda 60: Objetos que se usan: herramientas, armas e inventario dentro de la partida
+Tanda 61: Eventos y temporadas: misiones semanales, recompensas de temporada, cosmeticos limitados (SQL)
+Tanda 62: Componentes reutilizables y editor de animaciones
+Tanda 63: Colaboracion en el Studio (varias personas en el mismo juego)
+Tanda 64: Grupos o clanes, eventos con fecha, mensajes con imagen o voz (SQL)
+Tanda 65: Moderacion en servidor (panel de denuncias, SQL)
+Tanda 66: Idiomas completos (pt, fr, de) y sonido en la 3DS
