@@ -644,6 +644,12 @@ static bool auth_rpc_ok(const Session *s, const char *fn, const char *body) {
 	char *r = http(M_POST, url, AUTH_ANON_KEY, s->token, body, NULL);
 	bool ok = r != NULL; free(r); return ok;
 }
+int net_earn_coins(const Session *s, int amount, const char *reason) {
+	if (!s->token[0]) return 0;
+	char body[80]; snprintf(body, sizeof body, "{\"p_amount\":%d,\"p_reason\":\"%s\"}", amount, reason);
+	char *r = http(M_POST, AUTH_URL "/rest/v1/rpc/earn_coins", AUTH_ANON_KEY, s->token, body, NULL);
+	int n = r ? atoi(r) : 0; free(r); return n > 0 ? n : 0;
+}
 bool net_mission_add(const Session *s, const char *key, int n) {
 	if (!s->token[0] || n <= 0) return false;
 	char body[80]; snprintf(body, sizeof body, "{\"p_key\":\"%s\",\"p_add\":%d}", key, n > 20 ? 20 : n);

@@ -28,3 +28,4 @@ Devbuild: new 3DS updater, Studio parts and skies on the 3DS, more templates
 - 3DS: new setting "Show coordinates" prints your X Y Z position in games (handy for placing Studio parts).
 - 3DS: Discover can be filtered by game mode with SELECT (all, build, social, obby, arena, adventure).
 - 3DS: playing, placing blocks and chatting on the 3DS now count towards your daily and weekly missions and season points (email login needed).
+- 3DS: finishing a race earns BCoins and counts for missions, and playing earns BCoins every 5 minutes (daily cap on the server, like on the web).

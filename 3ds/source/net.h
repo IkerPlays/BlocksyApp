@@ -47,6 +47,7 @@ typedef struct { float x, y, z, sx, sy, sz, ry, cs, sn, rad; unsigned int color;
 int  net_fetch_parts(const char *game_id, Part *out, int max);              // piezas del Studio de un juego (0 si no hay o falla)
 typedef struct { char title[48], game[44], host[24]; long starts; int going, me, clan; } Meetup;   // starts: epoch UTC
 typedef struct { char name[32], tag[8]; int members; } ClanInfo;
+int  net_earn_coins(const Session *s, int amount, const char *reason);     // BCoins por jugar (AUTH earn_coins: 'play', 'obby' o 'build'); devuelve lo concedido (0 si ya llegaste al tope diario)
 bool net_mission_add(const Session *s, const char *key, int n);           // suma progreso a una mision diaria/semanal (AUTH v15/v16 mission_add); n <= 20
 int  net_season(const Session *s, int *season, int *xp);                   // temporada actual y tus puntos (AUTH v16 season_info); 0 si va bien, <0 error
 int  net_my_clan(const Session *s, ClanInfo *c);                           // tu clan (AUTH v17 my_clan): 1 si tienes, 0 si no, <0 error
