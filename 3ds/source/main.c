@@ -159,7 +159,8 @@ static bool part_solid(int x, int y, int z) {
 		const Part *o = &parts[i]; if (!o->collide) continue;
 		float dx = x + 0.5f - o->x, dy = y + 0.5f - o->y, dz = z + 0.5f - o->z;
 		if (fabsf(dy) >= o->sy * 0.5f + 0.25f) continue;
-		float c = cosf(o->ry), s = sinf(o->ry), lx = dx * c - dz * s, lz = dx * s + dz * c;
+		if (fabsf(dx) > o->rad || fabsf(dz) > o->rad) continue;
+		float c = o->cs, s = o->sn, lx = dx * c - dz * s, lz = dx * s + dz * c;
 		float hx = o->sx * 0.5f + 0.25f, hz = o->sz * 0.5f + 0.25f;
 		if (o->shape == 1 || o->shape == 2) { float nx = lx / (hx - 0.1f), nz = lz / (hz - 0.1f); if (o->shape == 1) { float ny = dy / (o->sy * 0.5f + 0.15f); if (nx * nx + nz * nz + ny * ny > 1) continue; } else if (nx * nx + nz * nz > 1) continue; }
 		else if (fabsf(lx) >= hx || fabsf(lz) >= hz) continue;
@@ -802,6 +803,10 @@ int main(int argc, char **argv) {
 
 #ifdef BLOCKSY_PREVIEW
 // Solo para generar capturas en el ordenador (3ds/preview): un mundo de ejemplo
+static Part mkpart(float x, float y, float z, float sx, float sy, float sz, float ry, unsigned color, int shape, int collide, int spawn, int alpha, int glow) {   // solo para la vista previa
+	Part p = {.x = x, .y = y, .z = z, .sx = sx, .sy = sy, .sz = sz, .ry = ry, .color = color, .shape = (unsigned char)shape, .collide = (unsigned char)collide, .spawn = (unsigned char)spawn, .alpha = (unsigned char)alpha, .glow = (unsigned char)glow};
+	p.cs = cosf(ry); p.sn = sinf(ry); p.rad = 0.5f * hypotf(sx, sz) + 0.4f; return p;
+}
 void game_preview(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 	{ const char *pw = getenv("BLOCKSY_PREVIEW_WORLD"); world_build(&world, pw ? pw : "", 0); can_build = true; ui_build_ui = true; }
 	snprintf(sess.username, sizeof sess.username, "IkerPlays"); sess.color = 0xFF439FFF; snprintf(cur_game.name, sizeof cur_game.name, "Spawn Plaza");
@@ -809,8 +814,9 @@ void game_preview(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 	{ const char *sk = getenv("BLOCKSY_PREVIEW_SKY"); g_skymode = sk ? atoi(sk) : 0; }
 	nparts = 0;
 	if (getenv("BLOCKSY_PREVIEW_PARTS")) {                                                  // piezas de ejemplo del Studio
-		Part d[] = {{4, 0.5f, 2, 4, 1, 4, 0.5f, 0xFF3C9FFF, 0, 1, 0}, {-3, 1.5f, 4, 2, 3, 2, 0, 0xFF4F4FE0, 2, 1, 0}, {0, 3.5f, -3, 3, 3, 3, 0, 0xFFFFD34D, 1, 0, 0}, {-5, 0.25f, -2, 4, 0.5f, 4, 0.8f, 0xFF50D060, 0, 1, 1}, {6, 2, -4, 1, 4, 6, 0.3f, 0xFFB26AE0, 0, 1, 0}, {-7, 1, -6, 3, 2, 3, 0, 0xFFE0A030, 0, 0, 0, 110, 0}, {2, 2.2f, 5, 1, 1, 1, 0, 0xFF60E8FF, 1, 0, 0, 255, 1}};
+		Part d[] = {mkpart(4, 0.5f, 2, 4, 1, 4, 0.5f, 0xFF3C9FFF, 0, 1, 0, 255, 0), mkpart(-3, 1.5f, 4, 2, 3, 2, 0, 0xFF4F4FE0, 2, 1, 0, 255, 0), mkpart(0, 3.5f, -3, 3, 3, 3, 0, 0xFFFFD34D, 1, 0, 0, 255, 0), mkpart(-5, 0.25f, -2, 4, 0.5f, 4, 0.8f, 0xFF50D060, 0, 1, 1, 255, 0), mkpart(6, 2, -4, 1, 4, 6, 0.3f, 0xFFB26AE0, 0, 1, 0, 255, 0), mkpart(-7, 1, -6, 3, 2, 3, 0, 0xFFE0A030, 0, 0, 0, 110, 0), mkpart(2, 2.2f, 5, 1, 1, 1, 0, 0xFF60E8FF, 1, 0, 0, 255, 1)};
 		memcpy(parts, d, sizeof d); nparts = (int)(sizeof d / sizeof d[0]);
+		for (int i = 0; i < nparts; i++) { parts[i].cs = cosf(parts[i].ry); parts[i].sn = sinf(parts[i].ry); parts[i].rad = 0.5f * hypotf(parts[i].sx, parts[i].sz) + 0.4f; }
 	}
 	if (getenv("BLOCKSY_PREVIEW_WORLD")) { memset(&hr, 0, sizeof hr); hr.on = world.type == 5; hr.flash = true; hr.mx = -9; hr.mz = -7; hr.mry = 0.7f; hr.dist = 8; hr.ngot = 2; hr.got[0] = hr.got[1] = true; for (int i = 0; i < world.ncells; i++) local[nl++] = world.cells[i]; ht_build(local, nl); local_blocks = local; nr = 0; px = world.spawn[0]; py = world.spawn[1]; pz = world.spawn[2]; if (world.type == 5) { px = 3; pz = 7; hr.mx = -3; hr.mz = -1; hr.mry = 0.4f; hr.dist = 6; } pry = 0.3f; cam_yaw = 0.2f; cam_pitch = 0.45f; cam_dist = 9; cx_ = px; cy_ = py + 1; cz_ = pz; now_ms = 20000; t_start = 0; self_yaw = 0.3f; kind = 2; tx = 0; tz = 0; break_y = place_y = -1; overlap = false; pose_self.legY = 0.74f; render_game(top, bot); return; }
 	for (int x = -6; x <= 6; x++) for (int z = -6; z <= 6; z++) if ((x + z) % 4 == 0) local[nl++] = (Block){x, 0, z, 4};

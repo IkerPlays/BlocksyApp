@@ -602,6 +602,7 @@ int net_fetch_parts(const char *game_id, Part *out, int max) {
 			o->x = jnum(st, end, "x"); o->y = jnum(st, end, "y"); o->z = jnum(st, end, "z");
 			o->sx = jnum(st, end, "sx"); o->sy = jnum(st, end, "sy"); o->sz = jnum(st, end, "sz"); o->ry = jnum(st, end, "ry") * 0.0174533f;
 			if (o->sx < 0.05f) o->sx = 0.05f; if (o->sy < 0.05f) o->sy = 0.05f; if (o->sz < 0.05f) o->sz = 0.05f;
+			o->cs = cosf(o->ry); o->sn = sinf(o->ry); o->rad = 0.5f * hypotf(o->sx, o->sz) + 0.4f;                  // para las colisiones
 			o->color = part_color(col[0] ? col : "a3a3a6");
 			o->shape = !strcmp(sh, "Ball") ? 1 : !strcmp(sh, "Cylinder") ? 2 : 0;
 			o->spawn = !strcmp(ty, "spawn");
