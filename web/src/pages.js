@@ -251,11 +251,11 @@ export const pages = {
     setKids(root, el('h1', { class: 'page-title', text: t('discover') }), skeletons(8))
     const [games, counts] = await Promise.all([api.listGames(), api.playerCounts()])
     const input = el('input', { placeholder: t('search_ph'), value: query })
-    let modeSel = '', tagSel = '', sortSel = 'popular'; const votes = await social.gameVotes()
+    let modeSel = '', tagSel = '', sortSel = 'popular'; const votes = await social.gameVotes(), visits = await social.gameVisits()
     const tagsOf = g => (Array.isArray(g.config?.tags) ? g.config.tags : [])
     const allTags = [...new Set(games.flatMap(tagsOf))].slice(0, 14)
-    const sortBy = { popular: (a, b) => (counts[b.id] ?? 0) - (counts[a.id] ?? 0), newest: () => 0, az: (a, b) => a.name.localeCompare(b.name), liked: (a, b) => ((votes[b.id]?.up ?? 0) - (votes[b.id]?.down ?? 0)) - ((votes[a.id]?.up ?? 0) - (votes[a.id]?.down ?? 0)) }
-    const sortEl = el('select', { onchange: e => { sortSel = e.target.value; draw() } }, ['popular', 'newest', 'az', 'liked'].map(k => el('option', { value: k, text: t('sort_' + k) })))
+    const sortBy = { popular: (a, b) => (counts[b.id] ?? 0) - (counts[a.id] ?? 0), newest: () => 0, visits: (a, b) => (visits[b.id] ?? 0) - (visits[a.id] ?? 0), az: (a, b) => a.name.localeCompare(b.name), liked: (a, b) => ((votes[b.id]?.up ?? 0) - (votes[b.id]?.down ?? 0)) - ((votes[a.id]?.up ?? 0) - (votes[a.id]?.down ?? 0)) }
+    const sortEl = el('select', { onchange: e => { sortSel = e.target.value; draw() } }, ['popular', 'newest', 'visits', 'az', 'liked'].map(k => el('option', { value: k, text: t('sort_' + k) })))
     const chips = el('div', { class: 'chips' })
     const out = el('div')
     let draw = () => {

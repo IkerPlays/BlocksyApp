@@ -1,6 +1,7 @@
 // Traducciones completas de los textos añadidos desde la 1.3 (se mezclan en i18n.js; lo que ya esté traducido allí tiene prioridad).
 export const MORE = {
   pt: {
+    sort_visits: "Mais visitados",
     banned_msg: "Sua conta está suspensa até {until}. Motivo: {reason}",
     banned_forever: "para sempre",
     n_warning: "Aviso da equipe: {text}",
@@ -716,6 +717,7 @@ export const MORE = {
     lang_hint: "O idioma é aplicado na hora.",
   },
   fr: {
+    sort_visits: "Les plus visités",
     banned_msg: "Ton compte est suspendu jusqu'au {until}. Motif : {reason}",
     banned_forever: "pour toujours",
     n_warning: "Avertissement de l'équipe : {text}",
@@ -1431,6 +1433,7 @@ export const MORE = {
     lang_hint: "La langue s'applique instantanément.",
   },
   de: {
+    sort_visits: "Meistbesucht",
     banned_msg: "Dein Konto ist bis {until} gesperrt. Grund: {reason}",
     banned_forever: "für immer",
     n_warning: "Verwarnung vom Team: {text}",
@@ -2146,6 +2149,7 @@ export const MORE = {
     lang_hint: "Die Sprache wird sofort angewendet.",
   },
   it: {
+    sort_visits: "Più visitati",
     banned_msg: "Il tuo account è sospeso fino al {until}. Motivo: {reason}",
     banned_forever: "per sempre",
     n_warning: "Avviso dal team: {text}",
@@ -2878,6 +2882,7 @@ export const MORE = {
     invite_friends: "Invita amici",
   },
   pl: {
+    sort_visits: "Najczęściej odwiedzane",
     banned_msg: "Twoje konto jest zawieszone do {until}. Powód: {reason}",
     banned_forever: "na zawsze",
     n_warning: "Ostrzeżenie od zespołu: {text}",
@@ -3829,6 +3834,7 @@ export const MORE = {
     offline_ready: "Gotowe do użycia offline",
   },
   ru: {
+    sort_visits: "Самые посещаемые",
     banned_msg: "Ваш аккаунт заблокирован до {until}. Причина: {reason}",
     banned_forever: "навсегда",
     n_warning: "Предупреждение от команды: {text}",
@@ -4780,6 +4786,7 @@ export const MORE = {
     offline_ready: "Готово к работе офлайн",
   },
   ja: {
+    sort_visits: "訪問数順",
     banned_msg: "あなたのアカウントは{until}まで停止されています。理由: {reason}",
     banned_forever: "無期限",
     n_warning: "運営からの警告: {text}",
@@ -5731,6 +5738,7 @@ export const MORE = {
     offline_ready: "オフラインで使えます",
   },
   zh: {
+    sort_visits: "访问最多",
     banned_msg: "你的账号已被封停至 {until}。原因：{reason}",
     banned_forever: "永久",
     n_warning: "团队警告：{text}",
@@ -6682,6 +6690,7 @@ export const MORE = {
     offline_ready: "已可离线使用",
   },
   ko: {
+    sort_visits: "방문 많은 순",
     banned_msg: "계정이 {until}까지 정지되었습니다. 사유: {reason}",
     banned_forever: "영구",
     n_warning: "운영팀 경고: {text}",

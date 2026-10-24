@@ -221,7 +221,7 @@ static void refresh_all(void) {
 		ng = net_hide_blocked(tg, ng); net_game_visits(tg, ng); net_player_counts(tg, ng); { static char fid[64][40]; int nfv = net_favorites(W.s, fid, 64); for (int i = 0; i < ng; i++) { tg[i].fav = 0; for (int k = 0; k < nfv; k++) if (!strcmp(tg[i].id, fid[k])) tg[i].fav = 1; } } LightLock_Lock(&lk); memcpy(g_games, tg, sizeof(GameInfo) * ng); g_ngames = ng; LightLock_Unlock(&lk); }
 	else snprintf(W.msg, sizeof W.msg, "%s", net_login_error());
 	int nf = net_list_friends(W.s, tf, MAX_PEOPLE), nr = net_list_requests(W.s, tr, MAX_PEOPLE);
-	int un = net_unread_total(W.s); if (un >= 0) g_unread = un;
+	int un = net_unread_total(W.s); if (un >= 0) { if (un > g_unread) sfx_play(SFX_NOTIFY); g_unread = un; }
 	{	// BCoins y tienda
 		static Wallet tw; static ShopItem ts[40];
 		if (net_wallet(W.s, &tw) == 0) { LightLock_Lock(&lk); g_wallet = tw; LightLock_Unlock(&lk); pack_loadout(&tw); }
@@ -1059,6 +1059,7 @@ AppResult app_lobby(C3D_RenderTarget *top, C3D_RenderTarget *bot, Session *s, Ga
 		if (u.scroll < 0) u.scroll = 0;
 
 		// ---- acciones ----
+		if (act_row != -1) sfx_play(SFX_CLICK);
 		if (act_row == -3 && u.modal >= 0) request(RQ_FAV, games[u.modal].id, NULL, 0);
 		if (act_row == -2 && u.modal >= 0) {                              // jugar
 			*chosen = games[u.modal]; snprintf(s_last_game, sizeof s_last_game, "%s", chosen->id); save_settings();
