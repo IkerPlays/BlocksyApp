@@ -86,8 +86,8 @@ test('RemoteEvent viaja entre dos clientes y solo el servidor recibe OnServerEve
   assert.ok(prints(a).includes('servidor Beto 7')); assert.ok(prints(b).includes('cliente hola 4')); assert.ok(prints(a).includes('cliente hola 4'))
 })
 
-import { TAG, FLAG, WAVES, HIDE } from '../src/modes.js'
-for (const [name, src] of [['pilla-pilla', TAG], ['bandera', FLAG], ['oleadas', WAVES], ['escondite', HIDE]]) {
+import { TAG, FLAG, WAVES, HIDE, ARENA, TEAMS, RACE } from '../src/modes.js'
+for (const [name, src] of [['pilla-pilla', TAG], ['bandera', FLAG], ['oleadas', WAVES], ['escondite', HIDE], ['arena pvp', ARENA], ['equipos', TEAMS], ['carrera con vueltas', RACE]]) {
   test(`modo ${name}: arranca sin errores con dos jugadores y avisa por RemoteEvent`, () => {
     const h = make(); h.dispatch('init', { me: 'Ana', code: transpile(src) }); h.dispatch('playerjoin', { name: 'Beto' })
     for (let i = 0; i < 80; i++) h.dispatch('step', { dt: 0.05, now: 1, x: 0, y: 0, z: 0, others: [{ n: 'Beto', x: 1, y: 0, z: 1 }] })

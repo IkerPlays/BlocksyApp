@@ -3,6 +3,7 @@ import { EXTRA } from './i18n-extra.js'
 const D = {
   es: {
     lang_name: 'Español',
+    tpl_arena: 'Arena PvP', tpl_arena_d: 'Multijugador: espada, vida y reaparición', tpl_teams: 'Equipos', tpl_teams_d: 'Rojo contra Azul con marcador', tpl_race: 'Carrera con vueltas', tpl_race_d: 'Multijugador: 3 vueltas y clasificación',
     st_group_name: 'Nombre del modelo (grupo)', cm_rename: 'Renombrar', cm_group: 'Agrupar', cm_ungroup: 'Desagrupar', cm_unlock: 'Desbloquear', cm_show: 'Mostrar', cm_focus: 'Ir a la pieza', pc_data: 'Datos', pc_appearance: 'Apariencia', pc_transform: 'Transformación', pc_behavior: 'Comportamiento', pc_arrange: 'Organizar', pc_rules: 'Reglas', pc_audio: 'Audio y bienvenida', pp_name: 'Nombre', pp_mode: 'Modo', pp_blocks: 'Bloques', pp_parts: 'Piezas', pp_visibility: 'Visibilidad', pp_model: 'Modelo (grupo)', pp_range: 'Alcance de luz', pp_empty: 'Elige algo en el Explorer para ver sus propiedades.', rg_blocks: 'Bloques', rg_build: 'Construir', rg_parts: 'Piezas', rg_edit: 'Editar', rg_script: 'Código y datos', rg_test: 'Probar y publicar', tb_parts: 'Piezas', tb_structures: 'Estructuras', tb_mine: 'Mis estructuras', tb_block: 'Bloque', tb_ball: 'Esfera', tb_cyl: 'Cilindro',
     ge_done: 'Guardar y cerrar',
     ed_page: 'Página del juego',
@@ -121,6 +122,7 @@ const D = {
   },
   en: {
     lang_name: 'English',
+    tpl_arena: 'PvP Arena', tpl_arena_d: 'Multiplayer: sword, health and respawn', tpl_teams: 'Teams', tpl_teams_d: 'Red vs Blue with a scoreboard', tpl_race: 'Lap race', tpl_race_d: 'Multiplayer: 3 laps and standings',
     st_group_name: 'Model (group) name', cm_rename: 'Rename', cm_group: 'Group', cm_ungroup: 'Ungroup', cm_unlock: 'Unlock', cm_show: 'Show', cm_focus: 'Go to part', pc_data: 'Data', pc_appearance: 'Appearance', pc_transform: 'Transform', pc_behavior: 'Behavior', pc_arrange: 'Arrange', pc_rules: 'Rules', pc_audio: 'Audio and welcome', pp_name: 'Name', pp_mode: 'Mode', pp_blocks: 'Blocks', pp_parts: 'Parts', pp_visibility: 'Visibility', pp_model: 'Model (group)', pp_range: 'Light range', pp_empty: 'Pick something in the Explorer to see its properties.', rg_blocks: 'Blocks', rg_build: 'Build', rg_parts: 'Parts', rg_edit: 'Edit', rg_script: 'Code and data', rg_test: 'Test and publish', tb_parts: 'Parts', tb_structures: 'Structures', tb_mine: 'My structures', tb_block: 'Block', tb_ball: 'Ball', tb_cyl: 'Cylinder',
     ge_done: 'Save and close',
     ed_page: 'Game page',

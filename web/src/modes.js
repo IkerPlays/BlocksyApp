@@ -194,3 +194,208 @@ task.spawn(function()
   end
 end)
 apply()`
+
+// ---------- Arena PvP, Equipos y Carreras con vueltas ----------
+// Combate compartido: clic (o F) golpea con la espada al jugador más cercano a menos de 5 m. El golpe viaja por el servidor (el jugador con el nombre
+// alfabéticamente menor), cada cliente se resta su propia vida y, al morir, avisa quién lo mató para que el servidor cuente la baja.
+const COMBAT = `local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UIS = game:GetService("UserInputService")
+local me = Players.LocalPlayer
+local function root(p) local c = p.Character; return c and c:FindFirstChild("HumanoidRootPart") end
+local function dist(a, b) local ra, rb = root(a), root(b); if not ra or not rb then return 1e9 end return (ra.Position - rb.Position).Magnitude end
+local function byName(n) for _, p in ipairs(Players:GetPlayers()) do if p.Name == n then return p end end end
+local remote = Instance.new("RemoteEvent"); remote.Name = "Arena"; remote.Parent = game.ReplicatedStorage
+local gui = Instance.new("ScreenGui"); gui.Parent = me.PlayerGui
+local function label(w, h, x, y, ax, size)
+  local l = Instance.new("TextLabel"); l.Size = UDim2.new(0, w, 0, h); l.Position = UDim2.new(x, 0, 0, y); l.AnchorPoint = Vector2.new(ax, 0)
+  l.BackgroundColor3 = Color3.fromRGB(20, 20, 30); l.BackgroundTransparency = 0.25; l.TextColor3 = Color3.new(1, 1, 1); l.TextSize = size; l.Parent = gui
+  Instance.new("UICorner", l).CornerRadius = UDim.new(0, 12); return l
+end
+local status = label(380, 44, 0.5, 14, 0.5, 20)
+local board = label(220, 150, 1, 70, 1, 16); board.TextXAlignment = Enum.TextXAlignment.Left
+local DMG, RANGE, COOLDOWN, GOAL = 25, 5, 0.55, GOAL_VALUE
+local kills, deaths, lastAttacker, cd, protect, over = {}, {}, nil, 0, 0, false
+local function hum() return me.Character and me.Character:FindFirstChildOfClass("Humanoid") end
+local function swingFx(name)
+  local p = byName(name); local r = p and root(p); if not r then return end
+  local s = Instance.new("Part"); s.Size = Vector3.new(0.3, 0.3, 3.2); s.Color = Color3.fromRGB(200, 230, 255); s.Material = Enum.Material.Neon; s.Anchored = true; s.CanCollide = false
+  s.Position = r.Position + Vector3.new(0, 1.2, 0); s.Parent = workspace; task.delay(0.18, function() s:Destroy() end)
+end
+local function nearest()
+  local best, bd = nil, RANGE
+  for _, p in ipairs(Players:GetPlayers()) do if p ~= me and canHit(p) then local d = dist(me, p); if d < bd then best, bd = p, d end end end
+  return best
+end
+local function attack()
+  if cd > 0 or over then return end
+  cd = COOLDOWN; game.sound("laser"); remote:FireServer("swing")
+  local t = nearest(); if t then remote:FireServer("hit", t.Name, DMG) end
+end
+UIS.InputBegan:Connect(function(inp, gp)
+  if inp.UserInputType == Enum.UserInputType.MouseButton1 or inp.KeyCode == Enum.KeyCode.F or inp.KeyCode == Enum.KeyCode.E then attack() end
+end)
+local function setup()
+  local h = hum(); if not h then return end
+  h.MaxHealth = 100; h.Health = 100; protect = 2.5
+  h.Died:Connect(function() remote:FireServer("died", lastAttacker); lastAttacker = nil; protect = 2.5 end)
+end
+me.CharacterAdded:Connect(function() task.wait(0.3); setup() end)
+remote.OnClientEvent:Connect(function(kind, a, b, c)
+  if kind == "swing" then if a ~= me.Name then swingFx(a) else swingFx(me.Name) end
+  elseif kind == "dmg" then
+    if a == me.Name and protect <= 0 and not over then local h = hum(); if h and h.Health > 0 and canBeHit(b) then lastAttacker = b; h:TakeDamage(c); game.sound("hit") end end
+  elseif kind == "score" then kills, deaths = a, b; render()
+  elseif kind == "win" then over = true; game.title(tostring(a) .. " gana!", 5000); game.sound("win"); status.Text = tostring(a) .. " gana!"
+  elseif kind == "reset" then over = false; kills, deaths = {}, {}; render() end
+end)
+task.spawn(function()
+  local tick = 0
+  remote.OnServerEvent:Connect(function(player, kind, a, b)
+    if kind == "swing" then remote:FireAllClients("swing", player.Name)
+    elseif kind == "hit" and not over then local v = byName(a); if v and dist(player, v) < RANGE + 2 and canHitServer(player, v) then remote:FireAllClients("dmg", a, player.Name, math.min(b or DMG, 40)) end
+    elseif kind == "died" then
+      deaths[player.Name] = (deaths[player.Name] or 0) + 1
+      if a and a ~= player.Name then kills[a] = (kills[a] or 0) + 1; onKill(a, player.Name) end
+      remote:FireAllClients("score", kills, deaths)
+    end
+  end)
+  while true do
+    task.wait(0.1)
+    cd -= 0.1; protect -= 0.1
+    tick += 1
+    if RunService:IsServer() then checkWin(); if tick % 20 == 0 then remote:FireAllClients("score", kills, deaths) end end
+    local h = hum(); if h and h.Health > 0 and protect < -5 and h.Health < h.MaxHealth then h.Health += 0.6 end        -- se recupera poco a poco sin recibir golpes
+  end
+end)
+setup()
+`
+export const ARENA = COMBAT.replace('GOAL_VALUE', '15') + `
+-- ARENA PVP: todos contra todos. Gana quien llegue a 15 bajas.
+function canHit(p) return true end
+function canBeHit(attacker) return true end
+function canHitServer(a, v) return true end
+function onKill(a, v) end
+function render()
+  local list = {}; for _, p in ipairs(Players:GetPlayers()) do list[#list + 1] = { n = p.Name, k = kills[p.Name] or 0, d = deaths[p.Name] or 0 } end
+  table.sort(list, function(x, y) return x.k > y.k end)
+  local t = "BAJAS  (meta " .. GOAL .. ")\\n"; for i = 1, math.min(6, #list) do t = t .. list[i].n .. "  " .. list[i].k .. " / " .. list[i].d .. "\\n" end
+  board.Text = t; status.Text = over and status.Text or "Clic o F para golpear"
+end
+function checkWin()
+  if over then return end
+  for n, k in pairs(kills) do if k >= GOAL then over = true; remote:FireAllClients("win", n); task.delay(7, function() kills, deaths = {}, {}; over = false; remote:FireAllClients("reset") end) return end end
+end
+render()`
+export const TEAMS = COMBAT.replace('GOAL_VALUE', '20') + `
+-- EQUIPOS: Rojo contra Azul. Cada baja suma un punto a tu equipo; gana el primero en llegar a 20. No hay fuego amigo.
+local redT = Instance.new("Team", game.Teams); redT.Name = "Rojo"; redT.TeamColor = BrickColor.new("Bright red")
+local blueT = Instance.new("Team", game.Teams); blueT.Name = "Azul"; blueT.TeamColor = BrickColor.new("Bright blue")
+local teamScore = { Rojo = 0, Azul = 0 }
+local function teamOf(name)                                    -- reparto estable: los nombres ordenados se alternan entre equipos
+  local t = {}; for _, p in ipairs(Players:GetPlayers()) do t[#t + 1] = p.Name end; table.sort(t)
+  for i, n in ipairs(t) do if n == name then return (i % 2 == 1) and "Rojo" or "Azul" end end
+  return "Rojo"
+end
+local function assign() for _, p in ipairs(Players:GetPlayers()) do p.Team = (teamOf(p.Name) == "Rojo") and redT or blueT end end
+function canHit(p) return teamOf(p.Name) ~= teamOf(me.Name) end
+function canBeHit(attacker) return teamOf(attacker) ~= teamOf(me.Name) end
+function canHitServer(a, v) return teamOf(a.Name) ~= teamOf(v.Name) end
+function onKill(a, v) local t = teamOf(a); teamScore[t] += 1; remote:FireAllClients("team", teamScore.Rojo, teamScore.Azul) end
+remote.OnClientEvent:Connect(function(kind, a, b) if kind == "team" then teamScore.Rojo, teamScore.Azul = a, b; render() elseif kind == "reset" then teamScore.Rojo, teamScore.Azul = 0, 0; render() end end)
+function render()
+  assign()
+  local mine = teamOf(me.Name)
+  status.Text = over and status.Text or ("ROJO " .. teamScore.Rojo .. "  —  " .. teamScore.Azul .. " AZUL   ·   eres " .. string.upper(mine))
+  local list = {}; for _, p in ipairs(Players:GetPlayers()) do list[#list + 1] = { n = p.Name, k = kills[p.Name] or 0, t = teamOf(p.Name) } end
+  table.sort(list, function(x, y) return x.k > y.k end)
+  local t = "JUGADORES\\n"; for i = 1, math.min(6, #list) do t = t .. "[" .. string.sub(list[i].t, 1, 1) .. "] " .. list[i].n .. "  " .. list[i].k .. "\\n" end
+  board.Text = t
+end
+function checkWin()
+  if over then return end
+  for team, s in pairs(teamScore) do if s >= GOAL then over = true; remote:FireAllClients("win", "Equipo " .. team); task.delay(7, function() teamScore.Rojo, teamScore.Azul = 0, 0; kills, deaths = {}, {}; over = false; remote:FireAllClients("reset"); remote:FireAllClients("team", 0, 0) end) return end end
+end
+Players.PlayerAdded:Connect(function() task.wait(0.5); render() end)
+render()`
+export const RACE = `-- CARRERA CON VUELTAS: pasa por las puertas en orden, completa 3 vueltas y gana. El servidor cuenta atrás y reparte los puestos.
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local me = Players.LocalPlayer
+local remote = Instance.new("RemoteEvent"); remote.Name = "Race"; remote.Parent = game.ReplicatedStorage
+local GATES, LAPS, R = 8, 3, 38
+local gui = Instance.new("ScreenGui"); gui.Parent = me.PlayerGui
+local function label(w, h, x, y, ax, size)
+  local l = Instance.new("TextLabel"); l.Size = UDim2.new(0, w, 0, h); l.Position = UDim2.new(x, 0, 0, y); l.AnchorPoint = Vector2.new(ax, 0)
+  l.BackgroundColor3 = Color3.fromRGB(20, 20, 30); l.BackgroundTransparency = 0.25; l.TextColor3 = Color3.new(1, 1, 1); l.TextSize = size; l.Parent = gui
+  Instance.new("UICorner", l).CornerRadius = UDim.new(0, 12); return l
+end
+local status, board = label(420, 46, 0.5, 14, 0.5, 22), label(210, 130, 1, 70, 1, 16)
+board.TextXAlignment = Enum.TextXAlignment.Left
+local gates = {}
+for i = 1, GATES do
+  local a = (i - 1) / GATES * math.pi * 2
+  local cx, cz = math.cos(a) * R, math.sin(a) * R
+  local g = Instance.new("Part"); g.Shape = Enum.PartType.Cylinder; g.Size = Vector3.new(0.6, 9, 9); g.Anchored = true; g.CanCollide = false
+  g.Material = Enum.Material.Neon; g.Transparency = 0.45; g.Color = (i == 1) and Color3.fromRGB(80, 255, 120) or Color3.fromRGB(80, 180, 255)
+  g.Position = Vector3.new(cx, 4.5, cz); g.Name = "Gate" .. i; g.Parent = workspace; gates[i] = { part = g, x = cx, z = cz }
+end
+local state, left, lap, nextGate, startAt, finished = "wait", 0, 1, 2, 0, false
+local progress, order = {}, {}
+local function paint()
+  for i, g in ipairs(gates) do g.part.Color = (i == nextGate and state == "go") and Color3.fromRGB(255, 220, 60) or ((i == 1) and Color3.fromRGB(80, 255, 120) or Color3.fromRGB(80, 180, 255)) end
+  if state == "wait" then status.Text = "Esperando jugadores..."
+  elseif state == "count" then status.Text = "Salida en " .. math.max(0, math.ceil(left))
+  elseif state == "go" and not finished then status.Text = "Vuelta " .. math.min(lap, LAPS) .. "/" .. LAPS .. "  ·  puerta " .. nextGate .. "  ·  " .. string.format("%.1f", os.clock() - startAt) .. " s"
+  end
+  local t = "CLASIFICACION\\n"; for i = 1, math.min(6, #order) do t = t .. i .. ". " .. order[i] .. "\\n" end; board.Text = t
+end
+local function toStart()
+  local h = me.Character and me.Character:FindFirstChildOfClass("Humanoid"); if h then h.WalkSpeed = 0 end
+  local names = {}; for _, p in ipairs(Players:GetPlayers()) do names[#names + 1] = p.Name end; table.sort(names)
+  local idx = 1; for i, n in ipairs(names) do if n == me.Name then idx = i end end
+  game.teleport(R + 4, 3, (idx - 1) * 3 - 3)
+end
+remote.OnClientEvent:Connect(function(kind, a, b)
+  if kind == "state" then
+    local was = state; state, left = a, b
+    if state == "count" and was ~= "count" then lap, nextGate, finished = 1, 2, false; toStart()
+    elseif state == "go" and was ~= "go" then startAt = os.clock(); local h = me.Character and me.Character:FindFirstChildOfClass("Humanoid"); if h then h.WalkSpeed = 22 end; game.title("¡YA!", 1500); game.sound("powerup")
+    elseif state == "wait" then local h = me.Character and me.Character:FindFirstChildOfClass("Humanoid"); if h then h.WalkSpeed = 16 end end
+    paint()
+  elseif kind == "order" then order = a; paint()
+  elseif kind == "end" then game.title(tostring(a) .. " gana la carrera!", 5000); game.sound("win") end
+end)
+task.spawn(function()
+  local prog, winner, t0 = {}, nil, 0
+  remote.OnServerEvent:Connect(function(player, kind, a, b)
+    if kind == "prog" then prog[player.Name] = (a - 1) * GATES + b
+    elseif kind == "finish" and not winner then winner = player.Name; remote:FireAllClients("end", winner) end
+  end)
+  local sstate, sleft = "wait", 0
+  while true do
+    task.wait(0.25)
+    if RunService:IsServer() then
+      local n = #Players:GetPlayers()
+      if sstate == "wait" and n >= 1 then sstate, sleft, prog, winner = "count", 10, {}, nil
+      elseif sstate == "count" then sleft -= 0.25; if sleft <= 0 then sstate, sleft = "go", 0 end
+      elseif sstate == "go" then sleft += 0.25; if winner and sleft > 8 then sstate = "wait" end; if winner then sleft += 0 end end
+      local names = {}; for k in pairs(prog) do names[#names + 1] = k end
+      table.sort(names, function(x, y) return prog[x] > prog[y] end)
+      remote:FireAllClients("state", sstate, sleft); remote:FireAllClients("order", names)
+    end
+    if state == "go" and not finished then
+      local r = me.Character and me.Character:FindFirstChild("HumanoidRootPart")
+      if r then
+        local g = gates[nextGate]
+        if g and (Vector3.new(g.x, r.Position.Y, g.z) - r.Position).Magnitude < 6 then
+          if nextGate == 1 then lap += 1 end
+          if lap > LAPS then finished = true; remote:FireServer("finish"); status.Text = "¡Has terminado! " .. string.format("%.1f", os.clock() - startAt) .. " s"
+          else nextGate = nextGate % GATES + 1; remote:FireServer("prog", lap, nextGate); game.sound("checkpoint") end
+        end
+      end
+      paint()
+    end
+  end
+end)
+paint()`

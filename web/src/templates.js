@@ -1,4 +1,4 @@
-import { TAG, FLAG, WAVES, HIDE } from './modes.js'
+import { TAG, FLAG, WAVES, HIDE, ARENA, TEAMS, RACE } from './modes.js'
 // Plantillas de juego completas para empezar rápido en la página Crear (modo, reglas, script Lua y piezas ya puestas)
 const COINS = `-- Recoge 10 monedas para ganar
 local Players = game:GetService("Players")
@@ -42,6 +42,9 @@ export const TEMPLATES = [
   { id: 'plaza', key: 'tpl_plaza', mode: 'social', config: { world: 'plaza', allow_build: false, welcome: 'Charla, baila y haz amigos' }, script: '' },
   { id: 'coins', key: 'tpl_coins', mode: 'arena', config: { world: 'checker', allow_build: false, script_lang: 'lua', welcome: 'Recoge 10 monedas' }, script: COINS },
   { id: 'tag', key: 'tpl_tag', mode: 'arena', config: { world: 'plaza', allow_build: false, script_lang: 'lua', welcome: 'Pilla-pilla: ¡no la lleves!' }, script: TAG },
+  { id: 'arena', key: 'tpl_arena', mode: 'arena', config: { world: 'plaza', allow_build: false, script_lang: 'lua', double_jump: true, welcome: 'Arena: clic o F para golpear. Gana quien llegue a 15 bajas' }, script: ARENA },
+  { id: 'teams', key: 'tpl_teams', mode: 'arena', config: { world: 'plaza', allow_build: false, script_lang: 'lua', welcome: 'Rojo contra Azul: gana el primero en 20 bajas' }, script: TEAMS },
+  { id: 'race', key: 'tpl_race', mode: 'obby', config: { world: 'flat', allow_build: false, script_lang: 'lua', welcome: 'Carrera de 3 vueltas: pasa por las puertas en orden' }, script: RACE },
   { id: 'flag', key: 'tpl_flag', mode: 'arena', config: { world: 'plaza', allow_build: false, script_lang: 'lua', welcome: 'Roba la bandera y llega a 30 puntos' }, script: FLAG },
   { id: 'waves', key: 'tpl_waves', mode: 'arena', config: { world: 'checker', allow_build: false, script_lang: 'lua', welcome: 'Sobrevive a las oleadas. Salta sobre los monstruos' }, script: WAVES },
   { id: 'hide', key: 'tpl_hide', mode: 'arena', config: { world: 'hills', allow_build: false, script_lang: 'lua', welcome: 'Escondite: uno busca, los demás se esconden' }, script: HIDE },
