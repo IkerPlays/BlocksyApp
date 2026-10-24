@@ -148,6 +148,11 @@ static const char *const PT_TR[][2] = {
 	{"Auto-install stable", "Instalar estaveis sozinho"},
 	{"Show FPS", "Mostrar FPS"},
 	{"Show coordinates", "Mostrar coordenadas"},
+	{"Mode", "Modo"},
+	{"Build", "Construir"},
+	{"Obby", "Carreira"},
+	{"Adventure", "Aventura"},
+	{"All", "Todos"},
 	{"No GitHub connection: saved data", "Sem conexao com o GitHub: dados salvos"},
 	{"Show changes", "Ver mudancas"},
 	{"Music needs dspfirm.cdc (DSP firmware dump)", "A musica exige dspfirm.cdc (copia do firmware do DSP)"},
@@ -204,6 +209,9 @@ static volatile int g_upd_announce;                           // 1 = avisar con 
 static int g_season, g_season_xp;                                       // temporada actual y tus puntos (AUTH v16)
 static ClanInfo g_clan; static volatile int g_has_clan;                  // tu clan (AUTH v17), se ve en Inicio
 static Meetup g_meetup; static volatile int g_has_meetup;                // proxima quedada (AUTH v17), se ve en Inicio
+static int s_mfilter;                                                    // filtro de modo en Descubrir (SELECT): 0 todos
+static const char *const MFILT[6] = {"", "build", "social", "obby", "arena", "adventure"};
+static const char *mfilter_label(void) { static const char *es[6] = {"Todos", "Construir", "Social", "Carrera", "Arena", "Aventura"}, *en[6] = {"All", "Build", "Social", "Obby", "Arena", "Adventure"}; return tr2(es[s_mfilter], en[s_mfilter]); }
 static int s_auto = 1;                                        // buscar al abrir (ajuste)
 
 static bool cur_is_dev(void) { return strstr(g_upd.cur, "-dev") != NULL || !strcmp(g_upd.cur, "dev"); }
@@ -437,6 +445,7 @@ static int build_view(const Ui *u, const Session *s, int *view) {
 	} else if (u->page == P_DISCOVER) {
 		for (int pass = 0; pass < 2; pass++) for (int i = 0; i < ngames; i++) {
 			if ((pass == 0) != (games[i].fav != 0)) continue;                                      // favoritos primero
+			if (s_mfilter && strcmp(games[i].mode, MFILT[s_mfilter])) continue;                  // filtro de modo
 			if (u->search[0]) {
 				char a[160], b[48]; snprintf(a, sizeof a, "%s %s", games[i].name, games[i].desc); snprintf(b, sizeof b, "%s", u->search);
 				for (char *c = a; *c; c++) if (*c >= 'A' && *c <= 'Z') *c += 32;
@@ -592,6 +601,7 @@ static void page_top(const Ui *u, const Session *s) {
 		ui_text(14, 33, 0.8f, COL_TEXT, 0, "Descubrir");
 		ui_rrect(14, 64, 372, 22, 11, COL_PANEL2);
 		ui_text(28, 66, 0.42f, u->search[0] ? COL_TEXT : COL_MUTED, 0, u->search[0] ? u->search : "Buscar juegos  (X)");
+		{ char mf_[48]; snprintf(mf_, sizeof mf_, "%s: %s  (SELECT)", tr2("Modo", "Mode"), mfilter_label()); ui_text(372, 67, 0.36f, s_mfilter ? COL_GREEN : COL_MUTED, C2D_AlignRight, mf_); }
 		int n = build_view(u, s, view);
 		int per = 5, first = (u->cur / per >= 2 ? (u->cur / per - 1) * per : 0);
 		for (int i = 0; i < 10 && first + i < n; i++) game_card(14 + (i % per) * 76, 96 + (i / per) * 74, 52, &games[view[first + i]], first + i == u->cur, false);
@@ -1079,6 +1089,7 @@ AppResult app_lobby(C3D_RenderTarget *top, C3D_RenderTarget *bot, Session *s, Ga
 			if (u.page == P_SETTINGS && u.cur == 1) { if ((down & KEY_DRIGHT) && s_sync < 5) { s_sync++; save_settings(); } if ((down & KEY_DLEFT) && s_sync > 0) { s_sync--; save_settings(); } }
 			if (down & KEY_A) act_row = u.cur;
 			if (down & KEY_Y) request(RQ_REFRESH, NULL, NULL, 0);
+			if (u.page == P_DISCOVER && (down & KEY_SELECT)) { s_mfilter = (s_mfilter + 1) % 6; u.cur = 0; u.scroll = 0; }
 			if (down & KEY_X) { if (u.page == P_DISCOVER) { prompt(u.search, sizeof u.search, "Buscar juegos"); u.cur = 0; u.scroll = 0; } else if (u.page == P_AVATAR) prev_demo = (prev_demo + 1) % (NEMOTES + 1); }
 		}
 

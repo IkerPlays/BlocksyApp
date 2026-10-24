@@ -26,3 +26,4 @@ Devbuild: four new templates and translucent 3DS parts
 - Create game: "Surprise me" picks a random template.
 - 3DS: Home shows your clan (tag, name and members) and your season level.
 - 3DS: new setting "Show coordinates" prints your X Y Z position in games (handy for placing Studio parts).
+- 3DS: Discover can be filtered by game mode with SELECT (all, build, social, obby, arena, adventure).
