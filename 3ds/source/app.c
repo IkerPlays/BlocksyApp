@@ -143,6 +143,7 @@ static const char *const PT_TR[][2] = {
 	{"in %ld d", "em %ld d"},
 	{"Auto-install stable", "Instalar estaveis sozinho"},
 	{"Show FPS", "Mostrar FPS"},
+	{"No GitHub connection: saved data", "Sem conexao com o GitHub: dados salvos"},
 	{"Show changes", "Ver mudancas"},
 	{"Music needs dspfirm.cdc (DSP firmware dump)", "A musica exige dspfirm.cdc (copia do firmware do DSP)"},
 	{"Show devbuilds", "Mostrar devbuilds"},
@@ -656,6 +657,7 @@ static void page_top(const Ui *u, const Session *s) {
 		break; }
 	case P_UPDATE: {
 		ui_text(14, 33, 0.8f, COL_TEXT, 0, PAGE_NAME[P_UPDATE]);
+		if (g_upd_have && g_upd.from_cache) ui_text(386, 40, 0.32f, COL_RED, C2D_AlignRight, tr2("Sin conexion con GitHub: datos guardados", "No GitHub connection: saved data"));
 		ui_rrect(14, 66, 372, 160, 12, COL_PANEL);
 		ui_text(30, 76, 0.48f, COL_TEXT, 0, "Version instalada"); ui_text(370, 76, 0.48f, COL_MUTED, C2D_AlignRight, g_upd.cur[0] ? g_upd.cur : "?");
 		ui_rect(26, 100, 348, 1, COL_LINE);

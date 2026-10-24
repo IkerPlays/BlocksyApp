@@ -19,6 +19,7 @@ typedef struct {
 	Rel stable, dev; char cur[48];
 	int n_newer;                     // cuantas versiones nuevas hay en el canal que usas
 	char log[900];                   // que cambia: una linea por version nueva (la mas reciente primero)
+	bool from_cache;                 // los datos son de la ultima consulta guardada (no se pudo hablar con GitHub ahora)
 } UpdateInfo;
 
 // Progreso de una instalacion (lo escribe el hilo de red y lo lee la interfaz)

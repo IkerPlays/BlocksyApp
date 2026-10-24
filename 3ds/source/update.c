@@ -18,6 +18,7 @@
 #define ATOM_URL "https://github.com/" UPDATE_REPO "/releases.atom"
 #define MIN_SIZE 50000                              // un fichero mas pequeno es una pagina de error, no la app
 #define VERSION_FILE "sdmc:/3ds/blocksy/version.txt"
+#define CACHE_FILE "sdmc:/3ds/blocksy/releases.cache"      // ultima respuesta buena de GitHub (por si la red o el limite de consultas fallan)
 #define OUR_TITLE_ID 0x000400000B10C500ULL          // 0004000000B10C50 + 00: el titulo de Blocksy (ver blocksy.rsf: UniqueId 0xB10C5)
 
 static char g_cur[48] = "dev";
@@ -51,15 +52,25 @@ bool update_check(UpdateInfo *out, char *err, size_t en) {
 		if (attempt) svcSleepThread(1500LL * 1000000LL * attempt);
 		char *r = net_get_text(RELEASES_URL, e1, sizeof e1);
 		if (!r) continue;
-		n = core_parse_api(r, rels, 40); free(r);
+		n = core_parse_api(r, rels, 40);
+		if (n > 0) { mkdir("sdmc:/3ds", 0777); mkdir("sdmc:/3ds/blocksy", 0777); FILE *cf = fopen(CACHE_FILE, "wb"); if (cf) { fwrite(r, 1, strlen(r), cf); fclose(cf); } }
+		free(r);
 		if (n <= 0) { snprintf(e1, sizeof e1, "No hay versiones publicadas todavia"); break; }          // la API respondio: de verdad no hay nada
 	}
 	if (n <= 0) {                                                            // respaldo sin limite de consultas (sin tamanos ni SHA-256)
 		char *r = net_get_text(ATOM_URL, e2, sizeof e2);
 		if (r) { n = core_parse_atom(r, UPDATE_REPO, rels, 40); free(r); if (n <= 0) snprintf(e2, sizeof e2, "No hay versiones publicadas todavia"); }
 	}
+	bool stale = false;
+	if (n <= 0 && (e1[0] || e2[0])) {                                          // sin red o sin consultas: se usa la ultima respuesta guardada (la descarga puede fallar, pero se ve que hay)
+		FILE *cf = fopen(CACHE_FILE, "rb");
+		if (cf) { fseek(cf, 0, SEEK_END); long sz = ftell(cf); fseek(cf, 0, SEEK_SET);
+			if (sz > 0 && sz < 600000) { char *buf = malloc((size_t)sz + 1); if (buf && fread(buf, 1, (size_t)sz, cf) == (size_t)sz) { buf[sz] = 0; n = core_parse_api(buf, rels, 40); stale = n > 0; } free(buf); }
+			fclose(cf); }
+	}
 	if (n <= 0) { snprintf(err, en, "%s", e1[0] ? e1 : e2); return false; }
 	core_select(rels, n, g_cur, out);
+	out->from_cache = stale;
 	if (out->stable.valid && !strcmp(out->stable.tag, g_installed)) out->stable.newer = false;
 	if (out->dev.valid && !strcmp(out->dev.tag, g_installed)) out->dev.newer = false;
 	return true;
