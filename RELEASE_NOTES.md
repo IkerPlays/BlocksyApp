@@ -20,3 +20,5 @@ Devbuild: four new templates and translucent 3DS parts
 - New template: Quiz (step on the right answer; edit the questions in the script).
 - 3DS: games now use their double jump, walk speed, gravity and spawn point settings.
 - 3DS: fixed reading the game config when a game has Studio parts (world, sky and rules were cut off).
+- Six new long-term achievements (Mason, Wrecker, Chatterbox, Regular, Legend, Tycoon).
+- 3DS: games can set the fog distance (config fog).

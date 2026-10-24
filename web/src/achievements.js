@@ -8,6 +8,8 @@ export const ACHIEVEMENTS = [
   { id: 'explorer', goal: 3, val: s => s.games.length }, { id: 'globetrotter', goal: 10, val: s => s.games.length },
   { id: 'hour', goal: 3600, val: s => s.time, fmt: v => Math.floor(v / 60) + ' min' }, { id: 'veteran', goal: 36000, val: s => s.time, fmt: v => Math.floor(v / 3600) + ' h' },
   { id: 'clanmate', goal: 1, val: s => s.clan || 0 }, { id: 'planner', goal: 1, val: s => s.meetups || 0 }, { id: 'collaborator', goal: 1, val: s => s.collab || 0 }, { id: 'animator', goal: 1, val: s => s.anims || 0 },
+  { id: 'mason', goal: 20000, val: s => s.placed }, { id: 'wrecker', goal: 2000, val: s => s.broken }, { id: 'talkative', goal: 1000, val: s => s.msgs },
+  { id: 'regular', goal: 25, val: s => s.games.length }, { id: 'legend', goal: 360000, val: s => s.time, fmt: v => Math.floor(v / 3600) + ' h' }, { id: 'tycoon', goal: 5000, val: (s, w) => w?.bcoins ?? 0 },
   { id: 'collector', goal: 5, val: (s, w) => (w?.inventory ?? []).length }, { id: 'rich', goal: 1000, val: (s, w) => w?.bcoins ?? 0 },
 ]
 const KEY = 'blocksy.ach'

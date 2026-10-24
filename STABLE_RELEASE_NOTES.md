@@ -15,6 +15,7 @@ Blocksy is a multiplayer block-building game for the web and the Nintendo 3DS (h
 - Studio parts (blocks, balls, cylinders, spawn points) are drawn and collide on the 3DS.
 - New templates: Memory, Zones, Treasure hunt, Tower, Maze, Reflexes, Crumbling floor and Quiz.
 - Create game: template filters and search.
+- Six new achievements.
 - Studio: castle, dome, spiral staircase and pillar structures.
 - 3DS: instant game list on startup (cached on the SD card).
 - 3DS: double jump, speed, gravity and spawn settings of games.
