@@ -245,3 +245,5 @@ export const visitGame = id => rpc('game_visit', { p_game: id }).then(n => { if 
 export const reportClanMessage = (id, reason) => rpc('report_clan_message', { p_id: id, p_reason: reason })
 export const modDeleteClanMessage = id => rpc('mod_delete_clan_message', { p_id: id })
 export const modBans = () => rpc('mod_bans').then(r => r ?? [])
+export const reportMeetup = (id, reason) => rpc('report_meetup', { p_id: id, p_reason: reason })
+export const modCancelMeetup = id => rpc('mod_cancel_meetup', { p_id: id })

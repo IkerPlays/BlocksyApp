@@ -1,6 +1,8 @@
 // Traducciones completas de los textos añadidos desde la 1.3 (se mezclan en i18n.js; lo que ya esté traducido allí tiene prioridad).
 export const MORE = {
   pt: {
+    mod_kind_meetup: "Encontro",
+    mt_cancel_staff: "Cancelar encontro",
     collab_joined: "{name} entrou na edição",
     mod_banned_now: "Suspensos agora ({n})",
     mod_kind_clanmsg: "Chat do clã",
@@ -735,6 +737,8 @@ export const MORE = {
     lang_hint: "O idioma é aplicado na hora.",
   },
   fr: {
+    mod_kind_meetup: "Rendez-vous",
+    mt_cancel_staff: "Annuler le rendez-vous",
     collab_joined: "{name} a rejoint l'édition",
     mod_banned_now: "Suspendus actuellement ({n})",
     mod_kind_clanmsg: "Chat du clan",
@@ -1469,6 +1473,8 @@ export const MORE = {
     lang_hint: "La langue s'applique instantanément.",
   },
   de: {
+    mod_kind_meetup: "Treffen",
+    mt_cancel_staff: "Treffen absagen",
     collab_joined: "{name} ist der Bearbeitung beigetreten",
     mod_banned_now: "Derzeit gesperrt ({n})",
     mod_kind_clanmsg: "Clan-Chat",
@@ -2203,6 +2209,8 @@ export const MORE = {
     lang_hint: "Die Sprache wird sofort angewendet.",
   },
   it: {
+    mod_kind_meetup: "Incontro",
+    mt_cancel_staff: "Annulla incontro",
     collab_joined: "{name} si è unito alla modifica",
     mod_banned_now: "Sospesi ora ({n})",
     mod_kind_clanmsg: "Chat del clan",
@@ -2954,6 +2962,8 @@ export const MORE = {
     invite_friends: "Invita amici",
   },
   pl: {
+    mod_kind_meetup: "Spotkanie",
+    mt_cancel_staff: "Anuluj spotkanie",
     collab_joined: "{name} dołączył(a) do edycji",
     mod_banned_now: "Aktualnie zawieszeni ({n})",
     mod_kind_clanmsg: "Czat klanu",
@@ -3924,6 +3934,8 @@ export const MORE = {
     offline_ready: "Gotowe do użycia offline",
   },
   ru: {
+    mod_kind_meetup: "Встреча",
+    mt_cancel_staff: "Отменить встречу",
     collab_joined: "{name} присоединился(-ась) к редактированию",
     mod_banned_now: "Сейчас заблокированы ({n})",
     mod_kind_clanmsg: "Чат клана",
@@ -4894,6 +4906,8 @@ export const MORE = {
     offline_ready: "Готово к работе офлайн",
   },
   ja: {
+    mod_kind_meetup: "集まり",
+    mt_cancel_staff: "集まりを中止",
     collab_joined: "{name}さんが編集に参加しました",
     mod_banned_now: "現在停止中（{n}）",
     mod_kind_clanmsg: "クランチャット",
@@ -5864,6 +5878,8 @@ export const MORE = {
     offline_ready: "オフラインで使えます",
   },
   zh: {
+    mod_kind_meetup: "聚会",
+    mt_cancel_staff: "取消聚会",
     collab_joined: "{name} 加入了编辑",
     mod_banned_now: "当前封停（{n}）",
     mod_kind_clanmsg: "战队聊天",
@@ -6834,6 +6850,8 @@ export const MORE = {
     offline_ready: "已可离线使用",
   },
   ko: {
+    mod_kind_meetup: "모임",
+    mt_cancel_staff: "모임 취소",
     collab_joined: "{name}님이 편집에 참여했습니다",
     mod_banned_now: "현재 정지됨 ({n})",
     mod_kind_clanmsg: "클랜 채팅",

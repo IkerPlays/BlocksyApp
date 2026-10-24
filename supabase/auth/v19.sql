@@ -31,3 +31,24 @@ begin
     from bans b where b.until is null or b.until > now());
 end $$;
 grant execute on function public.mod_bans() to authenticated;
+
+-- Denunciar una quedada (título o juego ofensivos) y que el equipo pueda cancelarla
+create or replace function public.report_meetup(p_id uuid, p_reason text) returns void
+language plpgsql security definer set search_path = public as $$
+declare m meetups;
+begin
+  select * into m from meetups where id = p_id and (clan_id is null or clan_id = public._my_clan());
+  if not found then raise exception 'no such meetup' using errcode = 'P0002'; end if;
+  if m.host_id = auth.uid() then raise exception 'own meetup' using errcode = '22023'; end if;
+  if p_reason not in ('spam', 'abuse', 'cheating', 'inappropriate', 'other') then raise exception 'bad reason' using errcode = '22023'; end if;
+  if (select count(*) from reports where reporter_id = auth.uid() and created_at > now() - interval '1 hour') >= 5 then raise exception 'too many reports' using errcode = '22023'; end if;
+  insert into reports (reporter_id, target_id, target_name, reason, details, kind, ref) values (auth.uid(), m.host_id, public._uname(m.host_id), p_reason, m.title, 'meetup', p_id::text);
+end $$;
+create or replace function public.mod_cancel_meetup(p_id uuid) returns void
+language plpgsql security definer set search_path = public as $$
+begin
+  perform public._need_staff();
+  delete from meetups where id = p_id;
+  insert into mod_log (by_id, action, target) values (auth.uid(), 'cancel_meetup', p_id::text);
+end $$;
+grant execute on function public.report_meetup(uuid, text), public.mod_cancel_meetup(uuid) to authenticated;

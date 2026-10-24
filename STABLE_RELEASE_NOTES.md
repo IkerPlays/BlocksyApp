@@ -21,6 +21,7 @@ Blocksy is a multiplayer block-building game for the web and the Nintendo 3DS (h
 - Studio shows a notice when someone joins the co-editing session.
 - Dodge gets harder with time.
 - Palette shortcuts for Clan (g c) and Meetups (g e).
+- Meetups can be reported and cancelled by staff (needs supabase/auth/v19.sql).
 
 ## Installing
 - Install `Blocksy.cia` with FBI, or copy `Blocksy.3dsx` to the `3ds` folder of the SD card and run it from the Homebrew Launcher.

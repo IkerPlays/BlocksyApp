@@ -4,6 +4,7 @@ import { MORE } from './i18n-more.js'
 const D = {
   es: {
     lang_name: 'Español',
+    mod_kind_meetup: 'Quedada', mt_cancel_staff: 'Cancelar quedada',
     collab_joined: '{name} se ha unido a la edición',
     mod_banned_now: 'Suspendidos ahora ({n})',
     mod_kind_clanmsg: 'Chat de clan',
@@ -140,6 +141,7 @@ const D = {
   },
   en: {
     lang_name: 'English',
+    mod_kind_meetup: 'Meetup', mt_cancel_staff: 'Cancel meetup',
     collab_joined: '{name} joined the editing',
     mod_banned_now: 'Currently suspended ({n})',
     mod_kind_clanmsg: 'Clan chat',

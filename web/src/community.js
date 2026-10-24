@@ -92,6 +92,7 @@ export async function eventsPage(root, ctx) {
     byId[m.game_id] && new Date(m.starts_at).getTime() - Date.now() < 900_000 ? el('button', { class: 'btn primary', text: t('play'), onclick: () => ctx.play(byId[m.game_id]) }) : null,
     el('button', { class: `btn ${m.me ? '' : 'blue'}`, text: m.me ? t('mt_going_you') : t('mt_join'), onclick: () => run(async () => { await social.rsvpMeetup(m.id, !m.me); if (!m.me) bump('meetups'); again() }) }),
     el('button', { class: 'btn tiny', html: icon('send', 14), title: t('mt_calendar'), onclick: () => downloadIcs(m) }),
+    !m.mine ? el('button', { class: 'btn tiny', html: icon('flag', 14), title: t('report'), onclick: () => openReport(m.host, '', m.id, false, true) }) : null,
     m.mine ? el('button', { class: 'btn tiny danger', html: icon('trash', 14), title: t('delete'), onclick: () => run(async () => { await social.cancelMeetup(m.id); again() }) }) : null)
   setKids(root, el('h1', { class: 'page-title', text: t('nav_events') }), el('p', { class: 'muted', text: t('mt_intro') }),
     el('div', { class: 'panel' }, el('h3', { text: t('mt_create') }), title, el('div', { class: 'row-btns' }, gsel, when),
@@ -125,6 +126,7 @@ export async function moderationPage(root, ctx) {
           : el('button', { class: 'btn tiny', text: t('mod_reopen'), onclick: () => act(() => social.modResolve(r.id, 'open')) }),
         el('button', { class: 'btn tiny', text: t('mod_warn'), onclick: () => warn(r.target) }),
         el('button', { class: 'btn tiny danger', text: r.banned ? t('mod_unban') : t('mod_ban'), onclick: () => (r.banned ? act(() => social.modUnban(r.target)) : ban(r.target)) }),
+        (r.kind === 'meetup' && r.ref) ? el('button', { class: 'btn tiny danger', text: t('mt_cancel_staff'), onclick: () => { if (confirm(t('mt_cancel_staff') + '?')) act(() => social.modCancelMeetup(r.ref)) } }) : null,
         (r.kind === 'clanmsg' && r.ref) ? el('button', { class: 'btn tiny danger', text: t('mod_del_msg'), onclick: () => { if (confirm(t('mod_del_msg') + '?')) act(() => social.modDeleteClanMessage(+r.ref)) } }) : null,
         r.kind === 'message' && r.ref ? el('button', { class: 'btn tiny danger', text: t('mod_del_msg'), onclick: () => { if (confirm(t('mod_del_msg') + '?')) act(() => social.modDeleteMessage(+r.ref)) } }) : null,
         gid ? el('button', { class: 'btn tiny danger', text: t('mod_block_game'), onclick: () => { const x = prompt(t('mod_reason'), ''); if (x !== null) act(() => social.modBlockGame(gid, x)) } }) : null))
