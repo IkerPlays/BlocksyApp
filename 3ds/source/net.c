@@ -644,6 +644,20 @@ static bool auth_rpc_ok(const Session *s, const char *fn, const char *body) {
 	char *r = http(M_POST, url, AUTH_ANON_KEY, s->token, body, NULL);
 	bool ok = r != NULL; free(r); return ok;
 }
+// Tu clan: my_clan devuelve un objeto con name, tag y members[] (o null si no tienes)
+int net_my_clan(const Session *s, ClanInfo *c) {
+	if (!s->token[0]) return -2;
+	char *r = http(M_POST, AUTH_URL "/rest/v1/rpc/my_clan", AUTH_ANON_KEY, s->token, "{}", NULL);
+	if (!r) return -1;
+	memset(c, 0, sizeof *c); int has = 0; const char *end;
+	const char *p = next_obj(r, &end);
+	if (p && jstr(p, end, "name", c->name, sizeof c->name)) {
+		has = 1; jstr(p, end, "tag", c->tag, sizeof c->tag);
+		const char *m = json_find_from(p, end, "members");
+		for (const char *q = m; q && (q = strstr(q, "\"username\"")) && q < end; q++) c->members++;
+	}
+	free(r); return has;
+}
 // Proxima quedada visible (las de las ultimas 2 horas siguen contando): la primera de list_meetups, que viene ordenada por fecha
 int net_next_meetup(const Session *s, Meetup *m) {
 	if (!s->token[0]) return -2;

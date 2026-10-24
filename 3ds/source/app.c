@@ -137,6 +137,7 @@ static const char *const PT_TR[][2] = {
 	{"Music volume", "Volume da musica"},
 	{"Sound effects", "Efeitos sonoros"},
 	{"Next meetup", "Proximo encontro"},
+	{"members", "membros"},
 	{"now", "agora"},
 	{"in %ld min", "em %ld min"},
 	{"in %ld h", "em %ld h"},
@@ -196,6 +197,7 @@ static UpdateProgress g_prog; static char g_upd_msg[100]; static int g_upd_log; 
 #define g_upd_pct g_prog.pct
 static volatile int g_upd_auto;                               // 1 = instalar la estable nueva sola (una vez por sesion, como Iker's Tube)
 static volatile int g_upd_announce;                           // 1 = avisar con un toast de que hay versión nueva
+static ClanInfo g_clan; static volatile int g_has_clan;                  // tu clan (AUTH v17), se ve en Inicio
 static Meetup g_meetup; static volatile int g_has_meetup;                // proxima quedada (AUTH v17), se ve en Inicio
 static int s_auto = 1;                                        // buscar al abrir (ajuste)
 
@@ -248,6 +250,7 @@ static void refresh_all(void) {
 		ng = net_hide_blocked(tg, ng); net_game_visits(tg, ng); net_player_counts(tg, ng); { static char fid[64][40]; int nfv = net_favorites(W.s, fid, 64); for (int i = 0; i < ng; i++) { tg[i].fav = 0; for (int k = 0; k < nfv; k++) if (!strcmp(tg[i].id, fid[k])) tg[i].fav = 1; } } LightLock_Lock(&lk); memcpy(g_games, tg, sizeof(GameInfo) * ng); g_ngames = ng; LightLock_Unlock(&lk); games_cache_save(tg, ng); }
 	else snprintf(W.msg, sizeof W.msg, "%s", net_login_error());
 	int nf = net_list_friends(W.s, tf, MAX_PEOPLE), nr = net_list_requests(W.s, tr, MAX_PEOPLE);
+	{ static ClanInfo tc; int cr = net_my_clan(W.s, &tc); if (cr >= 0) { LightLock_Lock(&lk); g_clan = tc; g_has_clan = cr; LightLock_Unlock(&lk); } }
 	{ static Meetup tm; int mr = net_next_meetup(W.s, &tm); if (mr >= 0) { LightLock_Lock(&lk); g_meetup = tm; g_has_meetup = mr; LightLock_Unlock(&lk); } }
 	int un = net_unread_total(W.s); if (un >= 0) { if (un > g_unread) sfx_play(SFX_NOTIFY); g_unread = un; }
 	{	// BCoins y tienda
@@ -550,6 +553,7 @@ static void page_top(const Ui *u, const Session *s) {
 	case P_HOME: {
 		ui_avatar(34, 52, 15, s->color, -1, s->username);
 		char hi[64]; snprintf(hi, sizeof hi, "¡Hola, %s!", s->username); ui_text(58, 36, 0.8f, COL_TEXT, 0, hi);
+		if (g_has_clan) { char cl_[64]; snprintf(cl_, sizeof cl_, "[%s] %s - %d %s", g_clan.tag, g_clan.name, g_clan.members, tr2("miembros", "members")); char f2_[64]; fit(f2_, sizeof f2_, cl_, 0.32f, 330); ui_text(58, 60, 0.32f, COL_MUTED, 0, f2_); }
 		char ft[40]; snprintf(ft, sizeof ft, "Amigos (%d)", nfriends);
 		section(72, ft, "Ver todo");
 		if (nfriends) for (int i = 0; i < nfriends && i < 7; i++) {
@@ -953,6 +957,7 @@ void app_preview(C3D_RenderTarget *top, C3D_RenderTarget *bot, int page, int mod
 	ngames = 6; static const char *fn[] = {"Marta", "Dani", "Lucia", "Pablo", "Nora"};
 	for (int i = 0; i < 5; i++) { Person *p = &friends[i]; memset(p, 0, sizeof *p); snprintf(p->name, 24, "%s", fn[i]); p->color = parse_hex(AVATAR_COLORS[i + 1]); p->online = i < 3; p->in_game = i == 1; snprintf(p->id, 40, "f%d", i); }
 	nfriends = 5; nreqs = 1; snprintf(reqs[0].name, 24, "Carlos"); reqs[0].color = parse_hex("#1abc9c"); unread = 2; g_account = 1;
+	snprintf(g_clan.name, sizeof g_clan.name, "Los Constructores"); snprintf(g_clan.tag, sizeof g_clan.tag, "LCN"); g_clan.members = 6; g_has_clan = 1;
 	snprintf(g_meetup.title, sizeof g_meetup.title, "Torneo de obby"); g_meetup.starts = (long)time(NULL) + 5400; g_meetup.going = 4; g_has_meetup = 1;
 	snprintf(g_upd.cur, sizeof g_upd.cur, "0.1.0-dev.9"); g_upd_have = 1;
 	snprintf(g_upd.dev.tag, sizeof g_upd.dev.tag, "v0.1.0-dev.12"); g_upd.dev.valid = 1; g_upd.dev.is_dev = 1; g_upd.dev.newer = 1;

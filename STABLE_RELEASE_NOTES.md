@@ -21,7 +21,7 @@ Blocksy is a multiplayer block-building game for the web and the Nintendo 3DS (h
 - 3DS: double jump, speed, gravity and spawn settings of games.
 - 3DS: Show FPS setting; the game's welcome message appears on entry.
 - 3DS: skies from the game setting (dawn, sunset, night, space).
-- 3DS: Home shows the next meetup; distant hills on the horizon and flowers on grass worlds.
+- 3DS: Home shows your clan and the next meetup; distant hills on the horizon and flowers on grass worlds.
 - 3DS updater: test download without installing, free RAM and SD shown, adaptive draw quality.
 - 3DS: translucent and glowing Studio parts; setting to turn off automatic stable installs.
 - The 3DS pauses music during an update to free memory.

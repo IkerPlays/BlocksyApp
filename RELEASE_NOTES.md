@@ -24,3 +24,4 @@ Devbuild: four new templates and translucent 3DS parts
 - 3DS: games can set the fog distance (config fog).
 - Studio warns when a game has more than 160 parts (the 3DS draws up to 160).
 - Create game: "Surprise me" picks a random template.
+- 3DS: Home shows your clan (tag, name and members).
