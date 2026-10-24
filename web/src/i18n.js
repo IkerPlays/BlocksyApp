@@ -4,6 +4,7 @@ import { MORE } from './i18n-more.js'
 const D = {
   es: {
     lang_name: 'Español',
+    collab_joined: '{name} se ha unido a la edición',
     mod_banned_now: 'Suspendidos ahora ({n})',
     mod_kind_clanmsg: 'Chat de clan',
     tpl_dodge: 'Esquiva', tpl_dodge_d: 'Multijugador: esquiva los bloques que caen',
@@ -139,6 +140,7 @@ const D = {
   },
   en: {
     lang_name: 'English',
+    collab_joined: '{name} joined the editing',
     mod_banned_now: 'Currently suspended ({n})',
     mod_kind_clanmsg: 'Clan chat',
     tpl_dodge: 'Dodge', tpl_dodge_d: 'Multiplayer: dodge the falling blocks',

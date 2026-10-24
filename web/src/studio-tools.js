@@ -487,7 +487,7 @@ export function createStudio(ctx) {
       setScript: (sc, lang) => { game.script = sc; cfg.script_lang = lang; paintExplorer() },
       getSel: () => [selPart, ...multi].filter(i => parts[i]).map(i => parts[i].name),
       onParts: () => { if (selPart >= parts.length) selPart = -1; refreshParts(); paintProps(); paintRemoteSel() },
-      onPeers: l => { peers = l; paintPeers(); paintCollabPanel() }, onSelections: paintRemoteSel,
+      onPeers: l => { for (const p of l) if (!peers.some(q => q.id === p.id)) showTitle(t('collab_joined', { name: p.name }), 2200); peers = l; paintPeers(); paintCollabPanel() }, onSelections: paintRemoteSel,
       onStatus: s => { collabState = s; paintCollabPanel() } })
     collabState = 'on'; bump('collab'); paintCollabPanel()
   }

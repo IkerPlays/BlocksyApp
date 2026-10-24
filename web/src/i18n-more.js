@@ -1,6 +1,7 @@
 // Traducciones completas de los textos añadidos desde la 1.3 (se mezclan en i18n.js; lo que ya esté traducido allí tiene prioridad).
 export const MORE = {
   pt: {
+    collab_joined: "{name} entrou na edição",
     mod_banned_now: "Suspensos agora ({n})",
     mod_kind_clanmsg: "Chat do clã",
     tpl_dodge: "Esquiva",
@@ -734,6 +735,7 @@ export const MORE = {
     lang_hint: "O idioma é aplicado na hora.",
   },
   fr: {
+    collab_joined: "{name} a rejoint l'édition",
     mod_banned_now: "Suspendus actuellement ({n})",
     mod_kind_clanmsg: "Chat du clan",
     tpl_dodge: "Esquive",
@@ -1467,6 +1469,7 @@ export const MORE = {
     lang_hint: "La langue s'applique instantanément.",
   },
   de: {
+    collab_joined: "{name} ist der Bearbeitung beigetreten",
     mod_banned_now: "Derzeit gesperrt ({n})",
     mod_kind_clanmsg: "Clan-Chat",
     tpl_dodge: "Ausweichen",
@@ -2200,6 +2203,7 @@ export const MORE = {
     lang_hint: "Die Sprache wird sofort angewendet.",
   },
   it: {
+    collab_joined: "{name} si è unito alla modifica",
     mod_banned_now: "Sospesi ora ({n})",
     mod_kind_clanmsg: "Chat del clan",
     tpl_dodge: "Schiva",
@@ -2950,6 +2954,7 @@ export const MORE = {
     invite_friends: "Invita amici",
   },
   pl: {
+    collab_joined: "{name} dołączył(a) do edycji",
     mod_banned_now: "Aktualnie zawieszeni ({n})",
     mod_kind_clanmsg: "Czat klanu",
     tpl_dodge: "Unik",
@@ -3919,6 +3924,7 @@ export const MORE = {
     offline_ready: "Gotowe do użycia offline",
   },
   ru: {
+    collab_joined: "{name} присоединился(-ась) к редактированию",
     mod_banned_now: "Сейчас заблокированы ({n})",
     mod_kind_clanmsg: "Чат клана",
     tpl_dodge: "Уворот",
@@ -4888,6 +4894,7 @@ export const MORE = {
     offline_ready: "Готово к работе офлайн",
   },
   ja: {
+    collab_joined: "{name}さんが編集に参加しました",
     mod_banned_now: "現在停止中（{n}）",
     mod_kind_clanmsg: "クランチャット",
     tpl_dodge: "よけまくれ",
@@ -5857,6 +5864,7 @@ export const MORE = {
     offline_ready: "オフラインで使えます",
   },
   zh: {
+    collab_joined: "{name} 加入了编辑",
     mod_banned_now: "当前封停（{n}）",
     mod_kind_clanmsg: "战队聊天",
     tpl_dodge: "躲避",
@@ -6826,6 +6834,7 @@ export const MORE = {
     offline_ready: "已可离线使用",
   },
   ko: {
+    collab_joined: "{name}님이 편집에 참여했습니다",
     mod_banned_now: "현재 정지됨 ({n})",
     mod_kind_clanmsg: "클랜 채팅",
     tpl_dodge: "피하기",

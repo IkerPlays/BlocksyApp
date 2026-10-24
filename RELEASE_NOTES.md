@@ -1,2 +1,2 @@
-Devbuild 80: banned accounts list
-- Moderation > Users now lists the accounts that are suspended right now, with a button to lift each suspension (needs supabase/auth/v19.sql).
+Devbuild 81: collaboration notice
+- In the Studio, a message appears when someone joins your co-editing session.
