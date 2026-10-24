@@ -837,3 +837,52 @@ task.spawn(function()
   end
 end)
 game.title("Las losetas caen al pisarlas", 2500)`
+
+// Preguntas: cuatro losetas con las respuestas; pisa la correcta antes de que acabe el tiempo. Edita la lista Q para poner tus preguntas.
+export const QUIZ = `local Players = game:GetService("Players")
+local me = Players.LocalPlayer
+local Q = {
+  { "Cuántos lados tiene un hexágono?", { "5", "6", "7", "8" }, 2 },
+  { "Capital de Francia", { "Madrid", "Roma", "París", "Lisboa" }, 3 },
+  { "Cuál es el planeta más grande?", { "Marte", "Júpiter", "Tierra", "Venus" }, 2 },
+  { "Cuánto es 7 x 8?", { "54", "56", "58", "64" }, 2 },
+  { "Qué gas respiramos para vivir?", { "Oxígeno", "Helio", "Hidrógeno", "Nitrógeno" }, 1 },
+  { "Cuántos continentes hay?", { "5", "6", "7", "8" }, 3 },
+  { "Qué animal es el más rápido en tierra?", { "León", "Guepardo", "Caballo", "Lobo" }, 2 },
+  { "De qué color es el cielo despejado?", { "Rojo", "Verde", "Azul", "Negro" }, 3 },
+}
+local COLS = { Color3.fromRGB(231, 76, 60), Color3.fromRGB(46, 204, 113), Color3.fromRGB(52, 152, 219), Color3.fromRGB(241, 196, 15) }
+local POS = { { -9, 8 }, { -3, 8 }, { 3, 8 }, { 9, 8 } }
+local gui = Instance.new("ScreenGui"); gui.Parent = me.PlayerGui
+local function label(w, h, x, y, size)
+  local l = Instance.new("TextLabel"); l.Size = UDim2.new(0, w, 0, h); l.Position = UDim2.new(x, 0, 0, y); l.AnchorPoint = Vector2.new(0.5, 0)
+  l.BackgroundColor3 = Color3.fromRGB(20, 20, 30); l.BackgroundTransparency = 0.25; l.TextColor3 = Color3.new(1, 1, 1); l.TextSize = size; l.Parent = gui
+  Instance.new("UICorner", l).CornerRadius = UDim.new(0, 12); return l
+end
+local title, answers = label(560, 44, 0.5, 14, 22), label(560, 40, 0.5, 66, 17)
+local pads = {}
+for i = 1, 4 do
+  local p = Instance.new("Part"); p.Size = Vector3.new(5, 0.5, 5); p.Anchored = true; p.CanCollide = false; p.Color = COLS[i]; p.Transparency = 0.45
+  p.Position = Vector3.new(POS[i][1], 0.25, POS[i][2]); p.Parent = workspace; pads[i] = p
+end
+local function padUnder()
+  local c = me.Character; local r = c and c:FindFirstChild("HumanoidRootPart"); if not r then return 0 end
+  for i = 1, 4 do if math.abs(r.Position.X - POS[i][1]) < 2.5 and math.abs(r.Position.Z - POS[i][2]) < 2.5 then return i end end
+  return 0
+end
+local score, round = 0, 0
+task.spawn(function()
+  while true do
+    round += 1; local q = Q[(round - 1) % #Q + 1]
+    game.teleport(0, 2, 0)
+    title.Text = q[1]
+    answers.Text = "1) " .. q[2][1] .. "   2) " .. q[2][2] .. "   3) " .. q[2][3] .. "   4) " .. q[2][4] .. "   (rojo, verde, azul, amarillo)"
+    local t0, got = os.clock(), 0
+    while got == 0 and os.clock() - t0 < 12 do task.wait(0.1); got = padUnder() end
+    if got == q[3] then score += 1; pads[got].Transparency = 0; game.sound("coin"); game.title("Correcto! " .. score .. " puntos", 1500)
+    else game.sound("hit"); game.title("Era la " .. q[3] .. ": " .. q[2][q[3]], 2200) end
+    task.wait(2.2); for i = 1, 4 do pads[i].Transparency = 0.45 end
+    if round % #Q == 0 then game.title("Ronda completa: " .. score .. " puntos", 3000); score = 0; task.wait(3) end
+  end
+end)
+game.title("Pisa la respuesta correcta", 2500)`

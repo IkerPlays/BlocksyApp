@@ -17,3 +17,4 @@ Devbuild: four new templates and translucent 3DS parts
 - 3DS: games with a time of day (config time) pick dawn, day, sunset or night; auto-cycle follows the console clock.
 - Create game: filter templates by single player, multiplayer or build, and search them.
 - 3DS: the game list is kept on the SD card and shown instantly on startup while the fresh list loads.
+- New template: Quiz (step on the right answer; edit the questions in the script).

@@ -1,6 +1,8 @@
 // Traducciones completas de los textos añadidos desde la 1.3 (se mezclan en i18n.js; lo que ya esté traducido allí tiene prioridad).
 export const MORE = {
   pt: {
+    tpl_quiz: "Perguntas",
+    tpl_quiz_d: "Pise na resposta certa; edite as perguntas no script",
     tpl_f_all: "Todas",
     tpl_f_solo: "Um jogador",
     tpl_f_multi: "Multijogador",
@@ -761,6 +763,8 @@ export const MORE = {
     lang_hint: "O idioma é aplicado na hora.",
   },
   fr: {
+    tpl_quiz: "Quiz",
+    tpl_quiz_d: "Marche sur la bonne réponse ; modifie les questions dans le script",
     tpl_f_all: "Toutes",
     tpl_f_solo: "Un joueur",
     tpl_f_multi: "Multijoueur",
@@ -1521,6 +1525,8 @@ export const MORE = {
     lang_hint: "La langue s'applique instantanément.",
   },
   de: {
+    tpl_quiz: "Quiz",
+    tpl_quiz_d: "Tritt auf die richtige Antwort; Fragen im Skript ändern",
     tpl_f_all: "Alle",
     tpl_f_solo: "Einzelspieler",
     tpl_f_multi: "Mehrspieler",
@@ -2281,6 +2287,8 @@ export const MORE = {
     lang_hint: "Die Sprache wird sofort angewendet.",
   },
   it: {
+    tpl_quiz: "Quiz",
+    tpl_quiz_d: "Calpesta la risposta giusta; modifica le domande nello script",
     tpl_f_all: "Tutti",
     tpl_f_solo: "Un giocatore",
     tpl_f_multi: "Multigiocatore",
@@ -3058,6 +3066,8 @@ export const MORE = {
     invite_friends: "Invita amici",
   },
   pl: {
+    tpl_quiz: "Quiz",
+    tpl_quiz_d: "Wejdź na poprawną odpowiedź; edytuj pytania w skrypcie",
     tpl_f_all: "Wszystkie",
     tpl_f_solo: "Jeden gracz",
     tpl_f_multi: "Wieloosobowa",
@@ -4054,6 +4064,8 @@ export const MORE = {
     offline_ready: "Gotowe do użycia offline",
   },
   ru: {
+    tpl_quiz: "Викторина",
+    tpl_quiz_d: "Встаньте на правильный ответ; вопросы меняются в скрипте",
     tpl_f_all: "Все",
     tpl_f_solo: "Один игрок",
     tpl_f_multi: "Мультиплеер",
@@ -5050,6 +5062,8 @@ export const MORE = {
     offline_ready: "Готово к работе офлайн",
   },
   ja: {
+    tpl_quiz: "クイズ",
+    tpl_quiz_d: "正しい答えのタイルを踏もう。問題はスクリプトで編集",
     tpl_f_all: "すべて",
     tpl_f_solo: "ひとり用",
     tpl_f_multi: "マルチプレイ",
@@ -6046,6 +6060,8 @@ export const MORE = {
     offline_ready: "オフラインで使えます",
   },
   zh: {
+    tpl_quiz: "问答",
+    tpl_quiz_d: "踩上正确答案；在脚本中编辑题目",
     tpl_f_all: "全部",
     tpl_f_solo: "单人",
     tpl_f_multi: "多人",
@@ -7042,6 +7058,8 @@ export const MORE = {
     offline_ready: "已可离线使用",
   },
   ko: {
+    tpl_quiz: "퀴즈",
+    tpl_quiz_d: "정답 타일을 밟으세요. 문제는 스크립트에서 수정",
     tpl_f_all: "전체",
     tpl_f_solo: "혼자",
     tpl_f_multi: "멀티플레이",
