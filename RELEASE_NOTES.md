@@ -10,3 +10,4 @@ Devbuild: four new templates and translucent 3DS parts
 - 3DS: decorative flowers on grass worlds (visual only).
 - Studio: four new structures (castle, dome, spiral staircase, pillar).
 - 3DS: games use their sky setting (dawn, sunset, night, space): sky colors, fog, dimmer blocks, stars and moon.
+- 3DS: new setting "Show FPS" prints the frame rate during games.

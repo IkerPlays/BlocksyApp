@@ -13,7 +13,7 @@
 #include <sys/stat.h>
 
 static int s_lang;   // 0 español, 1 English, 2 Portugues (ajuste guardado)
-static int s_music = -1, s_mvol = 60, s_sfx = 1, s_autoinst = 1;      // s_autoinst: instalar solo las estables nuevas                          // musica de la playlist: -1 = sin decidir (activada solo en New 3DS)
+static int s_music = -1, s_mvol = 60, s_sfx = 1, s_autoinst = 1, s_fps = 0;      // s_autoinst: instalar solo las estables nuevas                          // musica de la playlist: -1 = sin decidir (activada solo en New 3DS)
 static int s_forest = 1, s_steps = 1, s_showdev, s_ach;     // s_ach: logros conseguidos (bits)                 // s_showdev: ofrecer devbuilds aunque se use una version estable
 static int s_notif_on = 1;                                      // avisos emergentes
 static int s_sync = 2;                                          // nivel de sincronización (índice en SYNC_MS)
@@ -23,6 +23,7 @@ int app_notif_on(void) { return s_notif_on; }
 int app_music_on(void) { if (s_music < 0) { bool n3 = false; APT_CheckNew3DS(&n3); s_music = n3 ? 1 : 0; } return s_music; }
 int app_music_vol(void) { return s_mvol; }
 int app_sfx_on(void) { return s_sfx; }
+int app_fps_on(void) { return s_fps; }
 int app_forest_level(void) { return s_forest; }
 int app_steps_on(void) { return s_steps; }
 static const char *const PT_TR[][2] = {
@@ -141,6 +142,7 @@ static const char *const PT_TR[][2] = {
 	{"in %ld h", "em %ld h"},
 	{"in %ld d", "em %ld d"},
 	{"Auto-install stable", "Instalar estaveis sozinho"},
+	{"Show FPS", "Mostrar FPS"},
 	{"Show changes", "Ver mudancas"},
 	{"Music needs dspfirm.cdc (DSP firmware dump)", "A musica exige dspfirm.cdc (copia do firmware do DSP)"},
 	{"Show devbuilds", "Mostrar devbuilds"},
@@ -351,6 +353,7 @@ static void load_settings(void) {
 		else if (!strncmp(line, "music=", 6)) s_music = atoi(line + 6) ? 1 : 0;
 		else if (!strncmp(line, "sfx=", 4)) s_sfx = atoi(line + 4) ? 1 : 0;
 		else if (!strncmp(line, "autoinst=", 9)) s_autoinst = atoi(line + 9) ? 1 : 0;
+		else if (!strncmp(line, "fps=", 4)) s_fps = atoi(line + 4) ? 1 : 0;
 		else if (!strncmp(line, "mvol=", 5)) { int v = atoi(line + 5); s_mvol = v < 0 ? 0 : v > 100 ? 100 : v; }
 		else if (!strncmp(line, "showdev=", 8)) s_showdev = atoi(line + 8) ? 1 : 0;
 		else if (!strncmp(line, "steps=", 6)) s_steps = atoi(line + 6) ? 1 : 0;
@@ -363,7 +366,7 @@ static void load_settings(void) {
 static void save_settings(void) {
 	mkdir("sdmc:/3ds", 0777); mkdir("sdmc:/3ds/blocksy", 0777);
 	FILE *f = fopen(SETTINGS_FILE, "w"); if (!f) return;
-	fprintf(f, "last_game=%s\ndist=%d\nauto=%d\nlang=%d\nsync=%d\nnotif=%d\nforest=%d\nsteps=%d\nshowdev=%d\nach=%d\nmusic=%d\nmvol=%d\nsfx=%d\nautoinst=%d\n", s_last_game, s_dist, s_auto, s_lang, s_sync, s_notif_on, s_forest, s_steps, s_showdev, s_ach, app_music_on(), s_mvol, s_sfx, s_autoinst); fclose(f);
+	fprintf(f, "last_game=%s\ndist=%d\nauto=%d\nlang=%d\nsync=%d\nnotif=%d\nforest=%d\nsteps=%d\nshowdev=%d\nach=%d\nmusic=%d\nmvol=%d\nsfx=%d\nautoinst=%d\nfps=%d\n", s_last_game, s_dist, s_auto, s_lang, s_sync, s_notif_on, s_forest, s_steps, s_showdev, s_ach, app_music_on(), s_mvol, s_sfx, s_autoinst, s_fps); fclose(f);
 }
 
 // ---------- estado de la interfaz ----------
@@ -438,7 +441,7 @@ static int count_rows(const Ui *u, const Session *s) {
 	switch (u->page) {
 	case P_HOME: case P_DISCOVER: return build_view(u, s, view);
 	case P_FRIENDS: return build_people(s, pr);
-	case P_SETTINGS: return 14;
+	case P_SETTINGS: return 15;
 	case P_NOTIF: return nnotifs + 1;
 	case P_SHOP: return nshop + 1;
 	case P_UPDATE: return update_can_rollback() ? 6 : 5;
@@ -872,7 +875,7 @@ static void pane(const Ui *u, const Session *s) {
 		break; }
 	case P_SETTINGS: {
 		const char *dn[3] = {tr2("Corta", "Short"), tr2("Media", "Medium"), tr2("Larga", "Long")};
-		char l[14][48]; const char *fn[3] = {tr2("Facil", "Easy"), "Normal", tr2("Dificil", "Hard")};
+		char l[15][48]; const char *fn[3] = {tr2("Facil", "Easy"), "Normal", tr2("Dificil", "Hard")};
 		snprintf(l[0], 48, "%s: %s", tr2("Distancia", "Distance"), dn[s_dist]);
 		snprintf(l[1], 48, "%s: %d ms", tr2("Sincronizacion", "Sync"), SYNC_MS[s_sync]);
 		snprintf(l[2], 48, "%s: %s", tr2("Updates al abrir", "Updates on start"), s_auto ? tr2("Si", "Yes") : "No");
@@ -886,7 +889,8 @@ static void pane(const Ui *u, const Session *s) {
 		snprintf(l[11], 48, "%s: %d%%", tr2("Volumen de la musica", "Music volume"), s_mvol);
 		snprintf(l[12], 48, "%s: %s", tr2("Efectos de sonido", "Sound effects"), !audio_available() ? "(sin DSP)" : s_sfx ? tr2("Si", "Yes") : "No");
 		snprintf(l[13], 48, "%s: %s", tr2("Instalar estables solas", "Auto-install stable"), s_autoinst ? tr2("Si", "Yes") : "No");
-		for (int i = 0; i < vis && u->scroll + i < 14; i++) {
+		snprintf(l[14], 48, "%s: %s", tr2("Mostrar FPS", "Show FPS"), s_fps ? tr2("Si", "Yes") : "No");
+		for (int i = 0; i < vis && u->scroll + i < 15; i++) {
 			int r = u->scroll + i; float y = LIST_Y + 2 + i * rh;
 			if (r == 1) {                                       // barra deslizante: toca o arrastra para elegir (izquierda = rapido)
 				ui_button(PANE_X, y, PANE_W - 4, rh - 4, COL_PANEL2, u->cur == 1, l[1], 0.38f);
@@ -1191,6 +1195,7 @@ AppResult app_lobby(C3D_RenderTarget *top, C3D_RenderTarget *bot, Session *s, Ga
 				else if (act_row == 11) { s_mvol = s_mvol >= 100 ? 0 : s_mvol + 20; save_settings(); }
 				else if (act_row == 12) { s_sfx = !s_sfx; save_settings(); sfx_play(SFX_NOTIFY); }
 				else if (act_row == 13) { s_autoinst = !s_autoinst; save_settings(); }
+				else if (act_row == 14) { s_fps = !s_fps; save_settings(); }
 				break;
 			}
 		}

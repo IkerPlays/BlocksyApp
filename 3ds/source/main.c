@@ -209,6 +209,7 @@ static bool project(float x, float y, float z, float *sx, float *sy, float *dept
 }
 
 typedef struct { float depth; float x, y, z, w, h; u32 color; int av; int pi; } Box;   // av: -1 bloque, 0 yo, 1+i jugador remoto i
+static float g_ft_avg = 33;                               // tiempo medio de fotograma (ms), para el contador de FPS y la calidad adaptativa
 static int g_skymode;                                     // cielo del juego (config.sky): 0 dia, 1 amanecer, 2 atardecer, 3 noche, 4 espacio
 static bool g_new3ds;                                     // New 3DS: 804 MHz y mas memoria => mas bloques y mas distancia
 static Box draw_list[MAX_LOCAL + MAX_PLAYERS * 2 + 4 + 700];
@@ -370,8 +371,8 @@ static void render_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 	// ---- lista de dibujo ordenada por profundidad (con niebla) ----
 	static const int caps[3] = {150, 250, 320}, radii[3] = {7, 8, 9};
 	// calidad adaptativa: si los fotogramas tardan demasiado se dibujan menos objetos, y si sobra tiempo se dibujan mas (0.55 - 1.35)
-	static float q_adapt = 1.0f, ft_avg = 33; static u64 ft_last;
-	if (ft_last && now - ft_last < 500) { ft_avg += ((float)(now - ft_last) - ft_avg) * 0.04f; if (ft_avg > 40 && q_adapt > 0.55f) q_adapt -= 0.004f; else if (ft_avg < 29 && q_adapt < 1.35f) q_adapt += 0.0015f; }
+	static float q_adapt = 1.0f; static u64 ft_last; float ft_avg = g_ft_avg;
+	if (ft_last && now - ft_last < 500) { ft_avg += ((float)(now - ft_last) - ft_avg) * 0.04f; g_ft_avg = ft_avg; if (ft_avg > 40 && q_adapt > 0.55f) q_adapt -= 0.004f; else if (ft_avg < 29 && q_adapt < 1.35f) q_adapt += 0.0015f; }
 	ft_last = now;
 	int lvl = app_draw_level(), cap = caps[lvl] + (g_new3ds ? 200 + lvl * 60 : 0), R = radii[lvl] + (g_new3ds ? 2 : 0);
 	cap = (int)(cap * q_adapt); if (cap < 90) cap = 90;
@@ -512,6 +513,7 @@ static void render_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 		ui_text(sx, sy - 12, 0.34f, C2D_Color32(255, 255, 255, 255), C2D_AlignCenter, rem[i].name);
 	}
 	// ---- HUD ----
+	if (app_fps_on() && g_ft_avg > 1) { char fp[24]; snprintf(fp, sizeof fp, "%d FPS", (int)(1000.0f / g_ft_avg + 0.5f)); ui_text(392, 226, 0.34f, COL_TEXT, C2D_AlignRight, fp); }
 	if (night) {                                                                              // sombra de miedo cuando el monstruo esta cerca
 		float fear = hr.stun > 0 ? 0.8f : fmaxf(0, 1 - hr.dist / 22); int a = (int)(fear * 80);
 		if (a > 4) { ui_rect(0, 0, 400, 240, C2D_Color32(0x60, 0, 0, a / 2)); ui_rect(0, 0, 40, 240, C2D_Color32(0x40, 0, 0, a)); ui_rect(360, 0, 40, 240, C2D_Color32(0x40, 0, 0, a)); ui_rect(0, 0, 400, 24, C2D_Color32(0x40, 0, 0, a)); ui_rect(0, 216, 400, 24, C2D_Color32(0x40, 0, 0, a)); }
