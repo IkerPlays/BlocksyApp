@@ -25,6 +25,7 @@ Blocksy is a multiplayer block-building game for the web and the Nintendo 3DS (h
 - Notification sound for meetup reminders and a fanfare when opening crates on the 3DS.
 - Roadmap 1.5.
 - API reference documents Tool objects, animations and RemoteEvent.
+- New Lua snippets: Tool and part animation.
 
 ## Installing
 - Install `Blocksy.cia` with FBI, or copy `Blocksy.3dsx` to the `3ds` folder of the SD card and run it from the Homebrew Launcher.

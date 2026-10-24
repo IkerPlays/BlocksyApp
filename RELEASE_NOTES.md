@@ -1,2 +1,2 @@
-Devbuild 87: editor reference
-- The script editor's API reference now explains Tool objects (hotbar), animations and RemoteEvent, in all languages.
+Devbuild 88: snippets
+- The script editor snippet list has two new Lua examples: a Tool and a moving part.
