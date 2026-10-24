@@ -3,9 +3,7 @@ Blocksy is a multiplayer block-building game for the web and the Nintendo 3DS (h
 ## What's new since 1.4.0
 
 ### Changes
-- Nothing yet.
 - Italian, Polish, Russian, Japanese, Chinese and Korean fully translated; every web language is complete.
-- Documentation for the 1.4 SQL files and modules.
 - Visit counts on game cards (web and 3DS) and a limited tag on season rewards.
 - 3DS menu click and notification sounds; Discover can be sorted by most visited.
 - Meetups can be added to your calendar, and reminders respect Do not disturb.
@@ -23,7 +21,6 @@ Blocksy is a multiplayer block-building game for the web and the Nintendo 3DS (h
 - Palette shortcuts for Clan (g c) and Meetups (g e).
 - Meetups can be reported and cancelled by staff (needs supabase/auth/v19.sql).
 - Notification sound for meetup reminders and a fanfare when opening crates on the 3DS.
-- Roadmap 1.5.
 - API reference documents Tool objects, animations and RemoteEvent.
 - New Lua snippets: Tool and part animation.
 
