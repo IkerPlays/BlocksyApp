@@ -6,6 +6,7 @@
 #include "update.h"
 #include "net.h"
 #include "audio.h"
+#include "log.h"
 #include <3ds.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -68,9 +69,10 @@ bool update_check(UpdateInfo *out, char *err, size_t en) {
 			if (sz > 0 && sz < 600000) { char *buf = malloc((size_t)sz + 1); if (buf && fread(buf, 1, (size_t)sz, cf) == (size_t)sz) { buf[sz] = 0; n = core_parse_api(buf, rels, 40); stale = n > 0; } free(buf); }
 			fclose(cf); }
 	}
-	if (n <= 0) { snprintf(err, en, "%s", e1[0] ? e1 : e2); return false; }
+	if (n <= 0) { snprintf(err, en, "%s", e1[0] ? e1 : e2); blog("update_check FAILED: api='%s' atom='%s'", e1, e2); return false; }
 	core_select(rels, n, g_cur, out);
 	out->from_cache = stale;
+	blog("update_check ok: %d releases%s, stable %s dev %s (installed %s)", n, stale ? " (cache)" : "", out->stable.valid ? out->stable.tag : "-", out->dev.valid ? out->dev.tag : "-", g_cur);
 	if (out->stable.valid && !strcmp(out->stable.tag, g_installed)) out->stable.newer = false;
 	if (out->dev.valid && !strcmp(out->dev.tag, g_installed)) out->dev.newer = false;
 	return true;
@@ -174,6 +176,7 @@ static bool job_download(Job *j, const char *url, const char *tmp_path, bool ove
 			if (!job_open(j, tmp_path, overwrite, err, en)) return false;
 		}
 		snprintf(err, en, "%s", e);
+		blog("download attempt %d failed at %llu/%u bytes: %s", attempt, (unsigned long long)j->total, j->expect, e);
 	}
 	return false;
 }
@@ -233,10 +236,12 @@ bool update_install(const Rel *r, UpdateProgress *prog, char *err, size_t en) {
 	prog->stage = UPD_PREPARE; prog->pct = 0; prog->done = 0; prog->bps = 0; prog->attempt = 1;
 	unsigned size = update_is_cia() ? r->cia_size : r->dsx_size; prog->total = size;
 	u64 fr = sd_free(), need = (u64)size * 3 + (24ULL << 20);                  // el .cia, su copia temporal de instalacion y un margen
-	if (fr && fr < need) { snprintf(err, en, "La SD casi no tiene espacio (%u MB libres, hacen falta %u MB)", (unsigned)(fr >> 20), (unsigned)(need >> 20)); prog->stage = UPD_IDLE; return false; }
+	if (fr && fr < need) { snprintf(err, en, "La SD casi no tiene espacio (%u MB libres, hacen falta %u MB)", (unsigned)(fr >> 20), (unsigned)(need >> 20)); blog("install blocked: %s", err); prog->stage = UPD_IDLE; return false; }
+	{ char dg[64]; update_diag(dg, sizeof dg); blog("install %s start: %s (%u bytes), %s", update_is_cia() ? "cia" : "3dsx", r->tag, size, dg); }
 	audio_hold(true);                                                          // la musica guarda la cancion entera en RAM: se libera para el instalador
 	bool ok = update_is_cia() ? install_cia(r, prog, err, en) : install_3dsx(r, prog, err, en);
 	audio_hold(false);
+	blog("install %s: %s%s%s", ok ? "OK" : "FAILED", r->tag, ok ? "" : " - ", ok ? "" : err);
 	prog->stage = ok ? UPD_DONE : UPD_IDLE;
 	if (ok) { prog->pct = 100; prog->done = prog->total; }
 	return ok;

@@ -51,3 +51,4 @@ Same release system as Iker's Tube.
 - 3DS native tests: `update_core_test.c` and `parts_test.c` (see the command in each header); `parts.c` is the pure reader of `config.parts` used by `net_fetch_parts`.
 - Local 3DS syntax check: never use plain `-w`; add `-Werror=implicit-function-declaration` (missing `#include <math.h>` etc. only fail in devkitARM otherwise). CI also runs the native tests before building.
 - 3DS economy/social parity (net.c/main.c): `net_mission_add` (place_50, chat_5, play_10 batches every 20 s, obby_win), `net_earn_coins` ('play' every 5 min, 'obby' on race finish; the server caps per day), Home shows `net_my_clan`, `net_season` (level = xp/100) and `net_next_meetup`; the game list is cached in `sdmc:/3ds/blocksy/games.cache`.
+- 3DS log: `blog()` (log.c) appends to `sdmc:/3ds/blocksy/log.txt` (48 KB cap); the updater logs checks, attempts and results there. Ask the user for that file when an update fails.

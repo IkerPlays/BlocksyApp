@@ -12,6 +12,7 @@
 #include "ui.h"
 #include "app.h"
 #include "update.h"
+#include "log.h"
 #include "avatar3d.h"
 #include "world.h"
 #include "config.h"
@@ -797,7 +798,8 @@ int main(int argc, char **argv) {
 	C3D_RenderTarget *top = C2D_CreateScreenTarget(GFX_TOP, GFX_LEFT);
 	C3D_RenderTarget *bot = C2D_CreateScreenTarget(GFX_BOTTOM, GFX_LEFT);
 	ui_init();
-	update_init(BLOCKSY_VERSION, argc > 0 && argv ? argv[0] : NULL);   // versión instalada y ruta del .3dsx
+	update_init(BLOCKSY_VERSION, argc > 0 && argv ? argv[0] : NULL);
+	{ char dg[64]; update_diag(dg, sizeof dg); blog("app start %s (%s, %s), %s", BLOCKSY_VERSION, update_is_cia() ? "cia" : "3dsx", g_new3ds ? "New 3DS" : "Old 3DS", dg); }   // versión instalada y ruta del .3dsx
 	if (!net_init()) {
 		ui_message(top, bot, "Sin red", "No se pudo iniciar la red.\nComprueba que el WiFi esta activado.");
 		ui_exit(); C2D_Fini(); C3D_Fini(); gfxExit(); return 1;
