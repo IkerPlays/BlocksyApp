@@ -4,6 +4,7 @@ import { MORE } from './i18n-more.js'
 const D = {
   es: {
     lang_name: 'Español',
+    ed_api_tools: '<p><b>Herramientas</b>: <code>local t = Instance.new("Tool"); t.Name = "Espada"; t.Parent = game.Players.LocalPlayer.Backpack</code>. Aparecen en una barra abajo (teclas 1-9 o toque); <code>t.Activated</code> se dispara con el clic, y también <code>Equipped</code> / <code>Unequipped</code>. <b>Animaciones</b>: usa el panel Animador del Studio. <b>Eventos de red</b>: <code>RemoteEvent</code> con <code>FireServer</code> / <code>FireAllClients</code>.</p>',
     mod_kind_meetup: 'Quedada', mt_cancel_staff: 'Cancelar quedada',
     collab_joined: '{name} se ha unido a la edición',
     mod_banned_now: 'Suspendidos ahora ({n})',
@@ -141,6 +142,7 @@ const D = {
   },
   en: {
     lang_name: 'English',
+    ed_api_tools: '<p><b>Tools</b>: <code>local t = Instance.new("Tool"); t.Name = "Sword"; t.Parent = game.Players.LocalPlayer.Backpack</code>. They show up in a bar at the bottom (keys 1-9 or tap); <code>t.Activated</code> fires on click, and so do <code>Equipped</code> / <code>Unequipped</code>. <b>Animations</b>: use the Studio Animator panel. <b>Network events</b>: <code>RemoteEvent</code> with <code>FireServer</code> / <code>FireAllClients</code>.</p>',
     mod_kind_meetup: 'Meetup', mt_cancel_staff: 'Cancel meetup',
     collab_joined: '{name} joined the editing',
     mod_banned_now: 'Currently suspended ({n})',

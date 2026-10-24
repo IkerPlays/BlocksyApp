@@ -1,2 +1,2 @@
-Devbuild 86: roadmap
-- Roadmap 1.5 written down. No code changes.
+Devbuild 87: editor reference
+- The script editor's API reference now explains Tool objects (hotbar), animations and RemoteEvent, in all languages.

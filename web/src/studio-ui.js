@@ -82,7 +82,7 @@ export function codeEditor(game) {
     const er = lang() === 'lua' ? await checkLua(ta.value).catch(e => e.message) : checkSyntax(ta.value)
     res.className = 'msg ' + (er ? 'err' : 'ok'); res.textContent = er || t('ed_ok') } })
   return el('div', {}, help, el('div', { class: 'form-row', style: 'align-items:center;margin-bottom:8px' }, el('label', { class: 'field', style: 'margin:0' }, t('st_lang'), langSel)),
-    el('details', { class: 'api-ref' }, el('summary', { text: t('ed_api_title') }), el('div', { html: t('ed_api') })),
+    el('details', { class: 'api-ref' }, el('summary', { text: t('ed_api_title') }), el('div', { html: t('ed_api') }), el('div', { html: t('ed_api_tools') })),
     findBar, el('div', { class: 'code-wrap' }, gut, ta), sugg, el('div', { class: 'form-row', style: 'align-items:center;margin-top:8px' }, info, snipSel, exSel, check), res, cons)
 }
 
