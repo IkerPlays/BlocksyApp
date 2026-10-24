@@ -16,6 +16,7 @@ int app_sync_ms(void);      // pausa entre envíos/lecturas de posiciones durant
 int app_forest_level(void);  // dificultad del bosque: 0 facil, 1 normal, 2 dificil
 int app_steps_on(void);      // polvo al caminar
 int app_music_on(void);      // musica de la playlist activada
+int app_sfx_on(void);        // efectos de sonido activados
 int app_music_vol(void);     // volumen de la musica (0-100)
 int app_notif_on(void);     // avisos emergentes activados
 void app_notif_text(const Notif *n, char *out, size_t sz);   // texto de un aviso en el idioma elegido

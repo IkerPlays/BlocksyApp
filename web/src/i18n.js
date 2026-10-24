@@ -1,4 +1,5 @@
 import { EXTRA } from './i18n-extra.js'
+import { MORE } from './i18n-more.js'
 // Idiomas: es (base), en, pt, fr, de. t('clave', {x}) con {x} como variable; si falta, cae a inglés y luego a español.
 const D = {
   es: {
@@ -374,9 +375,11 @@ const D = {
     welcome_to: '{name}에 오신 것을 환영합니다', joined: '{name}님이 입장', left: '{name}님이 퇴장', players_n: '{n}명 플레이 중', you: '(나)', place: '놓기', break: '부수기', jump: '점프', lang_auto: '자동 (브라우저 언어)',
   },
 }
-for (const l of Object.keys(EXTRA)) D[l] = { ...EXTRA[l], ...D[l] }          // traducciones adicionales (lo que ya está en D tiene prioridad)
+for (const l of Object.keys(EXTRA)) D[l] = { ...EXTRA[l], ...D[l] }
+for (const l of Object.keys(MORE)) D[l] = { ...MORE[l], ...D[l] }          // pt, fr y de completos          // traducciones adicionales (lo que ya está en D tiene prioridad)
 export const LANGS = Object.keys(D)
 // Detector de textos sin traducir: claves del inglés que faltan en cada idioma (para quien traduce)
+export const allKeys = () => Object.keys(D.en)
 export const missingFor = l => Object.keys(D.en).filter(k => D[l] && D[l][k] === undefined)
 export const langName = l => D[l].lang_name
 // Idioma automático: el primero de navigator.languages que tengamos (pt-BR -> pt, zh-TW -> zh...); si no hay ninguno, inglés

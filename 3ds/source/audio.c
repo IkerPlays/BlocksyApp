@@ -1,4 +1,5 @@
 #include "audio.h"
+#include "sfx.h"
 #include "net.h"
 #include "app.h"
 #include "json.h"
@@ -93,12 +94,13 @@ void audio_init(void) {
 	for (int i = 0; i < NBUF; i++) { g_pcm[i] = linearAlloc(BUF_FRAMES * 4); if (!g_pcm[i]) return; memset(&g_wb[i], 0, sizeof g_wb[i]); }
 	g_ok = true;
 	s32 prio = 0; svcGetThreadPriority(&prio, CUR_THREAD_HANDLE);
+	sfx_init();
 	g_th = threadCreate(audio_thread, NULL, 64 * 1024, prio + 1, -2, false);       // nucleo del sistema: no quita tiempo al dibujado
 	if (!g_th) g_th = threadCreate(audio_thread, NULL, 64 * 1024, prio + 1, -1, false);
 }
 void audio_exit(void) {
 	g_quit = true; if (g_th) { threadJoin(g_th, U64_MAX); threadFree(g_th); g_th = NULL; }
-	if (g_ok) { ndspChnWaveBufClear(0); for (int i = 0; i < NBUF; i++) if (g_pcm[i]) linearFree(g_pcm[i]); ndspExit(); g_ok = false; }
+	if (g_ok) { sfx_exit(); ndspChnWaveBufClear(0); for (int i = 0; i < NBUF; i++) if (g_pcm[i]) linearFree(g_pcm[i]); ndspExit(); g_ok = false; }
 }
 bool audio_available(void) { return g_ok; }
 void audio_game(bool on, const char *track) { snprintf(g_pref, sizeof g_pref, "%s", track ? track : ""); g_skip = !on; g_active = on && g_ok; if (on) g_skip = false; }

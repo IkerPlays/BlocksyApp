@@ -7,6 +7,7 @@
 #include <string.h>
 #include "net.h"
 #include "audio.h"
+#include "sfx.h"
 #include "ui.h"
 #include "app.h"
 #include "update.h"
@@ -561,6 +562,7 @@ static bool play_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 		memcpy(local, blocks, sizeof(Block) * nblocks); nl = nblocks;
 		for (int i = 0; i < world.ncells && nl < MAX_LOCAL; i++) local[nl++] = world.cells[i];      // bloques fijos del mundo
 		memcpy(rem, remotes, sizeof(Remote) * nremotes); nr = nremotes;
+		if (nchat_new) sfx_play(SFX_NOTIFY);
 		for (int i = 0; i < nchat_new; i++) {                       // mensajes nuevos -> lista visible 10 s
 			memmove(&chat[0], &chat[1], sizeof chat[0] * 3);
 			snprintf(chat[3].name, sizeof chat[3].name, "%s", chat_new[i].name); snprintf(chat[3].text, sizeof chat[3].text, "%s", chat_new[i].text); chat[3].until = now + 10000;
@@ -605,7 +607,7 @@ static bool play_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 			for (int i = 0; i < 10; i++) if (puff[i].life > 0) puff[i].life -= dt;
 			puff_t -= dt; if (moving && grounded && puff_t <= 0) { puff_t = (held & KEY_B) ? 0.18f : 0.28f; for (int i = 0; i < 10; i++) if (puff[i].life <= 0) { puff[i].x = px; puff[i].y = py + 0.05f; puff[i].z = pz; puff[i].life = 0.5f; break; } }
 		}
-		if ((down & KEY_A) && grounded) { vy = jump_v; grounded = false; }
+		if ((down & KEY_A) && grounded) { vy = jump_v; grounded = false; sfx_play(SFX_JUMP); }
 		vy -= 24 * dt; float ny = py + vy * dt; grounded = false;
 		if (body_hits(px, ny, pz)) { if (vy < 0) grounded = true; vy = 0; }
 		else py = ny;
@@ -619,10 +621,10 @@ static bool play_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 		if (world.ncp || world.has_fin) {                                      // carrera: cronómetro, puntos de control y meta
 			if (!race.start && moving) race.start = now;
 			for (int i = 0; i < world.ncp; i++) if (world.cp[i].id > race.cp && hypotf(px - world.cp[i].x, pz - world.cp[i].z) < 2.2f && fabsf(py - world.cp[i].y) < 2.5f) {
-				race.cp = world.cp[i].id; rsp_x = world.cp[i].x; rsp_y = world.cp[i].y; rsp_z = world.cp[i].z; snprintf(big_msg, sizeof big_msg, "Punto de control %d", race.cp); big_until = now + 1400;
+				race.cp = world.cp[i].id; rsp_x = world.cp[i].x; rsp_y = world.cp[i].y; rsp_z = world.cp[i].z; snprintf(big_msg, sizeof big_msg, "Punto de control %d", race.cp); big_until = now + 1400; sfx_play(SFX_CHECKPOINT);
 			}
 			if (world.has_fin && !race.done && hypotf(px - world.fin[0], pz - world.fin[2]) < world.fin_r && fabsf(py - world.fin[1]) < 3) {
-				race.done = true; unsigned ms = (unsigned)(now - (race.start ? race.start : now)); if (ms >= 1500) push_action((Action){.type = TIME, .x = (int)ms}); snprintf(big_msg, sizeof big_msg, "Meta! %u:%05.2f", ms / 60000, (ms % 60000) / 1000.0f); big_until = now + 5000;
+				race.done = true; sfx_play(SFX_WIN); unsigned ms = (unsigned)(now - (race.start ? race.start : now)); if (ms >= 1500) push_action((Action){.type = TIME, .x = (int)ms}); snprintf(big_msg, sizeof big_msg, "Meta! %u:%05.2f", ms / 60000, (ms % 60000) / 1000.0f); big_until = now + 5000;
 			}
 			if (race.done && now > big_until - 500) { px = world.spawn[0]; py = world.spawn[1]; pz = world.spawn[2]; rsp_x = px; rsp_y = py; rsp_z = pz; vy = 0; cx_ = px; cy_ = py + 1; cz_ = pz; memset(&race, 0, sizeof race); }
 		}
@@ -639,11 +641,11 @@ static bool play_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 		for (int dy = 0; dy < 3 && break_y < 0; dy++) if (breakable(tx, ty + dy, tz)) break_y = ty + dy;        // el bloque más bajo (solo los de jugadores)
 		overlap = place_y >= 0 && fabsf(px - (tx + .5f)) < 0.8f && fabsf(pz - (tz + .5f)) < 0.8f && py < place_y + 1 && py + 1.8f > place_y;
 		if (can_build && (down & KEY_X) && place_y >= 0 && !overlap && nblocks < MAX_BLOCKS) {
-			push_action((Action){.type = PLACE, .x = tx, .y = place_y, .z = tz, .kind = kind});
+			push_action((Action){.type = PLACE, .x = tx, .y = place_y, .z = tz, .kind = kind}); sfx_play(SFX_PLACE);
 			LightLock_Lock(&lock); if (nblocks < MAX_BLOCKS) blocks[nblocks++] = (Block){tx, place_y, tz, kind}; LightLock_Unlock(&lock);
 		}
 		if (can_build && (down & KEY_Y) && break_y >= 0) {
-			push_action((Action){.type = BREAK, .x = tx, .y = break_y, .z = tz});
+			push_action((Action){.type = BREAK, .x = tx, .y = break_y, .z = tz}); sfx_play(SFX_BREAK);
 			LightLock_Lock(&lock);
 			for (int i = 0; i < nblocks; i++) if (blocks[i].x == tx && blocks[i].y == break_y && blocks[i].z == tz) { blocks[i] = blocks[--nblocks]; break; }
 			LightLock_Unlock(&lock);

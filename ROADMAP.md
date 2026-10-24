@@ -67,3 +67,4 @@ Tanda 63: Colaboracion en el Studio (varias personas en el mismo juego)
 Tanda 64: Grupos o clanes, eventos con fecha, mensajes con imagen o voz (SQL)
 Tanda 65: Moderacion en servidor (panel de denuncias, SQL)
 Tanda 66: Idiomas completos (pt, fr, de) y sonido en la 3DS
+Estado: tandas 55 a 66 hechas (devbuilds 55 a 66). Pendiente de lo pedido: dibujar el icono y el banner de los juegos en la 3DS, subida real de imagenes (hoy son JPEG pequenos o enlaces), items/inventario en la 3DS (no ejecuta Lua), it/pl/ru/ja/zh/ko completos.
