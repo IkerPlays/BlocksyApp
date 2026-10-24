@@ -7,3 +7,4 @@ Devbuild: update log, Studio parts polish and new content
 - 3DS: the Islands world too (floating discs and trees identical to the web, void below).
 - 3DS: games that turn chat or emotes off now block them on the 3DS too, with a message.
 - 3DS: the Void world's starting platform now has the same checkered colors as the web; world parity tests now cover obby, void, desert, caves and city.
+- 3DS: the Plaza now matches the web exactly (round fountain with water at ground level, trees and the full set of columns and benches); it was an older layout before.

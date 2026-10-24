@@ -44,5 +44,12 @@ int main(void) {
 		}
 		if (w.ncells != CW[k].cells || s != CW[k].h) { printf("FALLA %s semilla %d: %d celdas (esperadas %d), hash %llu\n", CW[k].n, CW[k].seed, w.ncells, CW[k].cells, s); return 1; }
 	}
+	// plaza: celdas elevadas (fuente, columnas, arboles, bancos) y color de cada casilla del suelo, iguales a la web
+	{
+		world_build(&w, "plaza", 1337); unsigned long long up = 0, fl = 0;
+		for (int i = 0; i < w.ncells; i++) { unsigned long long x = (unsigned)w.cells[i].x, y = (unsigned)w.cells[i].y, z = (unsigned)w.cells[i].z; up += (x * 73856093ULL) ^ (y * 19349663ULL) ^ (z * 83492791ULL) ^ ((unsigned long long)w.cells[i].color * 2654435761ULL); }
+		for (int x = -18; x <= 18; x++) for (int z = -18; z <= 18; z++) fl += ((unsigned long long)(unsigned)x * 73856093ULL) ^ ((unsigned long long)(unsigned)z * 83492791ULL) ^ ((unsigned long long)world_plaza_color(x, z) * 2654435761ULL);
+		if (w.ncells != 279 || up != 10450496665658069216ULL || fl != 4175807053795176298ULL) { printf("FALLA plaza: %d celdas, up %llu, suelo %llu\n", w.ncells, up, fl); return 1; }
+	}
 	puts("world: todo bien"); return 0;
 }

@@ -23,8 +23,9 @@ static int jsround(double v) { return (int)floor(v + 0.5); }      // Math.round 
 unsigned world_plaza_color(int x, int z) {
 	int n = 18; int ax = abs(x), az = abs(z);
 	if (ax == n || az == n) return hexc("#7f858d");
-	if ((x == 0 || z == 0) && ax >= 5 && ax <= 12) return hexc("#e6d28c");       // caminos de arena
-	if ((x == 0 || z == 0) && az >= 5 && az <= 12) return hexc("#e6d28c");
+	if (ax <= 3 && az <= 3 && hypot(x, z) < 3.6) return hexc("#3aa0e8");                     // agua de la fuente (a ras de suelo)
+	if (z == 0 && ax >= 5 && ax <= 12) return hexc("#e6d28c");                                // caminos de arena
+	if (x == 0 && az >= 5 && az <= 12) return hexc("#e6d28c");
 	return ((x + z) & 1) ? hexc("#d5d9de") : hexc("#c3c8cf");
 }
 static bool island_solid(const World *w, int x, int y, int z);
@@ -35,16 +36,27 @@ bool world_floor_solid(const World *w, int x, int y, int z) {
 	return w->type == 1 && y == 0 && abs(x) <= w->plaza_n && abs(z) <= w->plaza_n;
 }
 
+// arbol de la web (tree() de world.js): tronco de 3, hojas en dos capas y una cruz arriba
+static void web_tree(World *w, int x, int y, int z) {
+	unsigned wood = hexc("#8b5e34"), leaves = hexc("#2f8f3a"), leaves2 = hexc("#3aa347");
+	for (int i = 0; i < 3; i++) add(w, x, y + i, z, wood);
+	for (int dx = -2; dx <= 2; dx++) for (int dz = -2; dz <= 2; dz++) for (int dy = 0; dy < 2; dy++) {
+		if (abs(dx) + abs(dz) > 3 || (dx == 0 && dz == 0 && dy == 0)) continue;
+		add(w, x + dx, y + 3 + dy, z + dz, ((dx + dz + dy) & 1) ? leaves : leaves2);
+	}
+	add(w, x, y + 5, z, leaves2); add(w, x + 1, y + 5, z, leaves); add(w, x - 1, y + 5, z, leaves); add(w, x, y + 5, z + 1, leaves); add(w, x, y + 5, z - 1, leaves);
+}
 static void build_plaza(World *w) {
 	w->type = 1; w->floor = true; w->plaza_n = 18; w->void_y = -1000;
 	w->spawn[0] = 0.5f; w->spawn[1] = 1.2f; w->spawn[2] = 7.5f;
-	unsigned stone2 = hexc("#7f858d"), white = hexc("#eceff1"), gold = hexc("#f5c542"), water = hexc("#3aa0e8");
-	for (int a = -4; a <= 4; a++) { add(w, a, 1, -4, stone2); add(w, a, 1, 4, stone2); if (a > -4 && a < 4) { add(w, -4, 1, a, stone2); add(w, 4, 1, a, stone2); } }   // fuente: muro
-	for (int x = -3; x <= 3; x++) for (int z = -3; z <= 3; z++) if (hypot(x, z) < 3.0) add(w, x, 1, z, water);
-	add(w, 0, 1, 0, white); add(w, 0, 2, 0, white); add(w, 0, 3, 0, water);
-	for (int sx = -1; sx <= 1; sx += 2) for (int sz = -1; sz <= 1; sz += 2) {
-		for (int y = 1; y <= 5; y++) add(w, sx * 14, y, sz * 14, y == 5 ? gold : white);                                   // columnas
-		for (int i = -2; i <= 2; i++) add(w, sx * 9 + i, 1, sz * 8, hexc("#8b5e34"));                                      // bancos
+	unsigned stone2 = hexc("#7f858d"), white = hexc("#eceff1"), gold = hexc("#f5c542"), water = hexc("#3aa0e8"), wood = hexc("#8b5e34");
+	for (int a = 0; a < 40; a++) { double t = (a / 40.0) * 6.283185307179586; add(w, jsround(cos(t) * 4), 1, jsround(sin(t) * 4), stone2); }       // fuente: anillo
+	for (int y = 1; y <= 3; y++) add(w, 0, y, 0, y == 3 ? water : white);
+	for (int s = 0; s < 4; s++) {
+		int sx = (s & 1) ? 1 : -1, sz = (s & 2) ? 1 : -1;                                    // mismo orden que la web: (-1,-1) (1,-1) (-1,1) (1,1)
+		for (int y = 1; y <= 5; y++) add(w, sx * 14, y, sz * 14, y == 5 ? gold : white);   // columnas
+		web_tree(w, sx * 9, 1, sz * 15);
+		for (int i = -2; i <= 2; i++) add(w, sx * 9 + i, 1, sz * 8, wood);                   // bancos
 	}
 }
 static void build_obby(World *w, int seed) {
