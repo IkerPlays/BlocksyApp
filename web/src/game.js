@@ -579,7 +579,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
   let sd = null
   if (ST) {
     const g = $('game'); g.classList.add('studio'); $('studio-bar').classList.remove('hidden')
-    sd = createStudio({ refreshEmotes: buildEmotes, game, cfg, api, PALETTE, key, index, statics, setBlock, removeBlock, me, pick, scene, camera, canvas, rbx, showTitle, sys, sfx, burst, selectKind, getHover: () => hoverPt,
+    sd = createStudio({ refreshEmotes: buildEmotes, collab: studio.collab, userName: profile.username, game, cfg, api, PALETTE, key, index, statics, setBlock, removeBlock, me, pick, scene, camera, canvas, rbx, showTitle, sys, sfx, burst, selectKind, getHover: () => hoverPt,
       setUiTool: on => { if (!on) { selUi = null; openInspector(); drawUi() } },
       onAddText: () => { let n = 1; while (uiEls.some(x => x.id === 'texto' + n)) n++; const e = { id: 'texto' + n, text: 'Texto', x: 50, y: 18, size: 32, color: '#ffffff' }; uiEls.push(e); selUi = e; drawUi(); openInspector() },
       onEnv: (k, v) => {
@@ -600,7 +600,7 @@ export function startGame({ game, profile, canvas, onExit, onInvite, studio }) {
         else { runner.dispose(); rbx.reset(); rbx.spawnStatic(cfg.parts); runner = { fire() {}, has: () => false, dispose() {} }; for (const k in uiText) delete uiText[k]; me.fly = true; drawUi() }
       },
       getConfig: () => ({ ...(game.config ?? {}), ui: uiEls, parts: sd.parts }),
-      onSave: async silent => { try { await sd.flush(); game.config = { ...(game.config ?? {}), ui: uiEls, parts: sd.parts }; await studio.save(game); if (silent === true) { const c = document.createElement('div'); c.className = 'autosave'; c.textContent = t('st_autosave'); $('game').append(c); setTimeout(() => c.remove(), 1800) } else { showTitle(t('st_saved'), 1600); sfx.click() } return true } catch (e) { if (silent !== true) showTitle(e.message, 3000); return false } },
+      onSave: async silent => { if (studio.collab?.guest) { if (silent !== true) showTitle(t('collab_no_save'), 2400); return false } try { await sd.flush(); game.config = { ...(game.config ?? {}), ui: uiEls, parts: sd.parts }; await studio.save(game); if (silent === true) { const c = document.createElement('div'); c.className = 'autosave'; c.textContent = t('st_autosave'); $('game').append(c); setTimeout(() => c.remove(), 1800) } else { showTitle(t('st_saved'), 1600); sfx.click() } return true } catch (e) { if (silent !== true) showTitle(e.message, 3000); return false } },
       onExit: () => onExit() })
     showTitle(t('st_help'), 7000)
     const autoTimer = setInterval(() => { if (editing() && !paused && !document.hidden) sd.save?.(true) }, 60_000)

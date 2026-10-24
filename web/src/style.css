@@ -522,3 +522,8 @@ pre.notes { white-space: pre-wrap; font-family: inherit; font-size: 14px; color:
 .an-f input[type=color] { padding:0; height:26px; } .an-tabs { padding:6px 10px 0; } .an-emote { display:grid; grid-template-columns:1fr 200px; gap:12px; align-items:start; } .an-avatar { width:200px; height:260px; background:var(--panel2); border-radius:10px; position:sticky; top:0; }
 @media (max-width:760px) { .an-emote { grid-template-columns:1fr; } }
 .an-key-h .an-f { width:84px; } .an-emote > div:first-child > .an-f { max-width:none; }
+#st-peers { position:absolute; z-index:25; top:calc(var(--st-t,60px) + 8px); left:calc(var(--st-l,250px) + 12px); display:flex; gap:6px; flex-wrap:wrap; pointer-events:none; }
+.st-peer { background:#0009; border:2px solid var(--c); border-radius:999px; padding:3px 10px; font-size:12px; font-weight:700; color:#fff; display:inline-block; }
+#st-collab { position:absolute; z-index:40; top:calc(var(--st-t,60px) + 8px); right:calc(var(--st-r,300px) + 12px); width:320px; max-width:calc(100vw - 24px); background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:14px; display:flex; flex-direction:column; gap:8px; box-shadow:0 12px 40px #0008; }
+#st-collab h3 { margin:0; } .collab-code { font:800 30px/1 ui-monospace,monospace; letter-spacing:6px; text-align:center; padding:10px; background:var(--panel2); border-radius:10px; }
+.collab-link { width:100%; font-size:11px; } .collab-peers { display:flex; gap:6px; flex-wrap:wrap; }

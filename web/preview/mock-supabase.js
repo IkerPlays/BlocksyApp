@@ -13,7 +13,7 @@ function query(table) {
   const q = { select: () => q, in: () => q, maybeSingle: () => Promise.resolve({ data: null }), eq: () => q, gt: () => q, order: () => q, limit: () => q, then: r => r({ data: table === 'blocks' ? (location.search.includes('horror') ? [] : blocks) : table === 'interactions' ? chats : players }) }
   return q
 }
-const chan = { on: () => chan, subscribe: cb => { cb?.('SUBSCRIBED'); return chan }, send() {} }
+const chan = { on: () => chan, subscribe: cb => { cb?.('SUBSCRIBED'); return chan }, send() {}, track: async () => {}, untrack() {}, presenceState: () => ({}) }
 export const gameDb = { from: query, channel: () => chan, removeChannel: () => {} }
 const friends = [['Marta', '#2ecc71', true], ['Dani', '#9b59b6', true], ['Lucia', '#e74c3c', false], ['Pablo', '#f1c40f', false]].map(([u, c, o], i) => ({ id: 'f' + i, username: u, avatar_color: c, is_online: o, current_game: o && i === 0 ? 'g1' : null }))
 const msgs = [{ id: 1, from_id: 'f0', to_id: 'me', body: 'Ven al juego!', created_at: new Date().toISOString() }, { id: 2, from_id: 'me', to_id: 'f0', body: 'Voy!', created_at: new Date().toISOString() }]
@@ -26,7 +26,7 @@ function aq(table) {
   return q
 }
 const rpcs = { my_weekly: { ends: '2026-10-26', list: [{ key: 'w_place_300', goal: 300, reward: 150, n: 120, claimed: false }, { key: 'w_obby_5', goal: 5, reward: 250, n: 5, claimed: false }] }, season_info: { season: 1, ends: '2026-11-16', xp: 230, claimed: 2, tiers: Array.from({ length: 10 }, (_, i) => ({ tier: i + 1, xp: (i + 1) * 100, coins: 40 * (i + 1), item: i === 4 ? 'season1_trail' : i === 9 ? 'season1_title' : null })) }, my_wallet: { bcoins: 340, streak: 2, can_claim: false, inventory: ['hat_wizard', 'face_shades', 'back_wings', 'trail_rainbow', 'pet_slime'], equipped: { hat: 'hat_wizard', face: 'face_shades', back: 'back_wings', trail: 'trail_rainbow', pet: 'pet_slime' } }, my_requests: reqs, unread_counts: { f0: 2 }, get_profile: { id: 'f0', username: 'Marta', avatar_color: '#2ecc71', bio: 'Me gusta construir castillos.', created_at: '2026-01-05T00:00:00Z', relation: 'friends', request_id: null, friend_count: 12, is_online: true, current_game: 'g1' } }
-const ch = { on: () => ch, subscribe: () => ch }
+const ch = { on: () => ch, subscribe: cb => { setTimeout(() => cb?.('SUBSCRIBED'), 0); return ch }, track: async () => {}, untrack: () => {}, presenceState: () => ({}), send: () => {} }
 export const authDb = { from: aq, rpc: n => Promise.resolve({ data: rpcs[n] ?? null, error: null }), channel: () => ch, removeChannel: () => {}, auth: {} }
 export const GAME_URL = '', GAME_KEY = ''
 export const HAS_STORE = false, storeDb = null, STORE_URL = '', STORE_KEY = ''

@@ -152,11 +152,11 @@ export function leaveBeacon() {
 }
 
 // ---------- Lecturas ----------
-export async function getGame(id) {
+export async function getGame(id, { forCollab = false } = {}) {
   let g = null
   if (await storeReadOk()) { const { data } = await storeDb.from('games').select('*').eq('id', id).maybeSingle(); g = data }
   if (!g) { const { data } = await gameDb.from('games').select('*').eq('id', id).maybeSingle(); g = data }
-  if (g && visOfG(g) === 'private' && g.owner_id !== (await myId())) return null          // un juego privado solo lo abre su dueño
+  if (g && !forCollab && visOfG(g) === 'private' && g.owner_id !== (await myId())) return null          // un juego privado solo lo abre su dueño
   return g
 }
 // Los juegos en borrador (config.draft) solo los ve su dueño

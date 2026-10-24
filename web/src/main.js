@@ -13,6 +13,7 @@ import { headshot } from './avatar.js'
 import { t, applyStatic, setLang, getPref, LANGS, langName, onLang } from './i18n.js'
 import { initNotifications, openInvite } from './social-ui.js'
 import { openScriptModal } from './studio-ui.js'
+import { cleanCode } from './collab.js'
 import { registerSW, applyUpdate, canInstall, installApp, isInstalled } from './pwa.js'
 import { installErrorLog, isNewVersion } from './about.js'
 import { installPalette } from './palette.js'
@@ -61,9 +62,11 @@ async function route() {
   }
   if (page === 'studio') {                                        // /studio/<id>: editor tipo Roblox Studio (solo el dueño)
     if (!api.canCreate()) await api.openGameSession().catch(() => {})
-    const g = await api.getGame(arg)
+    const join = cleanCode(new URLSearchParams(location.search).get('join'))
+    const g = await api.getGame(arg, { forCollab: join.length === 6 })
+    if (g && join.length === 6 && g.owner_id !== profile.id) return play(g, { studio: true, collab: { code: join, guest: true } })       // invitado: edita en directo, no guarda
     if (!g || g.owner_id !== profile.id || !api.canCreate()) { history.replaceState(null, '', '/create'); return route() }
-    return play(g, { studio: true })
+    return play(g, { studio: true, collab: join.length === 6 ? { code: join, guest: false } : undefined })
   }
   if (page === 'share') {                                         // destino de "Compartir con Blocksy" (manifest share_target)
     const sp = new URLSearchParams(location.search), raw = sp.get('url') || sp.get('text') || ''; let target = ''
@@ -125,13 +128,13 @@ function play(game, opts = {}) {
   const old = $('view'), cv = document.createElement('canvas'); cv.id = 'view'; old.replaceWith(cv)
   loadGame().then(({ startGame }) => {
     if (currentGame !== game) return
-    stopGame = startGame({ game, profile, canvas: cv, onExit: opts.studio ? () => exitStudio(game) : exitGame, studio: opts.studio ? { save: g => api.updateGameRow(g), openScript: openScriptModal } : undefined, onInvite: g => { $('game').classList.add('hidden-for-modal'); openInvite(ctx, g) } })
+    stopGame = startGame({ game, profile, canvas: cv, onExit: opts.studio ? () => exitStudio(game, opts.collab?.guest) : exitGame, studio: opts.studio ? { save: g => api.updateGameRow(g), openScript: openScriptModal, collab: opts.collab } : undefined, onInvite: g => { $('game').classList.add('hidden-for-modal'); openInvite(ctx, g) } })
   }).catch(e => { console.error(e); toast(`${game.name}: ${e.message}`); exitGame() })
 }
-function exitStudio(game) {
+function exitStudio(game, guest) {
   stopGame?.(); stopGame = null; currentGame = null
   auth.startPresence(() => null)
-  showScreen('app'); navigate(`/create/${game.id}`, true)
+  showScreen('app'); navigate(guest ? `/game/${game.id}` : `/create/${game.id}`, true)
 }
 async function exitGame() {
   stopGame?.(); stopGame = null; currentGame = null

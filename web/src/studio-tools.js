@@ -13,6 +13,7 @@ import * as music from './music.js'
 import { listComponents, addComponent, removeComponent, renameComponent, packParts, unpackParts, exportComponents, importComponents } from './components.js'
 import { buildAnimator } from './animator.js'
 import { styleFor } from './avatar.js'
+import { startCollab, genCode, cleanCode } from './collab.js'
 
 const MAX_VOL = 6000                      // bloques por operación
 const SEND_CHUNK = 400
@@ -45,7 +46,7 @@ const SHAPES = ['Block', 'Ball', 'Cylinder'], MATERIALS = ['Plastic', 'Neon', 'G
 const SKIES = ['day', 'dawn', 'sunset', 'night', 'space']
 
 export function createStudio(ctx) {
-  const { game, cfg, api, PALETTE, key, index, statics, setBlock, removeBlock, me, pick, scene, camera, canvas, rbx, showTitle, sys, sfx, burst, selectKind, onEnv, onTestToggle, onSave, onExit, onScript, refreshEmotes, onAddText, setUiTool, getHover, getConfig, captureThumb } = ctx
+  const { game, cfg, api, PALETTE, key, index, statics, setBlock, removeBlock, me, pick, scene, camera, canvas, rbx, showTitle, sys, sfx, burst, selectKind, onEnv, onTestToggle, onSave, onExit, onScript, refreshEmotes, collab: collabIn, userName, onAddText, setUiTool, getHover, getConfig, captureThumb } = ctx
   const g = document.getElementById('game'), bar = document.getElementById('studio-bar')
   const docks = createDocks(g); docks.top.append(bar)
   let selNode = 'part'                                                   // elemento del Explorer que no es una pieza: game | workspace | lighting | script | terrain | ui:<id>
@@ -454,11 +455,58 @@ export function createStudio(ctx) {
         group(t('rg_edit'), '', undoBtn, redoBtn, symBtn, rbBtn('st-grid', 'grid', t('st_gridview'), () => { gridHelper.visible = !gridHelper.visible; document.getElementById('st-grid')?.classList.toggle('on', gridHelper.visible) })),
         group('UI', '', tool('ui'), rbBtn('st-addtext', 'chat', t('st_addtext'), () => { onAddText(); setTool('ui') })),
         group(t('rg_script'), '', rbBtn('st-script', 'code', t('ed_script'), onScript), rbBtn('st-check', 'check', t('st_checklist'), openChecklist), rbBtn('st-export', 'send', t('st_export'), exportGame), rbBtn('st-thumb', 'camera', t('st_thumb'), async () => { const d = await captureThumb?.(); if (!d) return showTitle(t('st_thumb_fail'), 1800); game.config = { ...(game.config ?? {}), thumb: d }; cfg.thumb = d; showTitle(t('st_thumb_ok'), 1800); sfx.click() })),
-        group(t('rg_test'), 'keep', rbBtn('st-test', 'play', t('st_test'), onTestToggle), rbBtn('st-save', 'check', t('save'), () => doSave(), 'primary'), rbBtn('st-page', 'globe', t('game_page'), () => rightTabs?.set('game')), rbBtn('st-exit', 'back', t('close'), onExit, 'danger'))))
+        group(t('rg_test'), 'keep', rbBtn('st-test', 'play', t('st_test'), onTestToggle), rbBtn('st-save', 'check', t('save'), () => doSave(), 'primary'), rbBtn('st-page', 'globe', t('game_page'), () => rightTabs?.set('game')), rbBtn('st-collab-btn', 'users', t('collab'), toggleCollab), rbBtn('st-exit', 'back', t('close'), onExit, 'danger'))))
     paintHistory(); setTool('place')
+    if (collabIn?.code) joinCollab(collabIn.code).catch(() => { collabState = 'error'; paintCollabPanel() })
   }
   // paneles: Explorer/Toolbox a la izquierda, Properties/Environment/Game/Versions a la derecha y Output abajo
   const TB_PARTS = [['part', 'cube', 'tb_block', () => newPart('part')], ['ball', 'sphere', 'tb_ball', () => newPart('part', 'Ball')], ['cyl', 'cylinder', 'tb_cyl', () => newPart('part', 'Cylinder')], ['spawn', 'flag', 'st_add_spawn', () => newPart('spawn')], ['torch', 'sliders', 'st_torch', () => newPart('torch')], ['lamp', 'sphere', 'st_lamp', () => newPart('lamp')]]
+  // ---------- edición compartida ----------
+  let session = null, peers = [], collabState = 'off', remoteWires = []
+  const guest = !!collabIn?.guest
+  const peerBadge = h('div', { id: 'st-peers', class: 'hidden' })
+  const paintPeers = () => {
+    peerBadge.replaceChildren(...peers.map(p => h('span', { class: 'st-peer', style: `--c:${p.color}`, text: p.name + (p.owner ? ' ★' : '') })))
+    peerBadge.classList.toggle('hidden', !peers.length)
+  }
+  const clearRemoteWires = () => { for (const w of remoteWires) { scene.remove(w); w.geometry.dispose(); w.material.dispose() } remoteWires = [] }
+  let lastSels = {}
+  function paintRemoteSel(sels = lastSels) {
+    lastSels = sels; clearRemoteWires()
+    for (const u of Object.values(sels)) for (const n of u.names) {
+      const i = parts.findIndex(p => p.name === n), o = i >= 0 ? rbx.partAt(i) : null; if (!o) continue
+      const b = o.box, w = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(1, 1, 1)), new THREE.LineBasicMaterial({ color: new THREE.Color(u.color), depthTest: false }))
+      w.renderOrder = 998; w.position.set((b[0] + b[3]) / 2, (b[1] + b[4]) / 2, (b[2] + b[5]) / 2); w.scale.set(b[3] - b[0] + 0.1, b[4] - b[1] + 0.1, b[5] - b[2] + 0.1); scene.add(w); remoteWires.push(w)
+    }
+  }
+  const scriptNow = () => ({ script: game.script ?? '', lang: cfg.script_lang === 'lua' ? 'lua' : 'js' })
+  async function joinCollab(code) {
+    session?.stop(); collabState = 'connecting'
+    session = await startCollab({ gameId: game.id, code, name: userName ?? 'Player', isOwner: !guest, parts, getScript: scriptNow,
+      setScript: (sc, lang) => { game.script = sc; cfg.script_lang = lang; paintExplorer() },
+      getSel: () => [selPart, ...multi].filter(i => parts[i]).map(i => parts[i].name),
+      onParts: () => { if (selPart >= parts.length) selPart = -1; refreshParts(); paintProps(); paintRemoteSel() },
+      onPeers: l => { peers = l; paintPeers(); paintCollabPanel() }, onSelections: paintRemoteSel,
+      onStatus: s => { collabState = s; paintCollabPanel() } })
+    collabState = 'on'; paintCollabPanel()
+  }
+  function stopCollab() { session?.stop(); session = null; peers = []; collabState = 'off'; paintPeers(); clearRemoteWires(); paintCollabPanel() }
+  const collabPanel = h('div', { id: 'st-collab', class: 'hidden' })
+  const linkFor = code => `${location.origin}/studio/${game.id}?join=${code}`
+  function paintCollabPanel() {
+    collabPanel.replaceChildren(...[h('h3', { text: t('collab') }), guest ? h('p', { class: 'muted', text: t('collab_guest') }) : null,
+      session ? [
+        h('p', { class: 'muted', text: collabState === 'error' ? t('collab_err') : t('collab_on') }),
+        guest ? null : [h('div', { class: 'collab-code', text: session.code }), h('input', { class: 'collab-link', readonly: '', value: linkFor(session.code), onclick: e => e.target.select() }),
+          h('div', { class: 'row-btns' }, h('button', { type: 'button', class: 'btn tiny', text: t('collab_copy'), onclick: async () => { try { await navigator.clipboard.writeText(linkFor(session.code)); showTitle(t('link_copied'), 1200) } catch {} } }))],
+        h('div', { class: 'tb-title', text: t('collab_who', { n: peers.length + 1 }) }), h('div', { class: 'collab-peers' }, h('span', { class: 'st-peer', style: `--c:${session.color}`, text: (userName ?? '?') + ' (' + t('collab_you') + ')' }), ...peers.map(p => h('span', { class: 'st-peer', style: `--c:${p.color}`, text: p.name + (p.owner ? ' ★' : '') }))),
+        h('small', { class: 'muted', text: guest ? t('collab_note_guest') : t('collab_note_owner') }),
+        h('button', { type: 'button', class: 'btn tiny danger', text: guest ? t('collab_leave') : t('collab_stop'), onclick: () => { stopCollab(); if (guest) onExit() } })]
+        : [h('p', { class: 'muted', text: t('collab_intro') }), h('button', { type: 'button', class: 'btn primary', text: t('collab_start'), onclick: () => joinCollab(genCode()) })],
+      h('button', { type: 'button', class: 'btn tiny', text: t('close'), onclick: () => collabPanel.classList.add('hidden') })].flat(Infinity).filter(Boolean))
+  }
+  const toggleCollab = () => { paintCollabPanel(); collabPanel.classList.toggle('hidden') }
+  g.append(peerBadge, collabPanel)
   // ---------- componentes reutilizables (piezas y scripts guardados para todos tus juegos) ----------
   const aimAt = () => { const v = new THREE.Vector3(); camera.getWorldDirection(v); const hit = pick(canvas.clientWidth / 2 + canvas.getBoundingClientRect().left, canvas.clientHeight / 2 + canvas.getBoundingClientRect().top); return hit?.place ?? [Math.round(me.pos.x + v.x * 6), Math.max(0, Math.round(me.pos.y)), Math.round(me.pos.z + v.z * 6)] }
   const repaintToolbox = () => { if (leftTabs?.cur === 'toolbox') leftTabs.paint() }
@@ -709,6 +757,6 @@ export function createStudio(ctx) {
   }
   function pointerUp() { if (!dragPart) return false; dragPart = null; refreshParts(); openPartInspector(); return true }
   refreshParts()
-  function dispose() { animator?.dispose(); for (const o of [wire, stamp, selWire, gridHelper, measureLine, ...extraWires]) scene.remove(o); helpBox.remove(); stampGeo.dispose(); stampMat.dispose(); stamp.dispose(); opts.remove(); listBox.remove(); tutEl?.remove(); clearInterval(tipTimer); g.append(bar); bar.replaceChildren(); docks.dispose(); document.getElementById('st-ctx')?.remove() }
+  function dispose() { session?.stop(); clearRemoteWires(); peerBadge.remove(); collabPanel.remove(); animator?.dispose(); for (const o of [wire, stamp, selWire, gridHelper, measureLine, ...extraWires]) scene.remove(o); helpBox.remove(); stampGeo.dispose(); stampMat.dispose(); stamp.dispose(); opts.remove(); listBox.remove(); tutEl?.remove(); clearInterval(tipTimer); g.append(bar); bar.replaceChildren(); docks.dispose(); document.getElementById('st-ctx')?.remove() }
   return { save: doSave, interact, update, keydown, pointerDown, pointerMove, pointerUp, undo, redo, setTool, setTesting, dispose, flush, get tool() { return state.tool }, get parts() { return parts } }
 }
