@@ -6,3 +6,4 @@ Devbuild: four new templates and translucent 3DS parts
 - 3DS updater: new "Test download (no install)" button that downloads and verifies the update without installing it, and a line with free RAM and SD space.
 - 3DS: adaptive draw quality keeps the frame rate steady and draws more when there is spare time.
 - 3DS: Home shows your next meetup (from the web calendar) next to the greeting.
+- 3DS: distant hills on the horizon in worlds with a floor (two layers, tinted by the world type).

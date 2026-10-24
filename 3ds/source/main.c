@@ -273,6 +273,21 @@ static void draw_outline(int bx, int by, int bz, u32 color) {
 	for (int i = 0; i < 12; i++) C2D_DrawLine(sx[E[i][0]], sy[E[i][0]], color, sx[E[i][1]], sy[E[i][1]], color, 1.6f, 0.3f);
 }
 
+// Colinas lejanas en el horizonte: dos capas con paralaje (se mueven con la camara); la lejana se funde con el cielo
+static void draw_hills(u32 col, float dist, float base_h, float amp, float seed) {
+	const int N = 28; float prev[2][2]; bool have = false; float pbx = 0, pby = 0;
+	for (int i = 0; i <= N; i++) {
+		float a = i * 6.2831853f / N, h = base_h + amp * (0.5f + 0.5f * sinf(a * 3 + seed)) * (0.65f + 0.35f * sinf(a * 7 + seed * 2)), wx = cx_ + sinf(a) * dist, wz = cz_ + cosf(a) * dist;
+		float tx_, ty_, td, bx_, by_, bd;
+		bool ok = project(wx, cy_ + h, wz, &tx_, &ty_, &td) && project(wx, cy_ - 45, wz, &bx_, &by_, &bd);
+		if (ok && have) {
+			C2D_DrawTriangle(pbx, pby, col, prev[0][0], prev[0][1], col, tx_, ty_, col, 0);
+			C2D_DrawTriangle(pbx, pby, col, tx_, ty_, col, bx_, by_, col, 0);
+			(void)prev[1];
+		}
+		have = ok; if (ok) { prev[0][0] = tx_; prev[0][1] = ty_; pbx = bx_; pby = by_; }
+	}
+}
 static int cmp_box(const void *a, const void *b) { float d = ((const Box *)b)->depth - ((const Box *)a)->depth; return d > 0 ? 1 : d < 0 ? -1 : 0; }
 
 static void do_chat(void) {
@@ -419,6 +434,11 @@ static void render_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 			u32 c = C2D_Color32(255, 255, 255, 215);
 			C2D_DrawEllipseSolid(x, y, 0, w, h, c); C2D_DrawEllipseSolid(x + w * 0.22f, y - h * 0.5f, 0, w * 0.5f, h * 0.9f, c); C2D_DrawEllipseSolid(x + w * 0.5f, y - h * 0.25f, 0, w * 0.4f, h * 0.8f, c);
 		}
+	}
+	if (!night && world.floor && world.type != 4 && world.type != 7) {                                    // colinas de fondo (no en el vacio ni en las cuevas)
+		u32 far_c = world.type == 6 ? C2D_Color32(0xE6, 0xCF, 0x9E, 255) : world.type == 8 ? C2D_Color32(0xB4, 0xC4, 0xD8, 255) : C2D_Color32(0xA6, 0xD0, 0xB4, 255);
+		u32 near_c = world.type == 6 ? C2D_Color32(0xD9, 0xB8, 0x7A, 255) : world.type == 8 ? C2D_Color32(0x9C, 0xAD, 0xC4, 255) : C2D_Color32(0x86, 0xBB, 0x93, 255);
+		draw_hills(far_c, 170, 2, 22, 1.3f); draw_hills(near_c, 110, 0, 11, 4.1f);
 	}
 	// Suelo: cuadrícula alrededor del jugador (con niebla). La plaza tiene su propio suelo de piedra a 1 bloque de altura.
 	if (world.floor) {
