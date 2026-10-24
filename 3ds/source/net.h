@@ -24,7 +24,7 @@ bool net_download(const char *url, NetSink sink, void *ud, volatile int *pct, ch
 bool net_init(void);
 void net_exit(void);
 
-typedef struct { char id[40]; char name[44]; char desc[104]; char owner_id[40]; char owner[24]; int hue, max, players, fav; char mode[8]; char world[12]; char weather[8]; char about[200]; char track[64]; int vis; int allow_build; float jump; int seed; } GameInfo;   // allow_build: -1 según el modo
+typedef struct { char id[40]; char name[44]; char desc[104]; char owner_id[40]; char owner[24]; int hue, max, players, fav; long visits; char mode[8]; char world[12]; char weather[8]; char about[200]; char track[64]; int vis; int allow_build; float jump; int seed; } GameInfo;   // allow_build: -1 según el modo
 typedef struct { char id[40]; char name[24]; unsigned int color; int online, in_game; } Person;
 #define MAX_GAMES  32
 #define MAX_PEOPLE 32
@@ -50,6 +50,9 @@ int  net_friend_request(const Session *s, const char *name);           // 0 envi
 bool net_respond_request(const Session *s, long id, bool accept);
 int  net_unread_total(const Session *s);
 int  net_favorites(const Session *s, char (*ids)[40], int max);        // ids de tus juegos favoritos; <0 error / sin cuenta
+int  net_game_visits(GameInfo *g, int n);                                 // visitas totales de cada juego (AUTH v18); <0 error
+int  net_hide_blocked(GameInfo *g, int n);                                // quita los juegos que el equipo de moderacion bloqueo; devuelve cuantos quedan
+void net_visit(const Session *s, const char *game_id);                    // cuenta una visita (necesita cuenta con email)
 int  net_toggle_favorite(const Session *s, const char *game_id);       // 1 favorito, 0 quitado, -1 error
 typedef struct { long id; int mine, edited; char text[100]; } DmMsg;
 bool net_edit_dm(const Session *s, long id, const char *text);

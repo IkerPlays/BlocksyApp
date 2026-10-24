@@ -215,7 +215,7 @@ static void refresh_all(void) {
 	static GameInfo tg[MAX_GAMES]; static Person tf[MAX_PEOPLE]; static FriendReq tr[MAX_PEOPLE];
 	int ng = net_list_games(tg, MAX_GAMES);
 	if (ng >= 0) { { int k = 0; for (int i = 0; i < ng; i++) if (tg[i].vis == 0 || !strcmp(tg[i].owner_id, W.s->user_id)) tg[k++] = tg[i]; ng = k; }       // privados y solo con enlace no salen en las listas (salvo los tuyos)
-		net_player_counts(tg, ng); { static char fid[64][40]; int nfv = net_favorites(W.s, fid, 64); for (int i = 0; i < ng; i++) { tg[i].fav = 0; for (int k = 0; k < nfv; k++) if (!strcmp(tg[i].id, fid[k])) tg[i].fav = 1; } } LightLock_Lock(&lk); memcpy(g_games, tg, sizeof(GameInfo) * ng); g_ngames = ng; LightLock_Unlock(&lk); }
+		ng = net_hide_blocked(tg, ng); net_game_visits(tg, ng); net_player_counts(tg, ng); { static char fid[64][40]; int nfv = net_favorites(W.s, fid, 64); for (int i = 0; i < ng; i++) { tg[i].fav = 0; for (int k = 0; k < nfv; k++) if (!strcmp(tg[i].id, fid[k])) tg[i].fav = 1; } } LightLock_Lock(&lk); memcpy(g_games, tg, sizeof(GameInfo) * ng); g_ngames = ng; LightLock_Unlock(&lk); }
 	else snprintf(W.msg, sizeof W.msg, "%s", net_login_error());
 	int nf = net_list_friends(W.s, tf, MAX_PEOPLE), nr = net_list_requests(W.s, tr, MAX_PEOPLE);
 	int un = net_unread_total(W.s); if (un >= 0) g_unread = un;
@@ -722,7 +722,8 @@ static void pane(const Ui *u, const Session *s) {
 		ui_thumb(PANE_X + 4, 34, 70, g->hue, 0);
 		char nm[48]; fit(nm, sizeof nm, g->name, 0.55f, 120); ui_text(PANE_X + 82, 36, 0.55f, COL_TEXT, 0, nm);
 		char by[48]; snprintf(by, sizeof by, "por %s", g->owner[0] ? g->owner : "Blocksy"); ui_text(PANE_X + 82, 58, 0.36f, COL_MUTED, 0, by);
-		char pl[32]; snprintf(pl, sizeof pl, "%d jugando", g->players); ui_text(PANE_X + 82, 74, 0.38f, g->players ? COL_GREEN : COL_MUTED, 0, pl);
+		char pl[48]; snprintf(pl, sizeof pl, "%d jugando", g->players); ui_text(PANE_X + 82, 74, 0.38f, g->players ? COL_GREEN : COL_MUTED, 0, pl);
+		if (g->visits > 0) { char vs[40]; snprintf(vs, sizeof vs, tr2("%ld visitas", "%ld visits"), g->visits); ui_text(PANE_X + 82, 90, 0.36f, COL_MUTED, 0, vs); }
 		ui_button(PANE_X + 2, 130, PANE_W - 6, 48, COL_GREEN, false, "Jugar", 0.7f);
 		ui_button(PANE_X + 2, 186, PANE_W - 6, 36, COL_PANEL2, false, "Cerrar", 0.5f);
 		return;

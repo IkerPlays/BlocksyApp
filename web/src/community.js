@@ -4,7 +4,7 @@ import { t, getLang } from './i18n.js'
 import { icon } from './icons.js'
 import * as social from './social.js'
 import * as api from './api.js'
-import { fmtTime, dayLabel } from './social-ui.js'
+import { fmtTime, dayLabel, mediaEl } from './social-ui.js'
 
 const sqlMissing = e => /could not find|does not exist|schema cache/i.test(String(e?.message))
 const noSql = () => el('div', { class: 'panel' }, el('h3', { text: t('need_sql_title') }), el('p', { class: 'muted', text: t('need_sql_v17') }))
@@ -90,4 +90,59 @@ export async function eventsPage(root, ctx) {
         run(async () => { await social.createMeetup(title.value.trim(), g.value, g.value ? g.textContent : '', d.toISOString(), clanOnly.checked); toast(t('mt_created')); again() }) } })),
     el('div', { class: 'section-s', text: t('mt_upcoming') }), el('div', { class: 'panel' }, list.length ? list.map(card) : el('div', { class: 'empty', text: t('mt_none') })),
     el('small', { class: 'muted', text: t('mt_reminder_note') }))
+}
+
+// ---------- Moderación (solo equipo: tabla staff de AUTH v18) ----------
+export async function moderationPage(root, ctx) {
+  if (!(await social.isStaff())) return ctx.go('home')
+  let tab = 'open'
+  const body = el('div'), tabs = el('div', { class: 'row-btns' })
+  const TABS = [['open', 'mod_open'], ['resolved', 'mod_done'], ['users', 'mod_users'], ['blocked', 'mod_blocked'], ['log', 'mod_log']]
+  const paintTabs = () => setKids(tabs, TABS.map(([k, l]) => el('button', { class: `chip ${tab === k ? 'on' : ''}`, text: t(l), onclick: () => { tab = k; load() } })))
+  const act = async fn => { try { await fn(); load() } catch (e) { toast(e.message) } }
+  const ban = name => { const d = prompt(t('mod_ban_days'), '7'); if (d === null) return; const r = prompt(t('mod_reason'), ''); if (r === null) return; const days = d.trim() === '' ? 0 : parseInt(d, 10); act(() => social.modBan(name, days, r)) }
+  const warn = name => { const x = prompt(t('mod_warn_text'), ''); if (x) act(() => social.modWarn(name, x)) }
+  const media = text => { const m = social.parseMedia(text); return m ? mediaEl(m) : el('div', { class: 'bubble' }, el('span', { text })) }
+  function reportCard(r) {
+    const gid = /\(([0-9a-f]{8}-[0-9a-f-]{27})\)/i.exec(r.details ?? '')?.[1]
+    return el('div', { class: 'panel mod-card' },
+      el('div', { class: 'row-btns' }, el('span', { class: 'rarity ' + (r.kind === 'message' ? 'epic' : 'rare'), text: t('mod_kind_' + r.kind) }), el('b', { text: t('rep_' + r.reason) }), el('small', { class: 'muted', text: new Date(r.created_at).toLocaleString(getLang()) })),
+      el('div', {}, el('a', { href: `/u/${encodeURIComponent(r.target)}`, text: r.target }), el('small', { class: 'muted', text: ' ' + t('mod_reported_by', { name: r.reporter }) + ' · ' + t('mod_reports_n', { n: r.reports_on_target }) }), r.banned ? el('b', { class: 'danger-txt', text: ' · ' + t('mod_is_banned') }) : null),
+      r.details ? (r.kind === 'message' ? media(r.details) : el('p', { class: 'muted', text: r.details })) : null,
+      r.note ? el('small', { class: 'muted', text: t('mod_note') + ': ' + r.note }) : null,
+      el('div', { class: 'row-btns' },
+        r.status === 'open' ? [el('button', { class: 'btn tiny', text: t('mod_dismiss'), onclick: () => act(() => social.modResolve(r.id, 'dismissed')) }), el('button', { class: 'btn tiny primary', text: t('mod_resolve'), onclick: () => { const n = prompt(t('mod_note'), ''); if (n !== null) act(() => social.modResolve(r.id, 'resolved', n)) } })]
+          : el('button', { class: 'btn tiny', text: t('mod_reopen'), onclick: () => act(() => social.modResolve(r.id, 'open')) }),
+        el('button', { class: 'btn tiny', text: t('mod_warn'), onclick: () => warn(r.target) }),
+        el('button', { class: 'btn tiny danger', text: r.banned ? t('mod_unban') : t('mod_ban'), onclick: () => (r.banned ? act(() => social.modUnban(r.target)) : ban(r.target)) }),
+        r.kind === 'message' && r.ref ? el('button', { class: 'btn tiny danger', text: t('mod_del_msg'), onclick: () => { if (confirm(t('mod_del_msg') + '?')) act(() => social.modDeleteMessage(+r.ref)) } }) : null,
+        gid ? el('button', { class: 'btn tiny danger', text: t('mod_block_game'), onclick: () => { const x = prompt(t('mod_reason'), ''); if (x !== null) act(() => social.modBlockGame(gid, x)) } }) : null))
+  }
+  async function load() {
+    paintTabs(); setKids(body, el('div', { class: 'empty', text: t('loading') }))
+    try {
+      if (tab === 'open' || tab === 'resolved') {
+        const l = await social.modReports(tab === 'open' ? 'open' : 'all'); const list = tab === 'open' ? l : l.filter(r => r.status !== 'open')
+        setKids(body, list.length ? list.map(reportCard) : el('div', { class: 'empty', text: t('mod_none') }))
+      } else if (tab === 'users') {
+        const input = el('input', { placeholder: t('mod_user_ph'), maxlength: 20 }), out = el('div')
+        const find = async () => {
+          const u = await social.modUser(input.value.trim()).catch(e => (toast(e.message), null)); if (!u) return setKids(out, el('div', { class: 'empty', text: t('mod_no_user') }))
+          setKids(out, el('div', { class: 'panel' }, el('h3', { text: u.username + (u.staff ? ' ★ ' + u.staff : '') }), el('small', { class: 'muted', text: t('mod_user_info', { d: new Date(u.created_at).toLocaleDateString(getLang()), o: u.reports_open, n: u.reports_total }) }),
+            u.ban ? el('p', { class: 'danger-txt', text: t('banned_msg', { until: u.ban.until ? new Date(u.ban.until).toLocaleDateString(getLang()) : t('banned_forever'), reason: u.ban.reason || '-' }) }) : null,
+            el('div', { class: 'row-btns' }, el('button', { class: 'btn tiny', text: t('mod_warn'), onclick: () => warn(u.username) }), u.ban ? el('button', { class: 'btn tiny', text: t('mod_unban'), onclick: async () => { await act(() => social.modUnban(u.username)) } }) : el('button', { class: 'btn tiny danger', text: t('mod_ban'), onclick: () => ban(u.username) }))))
+        }
+        input.onkeydown = e => { if (e.key === 'Enter') find() }
+        setKids(body, el('div', { class: 'row-btns' }, input, el('button', { class: 'btn primary', text: t('search'), onclick: find })), out)
+      } else if (tab === 'blocked') {
+        const l = await social.modBlocked()
+        setKids(body, el('div', { class: 'panel' }, l.length ? l.map(b => el('div', { class: 'person' }, el('div', { class: 'grow' }, el('b', { text: b.ref }), el('small', { class: 'muted', text: ' ' + b.reason })), el('button', { class: 'btn tiny', text: t('mod_unblock'), onclick: () => act(() => social.modUnblockGame(b.ref)) }))) : el('div', { class: 'empty', text: t('mod_none') })))
+      } else {
+        const l = await social.modLog()
+        setKids(body, el('div', { class: 'panel' }, l.length ? l.map(x => el('div', { class: 'person' }, el('div', { class: 'grow' }, el('b', { text: `${x.by} · ${x.action}` }), el('small', { class: 'muted', text: ` ${x.target} ${x.detail}` })), el('small', { class: 'muted', text: new Date(x.at).toLocaleString(getLang()) }))) : el('div', { class: 'empty', text: t('mod_none') })))
+      }
+    } catch (e) { setKids(body, sqlMissing(e) ? noSql() : el('p', { class: 'msg', text: e.message })) }
+  }
+  setKids(root, el('h1', { class: 'page-title', text: t('nav_mod') }), el('p', { class: 'muted', text: t('mod_intro') }), tabs, body)
+  load()
 }

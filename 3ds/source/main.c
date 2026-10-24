@@ -76,6 +76,7 @@ static void net_thread(void *arg) {
 	(void)arg;
 	u64 last_blocks = 0, last_presence = 0, last_chat = 0, last_token = osGetTime(), last_alerts = 0; long alert_id = -1; int alert_un = -1;
 	long chat_last = -1;
+	net_visit(&sess, net_game());
 	if (world.has_fin) { TopTime tt[5]; int tn = net_best_times(tt, 5); if (tn >= 0) { LightLock_Lock(&lock); memcpy(g_top, tt, sizeof tt); g_ntop = tn; LightLock_Unlock(&lock); } }
 	while (running) {
 		u64 now = osGetTime();

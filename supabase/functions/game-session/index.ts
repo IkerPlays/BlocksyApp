@@ -28,6 +28,10 @@ Deno.serve(async (req) => {
     if (!u.ok) return json({ error: 'invalid auth token' }, 401)
     const user = await u.json()
 
+    // Baneados (AUTH v18): sin sesión no se puede jugar ni escribir. Si la función my_ban aún no existe, se ignora.
+    const b = await fetch(`${authUrl}/rest/v1/rpc/my_ban`, { method: 'POST', headers: { ...headers, 'Content-Type': 'application/json' }, body: '{}' })
+    if (b.ok) { const ban = await b.json(); if (ban) return json({ error: 'banned', until: ban.until ?? null, reason: ban.reason ?? '' }, 403) }
+
     const creators = (Deno.env.get('CREATOR_EMAILS') ?? DEFAULT_CREATORS).toLowerCase().split(',').map((e) => e.trim()).filter(Boolean)
     const canCreate = typeof user.email === 'string' && creators.includes(user.email.toLowerCase())
 

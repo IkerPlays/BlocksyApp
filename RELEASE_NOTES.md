@@ -1,5 +1,6 @@
-Devbuild 64: clans, meetups, and image or voice messages
-- Clan page: create or join a clan (up to 30 members, one clan per person) with its own live chat, a list of shared games with Play buttons, and kick or leave options.
-- Meetups page: schedule a game at a date and time (public or clan only), say you are going, and get a reminder 10 minutes before and when it starts (while Blocksy is open).
-- Private chats can now send images and voice notes (up to 60 seconds). Files are stored in a private bucket and only the two people in the chat can open them.
-- Needs supabase/auth/v17.sql on the AUTH project. Without it the new pages explain what is missing and chat keeps working with text.
+Devbuild 65: moderation panel and visit counter
+- New Moderation page (only for staff accounts): review open reports, dismiss or resolve them, warn a user, suspend or unsuspend accounts for N days or forever, block a reported game, delete a reported private message, look up a user, and see a log of every action. Staff can open the images and voice notes of messages that were reported.
+- Suspensions are enforced on the server: a suspended account cannot send messages, clan chat, friend requests, meetups or create clans, and (with the updated game-session function) cannot open a game session. Blocked games disappear from lists on the web and on the 3DS.
+- Private messages now have a report button on received messages.
+- Every game now shows its total visits (web game page and card, and the 3DS game card). A visit is one entry into a game; the same person counts once every 10 minutes. The 3DS counts its own visits when logged in with email.
+- Needs supabase/auth/v18.sql, then make yourself admin with the insert shown at the top of the file, and redeploy the game-session Edge Function on GAME and STORE.

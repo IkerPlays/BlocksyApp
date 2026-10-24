@@ -668,6 +668,24 @@ int net_favorites(const Session *s, char (*ids)[40], int max) {
 	while (n < max && (p = strchr(p, '"'))) { const char *e = strchr(p + 1, '"'); if (!e) break; size_t l = (size_t)(e - p - 1); if (l > 0 && l < 40) { memcpy(ids[n], p + 1, l); ids[n][l] = 0; n++; } p = e + 1; }
 	free(r); return n;
 }
+int net_game_visits(GameInfo *g, int n) {
+	char *r = http(M_POST, AUTH_URL "/rest/v1/rpc/game_visit_counts", AUTH_ANON_KEY, NULL, "{}", NULL);
+	if (!r) return -1;
+	for (int i = 0; i < n; i++) { char key[56]; snprintf(key, sizeof key, "\"%s\":", g[i].id); const char *p = strstr(r, key); g[i].visits = p ? atol(p + strlen(key)) : 0; }
+	free(r); return 0;
+}
+int net_hide_blocked(GameInfo *g, int n) {
+	char *r = http(M_POST, AUTH_URL "/rest/v1/rpc/blocked_content", AUTH_ANON_KEY, NULL, "{}", NULL);
+	if (!r) return n;
+	int k = 0;
+	for (int i = 0; i < n; i++) { char key[56]; snprintf(key, sizeof key, "\"%s\"", g[i].id); if (!strstr(r, key)) g[k++] = g[i]; }
+	free(r); return k;
+}
+void net_visit(const Session *s, const char *game_id) {
+	if (!s->token[0] || !game_id || !game_id[0]) return;
+	char body[100]; snprintf(body, sizeof body, "{\"p_game\":\"%s\"}", game_id);
+	char *r = http(M_POST, AUTH_URL "/rest/v1/rpc/game_visit", AUTH_ANON_KEY, s->token, body, NULL); free(r);
+}
 int net_toggle_favorite(const Session *s, const char *game_id) {
 	if (!s->token[0]) return -1;
 	char body[100]; snprintf(body, sizeof body, "{\"p_game\":\"%s\"}", game_id);

@@ -533,3 +533,4 @@ pre.notes { white-space: pre-wrap; font-family: inherit; font-size: 14px; color:
 .dm-img { max-width:240px; max-height:260px; border-radius:10px; cursor:zoom-in; display:block; } .dm-voice { max-width:220px; height:36px; } .dm-voice-box { display:flex; flex-direction:column; gap:4px; }
 .dm-form .btn.rec { background:var(--red,#e74c3c); color:#fff; }
 .meetup .chk { margin:6px 0; gap:8px; }
+.mod-card { display:flex; flex-direction:column; gap:8px; } .danger-txt { color:var(--red,#e74c3c); }

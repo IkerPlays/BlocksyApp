@@ -1,4 +1,5 @@
 // Acceso al proyecto GAME. Las escrituras exigen un secret de sesión emitido por la Edge Function.
+import { t } from './i18n.js'
 import { authDb, gameDb, GAME_URL, GAME_KEY, storeDb, STORE_URL, STORE_KEY, HAS_STORE } from './supabase.js'
 
 let session = null // { secret, player_id, username, color }
@@ -24,6 +25,8 @@ const FB_KEY = 'blocksy.fbGames'     // juegos creados en GAME mientras STORE no
 const fbIds = () => { try { return JSON.parse(localStorage.getItem(FB_KEY) || '[]') } catch { return [] } }
 const addFb = id => { try { localStorage.setItem(FB_KEY, JSON.stringify([...new Set([...fbIds(), id])])) } catch {} }
 
+
+const banText = j => t('banned_msg', { until: j.until ? new Date(j.until).toLocaleDateString() : t('banned_forever'), reason: j.reason || '-' })
 export async function openGameSession() {
   const { data: { session: s } } = await authDb.auth.getSession()
   if (!s) throw new Error('No hay sesión')
@@ -34,6 +37,7 @@ export async function openGameSession() {
     body: JSON.stringify({ token: s.access_token }),
   }).catch(e => { throw new Error(isNet(e) ? 'No se pudo conectar con el servidor GAME (¿proyecto pausado o función game-session sin desplegar?)' : e.message) })
   const j = await r.json().catch(() => ({}))
+  if (r.status === 403 && j.error === 'banned') throw new Error(banText(j))
   if (!r.ok) throw new Error(`No se pudo abrir la sesión de juego (${r.status}): ${j.error || j.message || j.msg || 'sin detalle'}`)
   session = j
   return session
@@ -50,6 +54,7 @@ export async function openStoreSession() {
     body: JSON.stringify({ token: s.access_token }),
   }).catch(e => { throw new Error(isNet(e) ? 'La función game-session de STORE no responde: despliégala en STORE con Verify JWT desactivado (supabase/README.md, paso 3)' : e.message) })
   const j = await r.json().catch(() => ({}))
+  if (r.status === 403 && j.error === 'banned') throw new Error(banText(j))
   if (!r.ok) throw new Error(`No se pudo abrir la sesión de la tienda (${r.status}): ${j.error || j.message || 'sin detalle'}`)
   return (storeSession = j)
 }
@@ -156,6 +161,7 @@ export async function getGame(id, { forCollab = false } = {}) {
   let g = null
   if (await storeReadOk()) { const { data } = await storeDb.from('games').select('*').eq('id', id).maybeSingle(); g = data }
   if (!g) { const { data } = await gameDb.from('games').select('*').eq('id', id).maybeSingle(); g = data }
+  if (g && (await blockedGames()).has(g.id) && g.owner_id !== (await myId())) return null          // contenido bloqueado por el equipo de moderación
   if (g && !forCollab && visOfG(g) === 'private' && g.owner_id !== (await myId())) return null          // un juego privado solo lo abre su dueño
   return g
 }
@@ -163,7 +169,9 @@ export async function getGame(id, { forCollab = false } = {}) {
 let myIdCache = null
 const myId = async () => myIdCache ?? (myIdCache = (await authDb.auth.getSession()).data.session?.user?.id ?? null)
 const visOfG = g => g?.config?.visibility ?? (g?.config?.draft ? 'private' : 'public')
-const visibleGames = async list => { const me = await myId(); return list.filter(g => g.owner_id === me || visOfG(g) === 'public') }       // privados y solo con enlace: fuera de las listas
+let blockedSet = null
+export async function blockedGames() { if (!blockedSet) blockedSet = new Set((await authDb.rpc('blocked_content').then(r => r.data ?? [], () => [])).map(String)); return blockedSet }
+const visibleGames = async list => { const me = await myId(), bl = await blockedGames(); return list.filter(g => !bl.has(g.id) && (g.owner_id === me || visOfG(g) === 'public')) }       // privados y solo con enlace: fuera de las listas
 export async function listGames() { return visibleGames(await listGamesAll()) }
 async function listGamesAll() {
   if (!(await storeReadOk())) { const { data } = await gameDb.from('games').select('*').order('created_at'); return data ?? [] }

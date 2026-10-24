@@ -123,7 +123,7 @@ function play(game, opts = {}) {
     const code = String(opts.room).toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 12)
     return api.joinRoom(game.id, code).then(id => play({ ...game, id, parentId: game.id, name: `${game.name} · ${code}` }, { ...opts, room: null }), e => toast(e.message))
   }
-  closeModal(); currentGame = game; if (!opts.studio) setLastPlayed(game.id)
+  closeModal(); currentGame = game; if (!opts.studio) { setLastPlayed(game.id); social.visitGame(game.parentId ?? game.id) }
   auth.startPresence(() => currentGame?.id)
   showScreen('game')
   // lienzo nuevo en cada partida: reutilizar el de otro juego con un contexto WebGL ya usado puede dejar la pantalla en negro

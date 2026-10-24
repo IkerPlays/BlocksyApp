@@ -223,3 +223,22 @@ export function startMeetupReminders(fire) {
   return () => clearInterval(timer)
 }
 export const removeMedia = path => authDb.storage.from(MEDIA_BUCKET).remove([path]).catch(() => {})
+
+// ---------- Moderación (AUTH v18) y visitas ----------
+let staffRole
+export const isStaff = async () => { if (staffRole === undefined) staffRole = await rpc('is_staff').catch(() => null); return staffRole }
+export const reportMessage = (id, reason) => rpc('report_message', { p_id: id, p_reason: reason })
+export const modReports = (status = 'open') => rpc('mod_reports', { p_status: status, p_limit: 80 }).then(r => r ?? [])
+export const modResolve = (id, status, note = '') => rpc('mod_resolve', { p_id: id, p_status: status, p_note: note })
+export const modBan = (name, days, reason) => rpc('mod_ban', { p_username: name, p_days: days, p_reason: reason })
+export const modUnban = name => rpc('mod_unban', { p_username: name })
+export const modWarn = (name, text) => rpc('mod_warn', { p_username: name, p_text: text })
+export const modUser = name => rpc('mod_user', { p_username: name })
+export const modDeleteMessage = id => rpc('mod_delete_message', { p_id: id })
+export const modBlockGame = (id, reason = '') => rpc('mod_block_content', { p_kind: 'game', p_ref: id, p_reason: reason })
+export const modUnblockGame = id => rpc('mod_unblock_content', { p_kind: 'game', p_ref: id })
+export const modLog = () => rpc('mod_log_list').then(r => r ?? [])
+export const modBlocked = () => rpc('mod_blocked_list').then(r => r ?? [])
+let visits = null
+export async function gameVisits(force = false) { if (!visits || force) visits = await authDb.rpc('game_visit_counts').then(r => r.data ?? {}, () => ({})); return visits }
+export const visitGame = id => rpc('game_visit', { p_game: id }).then(n => { if (visits) visits[id] = Number(n); return n }, () => 0)

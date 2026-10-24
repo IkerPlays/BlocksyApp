@@ -160,7 +160,7 @@ export function openGameModal(g, counts, onPlay) {
       el('div', { class: 'stats' },
         el('div', {}, el('b', { text: String(n) }), el('small', { text: t('playing_n', { n: '' }).trim() })),
         el('div', {}, el('b', { text: String(g.max_players) }), el('small', { text: t('max_players') })),
-        el('div', {}, el('b', { text: 'Web + 3DS' }), el('small', { text: t('platforms') }))),
+        el('div', {}, el('b', { text: 'Web + 3DS' }), el('small', { text: t('platforms') })), visitsStat(g.id)),
       el('p', { text: g.description || t('no_desc') }),
       (() => { const s = gameStat(g.id); return s.visits ? el('small', { class: 'muted', text: t('my_game_stats', { n: s.visits, m: Math.round(s.secs / 60) }) }) : null })(),
       el('button', { class: 'btn primary wide', text: t('play'), onclick: () => { closeModal(); onPlay(g) } }),
@@ -181,12 +181,18 @@ let refreshTimer = null
 const every = (fn, ms) => { clearInterval(refreshTimer); refreshTimer = setInterval(() => { if (!document.hidden) fn() }, ms) }
 export const stopPageTimers = () => clearInterval(refreshTimer)
 
-function openReport(name, extra = '') {
+// Visitas totales del juego (se rellena al llegar el dato; si falta el SQL v18 el bloque se oculta)
+function visitsStat(id) {
+  const b = el('b', { text: '·' }), box = el('div', { class: 'hidden' }, b, el('small', { text: t('visits') }))
+  social.gameVisits().then(v => { if (v[id] != null) { b.textContent = Number(v[id]).toLocaleString(getLang()); box.classList.remove('hidden') } })
+  return box
+}
+function openReport(name, extra = '', msgId = null) {
   const reasons = ['spam', 'abuse', 'cheating', 'inappropriate', 'other']
   const sel = el('select', {}, reasons.map(r => el('option', { value: r, text: t('rep_' + r) })))
   const det = el('textarea', { class: 'bio-edit', rows: 3, maxlength: 300, placeholder: t('rep_details') })
   setKids($('modal-card'), el('div', { class: 'detail-col' }, el('h2', { text: t('report') + ': ' + name }), el('label', { class: 'field' }, t('rep_reason'), sel), det,
-    el('div', { class: 'form-row' }, el('button', { class: 'btn danger', text: t('report'), onclick: async () => { try { await social.reportUser(name, sel.value, (extra ? extra + ' | ' : '') + det.value); toast(t('rep_sent')); closeModal() } catch (e) { toast(e.message) } } }), el('button', { class: 'btn', text: t('cancel'), onclick: closeModal }))))
+    el('div', { class: 'form-row' }, el('button', { class: 'btn danger', text: t('report'), onclick: async () => { try { if (msgId) await social.reportMessage(msgId, sel.value); else await social.reportUser(name, sel.value, (extra ? extra + ' | ' : '') + det.value); toast(t('rep_sent')); closeModal() } catch (e) { toast(e.message) } } }), el('button', { class: 'btn', text: t('cancel'), onclick: closeModal }))))
   $('modal').classList.remove('hidden')
 }
 export { openReport }
@@ -283,7 +289,7 @@ export const pages = {
           el('small', { class: 'muted' }, t('ge_by_owner', { name: '' }), el('a', { href: `/u/${encodeURIComponent(g.owner_name || 'Blocksy')}`, text: g.owner_name || 'Blocksy' }), ` · ${modeLabel(g.mode)}`),
           mine && vis !== 'public' ? el('div', { class: 'rarity common', style: 'width:fit-content;margin-top:6px', text: t(vis === 'private' ? 'ge_private_badge' : 'ge_unlisted_badge') }) : null),
         el('button', { class: 'btn primary big', html: icon('play', 18) + ' ' + t('play'), onclick: () => ctx.play(g) })),
-      el('div', { class: 'gp-stats' }, el('div', {}, el('b', { text: String(n) }), el('small', { text: t('playing_n', { n: '' }).trim() })), el('div', {}, el('b', { text: String(g.max_players) }), el('small', { text: t('max_players') })), el('div', {}, el('b', { text: 'Web + 3DS' }), el('small', { text: t('platforms') }))),
+      el('div', { class: 'gp-stats' }, el('div', {}, el('b', { text: String(n) }), el('small', { text: t('playing_n', { n: '' }).trim() })), el('div', {}, el('b', { text: String(g.max_players) }), el('small', { text: t('max_players') })), el('div', {}, el('b', { text: 'Web + 3DS' }), el('small', { text: t('platforms') })), visitsStat(g.id)),
       el('div', { class: 'gp-cols' },
         el('div', { class: 'gp-main' },
           el('h2', { text: t('ge_about_title') }), el('p', { class: 'gp-about', text: c.about || g.description || t('no_desc') }),
@@ -605,6 +611,7 @@ export const pages = {
   },
 
   async clan(root, ctx) { setKids(root, pageSkel()); return (await import('./community.js')).clanPage(root, ctx) },
+  async moderation(root, ctx) { setKids(root, pageSkel()); return (await import('./community.js')).moderationPage(root, ctx) },
   async events(root, ctx) { setKids(root, pageSkel()); return (await import('./community.js')).eventsPage(root, ctx) },
 
   // Amigos: se añaden por nombre exacto + solicitud que el otro debe aceptar. Chat, invitar y unirse.

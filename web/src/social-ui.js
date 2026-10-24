@@ -6,7 +6,7 @@ import { t, onLang, getLang } from './i18n.js'
 import { icon } from './icons.js'
 import { settings, saveSettings } from './settings.js'
 import { sfx } from './sfx.js'
-import { el, setKids, toast, avatarEl, closeModal } from './pages.js'
+import { el, setKids, toast, avatarEl, closeModal, openReport } from './pages.js'
 import { attachEmoticons } from './party-ui.js'
 
 const $ = id => document.getElementById(id)
@@ -18,7 +18,7 @@ export const fmtTime = iso => new Date(iso).toLocaleTimeString(getLang(), { hour
 let openedChat = null     // { friendId, add(msg) } mientras la ventana está abierta
 const mediaPreview = b => { const m = social.parseMedia(b); return m ? (m.kind === 'img' ? '📷 ' + t('attach_image') : '🎤 ' + t('voice_rec')) : b }
 // imagen o nota de voz dentro de un mensaje (la URL firmada se pide al pintar)
-function mediaEl(md) {
+export function mediaEl(md) {
   if (md.kind === 'img') {
     const img = el('img', { class: 'dm-img', alt: '', loading: 'lazy' }); social.mediaUrl(md.path).then(u => { img.src = u; img.onclick = e => { e.stopPropagation(); window.open(u, '_blank', 'noopener') } }, () => img.replaceWith(el('span', { text: t('media_gone') })))
     return img
@@ -56,8 +56,9 @@ export function openChat(ctx, friend) {
         isMedia ? null : el('button', { class: 'btn', html: icon('edit', 14), title: t('edit'), onclick: e => { e.stopPropagation(); editing = m.id; refresh(true) } }),
         el('button', { class: 'btn danger', html: icon('trash', 14), title: t('delete'), onclick: async e => { e.stopPropagation(); if (confirm(t('msg_confirm_delete'))) { try { await social.deleteMessage(m.id); const md = social.parseMedia(m.body); if (md) social.removeMedia(md.path) } catch (er) { toast(er.message) } refresh(true) } } })) : null
       const media = social.parseMedia(m.body)
+      const flag = !mine ? el('div', { class: 'dm-actions show' }, el('button', { class: 'btn tiny', html: icon('flag', 14), title: t('report'), onclick: e => { e.stopPropagation(); openReport(friend.username, '', m.id) } })) : null
       return el('div', { class: `dm ${mine ? 'mine' : ''}`, onclick: () => { if (mine) { selected = selected === m.id ? null : m.id; refresh(true) } } },
-        el('div', { class: 'bubble' }, media ? mediaEl(media) : el('span', { text: m.body }), el('small', { text: (m.edited_at ? t('msg_edited') + ' · ' : '') + fmtTime(m.created_at) })), acts)
+        el('div', { class: 'bubble' }, media ? mediaEl(media) : el('span', { text: m.body }), el('small', { text: (m.edited_at ? t('msg_edited') + ' · ' : '') + fmtTime(m.created_at) })), acts ?? flag)
     }
     if (atBottom) list.scrollTop = list.scrollHeight
   }
@@ -129,6 +130,7 @@ export async function openInvite(ctx, game) {
 // ---------- notificaciones ----------
 const text = n => n.kind === 'friend_request' ? t('n_friend_request', { name: n.from_name })
   : n.kind === 'friend_accept' ? t('n_friend_accept', { name: n.from_name })
+  : n.kind === 'warning' ? t('n_warning', { text: n.payload?.text ?? '' })
   : n.kind === 'invite' ? t('n_invite', { name: n.from_name, game: n.payload?.game_name ?? '' }) : n.kind
 let unread = 0, badges = { notif: 0, msgs: 0 }
 
