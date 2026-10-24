@@ -184,7 +184,7 @@ static volatile int g_account = 1;   // 0 = sesión por QR (sin token de Auth): 
 // ---------- actualizaciones (hilo de red) ----------
 static UpdateInfo g_upd; static volatile int g_upd_have;      // g_upd_have: ya se consultó GitHub
 static volatile int g_upd_state;                              // 0 reposo, 1 buscando, 2 descargando, 3 instalada, 4 error
-static UpdateProgress g_prog; static char g_upd_msg[100]; static int g_upd_log;   // g_upd_log: la pantalla superior muestra los cambios
+static UpdateProgress g_prog; static char g_upd_msg[100]; static int g_upd_log; static volatile int g_upd_dry;   // g_upd_log: la pantalla superior muestra los cambios
 #define g_upd_pct g_prog.pct
 static volatile int g_upd_auto;                               // 1 = instalar la estable nueva sola (una vez por sesion, como Iker's Tube)
 static volatile int g_upd_announce;                           // 1 = avisar con un toast de que hay versión nueva
@@ -258,9 +258,14 @@ static void upd_check_job(bool announce) {
 	W.seq++;
 }
 static void upd_install_job(int which) {
-	Rel r; LightLock_Lock(&lk); r = which ? g_upd.dev : g_upd.stable; LightLock_Unlock(&lk);
+	Rel r; LightLock_Lock(&lk); r = which == 1 ? g_upd.dev : which == 2 ? (g_upd.stable.valid ? g_upd.stable : g_upd.dev) : g_upd.stable; LightLock_Unlock(&lk);
 	if (!r.valid) { snprintf(g_upd_msg, sizeof g_upd_msg, "No hay version publicada de ese tipo"); g_upd_state = 4; return; }
-	char err[100] = ""; g_upd_state = 2; g_upd_pct = 0; g_upd_msg[0] = 0;
+	char err[100] = ""; g_upd_state = 2; g_upd_pct = 0; g_upd_msg[0] = 0; g_upd_dry = which == 2;
+	if (which == 2) {                                                          // prueba de descarga: no instala nada
+		bool dok = update_dry_run(&r, &g_prog, err, sizeof err);
+		if (dok) snprintf(g_upd_msg, sizeof g_upd_msg, "%s", tr2("Descarga correcta y verificada (nada instalado)", "Download OK and verified (nothing installed)")); else snprintf(g_upd_msg, sizeof g_upd_msg, "%s", err);
+		g_upd_state = dok ? 3 : 4; g_upd_dry = 1; return;
+	}
 	bool ok = update_install(&r, &g_prog, err, sizeof err);
 	if (ok) update_mark_installed(r.tag);
 	if (ok) snprintf(g_upd_msg, sizeof g_upd_msg, update_is_cia() ? tr2("Instalada. Reiniciando Blocksy...", "Installed. Restarting Blocksy...") : tr2("Actualizada. Vuelve a abrirla desde el Homebrew Launcher", "Updated. Open it again from the Homebrew Launcher"));
@@ -417,7 +422,7 @@ static int build_people(const Session *s, PRow *rows) {
 	return n;
 }
 
-static int row_h(int page) { return page == P_FRIENDS || page == P_SETTINGS || page == P_NOTIF || page == P_SHOP ? 36 : page == P_UPDATE ? 40 : 42; }
+static int row_h(int page) { return page == P_FRIENDS || page == P_SETTINGS || page == P_NOTIF || page == P_SHOP ? 36 : page == P_UPDATE ? (update_can_rollback() ? 34 : 40) : 42; }
 enum { PANE_X = 108, PANE_W = 208, LIST_Y = 30, LIST_BOTTOM = 232 };
 static int rows_visible(int page) { return (LIST_BOTTOM - LIST_Y) / row_h(page); }
 
@@ -429,7 +434,7 @@ static int count_rows(const Ui *u, const Session *s) {
 	case P_SETTINGS: return 14;
 	case P_NOTIF: return nnotifs + 1;
 	case P_SHOP: return nshop + 1;
-	case P_UPDATE: return update_can_rollback() ? 5 : 4;
+	case P_UPDATE: return update_can_rollback() ? 6 : 5;
 	}
 	return 0;
 }
@@ -647,6 +652,7 @@ static void page_top(const Ui *u, const Session *s) {
 			if (i == 0) ui_rect(26, y + 26, 348, 1, COL_LINE);
 		}
 		ui_rect(26, 172, 348, 1, COL_LINE);
+		{ static char dg_[64]; static u64 dg_t; u64 nw_ = osGetTime(); if (!dg_[0] || nw_ - dg_t > 2500) { update_diag(dg_, sizeof dg_); dg_t = nw_; } ui_text(200, 227, 0.3f, COL_MUTED, C2D_AlignCenter, dg_); }
 		if (g_upd_state == 2) {
 			static const char *const st[] = {"", "Preparando...", "Descargando", "Comprobando...", "Instalando...", "Listo"};
 			int sg = g_prog.stage; char p[96]; unsigned dn = g_prog.done, tt = g_prog.total, bps = g_prog.bps;
@@ -845,7 +851,8 @@ static void pane(const Ui *u, const Session *s) {
 		ui_button(PANE_X, LIST_Y + 2 + rh, PANE_W - 4, rh - 6, g_upd.stable.valid && !busy && g_upd.stable.cmp > 0 ? COL_GREEN : COL_PANEL2, u->cur == 1, f2, 0.44f);
 		ui_button(PANE_X, LIST_Y + 2 + 2 * rh, PANE_W - 4, rh - 6, g_upd.dev.valid && !busy && g_upd.dev.cmp > 0 ? COL_GREEN : COL_PANEL2, u->cur == 2, f3, 0.44f);
 		ui_button(PANE_X, LIST_Y + 2 + 3 * rh, PANE_W - 4, rh - 6, COL_PANEL2, u->cur == 3, g_upd_log ? "Ocultar cambios" : "Ver cambios", 0.44f);
-		if (update_can_rollback()) ui_button(PANE_X, LIST_Y + 2 + 4 * rh, PANE_W - 4, rh - 6, COL_PANEL2, u->cur == 4, "Volver a la version anterior", 0.44f);
+		ui_button(PANE_X, LIST_Y + 2 + 4 * rh, PANE_W - 4, rh - 6, COL_PANEL2, u->cur == 4, tr2("Probar descarga (sin instalar)", "Test download (no install)"), 0.44f);
+		if (update_can_rollback()) ui_button(PANE_X, LIST_Y + 2 + 5 * rh, PANE_W - 4, rh - 6, COL_PANEL2, u->cur == 5, "Volver a la version anterior", 0.44f);
 		break; }
 	case P_SETTINGS: {
 		const char *dn[3] = {tr2("Corta", "Short"), tr2("Media", "Medium"), tr2("Larga", "Long")};
@@ -986,7 +993,7 @@ AppResult app_lobby(C3D_RenderTarget *top, C3D_RenderTarget *bot, Session *s, Ga
 		if (u.dm >= 0 && g_dm_seq != u.seen_dm) { u.seen_dm = g_dm_seq; sync_data(); if (u.dm_sel >= ndm) u.dm_sel = -1; }
 		if (g_alert_seq != u.seen_alert) { u.seen_alert = g_alert_seq; toast(&u, g_alert); }
 		// actualización instalada: reinicia la app sola (solo .cia; con .3dsx hay que volver a abrirla desde el Homebrew Launcher)
-		if (g_upd_state == 3 && update_is_cia() && !u.pending_restart) { u.pending_restart = (int)(osGetTime() & 0x7FFFFFFF) | 1; u.restart_t = osGetTime(); }
+		if (g_upd_state == 3 && !g_upd_dry && update_is_cia() && !u.pending_restart) { u.pending_restart = (int)(osGetTime() & 0x7FFFFFFF) | 1; u.restart_t = osGetTime(); }
 		if (u.pending_restart && osGetTime() - u.restart_t > 2200) { res = APP_RESTART; break; }
 
 		int vis = rows_visible(u.page), total = count_rows(&u, s), act_row = -1; bool tap_btn = false, do_back = false;
@@ -1146,7 +1153,8 @@ AppResult app_lobby(C3D_RenderTarget *top, C3D_RenderTarget *bot, Session *s, Ga
 			case P_UPDATE:
 				if (act_row == 0) request(RQ_UPD_CHECK, NULL, NULL, 0);
 				else if (act_row == 3) g_upd_log = !g_upd_log;
-				else if (act_row == 4) { char e_[80] = ""; if (g_upd_state == 2) toast(&u, tr2("Ya se esta descargando", "Already downloading")); else if (update_rollback(e_, sizeof e_)) { snprintf(g_upd_msg, sizeof g_upd_msg, "%s", tr2("Version anterior restaurada. Abre Blocksy de nuevo", "Previous version restored. Open Blocksy again")); g_upd_state = 3; } else toast(&u, e_); }
+				else if (act_row == 4) { if (g_upd_state == 2) toast(&u, tr2("Ya se esta descargando", "Already downloading")); else if (!g_upd.stable.valid && !g_upd.dev.valid) toast(&u, tr2("Busca actualizaciones primero", "Check for updates first")); else { g_upd_dry = 0; request(RQ_UPD_INSTALL, NULL, NULL, 2); } }
+				else if (act_row == 5) { char e_[80] = ""; if (g_upd_state == 2) toast(&u, tr2("Ya se esta descargando", "Already downloading")); else if (update_rollback(e_, sizeof e_)) { snprintf(g_upd_msg, sizeof g_upd_msg, "%s", tr2("Version anterior restaurada. Abre Blocksy de nuevo", "Previous version restored. Open Blocksy again")); g_upd_state = 3; } else toast(&u, e_); }
 				else if (g_upd_state == 2) toast(&u, tr2("Ya se esta descargando", "Already downloading"));
 				else if (act_row == 1) { if (!g_upd.stable.valid) toast(&u, tr2("No hay version estable publicada", "No stable release yet")); else if (g_upd.stable.cmp <= 0) toast(&u, tr2("Ya tienes esta version (o una mas nueva)", "You already have this version or newer")); else request(RQ_UPD_INSTALL, NULL, NULL, 0); }
 				else if (act_row == 2) { if (!g_upd.dev.valid) toast(&u, tr2("No hay devbuild publicada", "No devbuild yet")); else if (g_upd.dev.cmp <= 0) toast(&u, tr2("Ya tienes esta version (o una mas nueva)", "You already have this version or newer")); else request(RQ_UPD_INSTALL, NULL, NULL, 1); }

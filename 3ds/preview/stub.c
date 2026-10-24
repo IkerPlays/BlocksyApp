@@ -52,3 +52,5 @@ void audio_exit(void) {}
 bool audio_available(void) { return true; }
 void audio_game(bool on, const char *track) {}
 bool audio_take_note(char *out, size_t n) { return false; }
+bool update_dry_run(const Rel *r, UpdateProgress *prog, char *err, size_t en) { return true; }
+void update_diag(char *out, size_t n) { snprintf(out, n, "RAM libre 38 MB, SD libre 5200 MB"); }

@@ -35,6 +35,8 @@ void update_init(const char *version, const char *argv0);      // version instal
 bool update_is_cia(void);                                       // true: instalado como .cia (false: .3dsx desde el Homebrew Launcher)
 bool update_check(UpdateInfo *out, char *err, size_t en);       // consulta GitHub (API y, si falla, el feed Atom)
 bool update_install(const Rel *r, UpdateProgress *prog, char *err, size_t en);   // descarga, verifica e instala; true = hecho
+bool update_dry_run(const Rel *r, UpdateProgress *prog, char *err, size_t en);   // descarga y verifica la version SIN instalarla (para probar la red, la RAM y el SHA-256)
+void update_diag(char *out, size_t n);                          // "RAM libre ... MB, SD libre ... MB"
 void update_mark_installed(const char *tag);                    // tras instalar: esa version ya no se ofrece antes de reiniciar
 void update_restart(void);                                      // pide a la consola que abra de nuevo Blocksy al salir (solo .cia)
 bool update_can_rollback(void);                                 // .3dsx: hay una copia de la version anterior (.bak)

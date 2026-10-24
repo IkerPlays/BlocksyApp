@@ -71,7 +71,7 @@ bool update_check(UpdateInfo *out, char *err, size_t en) {
 #define BLOCK (128 * 1024)
 typedef struct {
 	bool is_cia; Handle am; FILE *f; u8 *buf; size_t fill; unsigned long long total, off;   // total: bytes recibidos; off: bytes ya escritos
-	Sha256 sha; Result rc; bool bad_magic, checked, write_fail; UpdateProgress *prog; unsigned expect;
+	Sha256 sha; Result rc; bool bad_magic, checked, write_fail, dry; UpdateProgress *prog; unsigned expect;
 	u64 t_mark; unsigned long long b_mark;                               // para la velocidad
 } Job;
 
@@ -89,7 +89,8 @@ static bool magic_ok(const Job *j) {
 static bool flush_block(Job *j) {
 	if (!j->fill) return true;
 	if (!j->checked) { j->checked = true; if (!magic_ok(j)) { j->bad_magic = true; return false; } }
-	if (j->is_cia) {
+	if (j->dry) { /* prueba: no se escribe nada */ }
+	else if (j->is_cia) {
 		u32 w = 0; j->rc = FSFILE_Write(j->am, &w, j->off, j->buf, (u32)j->fill, FS_WRITE_FLUSH);
 		if (R_FAILED(j->rc) || w != j->fill) { if (!R_FAILED(j->rc)) j->rc = (Result)0xFFFF0000u | (w & 0xFFFF); j->write_fail = true; return false; }
 	} else if (fwrite(j->buf, 1, j->fill, j->f) != j->fill) { j->rc = (Result)0xFFFF0001u; j->write_fail = true; return false; }
@@ -130,6 +131,7 @@ static u64 sd_free(void) {
 // Abre (o reabre) el destino de la descarga. Para .cia: una sesion de instalacion de AM. Para .3dsx: el fichero .new.
 static bool job_open(Job *j, const char *tmp_path, bool overwrite, char *err, size_t en) {
 	j->fill = 0; j->total = j->off = 0; j->checked = j->bad_magic = j->write_fail = false; j->rc = 0; sha256_init(&j->sha);
+	if (j->dry) return true;
 	if (j->is_cia) {
 		AM_DeletePendingTitle(MEDIATYPE_SD, OUR_TITLE_ID);                  // restos de un intento anterior interrumpido (si no, "ya existe")
 		Result rc = overwrite ? AM_StartCiaInstallOverwrite(&j->am, MEDIATYPE_SD) : AM_StartCiaInstall(MEDIATYPE_SD, &j->am);
@@ -141,6 +143,7 @@ static bool job_open(Job *j, const char *tmp_path, bool overwrite, char *err, si
 	return true;
 }
 static void job_abort(Job *j, const char *tmp_path) {
+	if (j->dry) return;
 	if (j->is_cia) { AM_CancelCIAInstall(j->am); AM_DeletePendingTitle(MEDIATYPE_SD, OUR_TITLE_ID); }
 	else { if (j->f) { fclose(j->f); j->f = NULL; } remove(tmp_path); }
 }
@@ -225,6 +228,28 @@ bool update_install(const Rel *r, UpdateProgress *prog, char *err, size_t en) {
 	audio_hold(false);
 	prog->stage = ok ? UPD_DONE : UPD_IDLE;
 	if (ok) { prog->pct = 100; prog->done = prog->total; }
+	return ok;
+}
+
+
+// Diagnostico: memoria y SD libres (la causa mas probable de que una instalacion falle)
+void update_diag(char *out, size_t n) {
+	unsigned ram = (unsigned)(osGetMemRegionFree(MEMREGION_APPLICATION) >> 20), sd = (unsigned)(sd_free() >> 20);
+	snprintf(out, n, "RAM libre %u MB, SD libre %u MB", ram, sd);
+}
+// Prueba de descarga: igual que instalar pero sin escribir nada. Si esto falla, instalar tambien fallaria (red, memoria o fichero corrupto).
+bool update_dry_run(const Rel *r, UpdateProgress *prog, char *err, size_t en) {
+	prog->stage = UPD_PREPARE; prog->pct = 0; prog->done = 0; prog->bps = 0; prog->attempt = 1;
+	bool cia = update_is_cia(); unsigned size = cia ? r->cia_size : r->dsx_size; prog->total = size;
+	Job j = {0}; j.is_cia = cia; j.dry = true; j.prog = prog; j.expect = size; j.t_mark = osGetTime();
+	j.buf = malloc(BLOCK); if (!j.buf) { snprintf(err, en, "Sin memoria para la descarga"); prog->stage = UPD_IDLE; return false; }
+	audio_hold(true);
+	bool ok = job_open(&j, NULL, false, err, en);
+	if (ok) { prog->stage = UPD_DOWNLOAD; ok = job_download(&j, cia ? r->cia : r->dsx, NULL, false, err, en); }
+	if (ok && !flush_block(&j)) { ok = false; snprintf(err, en, "Lo descargado no es un %s (release incompleta?)", cia ? ".cia" : ".3dsx"); }
+	if (ok) ok = finish_checks(&j, cia ? r->cia_sha : r->dsx_sha, err, en);
+	audio_hold(false); free(j.buf);
+	prog->stage = ok ? UPD_DONE : UPD_IDLE; if (ok) { prog->pct = 100; prog->done = prog->total; }
 	return ok;
 }
 

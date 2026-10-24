@@ -3,3 +3,5 @@ Devbuild: four new templates and translucent 3DS parts
 - 3DS: Studio parts can be translucent (water, glass) and Neon parts glow.
 - 3DS: new setting to turn off automatic installation of stable updates.
 - 3DS: music pauses while an update installs, freeing memory.
+- 3DS updater: new "Test download (no install)" button that downloads and verifies the update without installing it, and a line with free RAM and SD space.
+- 3DS: adaptive draw quality keeps the frame rate steady and draws more when there is spare time.
