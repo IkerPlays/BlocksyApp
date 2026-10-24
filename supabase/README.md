@@ -96,3 +96,6 @@ Lua estilo Roblox: cada jugador ejecuta el script en su navegador (como un Local
 - **AUTH** `auth/v14.sql`: aspecto elegido del avatar (piel, pelo, peinado, pantalon). Ejecutalo despues de v12.sql. El aspecto se sincroniza por `game/v7.sql` (96 caracteres).
 - **GAME** `game/v8.sql`: eventos `rem` (RemoteEvent de los scripts Lua entre jugadores). Lo necesitan los modos multijugador (pilla-pilla, bandera, oleadas, escondite).
 - **AUTH** `auth/v15.sql`: ranking de BCoins (`bcoin_leaderboard`). Es opcional: sin el, la pagina Logros solo muestra los logros.
+- **AUTH** `auth/v16.sql` y **STORE** `store/v16.sql`: misiones semanales, temporadas (28 dias, 10 niveles) y cosmeticos limitados. Ejecuta primero el de AUTH. Sin ellos esos paneles no se muestran.
+- **AUTH** `auth/v17.sql`: clanes (chat y juegos compartidos), quedadas con fecha y mensajes con imagen o voz (crea el bucket privado `dm-media`). Necesita `social.sql`.
+- **AUTH** `auth/v18.sql`: moderacion en servidor (denuncias, baneos, bloqueo de juegos, registro) y contador de visitas. Despues, hazte administrador con el `insert` que hay al principio del archivo y **vuelve a desplegar la Edge Function `game-session` en GAME y en STORE** (Verify JWT desactivado): asi los baneos tambien impiden abrir sesion de juego.
