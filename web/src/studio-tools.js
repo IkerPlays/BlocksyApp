@@ -162,7 +162,8 @@ export function createStudio(ctx) {
   let bottomTabs = null, animator = null
   const animEnv = { parts, cfg, game, getSel: () => selPart, refreshParts: () => refreshParts(), showTitle, rbx, refreshEmotes, onScriptChanged: () => paintExplorer(), style: () => styleFor('Blocksy', '#4da6ff') }
   const applyHidden = () => { for (let i = 0; i < parts.length; i++) { const o = rbx.partAt(i); if (o?.mesh) o.mesh.visible = testing || !parts[i].eh } }       // eh = oculta solo en el editor
-  const refreshParts = () => { cfg.parts = parts; game.config = { ...(game.config ?? {}), parts }; rbx.reset(); rbx.spawnStatic(parts); applyHidden(); updateSelBox(); paintExplorer() }
+  let warned3ds = false
+  const refreshParts = () => { if (parts.length > 160 && !warned3ds) { warned3ds = true; sys(t('st_parts_3ds')) } else if (parts.length <= 160) warned3ds = false; cfg.parts = parts; game.config = { ...(game.config ?? {}), parts }; rbx.reset(); rbx.spawnStatic(parts); applyHidden(); updateSelBox(); paintExplorer() }
   // ---------- Explorer: árbol del juego como en Roblox Studio ----------
   const open = new Set(['game', 'workspace', 'gui']); let exFilter = ''
   const ICON = { game: 'globe', workspace: 'box', terrain: 'mountain', model: 'cube', part: 'cube', ball: 'sphere', spawn: 'flag', lighting: 'sliders', scripts: 'code', script: 'code', gui: 'chat', ui: 'chat' }

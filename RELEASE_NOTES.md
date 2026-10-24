@@ -22,3 +22,4 @@ Devbuild: four new templates and translucent 3DS parts
 - 3DS: fixed reading the game config when a game has Studio parts (world, sky and rules were cut off).
 - Six new long-term achievements (Mason, Wrecker, Chatterbox, Regular, Legend, Tycoon).
 - 3DS: games can set the fog distance (config fog).
+- Studio warns when a game has more than 160 parts (the 3DS draws up to 160).
