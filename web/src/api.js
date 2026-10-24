@@ -153,14 +153,17 @@ export function leaveBeacon() {
 
 // ---------- Lecturas ----------
 export async function getGame(id) {
-  if (await storeReadOk()) { const { data } = await storeDb.from('games').select('*').eq('id', id).maybeSingle(); if (data) return data }
-  const { data } = await gameDb.from('games').select('*').eq('id', id).maybeSingle()
-  return data
+  let g = null
+  if (await storeReadOk()) { const { data } = await storeDb.from('games').select('*').eq('id', id).maybeSingle(); g = data }
+  if (!g) { const { data } = await gameDb.from('games').select('*').eq('id', id).maybeSingle(); g = data }
+  if (g && visOfG(g) === 'private' && g.owner_id !== (await myId())) return null          // un juego privado solo lo abre su dueño
+  return g
 }
 // Los juegos en borrador (config.draft) solo los ve su dueño
 let myIdCache = null
 const myId = async () => myIdCache ?? (myIdCache = (await authDb.auth.getSession()).data.session?.user?.id ?? null)
-const visibleGames = async list => { const me = await myId(); return list.filter(g => !g.config?.draft || g.owner_id === me) }
+const visOfG = g => g?.config?.visibility ?? (g?.config?.draft ? 'private' : 'public')
+const visibleGames = async list => { const me = await myId(); return list.filter(g => g.owner_id === me || visOfG(g) === 'public') }       // privados y solo con enlace: fuera de las listas
 export async function listGames() { return visibleGames(await listGamesAll()) }
 async function listGamesAll() {
   if (!(await storeReadOk())) { const { data } = await gameDb.from('games').select('*').order('created_at'); return data ?? [] }

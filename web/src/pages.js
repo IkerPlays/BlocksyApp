@@ -11,6 +11,8 @@ import { codeEditor } from './studio-ui.js'
 import { partyPanel, attachEmoticons } from './party-ui.js'
 import { TEMPLATES } from './templates.js'
 import { listShots, delShot } from './gallery.js'
+import { gameInfoEditor } from './gamepage-edit.js'
+import { visOf, isImg } from './media.js'
 import { gameStat } from './settings.js'
 import { APP_VERSION, whatsNew, markSeen, CREDITS, errorLog, clearErrors, reportUrl } from './about.js'
 import { installApp, canInstall, isInstalled, askNotifications, checkForUpdate, applyUpdate, isUpdateReady, BUILD } from './pwa.js'
@@ -145,7 +147,11 @@ const grid = (games, counts, onOpen) => games.length
   ? el('div', { class: 'grid' }, games.map(g => gameCard(g, counts, onOpen)))
   : el('div', { class: 'empty', text: t('no_games') })
 
+// Pulsar un juego abre su página propia (/game/<id>)
+let navGo = null
+export const setNav = f => { navGo = f }
 export function openGameModal(g, counts, onPlay) {
+  if (navGo) { closeModal(); return navGo(`game/${g.id}`) }
   const m = $('modal'), card = $('modal-card'), n = counts[g.id] ?? 0, related = el('div')
   setKids(card, el('div', { class: 'detail' },
     el('div', { class: 'thumb', style: `--h:${g.hue ?? hueOf(g.id)}` }, el('div', { class: 'cube' })),
@@ -257,6 +263,37 @@ export const pages = {
     const drawAll = draw; draw = () => { drawAll(); paintTrend() }
     input.oninput = draw; draw()
     setKids(root, el('h1', { class: 'page-title', text: t('discover') }), el('div', { class: 'form-row', style: 'margin-bottom:12px' }, input, dl, sortEl), chips, allTags.length ? el('div', { class: 'chips tags' }, allTags.map(tg => el('button', { class: 'chip', text: '#' + tg, onclick: e => { tagSel = tagSel === tg ? '' : tg; e.target.parentNode.querySelectorAll('.chip').forEach(c => c.classList.toggle('on', c.textContent === '#' + tagSel)); draw() } }))) : null, trend, out)
+  },
+
+  // Página propia de un juego: banner, icono, descripción, capturas y botones
+  async game(root, ctx, id) {
+    setKids(root, pageSkel())
+    const g = await api.getGame(id), counts = await api.playerCounts().catch(() => ({}))
+    if (!g) return setKids(root, el('h1', { class: 'page-title', text: t('nav_discover') }), el('div', { class: 'empty', text: t('ge_not_found') }), el('a', { class: 'btn', href: '/discover', text: t('back') }))
+    const c = g.config ?? {}, mine = g.owner_id === ctx.profile.id, vis = visOf(g), n = counts[id] ?? 0
+    const banner = isImg(c.banner) ? c.banner : '', iconUrl = isImg(c.icon) ? c.icon : (isImg(c.thumb) ? c.thumb : '')
+    const shots = (Array.isArray(c.shots) ? c.shots : []).filter(isImg)
+    const related = el('div')
+    const light = src => { setKids($('modal-card'), el('div', { class: 'detail-col' }, el('img', { src, class: 'lightbox-img', alt: '' }), el('button', { class: 'btn wide', text: t('close'), onclick: closeModal }))); $('modal').classList.remove('hidden') }
+    setKids(root,
+      el('div', { class: 'gp-banner', style: banner ? `background-image:url(${banner})` : `--h:${g.hue ?? hueOf(g.id)}` }),
+      el('div', { class: 'gp-head' },
+        el('div', { class: 'gp-icon thumb', style: `--h:${g.hue ?? hueOf(g.id)}` + (iconUrl ? `;background-image:url(${iconUrl})` : '') }, iconUrl ? null : el('div', { class: 'cube' })),
+        el('div', { class: 'grow' }, el('h1', { class: 'page-title', style: 'margin:0', text: g.name }),
+          el('small', { class: 'muted' }, t('ge_by_owner', { name: '' }), el('a', { href: `/u/${encodeURIComponent(g.owner_name || 'Blocksy')}`, text: g.owner_name || 'Blocksy' }), ` · ${modeLabel(g.mode)}`),
+          mine && vis !== 'public' ? el('div', { class: 'rarity common', style: 'width:fit-content;margin-top:6px', text: t(vis === 'private' ? 'ge_private_badge' : 'ge_unlisted_badge') }) : null),
+        el('button', { class: 'btn primary big', html: icon('play', 18) + ' ' + t('play'), onclick: () => ctx.play(g) })),
+      el('div', { class: 'gp-stats' }, el('div', {}, el('b', { text: String(n) }), el('small', { text: t('playing_n', { n: '' }).trim() })), el('div', {}, el('b', { text: String(g.max_players) }), el('small', { text: t('max_players') })), el('div', {}, el('b', { text: 'Web + 3DS' }), el('small', { text: t('platforms') }))),
+      el('div', { class: 'gp-cols' },
+        el('div', { class: 'gp-main' },
+          el('h2', { text: t('ge_about_title') }), el('p', { class: 'gp-about', text: c.about || g.description || t('no_desc') }),
+          Array.isArray(c.tags) && c.tags.length ? el('div', { class: 'chips' }, c.tags.map(x => el('span', { class: 'chip', text: '#' + x }))) : null,
+          shots.length ? [el('h2', { text: t('ge_shots_title') }), el('div', { class: 'gp-shots' }, shots.map(s => el('img', { src: s, alt: '', loading: 'lazy', onclick: () => light(s) })))] : null,
+          related),
+        el('div', { class: 'gp-side panel' }, voteBox(g), favBtn(g), roomBox(g, ctx.play),
+          el('button', { class: 'btn wide', text: t('ge_share'), onclick: async () => { const { shareGame } = await import('./access.js'); const r = await shareGame(g); if (r === 'copied') toast(t('link_copied')) } }),
+          mine ? [el('button', { class: 'btn wide blue', text: t('ge_studio'), onclick: () => ctx.go(`studio/${g.id}`) }), el('button', { class: 'btn wide', text: t('ge_edit_page'), onclick: () => ctx.go(`create/${g.id}`) })] : (g.owner_name && g.owner_name !== 'Blocksy' ? el('button', { class: 'btn wide ghost', text: t('report_game'), onclick: () => openReport(g.owner_name, `Juego: ${g.name} (${g.id})`) }) : null))))
+    api.listGames().then(all => { const tags = new Set(Array.isArray(c.tags) ? c.tags : []); const rel = all.filter(x => x.id !== g.id && ((x.mode ?? 'build') === (g.mode ?? 'build') || (Array.isArray(x.config?.tags) && x.config.tags.some(tg => tags.has(tg))))).slice(0, 4); if (rel.length) setKids(related, el('h2', { text: t('related_games') }), grid(rel, counts, x => ctx.go(`game/${x.id}`))) }).catch(() => {})
   },
 
   // Historial de versiones: las notas de las versiones estables publicadas en GitHub
@@ -794,10 +831,11 @@ async function editor(root, ctx, id) {
       const fog = el('input', { type: 'number', min: 0.25, max: 2, step: 0.1, value: g.config.fog ?? 1 }); fog.oninput = () => { g.config.fog = Number(fog.value) || 1 }
       return [el('div', { class: 'section-s', text: t('ed_terrain') }), tp, el('div', { class: 'section-s', text: t('ed_sky') }), sk, el('div', { class: 'section-s', text: t('ed_spawn') }), el('div', { class: 'form-row' }, spawn), el('div', { class: 'section-s', text: t('env_weather') }), wx, el('label', { class: 'field' }, t('env_fog'), fog)]
     },
+    page: () => gameInfoEditor(g),
     code: () => codeEditor(g),
   }
   function draw() {
-    setKids(tabs, ['general', 'rules', 'world', 'code'].map(k => el('button', { class: `tab ${tab === k ? 'active' : ''}`, text: t('ed_' + k), onclick: () => { tab = k; draw() } })))
+    setKids(tabs, ['general', 'page', 'rules', 'world', 'code'].map(k => el('button', { class: `tab ${tab === k ? 'active' : ''}`, text: t('ed_' + k), onclick: () => { tab = k; draw() } })))
     setKids(body, pane[tab]())
   }
   const save = async () => { await api.updateGameRow({ ...g, config: Object.fromEntries(Object.entries(g.config).filter(([, v]) => v !== undefined)) }); toast(t('ed_saved')) }

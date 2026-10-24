@@ -207,7 +207,8 @@ static void pack_loadout(const Wallet *w) { snprintf(g_my_hat, sizeof g_my_hat, 
 static void refresh_all(void) {
 	static GameInfo tg[MAX_GAMES]; static Person tf[MAX_PEOPLE]; static FriendReq tr[MAX_PEOPLE];
 	int ng = net_list_games(tg, MAX_GAMES);
-	if (ng >= 0) { net_player_counts(tg, ng); { static char fid[64][40]; int nfv = net_favorites(W.s, fid, 64); for (int i = 0; i < ng; i++) { tg[i].fav = 0; for (int k = 0; k < nfv; k++) if (!strcmp(tg[i].id, fid[k])) tg[i].fav = 1; } } LightLock_Lock(&lk); memcpy(g_games, tg, sizeof(GameInfo) * ng); g_ngames = ng; LightLock_Unlock(&lk); }
+	if (ng >= 0) { { int k = 0; for (int i = 0; i < ng; i++) if (tg[i].vis == 0 || !strcmp(tg[i].owner_id, W.s->user_id)) tg[k++] = tg[i]; ng = k; }       // privados y solo con enlace no salen en las listas (salvo los tuyos)
+		net_player_counts(tg, ng); { static char fid[64][40]; int nfv = net_favorites(W.s, fid, 64); for (int i = 0; i < ng; i++) { tg[i].fav = 0; for (int k = 0; k < nfv; k++) if (!strcmp(tg[i].id, fid[k])) tg[i].fav = 1; } } LightLock_Lock(&lk); memcpy(g_games, tg, sizeof(GameInfo) * ng); g_ngames = ng; LightLock_Unlock(&lk); }
 	else snprintf(W.msg, sizeof W.msg, "%s", net_login_error());
 	int nf = net_list_friends(W.s, tf, MAX_PEOPLE), nr = net_list_requests(W.s, tr, MAX_PEOPLE);
 	int un = net_unread_total(W.s); if (un >= 0) g_unread = un;
@@ -670,7 +671,7 @@ static void modal_top(const Ui *u) {
 	ui_text(184, 100, 0.6f, COL_TEXT, 0, a); ui_text(184, 120, 0.34f, COL_MUTED, 0, "jugando");
 	ui_text(236, 100, 0.6f, COL_TEXT, 0, b);  ui_text(236, 120, 0.34f, COL_MUTED, 0, "max. jugadores");
 	ui_text(310, 104, 0.4f, COL_TEXT, 0, "Web + 3DS"); ui_text(310, 120, 0.34f, COL_MUTED, 0, "plataformas");
-	static char lines[3][96]; int nl = wrap(g->desc[0] ? g->desc : "Sin descripcion.", 0.42f, 180, lines, 3);
+	static char lines[3][96]; int nl = wrap(g->about[0] ? g->about : g->desc[0] ? g->desc : "Sin descripcion.", 0.42f, 180, lines, 3);
 	for (int i = 0; i < nl; i++) ui_text(184, 142 + i * 15, 0.42f, COL_MUTED, 0, lines[i]);
 	{ char hint[64]; snprintf(hint, sizeof hint, "A: %s     X: %s     B: %s", tr2("jugar", "play"), g->fav ? tr2("quitar favorito", "unfavorite") : tr2("favorito", "favorite"), tr2("cerrar", "close")); ui_text(200, 196, 0.38f, COL_MUTED, C2D_AlignCenter, hint); }
 }

@@ -2,7 +2,7 @@ const ok = () => Promise.resolve()
 export const move = ok, placeBlock = ok, breakBlock = ok, say = ok, leave = ok, linkApprove = ok, createGameRow = () => Promise.resolve('g9'), updateGameRow = ok, deleteGameRow = ok
 export const canCreate = () => true
 const games = [
-  { id: 'g1', name: 'Spawn Plaza', description: 'Mundo abierto', owner_name: 'Blocksy', hue: 205, max_players: 20, owner_id: 'x', mode: 'build', config: {}, script: '' },
+  { id: 'g1', name: 'Spawn Plaza', description: 'Mundo abierto', owner_name: 'Blocksy', hue: 205, max_players: 20, owner_id: 'x', mode: 'build', config: { about: 'Un mundo abierto para construir con amigos.\nControles: WASD y clic.', tags: ['build','social'], banner: 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMCAgICAgMCAgIDAwMDBAYEBAQEBAgGBgUGCQgKCgkICQkKDA8MCgsOCwkJDRENDg8QEBEQCgwSExIQEw8QEBD/yQALCAABAAEBAREA/8wABgAQEAX/2gAIAQEAAD8A0s8g/9k=' }, script: '' },
   { id: 'g2', name: 'Plaza Social', description: 'Charla y emotes', owner_name: 'Blocksy', hue: 285, max_players: 20, owner_id: 'x', mode: 'social', config: { world: 'plaza' }, script: '' },
   { id: 'g3', name: 'Carrera de Obstaculos', description: '', owner_name: 'Iker', hue: 15, max_players: 20, owner_id: 'me', mode: 'obby', config: { world: 'obby', allow_build: false }, script: "on('join', () => title('Hola'))" }]
 export const listGames = () => Promise.resolve(games)

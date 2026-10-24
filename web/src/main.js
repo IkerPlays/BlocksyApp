@@ -2,7 +2,7 @@ import './style.css'
 import { authDb } from './supabase.js'
 import * as auth from './auth.js'
 import * as api from './api.js'
-import { pages, toast, closeModal, stopPageTimers } from './pages.js'
+import { pages, toast, closeModal, stopPageTimers, setNav } from './pages.js'
 // game.js (three.js, Lua...) se carga cuando hace falta: la página de inicio abre antes
 let gameMod = null
 const loadGame = () => gameMod ?? (gameMod = import('./game.js'))
@@ -172,6 +172,7 @@ $('modal').addEventListener('click', e => { if (e.target.id === 'modal') closeMo
 new MutationObserver(() => { if ($('modal').classList.contains('hidden')) $('game').classList.remove('hidden-for-modal') }).observe($('modal'), { attributes: true, attributeFilter: ['class'] })
 $('search').addEventListener('submit', e => { e.preventDefault(); const q = $('search-input').value.trim(); navigate(q ? `/discover/${encodeURIComponent(q)}` : '/discover') })
 window.addEventListener('beforeunload', () => { api.leaveBeacon() })
+setNav(h => ctx.go(h))
 installPalette(() => (profile ? { go: ctx.go, play, canCreate: api.canCreate, games: api.listGames, setTheme: v => { settings.theme = v; saveSettings(); applyTheme() } } : null)); // aviso para instalar la app: a partir de la 3.ª visita, una sola vez (se puede cerrar para siempre)
 {
   let visits = 0, dismissed = false; try { visits = +(localStorage.getItem('blocksy.visits') || 0) + 1; localStorage.setItem('blocksy.visits', String(visits)); dismissed = localStorage.getItem('blocksy.installDismissed') === '1' } catch {}

@@ -3,6 +3,8 @@
 import * as THREE from 'three'
 import { t, getLang } from './i18n.js'
 import { checkLua, checkSyntax } from './script.js'
+import { gameInfoEditor } from './gamepage-edit.js'
+import { setKids as setKids_, closeModal as closeModal_ } from './pages.js'
 import { icon } from './icons.js'
 import { PRESET_HOUR } from './sky.js'
 import * as music from './music.js'
@@ -291,6 +293,13 @@ export function createStudio(ctx) {
   }
   const TIPS = ['tip_1', 'tip_2', 'tip_3', 'tip_4', 'tip_5', 'tip_6', 'tip_7', 'tip_8']
   const tipTimer = setInterval(() => { if (!testing && tutStep >= STEPS.length && !document.hidden) showTitle(t(TIPS[Math.floor(Math.random() * TIPS.length)]), 4500) }, 150_000)
+  // página del juego: visibilidad (publicar), textos, icono, banner y capturas
+  function openGamePage() {
+    const card = document.getElementById('modal-card'), box = document.createElement('div'); box.className = 'detail-col'
+    const head = h('h2', { text: t('game_page') }), done = h('button', { type: 'button', class: 'btn wide primary', text: t('ge_done'), onclick: async () => { closeModal_(); await doSave() } })
+    box.append(head, gameInfoEditor(game, { capture: (w, hh) => captureThumb?.(w, hh), onChange: () => { if (typeof game.config?.thumb === 'undefined' && game.config?.icon) { /* el icono sirve de tarjeta */ } } }), done)
+    setKids_(card, box); document.getElementById('modal').classList.remove('hidden')
+  }
   const listBox = h('div', { id: 'studio-check', class: 'hidden' }); g.append(listBox)
   async function openChecklist() {
     if (!listBox.classList.contains('hidden')) return listBox.classList.add('hidden')
@@ -344,7 +353,7 @@ export function createStudio(ctx) {
     const symBtn = mkBtn('st-sym', 'mirror', t('st_sym'), () => { state.sym = { off: 'x', x: 'z', z: 'xz', xz: 'off' }[state.sym]; symBtn.classList.toggle('on', state.sym !== 'off'); symBtn.title = `${t('st_sym')}: ${state.sym}`; showTitle(`${t('st_sym')}: ${state.sym === 'off' ? t('st_sym_off') : state.sym.toUpperCase()}`, 1200) })
     undoBtn = mkBtn('st-undo', 'undo', t('st_undo'), undo); redoBtn = mkBtn('st-redo', 'redo', t('st_redo'), redo)
     bar.classList.toggle('compact', compact)
-    bar.replaceChildren(mkBtn('st-compact', 'menu', t('st_compact'), () => { compact = !compact; try { localStorage.setItem('blocksy.studio.compact', compact ? '1' : '0') } catch {} buildBar() }, compact ? 'on' : ''), ...items, h('i', { class: 'st-sep' }), mkBtn('st-addtext', 'chat', t('st_addtext'), () => { onAddText(); setTool('ui') }), symBtn, undoBtn, redoBtn, mkBtn('st-grid', 'grid', t('st_gridview'), () => { gridHelper.visible = !gridHelper.visible; document.getElementById('st-grid')?.classList.toggle('on', gridHelper.visible) }), mkBtn('st-explorer', 'menu', t('st_explorer'), toggleExplorer), mkBtn('st-versions', 'undo', t('st_versions'), toggleVersions), mkBtn('st-check', 'check', t('st_checklist'), openChecklist), mkBtn('st-export', 'send', t('st_export'), exportGame), mkBtn('st-thumb', 'camera', t('st_thumb'), async () => { const d = await captureThumb?.(); if (!d) return showTitle(t('st_thumb_fail'), 1800); game.config = { ...(game.config ?? {}), thumb: d }; cfg.thumb = d; showTitle(t('st_thumb_ok'), 1800); sfx.click() }), mkBtn('st-env', 'sliders', t('st_env'), openEnv), mkBtn('st-script', 'code', t('ed_script'), onScript), mkBtn('st-help', 'search', t('st_shortcuts'), () => helpBox.classList.toggle('hidden')),
+    bar.replaceChildren(mkBtn('st-compact', 'menu', t('st_compact'), () => { compact = !compact; try { localStorage.setItem('blocksy.studio.compact', compact ? '1' : '0') } catch {} buildBar() }, compact ? 'on' : ''), ...items, h('i', { class: 'st-sep' }), mkBtn('st-addtext', 'chat', t('st_addtext'), () => { onAddText(); setTool('ui') }), symBtn, undoBtn, redoBtn, mkBtn('st-grid', 'grid', t('st_gridview'), () => { gridHelper.visible = !gridHelper.visible; document.getElementById('st-grid')?.classList.toggle('on', gridHelper.visible) }), mkBtn('st-explorer', 'menu', t('st_explorer'), toggleExplorer), mkBtn('st-versions', 'undo', t('st_versions'), toggleVersions), mkBtn('st-check', 'check', t('st_checklist'), openChecklist), mkBtn('st-page', 'globe', t('game_page'), openGamePage), mkBtn('st-export', 'send', t('st_export'), exportGame), mkBtn('st-thumb', 'camera', t('st_thumb'), async () => { const d = await captureThumb?.(); if (!d) return showTitle(t('st_thumb_fail'), 1800); game.config = { ...(game.config ?? {}), thumb: d }; cfg.thumb = d; showTitle(t('st_thumb_ok'), 1800); sfx.click() }), mkBtn('st-env', 'sliders', t('st_env'), openEnv), mkBtn('st-script', 'code', t('ed_script'), onScript), mkBtn('st-help', 'search', t('st_shortcuts'), () => helpBox.classList.toggle('hidden')),
       h('i', { class: 'st-sep' }), mkBtn('st-test', 'play', t('st_test'), onTestToggle, 'lbl'), mkBtn('st-save', 'check', t('save'), () => doSave(), 'primary lbl'), (savedEl = h('span', { class: 'st-saved dirty', text: t('st_notsaved') })), mkBtn('st-exit', 'back', t('close'), onExit, 'lbl'))
     paintHistory(); setTool('place')
   }
