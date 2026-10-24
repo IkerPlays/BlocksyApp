@@ -1,3 +1,2 @@
-Devbuild 79: report clan chat messages
-- Clan chat messages have a report button. Staff see them in Moderation (type Clan chat) and can delete the message.
-- Needs supabase/auth/v19.sql (after v17 and v18); without it the report button shows an error.
+Devbuild 80: banned accounts list
+- Moderation > Users now lists the accounts that are suspended right now, with a button to lift each suspension (needs supabase/auth/v19.sql).

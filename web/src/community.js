@@ -144,7 +144,9 @@ export async function moderationPage(root, ctx) {
             el('div', { class: 'row-btns' }, el('button', { class: 'btn tiny', text: t('mod_warn'), onclick: () => warn(u.username) }), u.ban ? el('button', { class: 'btn tiny', text: t('mod_unban'), onclick: async () => { await act(() => social.modUnban(u.username)) } }) : el('button', { class: 'btn tiny danger', text: t('mod_ban'), onclick: () => ban(u.username) }))))
         }
         input.onkeydown = e => { if (e.key === 'Enter') find() }
-        setKids(body, el('div', { class: 'row-btns' }, input, el('button', { class: 'btn primary', text: t('search'), onclick: find })), out)
+        const banned = el('div', { class: 'panel' })
+        social.modBans().then(l => setKids(banned, l.length ? [el('h3', { text: t('mod_banned_now', { n: l.length }) }), ...l.map(b => el('div', { class: 'person' }, el('div', { class: 'grow' }, el('b', { text: b.username }), el('small', { class: 'muted', text: ' ' + t('banned_msg', { until: b.until ? new Date(b.until).toLocaleDateString(getLang()) : t('banned_forever'), reason: b.reason || '-' }) })), el('button', { class: 'btn tiny', text: t('mod_unban'), onclick: () => act(() => social.modUnban(b.username)) })))] : null)).catch(() => {})
+        setKids(body, el('div', { class: 'row-btns' }, input, el('button', { class: 'btn primary', text: t('search'), onclick: find })), out, banned)
       } else if (tab === 'blocked') {
         const l = await social.modBlocked()
         setKids(body, el('div', { class: 'panel' }, l.length ? l.map(b => el('div', { class: 'person' }, el('div', { class: 'grow' }, el('b', { text: b.ref }), el('small', { class: 'muted', text: ' ' + b.reason })), el('button', { class: 'btn tiny', text: t('mod_unblock'), onclick: () => act(() => social.modUnblockGame(b.ref)) }))) : el('div', { class: 'empty', text: t('mod_none') })))

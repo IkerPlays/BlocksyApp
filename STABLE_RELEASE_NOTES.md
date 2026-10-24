@@ -17,6 +17,7 @@ Blocksy is a multiplayer block-building game for the web and the Nintendo 3DS (h
 - New King of the hill multiplayer template.
 - New Dodge multiplayer template.
 - Clan chat messages can be reported and deleted by staff (needs supabase/auth/v19.sql).
+- Moderation lists the currently suspended accounts (needs supabase/auth/v19.sql).
 
 ## Installing
 - Install `Blocksy.cia` with FBI, or copy `Blocksy.3dsx` to the `3ds` folder of the SD card and run it from the Homebrew Launcher.

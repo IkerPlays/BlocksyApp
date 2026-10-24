@@ -21,3 +21,13 @@ begin
   insert into mod_log (by_id, action, target) values (auth.uid(), 'delete_clan_message', p_id::text);
 end $$;
 grant execute on function public.report_clan_message(bigint, text), public.mod_delete_clan_message(bigint) to authenticated;
+
+-- Lista de cuentas suspendidas ahora mismo (para el panel de Moderación)
+create or replace function public.mod_bans() returns jsonb
+language plpgsql stable security definer set search_path = public as $$
+begin
+  perform public._need_staff();
+  return (select coalesce(jsonb_agg(jsonb_build_object('username', public._uname(b.user_id), 'until', b.until, 'reason', b.reason, 'since', b.created_at) order by b.created_at desc), '[]'::jsonb)
+    from bans b where b.until is null or b.until > now());
+end $$;
+grant execute on function public.mod_bans() to authenticated;

@@ -1,6 +1,7 @@
 // Traducciones completas de los textos añadidos desde la 1.3 (se mezclan en i18n.js; lo que ya esté traducido allí tiene prioridad).
 export const MORE = {
   pt: {
+    mod_banned_now: "Suspensos agora ({n})",
     mod_kind_clanmsg: "Chat do clã",
     tpl_dodge: "Esquiva",
     tpl_dodge_d: "Multijogador: desvie dos blocos que caem",
@@ -733,6 +734,7 @@ export const MORE = {
     lang_hint: "O idioma é aplicado na hora.",
   },
   fr: {
+    mod_banned_now: "Suspendus actuellement ({n})",
     mod_kind_clanmsg: "Chat du clan",
     tpl_dodge: "Esquive",
     tpl_dodge_d: "Multijoueur : évite les blocs qui tombent",
@@ -1465,6 +1467,7 @@ export const MORE = {
     lang_hint: "La langue s'applique instantanément.",
   },
   de: {
+    mod_banned_now: "Derzeit gesperrt ({n})",
     mod_kind_clanmsg: "Clan-Chat",
     tpl_dodge: "Ausweichen",
     tpl_dodge_d: "Mehrspieler: weiche den fallenden Blöcken aus",
@@ -2197,6 +2200,7 @@ export const MORE = {
     lang_hint: "Die Sprache wird sofort angewendet.",
   },
   it: {
+    mod_banned_now: "Sospesi ora ({n})",
     mod_kind_clanmsg: "Chat del clan",
     tpl_dodge: "Schiva",
     tpl_dodge_d: "Multigiocatore: schiva i blocchi che cadono",
@@ -2946,6 +2950,7 @@ export const MORE = {
     invite_friends: "Invita amici",
   },
   pl: {
+    mod_banned_now: "Aktualnie zawieszeni ({n})",
     mod_kind_clanmsg: "Czat klanu",
     tpl_dodge: "Unik",
     tpl_dodge_d: "Wieloosobowa: unikaj spadających bloków",
@@ -3914,6 +3919,7 @@ export const MORE = {
     offline_ready: "Gotowe do użycia offline",
   },
   ru: {
+    mod_banned_now: "Сейчас заблокированы ({n})",
     mod_kind_clanmsg: "Чат клана",
     tpl_dodge: "Уворот",
     tpl_dodge_d: "Мультиплеер: уворачивайтесь от падающих блоков",
@@ -4882,6 +4888,7 @@ export const MORE = {
     offline_ready: "Готово к работе офлайн",
   },
   ja: {
+    mod_banned_now: "現在停止中（{n}）",
     mod_kind_clanmsg: "クランチャット",
     tpl_dodge: "よけまくれ",
     tpl_dodge_d: "マルチプレイ: 落ちてくるブロックをよけよう",
@@ -5850,6 +5857,7 @@ export const MORE = {
     offline_ready: "オフラインで使えます",
   },
   zh: {
+    mod_banned_now: "当前封停（{n}）",
     mod_kind_clanmsg: "战队聊天",
     tpl_dodge: "躲避",
     tpl_dodge_d: "多人：躲开掉落的方块",
@@ -6818,6 +6826,7 @@ export const MORE = {
     offline_ready: "已可离线使用",
   },
   ko: {
+    mod_banned_now: "현재 정지됨 ({n})",
     mod_kind_clanmsg: "클랜 채팅",
     tpl_dodge: "피하기",
     tpl_dodge_d: "멀티플레이: 떨어지는 블록을 피하세요",
