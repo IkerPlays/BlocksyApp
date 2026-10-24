@@ -214,6 +214,8 @@ local function label(w, h, x, y, ax, size)
 end
 local status = label(380, 44, 0.5, 14, 0.5, 20)
 local board = label(220, 150, 1, 70, 1, 16); board.TextXAlignment = Enum.TextXAlignment.Left
+local hpBar = label(140, 36, 0, 14, 0, 20)
+hpBar.Position = UDim2.new(0, 14, 1, -96); hpBar.TextColor3 = Color3.fromRGB(255, 120, 120)
 local DMG, RANGE, COOLDOWN, GOAL = 25, 5, 0.55, GOAL_VALUE
 local kills, deaths, lastAttacker, cd, protect, over = {}, {}, nil, 0, 0, false
 local function hum() return me.Character and me.Character:FindFirstChildOfClass("Humanoid") end
@@ -265,6 +267,7 @@ task.spawn(function()
     cd -= 0.1; protect -= 0.1
     tick += 1
     if RunService:IsServer() then checkWin(); if tick % 20 == 0 then remote:FireAllClients("score", kills, deaths) end end
+    local hh = hum(); hpBar.Text = hh and ("Vida " .. math.floor(hh.Health) .. (protect > 0 and " (protegido)" or "")) or ""
     local h = hum(); if h and h.Health > 0 and protect < -5 and h.Health < h.MaxHealth then h.Health += 0.6 end        -- se recupera poco a poco sin recibir golpes
   end
 end)
