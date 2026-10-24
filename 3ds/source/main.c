@@ -353,7 +353,12 @@ static void render_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 	u64 now = now_ms;
 	// ---- lista de dibujo ordenada por profundidad (con niebla) ----
 	static const int caps[3] = {150, 250, 320}, radii[3] = {7, 8, 9};
+	// calidad adaptativa: si los fotogramas tardan demasiado se dibujan menos objetos, y si sobra tiempo se dibujan mas (0.55 - 1.35)
+	static float q_adapt = 1.0f, ft_avg = 33; static u64 ft_last;
+	if (ft_last && now - ft_last < 500) { ft_avg += ((float)(now - ft_last) - ft_avg) * 0.04f; if (ft_avg > 40 && q_adapt > 0.55f) q_adapt -= 0.004f; else if (ft_avg < 29 && q_adapt < 1.35f) q_adapt += 0.0015f; }
+	ft_last = now;
 	int lvl = app_draw_level(), cap = caps[lvl] + (g_new3ds ? 200 + lvl * 60 : 0), R = radii[lvl] + (g_new3ds ? 2 : 0);
+	cap = (int)(cap * q_adapt); if (cap < 90) cap = 90;
 	fog_near = 12 + lvl * 4; fog_far = 26 + lvl * 8 + (g_new3ds ? 8 : 0);
 	bool night = world.type == 5;
 	if (night) { g_sky[0] = 0x04; g_sky[1] = 0x07; g_sky[2] = 0x10; fog_near = cam_dist + 1.5f; fog_far = cam_dist + 15 + lvl * 3; R = 7; }
