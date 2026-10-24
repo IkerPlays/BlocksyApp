@@ -1,6 +1,10 @@
 // Traducciones completas de los textos añadidos desde la 1.3 (se mezclan en i18n.js; lo que ya esté traducido allí tiene prioridad).
 export const MORE = {
   pt: {
+    tpl_maze: "Labirinto",
+    tpl_maze_d: "Encontre a saída; cada partida é um labirinto novo",
+    tpl_reflex: "Reflexos",
+    tpl_reflex_d: "Meça seu tempo de reação pisando no ladrilho verde",
     pf_castle: "Castelo",
     pf_dome: "Cúpula",
     pf_spiral: "Escada em espiral",
@@ -750,6 +754,10 @@ export const MORE = {
     lang_hint: "O idioma é aplicado na hora.",
   },
   fr: {
+    tpl_maze: "Labyrinthe",
+    tpl_maze_d: "Trouve la sortie ; chaque partie est un nouveau labyrinthe",
+    tpl_reflex: "Réflexes",
+    tpl_reflex_d: "Mesure ton temps de réaction en marchant sur la dalle verte",
     pf_castle: "Château",
     pf_dome: "Dôme",
     pf_spiral: "Escalier en colimaçon",
@@ -1499,6 +1507,10 @@ export const MORE = {
     lang_hint: "La langue s'applique instantanément.",
   },
   de: {
+    tpl_maze: "Labyrinth",
+    tpl_maze_d: "Finde den Ausgang; jede Runde ist ein neues Labyrinth",
+    tpl_reflex: "Reflexe",
+    tpl_reflex_d: "Miss deine Reaktionszeit auf dem grünen Feld",
     pf_castle: "Burg",
     pf_dome: "Kuppel",
     pf_spiral: "Wendeltreppe",
@@ -2248,6 +2260,10 @@ export const MORE = {
     lang_hint: "Die Sprache wird sofort angewendet.",
   },
   it: {
+    tpl_maze: "Labirinto",
+    tpl_maze_d: "Trova l'uscita; ogni partita è un labirinto nuovo",
+    tpl_reflex: "Riflessi",
+    tpl_reflex_d: "Misura il tuo tempo di reazione sulla piastrella verde",
     pf_castle: "Castello",
     pf_dome: "Cupola",
     pf_spiral: "Scala a chiocciola",
@@ -3014,6 +3030,10 @@ export const MORE = {
     invite_friends: "Invita amici",
   },
   pl: {
+    tpl_maze: "Labirynt",
+    tpl_maze_d: "Znajdź wyjście; każda runda to nowy labirynt",
+    tpl_reflex: "Refleks",
+    tpl_reflex_d: "Zmierz czas reakcji, wchodząc na zieloną płytkę",
     pf_castle: "Zamek",
     pf_dome: "Kopuła",
     pf_spiral: "Schody spiralne",
@@ -3999,6 +4019,10 @@ export const MORE = {
     offline_ready: "Gotowe do użycia offline",
   },
   ru: {
+    tpl_maze: "Лабиринт",
+    tpl_maze_d: "Найдите выход; каждый раунд — новый лабиринт",
+    tpl_reflex: "Реакция",
+    tpl_reflex_d: "Измерьте скорость реакции, наступив на зелёную плитку",
     pf_castle: "Замок",
     pf_dome: "Купол",
     pf_spiral: "Винтовая лестница",
@@ -4984,6 +5008,10 @@ export const MORE = {
     offline_ready: "Готово к работе офлайн",
   },
   ja: {
+    tpl_maze: "めいろ",
+    tpl_maze_d: "出口を見つけよう。毎回あたらしい迷路",
+    tpl_reflex: "はんしゃ神経",
+    tpl_reflex_d: "緑のタイルを踏んで反応時間をはかろう",
     pf_castle: "お城",
     pf_dome: "ドーム",
     pf_spiral: "らせん階段",
@@ -5969,6 +5997,10 @@ export const MORE = {
     offline_ready: "オフラインで使えます",
   },
   zh: {
+    tpl_maze: "迷宫",
+    tpl_maze_d: "找到出口；每局都是新迷宫",
+    tpl_reflex: "反应力",
+    tpl_reflex_d: "踩上绿色方块，测测你的反应时间",
     pf_castle: "城堡",
     pf_dome: "穹顶",
     pf_spiral: "螺旋楼梯",
@@ -6954,6 +6986,10 @@ export const MORE = {
     offline_ready: "已可离线使用",
   },
   ko: {
+    tpl_maze: "미로",
+    tpl_maze_d: "출구를 찾으세요. 매 판마다 새로운 미로",
+    tpl_reflex: "반응속도",
+    tpl_reflex_d: "초록색 타일을 밟아 반응 시간을 재 보세요",
     pf_castle: "성",
     pf_dome: "돔",
     pf_spiral: "나선 계단",

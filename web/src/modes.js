@@ -704,3 +704,94 @@ task.spawn(function()
 end)
 game.teleport(9, 3, 0)
 game.title("Sube la torre en espiral", 2500)`
+
+// Laberinto: se genera con una semilla que todos comparten; llega a la loseta verde lo antes posible (cada partida es otro laberinto).
+export const MAZE = `local Players = game:GetService("Players")
+local me = Players.LocalPlayer
+local N, S, OX, OZ = 8, 4, -16, -16
+local gui = Instance.new("ScreenGui"); gui.Parent = me.PlayerGui
+local label = Instance.new("TextLabel"); label.Size = UDim2.new(0, 360, 0, 44); label.Position = UDim2.new(0.5, 0, 0, 14); label.AnchorPoint = Vector2.new(0.5, 0)
+label.BackgroundColor3 = Color3.fromRGB(20, 20, 30); label.BackgroundTransparency = 0.25; label.TextColor3 = Color3.new(1, 1, 1); label.TextSize = 20; label.Parent = gui
+Instance.new("UICorner", label).CornerRadius = UDim.new(0, 12)
+local seed, round, best, t0, won = 4242, 0, 0, os.clock(), false
+local things = {}
+local function rnd(n) seed = (seed * 1103 + 12345) % 65521; return seed % n + 1 end
+local function wall(sx, sz, x, z)
+  local p = Instance.new("Part"); p.Size = Vector3.new(sx, 3, sz); p.Anchored = true; p.Color = Color3.fromRGB(110, 120, 150); p.Position = Vector3.new(x, 1.5, z); p.Parent = workspace
+  things[#things + 1] = p
+end
+local function build()
+  for _, p in ipairs(things) do p:Destroy() end; things = {}
+  round += 1; seed = 4242 + round * 311; won = false; t0 = os.clock()
+  local vis, hw, vw = {}, {}, {}
+  for x = 0, N do hw[x] = {}; vw[x] = {}; vis[x] = {}; for z = 0, N do hw[x][z] = true; vw[x][z] = true end end
+  local stack = { { 0, 0 } }; vis[0][0] = true
+  while #stack > 0 do
+    local c = stack[#stack]; local x, z = c[1], c[2]; local opts = {}
+    if x > 0 and not vis[x - 1][z] then opts[#opts + 1] = { x - 1, z, "w" } end
+    if x < N - 1 and not vis[x + 1][z] then opts[#opts + 1] = { x + 1, z, "e" } end
+    if z > 0 and not vis[x][z - 1] then opts[#opts + 1] = { x, z - 1, "n" } end
+    if z < N - 1 and not vis[x][z + 1] then opts[#opts + 1] = { x, z + 1, "s" } end
+    if #opts == 0 then table.remove(stack)
+    else
+      local o = opts[rnd(#opts)]
+      if o[3] == "w" then vw[x][z] = false elseif o[3] == "e" then vw[x + 1][z] = false elseif o[3] == "n" then hw[x][z] = false else hw[x][z + 1] = false end
+      vis[o[1]][o[2]] = true; stack[#stack + 1] = { o[1], o[2] }
+    end
+  end
+  for x = 0, N do for z = 0, N do
+    if vw[x][z] and z < N then wall(0.6, S + 0.6, OX + x * S, OZ + (z + 0.5) * S) end
+    if hw[x][z] and x < N then wall(S + 0.6, 0.6, OX + (x + 0.5) * S, OZ + z * S) end
+  end end
+  local goal = Instance.new("Part"); goal.Size = Vector3.new(S - 1, 0.3, S - 1); goal.Anchored = true; goal.CanCollide = false; goal.Material = Enum.Material.Neon
+  goal.Color = Color3.fromRGB(60, 220, 120); goal.Position = Vector3.new(OX + (N - 0.5) * S, 0.2, OZ + (N - 0.5) * S); goal.Parent = workspace; things[#things + 1] = goal
+  game.teleport(OX + S * 0.5, 2, OZ + S * 0.5)
+end
+build()
+task.spawn(function()
+  while true do
+    task.wait(0.2)
+    local c = me.Character; local r = c and c:FindFirstChild("HumanoidRootPart")
+    if r and not won and math.abs(r.Position.X - (OX + (N - 0.5) * S)) < 1.8 and math.abs(r.Position.Z - (OZ + (N - 0.5) * S)) < 1.8 then
+      won = true; local t = math.floor((os.clock() - t0) * 10) / 10
+      if best == 0 or t < best then best = t end
+      game.sound("win"); game.title("Salida! " .. t .. " s (mejor " .. best .. " s)", 3500)
+      task.delay(4, build)
+    end
+    label.Text = "Laberinto " .. round .. "  ·  " .. math.floor(os.clock() - t0) .. " s" .. (best > 0 and ("  ·  mejor " .. best .. " s") or "")
+  end
+end)
+game.title("Encuentra la salida verde", 2500)`
+
+// Reflejos: pisa la loseta cuando se pone verde; mide tu tiempo de reacción en milisegundos y guarda el mejor.
+export const REFLEX = `local Players = game:GetService("Players")
+local me = Players.LocalPlayer
+local gui = Instance.new("ScreenGui"); gui.Parent = me.PlayerGui
+local label = Instance.new("TextLabel"); label.Size = UDim2.new(0, 460, 0, 44); label.Position = UDim2.new(0.5, 0, 0, 14); label.AnchorPoint = Vector2.new(0.5, 0)
+label.BackgroundColor3 = Color3.fromRGB(20, 20, 30); label.BackgroundTransparency = 0.25; label.TextColor3 = Color3.new(1, 1, 1); label.TextSize = 20; label.Parent = gui
+Instance.new("UICorner", label).CornerRadius = UDim.new(0, 12)
+local pad = Instance.new("Part"); pad.Size = Vector3.new(8, 0.5, 8); pad.Anchored = true; pad.CanCollide = false; pad.Material = Enum.Material.Neon
+pad.Position = Vector3.new(0, 0.25, -10); pad.Color = Color3.fromRGB(230, 70, 70); pad.Parent = workspace
+local function onPad()
+  local c = me.Character; local r = c and c:FindFirstChild("HumanoidRootPart"); if not r then return false end
+  return math.abs(r.Position.X) < 4 and math.abs(r.Position.Z + 10) < 4
+end
+local best, tries, total = 0, 0, 0
+task.spawn(function()
+  while true do
+    pad.Color = Color3.fromRGB(230, 70, 70); label.Text = "Espera al verde... (no pises la loseta todavía)"
+    game.teleport(0, 2, 0)
+    task.wait(2 + math.random() * 3)
+    if onPad() then game.sound("hit"); label.Text = "Demasiado pronto!"; task.wait(2)
+    else
+      pad.Color = Color3.fromRGB(60, 220, 120); game.sound("click"); local t0, ms = os.clock(), 0
+      while ms == 0 and os.clock() - t0 < 6 do task.wait(0.03); if onPad() then ms = math.floor((os.clock() - t0) * 1000) end end
+      if ms > 0 then
+        tries += 1; total += ms; if best == 0 or ms < best then best = ms end
+        game.sound("coin"); label.Text = ms .. " ms  ·  mejor " .. best .. " ms  ·  media " .. math.floor(total / tries) .. " ms"
+      else label.Text = "Muy lento..." end
+      task.wait(2.5)
+    end
+  end
+end)
+game.title("Pisa la loseta en cuanto se ponga verde", 2500)`
