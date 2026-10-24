@@ -1,4 +1,4 @@
-Devbuild: four new templates and translucent 3DS parts
+Devbuild: new 3DS updater, Studio parts and skies on the 3DS, more templates
 - New templates: Memory, Zones, Treasure hunt, Tower, Maze and Reflexes (all in 11 languages).
 - 3DS: Studio parts can be translucent (water, glass) and Neon parts glow.
 - 3DS: new setting to turn off automatic installation of stable updates.
