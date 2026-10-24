@@ -1,2 +1,2 @@
-Devbuild 76: four new achievements
-- New achievements: Clanmate (create or join a clan), Organizer (create or join a meetup), Teamwork (edit a game with someone in the Studio) and Animator (apply an animation to a part). They are translated into all languages.
+Devbuild 77: King of the hill
+- New multiplayer template: King of the hill. Stay inside the golden circle to earn a point every second; the first to 60 wins and the round restarts. Live scoreboard for everyone.

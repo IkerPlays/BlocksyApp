@@ -432,3 +432,46 @@ give("Bengala", "Deja una luz", function()
   task.delay(15, function() p:Destroy() end)
 end)
 game.title("Pulsa 1, 2 o 3", 2500)`
+
+// Rey de la colina: quien permanezca dentro del círculo dorado suma un punto por segundo. Gana quien llegue a 60.
+export const KOTH = `local Players = game:GetService("Players")
+local me = Players.LocalPlayer
+local remote = Instance.new("RemoteEvent"); remote.Name = "Koth"; remote.Parent = game.ReplicatedStorage
+local GOAL, R, CX, CZ = 60, 6, 0, -12
+local hill = Instance.new("Part"); hill.Shape = Enum.PartType.Cylinder; hill.Size = Vector3.new(0.4, R * 2, R * 2); hill.Anchored = true; hill.CanCollide = false
+hill.Material = Enum.Material.Neon; hill.Color = Color3.fromRGB(255, 200, 60); hill.Transparency = 0.5; hill.Position = Vector3.new(CX, 0.25, CZ); hill.Parent = workspace
+local gui = Instance.new("ScreenGui"); gui.Parent = me.PlayerGui
+local function label(w, h, x, y, ax, size)
+  local l = Instance.new("TextLabel"); l.Size = UDim2.new(0, w, 0, h); l.Position = UDim2.new(x, 0, 0, y); l.AnchorPoint = Vector2.new(ax, 0)
+  l.BackgroundColor3 = Color3.fromRGB(20, 20, 30); l.BackgroundTransparency = 0.25; l.TextColor3 = Color3.new(1, 1, 1); l.TextSize = size; l.Parent = gui
+  Instance.new("UICorner", l).CornerRadius = UDim.new(0, 12); return l
+end
+local status, board = label(420, 44, 0.5, 14, 0.5, 20), label(220, 140, 1, 70, 1, 16)
+board.TextXAlignment = Enum.TextXAlignment.Left
+local scores, mine, over = {}, 0, false
+local function render()
+  local list = {}; for n, v in pairs(scores) do list[#list + 1] = { n = n, v = v } end
+  table.sort(list, function(a, b) return a.v > b.v end)
+  local t = "REY DE LA COLINA (meta " .. GOAL .. ")\\n"; for i = 1, math.min(5, #list) do t = t .. list[i].n .. "  " .. list[i].v .. "\\n" end
+  board.Text = t
+  if not over then status.Text = (#list > 0 and ("Rey: " .. list[1].n .. " (" .. list[1].v .. ")") or "Entra en el círculo dorado") end
+end
+remote.OnClientEvent:Connect(function(kind, a, b)
+  if kind == "pts" then scores[a] = b; render()
+  elseif kind == "win" then over = true; status.Text = tostring(a) .. " es el rey!"; game.title(tostring(a) .. " es el rey!", 4000); game.sound("win")
+  elseif kind == "reset" then over = false; scores = {}; mine = 0; render() end
+end)
+remote.OnServerEvent:Connect(function(player, kind, v)
+  if kind == "pt" and not over and type(v) == "number" then
+    scores[player.Name] = math.min(v, GOAL); remote:FireAllClients("pts", player.Name, scores[player.Name])
+    if v >= GOAL then over = true; remote:FireAllClients("win", player.Name); task.delay(7, function() scores = {}; over = false; remote:FireAllClients("reset") end) end
+  end
+end)
+task.spawn(function()
+  while true do
+    task.wait(1)
+    local c = me.Character; local r = c and c:FindFirstChild("HumanoidRootPart")
+    if r and not over and (Vector3.new(CX, r.Position.Y, CZ) - r.Position).Magnitude < R then mine += 1; game.sound("click"); remote:FireServer("pt", mine) end
+  end
+end)
+render()`

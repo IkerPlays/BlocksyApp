@@ -1,6 +1,8 @@
 // Traducciones completas de los textos añadidos desde la 1.3 (se mezclan en i18n.js; lo que ya esté traducido allí tiene prioridad).
 export const MORE = {
   pt: {
+    tpl_koth: "Rei da colina",
+    tpl_koth_d: "Multijogador: fique dentro do círculo",
     ach_clanmate: "De clã",
     ach_clanmate_d: "Crie um clã ou entre em um.",
     ach_planner: "Organizador",
@@ -728,6 +730,8 @@ export const MORE = {
     lang_hint: "O idioma é aplicado na hora.",
   },
   fr: {
+    tpl_koth: "Roi de la colline",
+    tpl_koth_d: "Multijoueur : reste dans le cercle",
     ach_clanmate: "Membre de clan",
     ach_clanmate_d: "Crée un clan ou rejoins-en un.",
     ach_planner: "Organisateur",
@@ -1455,6 +1459,8 @@ export const MORE = {
     lang_hint: "La langue s'applique instantanément.",
   },
   de: {
+    tpl_koth: "König des Hügels",
+    tpl_koth_d: "Mehrspieler: bleib im Kreis",
     ach_clanmate: "Clanmitglied",
     ach_clanmate_d: "Erstelle einen Clan oder tritt einem bei.",
     ach_planner: "Organisator",
@@ -2182,6 +2188,8 @@ export const MORE = {
     lang_hint: "Die Sprache wird sofort angewendet.",
   },
   it: {
+    tpl_koth: "Re della collina",
+    tpl_koth_d: "Multigiocatore: resta dentro il cerchio",
     ach_clanmate: "Membro di un clan",
     ach_clanmate_d: "Crea un clan o unisciti a uno.",
     ach_planner: "Organizzatore",
@@ -2926,6 +2934,8 @@ export const MORE = {
     invite_friends: "Invita amici",
   },
   pl: {
+    tpl_koth: "Król wzgórza",
+    tpl_koth_d: "Wieloosobowa: zostań w kole",
     ach_clanmate: "Z klanu",
     ach_clanmate_d: "Stwórz klan lub dołącz do jednego.",
     ach_planner: "Organizator",
@@ -3889,6 +3899,8 @@ export const MORE = {
     offline_ready: "Gotowe do użycia offline",
   },
   ru: {
+    tpl_koth: "Царь горы",
+    tpl_koth_d: "Мультиплеер: оставайтесь в круге",
     ach_clanmate: "Клановец",
     ach_clanmate_d: "Создайте клан или вступите в него.",
     ach_planner: "Организатор",
@@ -4852,6 +4864,8 @@ export const MORE = {
     offline_ready: "Готово к работе офлайн",
   },
   ja: {
+    tpl_koth: "キング・オブ・ザ・ヒル",
+    tpl_koth_d: "マルチプレイ: 円の中にとどまろう",
     ach_clanmate: "クランメンバー",
     ach_clanmate_d: "クランを作るか、参加する。",
     ach_planner: "幹事",
@@ -5815,6 +5829,8 @@ export const MORE = {
     offline_ready: "オフラインで使えます",
   },
   zh: {
+    tpl_koth: "山丘之王",
+    tpl_koth_d: "多人：留在圆圈内",
     ach_clanmate: "战队成员",
     ach_clanmate_d: "创建或加入一个战队。",
     ach_planner: "组织者",
@@ -6778,6 +6794,8 @@ export const MORE = {
     offline_ready: "已可离线使用",
   },
   ko: {
+    tpl_koth: "언덕의 왕",
+    tpl_koth_d: "멀티플레이: 원 안에 머무르세요",
     ach_clanmate: "클랜원",
     ach_clanmate_d: "클랜을 만들거나 가입하세요.",
     ach_planner: "모임 주최자",
