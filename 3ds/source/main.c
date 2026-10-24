@@ -13,6 +13,7 @@
 #include "app.h"
 #include "update.h"
 #include "log.h"
+#include "parts.h"
 #include "avatar3d.h"
 #include "world.h"
 #include "config.h"

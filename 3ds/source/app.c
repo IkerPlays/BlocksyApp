@@ -8,6 +8,7 @@
 #include "avatar3d.h"
 #include <math.h>
 #include <stdio.h>
+#include <time.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
