@@ -60,3 +60,7 @@ export const TEMPLATES = [
   { id: 'hide', key: 'tpl_hide', mode: 'arena', config: { world: 'hills', allow_build: false, script_lang: 'lua', welcome: 'Escondite: uno busca, los demás se esconden' }, script: HIDE },
   { id: 'sky', key: 'tpl_sky', mode: 'arena', config: { world: 'void', allow_build: false, script_lang: 'lua', welcome: 'Salta entre plataformas y evita la lava' }, script: SKY },
 ]
+
+// Categoría de cada plantilla para filtrar en el selector: solo (un jugador), multi (varios jugadores), build (construir)
+export const TEMPLATE_CATS = { blank: 'build', plaza: 'multi', tag: 'multi', koth: 'multi', dodge: 'multi', zones: 'multi', arena: 'multi', teams: 'multi', flag: 'multi', waves: 'multi', hide: 'multi' }
+export const templateCat = x => TEMPLATE_CATS[x.id] ?? 'solo'

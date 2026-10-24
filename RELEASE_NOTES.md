@@ -15,3 +15,4 @@ Devbuild: four new templates and translucent 3DS parts
 - 3DS: the creator's welcome message is shown when you enter a game (like on the web).
 - 3DS: downloads use bigger network chunks.
 - 3DS: games with a time of day (config time) pick dawn, day, sunset or night; auto-cycle follows the console clock.
+- Create game: filter templates by single player, multiplayer or build, and search them.

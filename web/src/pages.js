@@ -9,7 +9,7 @@ import { headshot, styleFor, EMOTES, createPreview, loadoutStyle, parseLoadout, 
 import { t, LANGS, langName, getPref, setLang, onLang, getLang, missingFor } from './i18n.js'
 import { codeEditor } from './studio-ui.js'
 import { partyPanel, attachEmoticons } from './party-ui.js'
-import { TEMPLATES } from './templates.js'
+import { TEMPLATES, templateCat } from './templates.js'
 import { listShots, delShot } from './gallery.js'
 import { gameInfoEditor } from './gamepage-edit.js'
 import { visOf, isImg } from './media.js'
@@ -681,11 +681,15 @@ export const pages = {
     const desc = el('input', { placeholder: t('game_desc'), maxlength: 200 })
     let mode = 'build', tpl = TEMPLATES[0]
     const tplBox = el('div', { class: 'mode-pick' })
-    const drawTpl = () => setKids(tplBox, TEMPLATES.map(x => el('button', { type: 'button', class: `mode-card ${tpl === x ? 'on' : ''}`, onclick: () => { tpl = x; mode = x.mode; drawTpl(); drawModes() } }, el('b', { text: t(x.key) }), el('small', { text: t(x.key + '_d') }))))
+    let tplFilter = 'all', tplQuery = ''
+    const tplBar = el('div', { class: 'chips' }), tplSearch = el('input', { type: 'search', placeholder: t('tpl_search'), style: 'max-width:220px' })
+    const drawTplBar = () => setKids(tplBar, [['all', 'tpl_f_all'], ['solo', 'tpl_f_solo'], ['multi', 'tpl_f_multi'], ['build', 'tpl_f_build']].map(([k, key]) => el('button', { type: 'button', class: `chip ${tplFilter === k ? 'on' : ''}`, text: t(key), onclick: () => { tplFilter = k; drawTplBar(); drawTpl() } })).concat(tplSearch))
+    tplSearch.oninput = () => { tplQuery = tplSearch.value.trim().toLowerCase(); drawTpl() }
+    const drawTpl = () => setKids(tplBox, TEMPLATES.filter(x => (tplFilter === 'all' || templateCat(x) === tplFilter) && (!tplQuery || (t(x.key) + ' ' + t(x.key + '_d')).toLowerCase().includes(tplQuery) || x === tpl)).map(x => el('button', { type: 'button', class: `mode-card ${tpl === x ? 'on' : ''}`, onclick: () => { tpl = x; mode = x.mode; drawTpl(); drawModes() } }, el('b', { text: t(x.key) }), el('small', { text: t(x.key + '_d') }))))
     const modeBox = el('div', { class: 'mode-pick' })
     const drawModes = () => setKids(modeBox, MODES.map(m => el('button', { type: 'button', class: `mode-card ${mode === m ? 'on' : ''}`, onclick: () => { mode = m; drawModes() } },
       el('b', { text: modeLabel(m) }), el('small', { text: t(`mode_${m}_d`) }))))
-    drawModes(); drawTpl()
+    drawModes(); drawTplBar(); drawTpl()
     const hue = el('input', { type: 'range', min: 0, max: 359, value: Math.floor(Math.random() * 360) })
     const prev = el('div', { class: 'thumb', style: 'width:120px;flex:none;--h:0' }, el('div', { class: 'cube' }))
     const setHue = () => prev.style.setProperty('--h', hue.value); hue.oninput = setHue; setHue()
@@ -724,7 +728,7 @@ export const pages = {
           toast(t('game_created')); ctx.go(`create/${id}`)
         } catch (er) { toast(er.message) }
       } }, el('h3', { text: t('create_new'), style: 'margin-bottom:12px' }),
-        el('div', { class: 'form-row' }, name, desc), el('div', { class: 'section-s', text: t('templates') }), tplBox, el('div', { class: 'section-s', text: t('mode') }), modeBox,
+        el('div', { class: 'form-row' }, name, desc), el('div', { class: 'section-s', text: t('templates') }), tplBar, tplBox, el('div', { class: 'section-s', text: t('mode') }), modeBox,
         el('div', { class: 'form-row', style: 'align-items:center;margin-top:12px' }, prev, el('label', { class: 'field' }, t('cover_color'), hue)),
         el('button', { class: 'btn primary', text: t('create_btn') }), importBtn),
       el('div', { class: 'section' }, el('h2', { text: t('my_games') })), el('div', { class: 'panel' }, mineBox))
