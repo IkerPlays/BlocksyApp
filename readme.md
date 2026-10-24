@@ -81,6 +81,10 @@ verificación TLS (`net.c`) hasta instalar un certificado raíz.
 La sección *Actualizar* de la app lee las releases de GitHub **sin iniciar sesión**, así que el repositorio tiene que ser **público**
 (Settings → General → Danger Zone → Change visibility). Con el repo público también funciona el QR de FBI de arriba.
 
+Cómo actualiza (resumen): consulta la API de GitHub (con el feed Atom y una copia local como respaldo), descarga el `.cia` (o el `.3dsx`) reanudando si
+se corta la red, comprueba el tamaño y el SHA-256 que publica GitHub y solo entonces lo instala. El `.3dsx` anterior queda como `.bak` para volver atrás.
+El botón *Probar descarga* hace todo menos instalar. La app escribe un registro en `sdmc:/3ds/blocksy/log.txt`: si una actualización falla, ese fichero dice por qué.
+
 ## Quién puede crear juegos
 Solo la cuenta autorizada y solo desde la web. El servidor lo comprueba (`sessions.can_create`, que pone la función `game-session` según el
 secret opcional `CREATOR_EMAILS`; por defecto `ikerana35018santanaiker@gmail.com`). Hay que ejecutar `supabase/game/creators.sql` en Game y
