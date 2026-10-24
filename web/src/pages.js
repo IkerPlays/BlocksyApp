@@ -683,7 +683,8 @@ export const pages = {
     const tplBox = el('div', { class: 'mode-pick' })
     let tplFilter = 'all', tplQuery = ''
     const tplBar = el('div', { class: 'chips' }), tplSearch = el('input', { type: 'search', placeholder: t('tpl_search'), style: 'max-width:220px' })
-    const drawTplBar = () => setKids(tplBar, [['all', 'tpl_f_all'], ['solo', 'tpl_f_solo'], ['multi', 'tpl_f_multi'], ['build', 'tpl_f_build']].map(([k, key]) => el('button', { type: 'button', class: `chip ${tplFilter === k ? 'on' : ''}`, text: t(key), onclick: () => { tplFilter = k; drawTplBar(); drawTpl() } })).concat(tplSearch))
+    const drawTplBar = () => setKids(tplBar, [['all', 'tpl_f_all'], ['solo', 'tpl_f_solo'], ['multi', 'tpl_f_multi'], ['build', 'tpl_f_build']].map(([k, key]) => el('button', { type: 'button', class: `chip ${tplFilter === k ? 'on' : ''}`, text: t(key), onclick: () => { tplFilter = k; drawTplBar(); drawTpl() } })).concat(randomBtn, tplSearch))
+    const randomBtn = el('button', { type: 'button', class: 'chip', text: '🎲 ' + t('tpl_random'), onclick: () => { const pool = TEMPLATES.filter(x => x.id !== 'blank'); tpl = pool[Math.floor(Math.random() * pool.length)]; mode = tpl.mode; tplFilter = 'all'; tplQuery = ''; tplSearch.value = ''; drawTplBar(); drawTpl(); drawModes(); toast(t(tpl.key)) } })
     tplSearch.oninput = () => { tplQuery = tplSearch.value.trim().toLowerCase(); drawTpl() }
     const drawTpl = () => setKids(tplBox, TEMPLATES.filter(x => (tplFilter === 'all' || templateCat(x) === tplFilter) && (!tplQuery || (t(x.key) + ' ' + t(x.key + '_d')).toLowerCase().includes(tplQuery) || x === tpl)).map(x => el('button', { type: 'button', class: `mode-card ${tpl === x ? 'on' : ''}`, onclick: () => { tpl = x; mode = x.mode; drawTpl(); drawModes() } }, el('b', { text: t(x.key) }), el('small', { text: t(x.key + '_d') }))))
     const modeBox = el('div', { class: 'mode-pick' })

@@ -1,6 +1,7 @@
 // Traducciones completas de los textos añadidos desde la 1.3 (se mezclan en i18n.js; lo que ya esté traducido allí tiene prioridad).
 export const MORE = {
   pt: {
+    tpl_random: "Surpreenda-me",
     st_parts_3ds: "O 3DS desenha no máximo 160 peças por jogo; o resto só aparece na web",
     ach_mason: "Pedreiro",
     ach_mason_d: "Coloque 20000 blocos.",
@@ -776,6 +777,7 @@ export const MORE = {
     lang_hint: "O idioma é aplicado na hora.",
   },
   fr: {
+    tpl_random: "Surprends-moi",
     st_parts_3ds: "La 3DS affiche au maximum 160 pièces par jeu ; le reste ne s'affichera que sur le web",
     ach_mason: "Maçon",
     ach_mason_d: "Pose 20000 blocs.",
@@ -1551,6 +1553,7 @@ export const MORE = {
     lang_hint: "La langue s'applique instantanément.",
   },
   de: {
+    tpl_random: "Überrasch mich",
     st_parts_3ds: "Die 3DS zeichnet höchstens 160 Teile pro Spiel; der Rest erscheint nur im Web",
     ach_mason: "Maurer",
     ach_mason_d: "Platziere 20000 Blöcke.",
@@ -2326,6 +2329,7 @@ export const MORE = {
     lang_hint: "Die Sprache wird sofort angewendet.",
   },
   it: {
+    tpl_random: "Sorprendimi",
     st_parts_3ds: "La 3DS disegna al massimo 160 pezzi per gioco; il resto si vedrà solo sul web",
     ach_mason: "Muratore",
     ach_mason_d: "Piazza 20000 blocchi.",
@@ -3118,6 +3122,7 @@ export const MORE = {
     invite_friends: "Invita amici",
   },
   pl: {
+    tpl_random: "Zaskocz mnie",
     st_parts_3ds: "3DS rysuje najwyżej 160 elementów na grę; reszta będzie widoczna tylko w sieci",
     ach_mason: "Murarz",
     ach_mason_d: "Postaw 20000 bloków.",
@@ -4129,6 +4134,7 @@ export const MORE = {
     offline_ready: "Gotowe do użycia offline",
   },
   ru: {
+    tpl_random: "Удиви меня",
     st_parts_3ds: "3DS рисует не более 160 деталей на игру; остальные будут видны только в вебе",
     ach_mason: "Каменщик",
     ach_mason_d: "Поставьте 20000 блоков.",
@@ -5140,6 +5146,7 @@ export const MORE = {
     offline_ready: "Готово к работе офлайн",
   },
   ja: {
+    tpl_random: "おまかせ",
     st_parts_3ds: "3DSでは1つのゲームにつき最大160個のパーツまで表示されます。残りはWebでのみ表示されます",
     ach_mason: "石工",
     ach_mason_d: "ブロックを20000個置こう。",
@@ -6151,6 +6158,7 @@ export const MORE = {
     offline_ready: "オフラインで使えます",
   },
   zh: {
+    tpl_random: "随机来一个",
     st_parts_3ds: "3DS每个游戏最多绘制160个零件，其余只会在网页上显示",
     ach_mason: "泥瓦匠",
     ach_mason_d: "放置20000个方块。",
@@ -7162,6 +7170,7 @@ export const MORE = {
     offline_ready: "已可离线使用",
   },
   ko: {
+    tpl_random: "아무거나",
     st_parts_3ds: "3DS는 게임당 최대 160개의 파츠만 그립니다. 나머지는 웹에서만 보입니다",
     ach_mason: "석공",
     ach_mason_d: "블록 20000개를 놓으세요.",
