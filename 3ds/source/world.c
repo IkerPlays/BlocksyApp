@@ -27,9 +27,11 @@ unsigned world_plaza_color(int x, int z) {
 	if ((x == 0 || z == 0) && az >= 5 && az <= 12) return hexc("#e6d28c");
 	return ((x + z) & 1) ? hexc("#d5d9de") : hexc("#c3c8cf");
 }
+static bool island_solid(const World *w, int x, int y, int z);
 bool world_floor_solid(const World *w, int x, int y, int z) {
 	if (w->type == 5) return y >= 0 && y <= 2 && abs(x) <= 50 && abs(z) <= 50 && w->tgrid[(x + 50) * 101 + z + 50];     // troncos del bosque
 	if (w->type == 9) return y >= 0 && y < world_hill_h(w, x, z);
+	if (w->type == 10) return island_solid(w, x, y, z);
 	return w->type == 1 && y == 0 && abs(x) <= w->plaza_n && abs(z) <= w->plaza_n;
 }
 
@@ -162,8 +164,36 @@ static void build_hills(World *w, int seed) {
 	for (int i = 0; i < 26; i++) {                                           // arboles: mismas posiciones que la web (el tronco es solido; la copa se dibuja aparte)
 		int x = jsround((rnd() * 2 - 1) * (HILL_R - 4)), z = jsround((rnd() * 2 - 1) * (HILL_R - 4));
 		double d = hypot(x, z); if (d < 9 || d > HILL_R - 3 || world_hill_h(w, x, z) <= 0) continue;
-		if (w->ntrees < 160) { w->tree[w->ntrees][0] = (short)x; w->tree[w->ntrees][1] = (short)z; w->ntrees++; }
-		int y = world_hill_h(w, x, z); for (int k = 0; k < 3; k++) add(w, x, y + k, z, hexc("#8b5e34"));
+		int y = world_hill_h(w, x, z);
+		if (w->ntrees < 160) { w->tree_y[w->ntrees] = (short)y; w->tree[w->ntrees][0] = (short)x; w->tree[w->ntrees][1] = (short)z; w->ntrees++; } for (int k = 0; k < 3; k++) add(w, x, y + k, z, hexc("#8b5e34"));
+	}
+}
+
+// ---- islas (type 10): discos flotantes iguales a islands() de la web; el terreno se calcula al vuelo, los troncos son celdas ----
+int world_island_depth(const World *w, int d, int x, int z) {
+	int dx = x - w->isl[d][0], dz = z - w->isl[d][2], rad = w->isl[d][3];
+	if (abs(dx) > rad || abs(dz) > rad) return 0;
+	double dist = hypot(dx, dz); if (dist > rad + 0.3) return 0;
+	int depth = jsround(w->isl_thick[d] * (1 - dist / (rad + 1)) + 1); return depth < 1 ? 1 : depth;
+}
+static bool island_solid(const World *w, int x, int y, int z) {
+	for (int d = 0; d < w->nisl; d++) { int dep = world_island_depth(w, d, x, z); if (dep && y <= w->isl[d][1] && y > w->isl[d][1] - dep) return true; }
+	return false;
+}
+static void isl_tree(World *w, int x, int y, int z) {
+	for (int k = 0; k < 3; k++) add(w, x, y + k, z, hexc("#8b5e34"));
+	if (w->ntrees < 160) { w->tree_y[w->ntrees] = (short)y; w->tree[w->ntrees][0] = (short)x; w->tree[w->ntrees][1] = (short)z; w->ntrees++; }
+}
+static void build_islands(World *w, int seed) {
+	w->type = 10; w->floor = false; w->void_y = -30; w->seed = seed; w->spawn[0] = 0.5f; w->spawn[1] = 1.2f; w->spawn[2] = 0.5f; rng_seed((uint32_t)seed);
+	w->isl[0][0] = 0; w->isl[0][1] = 0; w->isl[0][2] = 0; w->isl[0][3] = 7; w->isl_thick[0] = 5; w->nisl = 1;
+	isl_tree(w, -3, 1, -2); isl_tree(w, 4, 1, 3);
+	const int n = 9;
+	for (int i = 0; i < n; i++) {
+		double a = ((double)i / n) * 6.283185307179586 + rnd() * 0.5, d = 16 + rnd() * 16;
+		int cx = jsround(cos(a) * d), cz = jsround(sin(a) * d), cy = jsround((rnd() - 0.3) * 8), rad = 3 + (int)floor(rnd() * 4);
+		w->isl[w->nisl][0] = cx; w->isl[w->nisl][1] = cy; w->isl[w->nisl][2] = cz; w->isl[w->nisl][3] = rad; w->isl_thick[w->nisl] = 3 + rnd() * 3; w->nisl++;
+		if (rad >= 4 && rnd() < 0.7) isl_tree(w, cx, cy + 1, cz);
 	}
 }
 void world_build(World *w, const char *name, int seed) {
@@ -177,6 +207,7 @@ void world_build(World *w, const char *name, int seed) {
 	else if (name && !strcmp(name, "caves")) build_caves(w, seed);
 	else if (name && !strcmp(name, "city")) build_city(w, seed);
 	else if (name && !strcmp(name, "hills")) build_hills(w, seed);
+	else if (name && !strcmp(name, "islands")) build_islands(w, seed);
 	else if (name && !strcmp(name, "checker")) { w->type = 3; for (int x = -20; x <= 20; x++) for (int z = -20; z <= 20; z++) if (WORLD_MAX_CELLS > w->ncells + 0 && abs(x) < 12 && abs(z) < 12) add(w, x, 0, z, ((x + z) & 1) ? hexc("#ffffff") : hexc("#2b2f36")); w->spawn[1] = 1.2f; }
 	else if (name && !strcmp(name, "void")) { w->type = 4; w->floor = false; w->void_y = -30; plat(w, -2, 0, -2, 5, 5, hexc("#9aa0a8")); w->spawn[1] = 1.2f; }
 }

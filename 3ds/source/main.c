@@ -422,17 +422,28 @@ static void render_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 			draw_list[nd++] = (Box){de - 0.05f, fx - 0.07f, 0.3f, fz - 0.07f, 0.22f, 0.12f, fogged(FLOWER[(h >> 20) & 3], de), -1};
 		}
 	}
-	if (world.type == 9 && !night) {                                                            // colinas: columnas calculadas al vuelo + copas de los arboles
+	if ((world.type == 9 || world.type == 10) && !night) {                                    // colinas e islas: columnas calculadas al vuelo + copas de los arboles
 		int bx = (int)floorf(px), bz = (int)floorf(pz), rr = 7 + lvl + (g_new3ds ? 2 : 0);
-		for (int gx = -rr; gx <= rr; gx++) for (int gz = -rr; gz <= rr; gz++) {
+		if (world.type == 9) for (int gx = -rr; gx <= rr; gx++) for (int gz = -rr; gz <= rr; gz++) {
 			int ax = bx + gx, az = bz + gz, hh = world_hill_h(&world, ax, az); if (hh <= 0) continue;
 			if (!project(ax + 0.5f, hh * 0.5f, az + 0.5f, &sx, &sy, &d) || d > fog_far + 4) continue;
 			u32 col = (hh <= 1 && world_hill_top_sand(ax, az)) ? C2D_Color32(0xE6, 0xD2, 0x8C, 255) : ((ax + az) & 1) ? C2D_Color32(0x5C, 0xB8, 0x5C, 255) : C2D_Color32(0x53, 0xA8, 0x53, 255);
 			if (hh >= 3) col = shade(col, 0.96f);
 			draw_list[nd++] = (Box){d, ax, 0, az, 1, (float)hh, fogged(shade(col, dim), d), -1};
 		}
+		if (world.type == 10) for (int di = 0; di < world.nisl; di++) {
+			int cx0 = world.isl[di][0], cy0 = world.isl[di][1], cz0 = world.isl[di][2], rad = world.isl[di][3];
+			if (abs(cx0 - bx) > rad + rr || abs(cz0 - bz) > rad + rr) continue;
+			for (int lx = -rad; lx <= rad; lx++) for (int lz = -rad; lz <= rad; lz++) {
+				int ax = cx0 + lx, az = cz0 + lz, dep = world_island_depth(&world, di, ax, az); if (!dep || abs(ax - bx) > rr || abs(az - bz) > rr) continue;
+				if (!project(ax + 0.5f, cy0 - dep * 0.5f + 0.5f, az + 0.5f, &sx, &sy, &d) || d > fog_far + 4) continue;
+				u32 col = ((lx + lz) & 1) ? C2D_Color32(0x5C, 0xB8, 0x5C, 255) : C2D_Color32(0x53, 0xA8, 0x53, 255);
+				draw_list[nd++] = (Box){d, ax, cy0 - dep + 1, az, 1, (float)dep, fogged(shade(col, dim), d), -1};
+				if (dep >= 3) draw_list[nd++] = (Box){d + 0.01f, ax + 0.02f, cy0 - dep + 1, az + 0.02f, 0.96f, (float)(dep - 1), fogged(shade(C2D_Color32(0x8A, 0x5A, 0x35, 255), dim), d), -1};   // tierra bajo la hierba
+			}
+		}
 		for (int i = 0; i < world.ntrees; i++) {
-			int tx0 = world.tree[i][0], tz0 = world.tree[i][1], ty0 = world_hill_h(&world, tx0, tz0);
+			int tx0 = world.tree[i][0], tz0 = world.tree[i][1], ty0 = world.tree_y[i];
 			if (!project(tx0 + 0.5f, ty0 + 4.0f, tz0 + 0.5f, &sx, &sy, &d) || d > fog_far + 4) continue;
 			draw_list[nd++] = (Box){d - 0.1f, tx0 - 2, ty0 + 3, tz0 - 2, 5, 1, fogged(shade(C2D_Color32(0x2F, 0x8F, 0x3A, 255), dim), d), -1};
 			draw_list[nd++] = (Box){d - 0.3f, tx0 - 1, ty0 + 4, tz0 - 1, 3, 1, fogged(shade(C2D_Color32(0x3A, 0xA3, 0x47, 255), dim), d), -1};

@@ -4,3 +4,4 @@ Devbuild: update log, Studio parts polish and new content
 - 3DS: on-screen texts made in the Studio (players, name, game, time placeholders) are shown in games.
 - 3DS: fixed Studio parts reader mixing items from other lists in the same response.
 - 3DS: the Hills world now exists on the 3DS with the same terrain and tree positions as the web (columns are computed on the fly, trunks are solid); Hide and seek and other Hills games no longer load as flat ground.
+- 3DS: the Islands world too (floating discs and trees identical to the web, void below).

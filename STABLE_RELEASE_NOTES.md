@@ -20,7 +20,7 @@ Blocksy is a multiplayer block-building game for the web and the Nintendo 3DS (h
 - 3DS: instant game list on startup (cached on the SD card).
 - 3DS: double jump, speed, gravity and spawn settings of games.
 - 3DS: log file on the SD card (sdmc:/3ds/blocksy/log.txt) to diagnose update failures.
-- 3DS: Hills world with the same terrain as the web.
+- 3DS: Hills and Islands worlds with the same terrain as the web.
 - 3DS: quick chat phrases in the emote menu; Studio on-screen texts are shown.
 - 3DS: Discover mode filter (SELECT).
 - 3DS play counts towards missions (place blocks, chat, play time) and earns BCoins (races and time played).
