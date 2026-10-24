@@ -209,6 +209,7 @@ static bool project(float x, float y, float z, float *sx, float *sy, float *dept
 }
 
 typedef struct { float depth; float x, y, z, w, h; u32 color; int av; int pi; } Box;   // av: -1 bloque, 0 yo, 1+i jugador remoto i
+static int g_skymode;                                     // cielo del juego (config.sky): 0 dia, 1 amanecer, 2 atardecer, 3 noche, 4 espacio
 static bool g_new3ds;                                     // New 3DS: 804 MHz y mas memoria => mas bloques y mas distancia
 static Box draw_list[MAX_LOCAL + MAX_PLAYERS * 2 + 4 + 700];
 
@@ -377,13 +378,18 @@ static void render_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 	fog_near = 12 + lvl * 4; fog_far = 26 + lvl * 8 + (g_new3ds ? 8 : 0);
 	bool night = world.type == 5;
 	if (night) { g_sky[0] = 0x04; g_sky[1] = 0x07; g_sky[2] = 0x10; fog_near = cam_dist + 1.5f; fog_far = cam_dist + 15 + lvl * 3; R = 7; }
-	else { g_sky[0] = 0xD8; g_sky[1] = 0xEC; g_sky[2] = 0xFF; }
+	int skm = night ? 0 : g_skymode; bool starry = night || skm >= 3;
+	static const unsigned char SKT[5][3] = {{0x4F, 0x9F, 0xE8}, {0x6A, 0x7C, 0xC8}, {0x58, 0x48, 0x98}, {0x02, 0x03, 0x0A}, {0x00, 0x00, 0x06}};     // arriba del cielo
+	static const unsigned char SKH[5][3] = {{0xD8, 0xEC, 0xFF}, {0xFF, 0xCB, 0xA0}, {0xFF, 0x9C, 0x6C}, {0x0C, 0x14, 0x26}, {0x06, 0x06, 0x14}};   // horizonte y niebla
+	static const float DIM[5] = {1.0f, 0.92f, 0.82f, 0.55f, 0.5f};
+	float dim = night ? 0.62f : DIM[skm];
+	if (!night) { g_sky[0] = SKH[skm][0]; g_sky[1] = SKH[skm][1]; g_sky[2] = SKH[skm][2]; }
 	float fdx = -sinf(cam_yaw), fdz = -cosf(cam_yaw);                                       // hacia donde mira la camara (la linterna)
 	#define NIGHT_D(X, Z, D) (night ? lit_depth((X) - px, (Z) - pz, fdx, fdz, (D)) : (D))
 	int nd = 0; float sx, sy, d;
 	for (int i = 0; i < nl; i++) if (project(local[i].x + .5f, local[i].y + .5f, local[i].z + .5f, &sx, &sy, &d) && d < fog_far + 6)
-		draw_list[nd++] = (Box){d, local[i].x, local[i].y, local[i].z, 1, 1, fogged(shade(local[i].kind < 0 ? local[i].color : PALETTE[local[i].kind % NPALETTE], (night ? 0.62f : 1.0f) * (((local[i].x * 7 + local[i].y * 13 + local[i].z * 5) & 3) == 0 ? 0.93f : 1.0f)), NIGHT_D(local[i].x + .5f, local[i].z + .5f, d)), -1};
-	if (!night && world.floor && (world.type == 0 || world.type == 1) && !nparts) {              // flores y matas de adorno (solo se ven: no estorban ni se sincronizan)
+		draw_list[nd++] = (Box){d, local[i].x, local[i].y, local[i].z, 1, 1, fogged(shade(local[i].kind < 0 ? local[i].color : PALETTE[local[i].kind % NPALETTE], dim * (((local[i].x * 7 + local[i].y * 13 + local[i].z * 5) & 3) == 0 ? 0.93f : 1.0f)), NIGHT_D(local[i].x + .5f, local[i].z + .5f, d)), -1};
+	if (!night && skm < 3 && world.floor && (world.type == 0 || world.type == 1) && !nparts) {              // flores y matas de adorno (solo se ven: no estorban ni se sincronizan)
 		static const u32 FLOWER[4] = {0xFF3C4CE0, 0xFF3CC8F5, 0xFFF5F5F5, 0xFFD8609B};
 		int bx = (int)floorf(px), bz = (int)floorf(pz), rr = 6 + lvl;
 		for (int gx = -rr; gx <= rr; gx++) for (int gz = -rr; gz <= rr; gz++) {
@@ -401,7 +407,7 @@ static void render_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 	for (int i = 0; i < nparts; i++) {                                                         // piezas del Studio
 		const Part *o = &parts[i]; float ext = fmaxf(o->sx, fmaxf(o->sy, o->sz)) * 0.5f;
 		if (!project(o->x, o->y, o->z, &sx, &sy, &d) || d > fog_far + 6 + ext) continue;
-		draw_list[nd++] = (Box){d + 0.35f * fmaxf(o->sx, o->sz) + (o->sy <= 1.5f ? 0.5f * fmaxf(o->sx, o->sz) : 0), o->x, o->y, o->z, 0, 0, fogged(shade(o->color, night ? 0.62f : 1.0f), NIGHT_D(o->x, o->z, d)), -3, i};
+		draw_list[nd++] = (Box){d + 0.35f * fmaxf(o->sx, o->sz) + (o->sy <= 1.5f ? 0.5f * fmaxf(o->sx, o->sz) : 0), o->x, o->y, o->z, 0, 0, fogged(shade(o->color, dim), NIGHT_D(o->x, o->z, d)), -3, i};
 	}
 	if (night) {                                                                           // arboles (tronco + copa en 3 capas), fragmentos y monstruo
 		static const u32 WOOD = 0xFF345E8B;
@@ -432,14 +438,14 @@ static void render_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 	C2D_TargetClear(top, C2D_Color32(SKY_R, SKY_G, SKY_B, 255));
 	C2D_SceneBegin(top);
 	if (night) { u32 t0 = C2D_Color32(0x02, 0x03, 0x0A, 255), t1 = C2D_Color32(0x0C, 0x14, 0x26, 255); C2D_DrawRectangle(0, 0, 0, 400, 150, t0, t0, t1, t1); }
-	else C2D_DrawRectangle(0, 0, 0, 400, 150, C2D_Color32(0x4F, 0x9F, 0xE8, 255), C2D_Color32(0x4F, 0x9F, 0xE8, 255), C2D_Color32(SKY_R, SKY_G, SKY_B, 255), C2D_Color32(SKY_R, SKY_G, SKY_B, 255));   // cielo
-	if (night) {                                                                           // luna y estrellas que giran con la camara
+	else C2D_DrawRectangle(0, 0, 0, 400, 150, C2D_Color32(SKT[skm][0], SKT[skm][1], SKT[skm][2], 255), C2D_Color32(SKT[skm][0], SKT[skm][1], SKT[skm][2], 255), C2D_Color32(SKY_R, SKY_G, SKY_B, 255), C2D_Color32(SKY_R, SKY_G, SKY_B, 255));   // cielo
+	if (starry) {                                                                           // luna y estrellas que giran con la camara
 		float yawo = cam_yaw * 90.0f, mxp = fmodf(250 - yawo + 4000.0f, 560.0f) - 80;
 		C2D_DrawEllipseSolid(mxp - 16, 20, 0, 32, 32, C2D_Color32(0xBF, 0xD0, 0xF0, 40)); C2D_DrawEllipseSolid(mxp - 9, 27, 0, 18, 18, C2D_Color32(0xE8, 0xEE, 0xFF, 255));
 		for (int i = 0; i < 40; i++) { unsigned h = (unsigned)i * 2654435761u; float x = fmodf((h >> 8 & 1023) * 0.55f - yawo * 1.2f + 4000.0f, 400.0f), y = (h >> 18 & 255) * 0.45f; C2D_DrawRectSolid(x, y, 0, 1.5f, 1.5f, C2D_Color32(255, 255, 255, 150 + (h & 63))); }
 	}
 	// Sol y nubes que se desplazan con el viento y con el giro de la cámara (parallax)
-	if (!night) {
+	if (!starry) {
 		float t = (now - t_start) / 1000.0f, yawo = cam_yaw * 90.0f;
 		float sxp = fmodf(300 - yawo + 4000.0f, 560.0f) - 80;
 		C2D_DrawEllipseSolid(sxp - 22, 18, 0, 44, 44, C2D_Color32(0xFF, 0xF1, 0xB0, 90)); C2D_DrawEllipseSolid(sxp - 14, 26, 0, 28, 28, C2D_Color32(0xFF, 0xF6, 0xC8, 255));
@@ -450,10 +456,10 @@ static void render_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 			C2D_DrawEllipseSolid(x, y, 0, w, h, c); C2D_DrawEllipseSolid(x + w * 0.22f, y - h * 0.5f, 0, w * 0.5f, h * 0.9f, c); C2D_DrawEllipseSolid(x + w * 0.5f, y - h * 0.25f, 0, w * 0.4f, h * 0.8f, c);
 		}
 	}
-	if (!night && world.floor && world.type != 4 && world.type != 7) {                                    // colinas de fondo (no en el vacio ni en las cuevas)
+	if (!starry && world.floor && world.type != 4 && world.type != 7) {                                    // colinas de fondo (no en el vacio ni en las cuevas)
 		u32 far_c = world.type == 6 ? C2D_Color32(0xE6, 0xCF, 0x9E, 255) : world.type == 8 ? C2D_Color32(0xB4, 0xC4, 0xD8, 255) : C2D_Color32(0xA6, 0xD0, 0xB4, 255);
 		u32 near_c = world.type == 6 ? C2D_Color32(0xD9, 0xB8, 0x7A, 255) : world.type == 8 ? C2D_Color32(0x9C, 0xAD, 0xC4, 255) : C2D_Color32(0x86, 0xBB, 0x93, 255);
-		draw_hills(far_c, 170, 2, 22, 1.3f); draw_hills(near_c, 110, 0, 11, 4.1f);
+		draw_hills(shade(far_c, dim), 170, 2, 22, 1.3f); draw_hills(shade(near_c, dim), 110, 0, 11, 4.1f);
 	}
 	// Suelo: cuadrícula alrededor del jugador (con niebla). La plaza tiene su propio suelo de piedra a 1 bloque de altura.
 	if (world.floor) {
@@ -465,6 +471,7 @@ static void render_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 			for (int k = 0; k < 4; k++) { ok &= project(ax + cs4[k][0], gy, az + cs4[k][1], &p[k][0], &p[k][1], &dd); dm += dd; }
 			if (!ok) continue;
 			u32 base = plaza ? world_plaza_color(ax, az) : night ? (((ax + az) & 1) ? C2D_Color32(0x1E, 0x35, 0x25, 255) : C2D_Color32(0x1A, 0x2E, 0x21, 255)) : world.gcol[0] ? (((ax + az) & 1) ? world.gcol[0] : world.gcol[1]) : (((ax + az) & 1) ? C2D_Color32(0x5F, 0xAE, 0x5A, 255) : C2D_Color32(0x52, 0x9E, 0x4E, 255));
+			if (!night && dim < 1.0f) base = shade(base, dim);
 			u32 c = fogged(base, NIGHT_D(ax + .5f, az + .5f, dm / 4));
 			C2D_DrawTriangle(p[0][0], p[0][1], c, p[1][0], p[1][1], c, p[2][0], p[2][1], c, 0);
 			C2D_DrawTriangle(p[0][0], p[0][1], c, p[2][0], p[2][1], c, p[3][0], p[3][1], c, 0);
@@ -579,6 +586,7 @@ static bool play_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 	LightLock_Init(&lock);
 	nblocks = nremotes = qn = nchat_new = 0; pry = 0; vy = 0; grounded = false; moving = 0; running = true; want_offline = false;
 	world_build(&world, cur_game.world, cur_game.seed);                         // mundo base (plaza, carrera...) igual que en la web
+	g_skymode = !strcmp(cur_game.sky, "dawn") ? 1 : !strcmp(cur_game.sky, "sunset") ? 2 : !strcmp(cur_game.sky, "night") ? 3 : !strcmp(cur_game.sky, "space") ? 4 : 0;
 	nparts = 0;
 	if (cur_game.id[0]) {                  // piezas creadas en el Studio de la web
 		nparts = net_fetch_parts(cur_game.id, parts, MAX_PARTS);
@@ -786,6 +794,7 @@ void game_preview(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 	{ const char *pw = getenv("BLOCKSY_PREVIEW_WORLD"); world_build(&world, pw ? pw : "", 0); can_build = true; ui_build_ui = true; }
 	snprintf(sess.username, sizeof sess.username, "IkerPlays"); sess.color = 0xFF439FFF; snprintf(cur_game.name, sizeof cur_game.name, "Spawn Plaza");
 	nl = 0;
+	{ const char *sk = getenv("BLOCKSY_PREVIEW_SKY"); g_skymode = sk ? atoi(sk) : 0; }
 	nparts = 0;
 	if (getenv("BLOCKSY_PREVIEW_PARTS")) {                                                  // piezas de ejemplo del Studio
 		Part d[] = {{4, 0.5f, 2, 4, 1, 4, 0.5f, 0xFF3C9FFF, 0, 1, 0}, {-3, 1.5f, 4, 2, 3, 2, 0, 0xFF4F4FE0, 2, 1, 0}, {0, 3.5f, -3, 3, 3, 3, 0, 0xFFFFD34D, 1, 0, 0}, {-5, 0.25f, -2, 4, 0.5f, 4, 0.8f, 0xFF50D060, 0, 1, 1}, {6, 2, -4, 1, 4, 6, 0.3f, 0xFFB26AE0, 0, 1, 0}, {-7, 1, -6, 3, 2, 3, 0, 0xFFE0A030, 0, 0, 0, 110, 0}, {2, 2.2f, 5, 1, 1, 1, 0, 0xFF60E8FF, 1, 0, 0, 255, 1}};
