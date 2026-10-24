@@ -48,3 +48,4 @@ Same release system as Iker's Tube.
 - 3DS Studio parts: `net_fetch_parts` (net.c, `games?id=eq.X&select=parts:config->parts`) on entering a game; `parts[]` in main.c are drawn by `draw_part` (rotated cuboid, ball, cylinder, alpha, Neon glow) and collide through `part_solid` inside `solid_at`; a spawn part moves `world.spawn`. Adaptive quality scales the draw cap by frame time (`q_adapt`). `audio_hold(true)` pauses music while updating.
 - 3DS preview with main.c: compile it separately with `-Dmain=blocksy_main -c`, link it with preview.c/stub.c (stub.c has update_*/audio_* stubs) and run from `3ds/` (`BLOCKSY_PREVIEW_PARTS=1` draws demo parts).
 - 3DS sky: `GameInfo.sky` (config.sky) -> `g_skymode` in main.c (SKT/SKH/DIM tables); the forest keeps its own night. Decor (hills, flowers) is visual only.
+- 3DS native tests: `update_core_test.c` and `parts_test.c` (see the command in each header); `parts.c` is the pure reader of `config.parts` used by `net_fetch_parts`.
