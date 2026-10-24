@@ -3,6 +3,7 @@
 #include <assert.h>
 #include <math.h>
 #include <stdio.h>
+#include <string.h>
 
 int main(void) {
 	static Part p[MAX_PARTS];
@@ -25,6 +26,14 @@ int main(void) {
 	assert(parts_parse("[{\"parts\": null}]", p, MAX_PARTS) == 0);
 	assert(parts_parse("[]", p, MAX_PARTS) == 0);
 	assert(parts_parse(js, p, 2) == 2);                          // respeta el maximo
+	// textos de interfaz: el array ui no se mezcla con parts (y al reves)
+	const char *both = "[{\"parts\":[{\"x\":1,\"sx\":2,\"sy\":1,\"sz\":2}],\"ui\":[{\"id\":\"a\",\"text\":\"Hola {name}!\",\"x\":50,\"y\":10,\"size\":24,\"color\":\"#ff0000\"},{\"id\":\"b\",\"text\":\"Jugadores {players} - {time}\",\"x\":2,\"y\":90}]}]";
+	assert(parts_parse(both, p, MAX_PARTS) == 1);
+	static UiText ut[MAX_UITEXTS]; int nu = ui_parse(both, ut, MAX_UITEXTS);
+	assert(nu == 2 && ut[0].size == 24 && ut[0].color == 0xFF0000FF && ut[1].size == 28 && ut[1].x == 2);
+	char fo[96]; ui_format(ut[1].text, fo, sizeof fo, 3, "Iker", "Mi juego", 125); assert(!strcmp(fo, "Jugadores 3 - 2:05"));
+	ui_format("{game}: {name} {x}", fo, sizeof fo, 1, "Ana", "Plaza", 0); assert(!strcmp(fo, "Plaza: Ana {x}"));
+	assert(ui_parse("[{\"ui\": null}]", ut, MAX_UITEXTS) == 0);
 	printf("parts: todo bien\n");
 	return 0;
 }

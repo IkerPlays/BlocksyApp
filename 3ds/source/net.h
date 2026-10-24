@@ -44,7 +44,9 @@ void net_offline(const Session *s);
 // Lobby (listas, amigos, avatar). Los de amigos devuelven -2 si la sesión no tiene token de Auth (entrada por QR)
 #define MAX_PARTS 160
 typedef struct { float x, y, z, sx, sy, sz, ry, cs, sn, rad; unsigned int color; unsigned char shape, collide, spawn, alpha, glow; } Part;   // pieza del Studio (config.parts); shape 0 bloque, 1 bola, 2 cilindro; ry en radianes
-int  net_fetch_parts(const char *game_id, Part *out, int max);              // piezas del Studio de un juego (0 si no hay o falla)
+#define MAX_UITEXTS 8
+typedef struct { char text[56]; float x, y; int size; unsigned int color; } UiText;                 // texto de interfaz del Studio (config.ui): x e y en % de la pantalla, size en px de la web
+int  net_fetch_parts(const char *game_id, Part *out, int max, UiText *ui, int *nui);              // piezas del Studio de un juego (0 si no hay o falla)
 typedef struct { char title[48], game[44], host[24]; long starts; int going, me, clan; } Meetup;   // starts: epoch UTC
 typedef struct { char name[32], tag[8]; int members; } ClanInfo;
 int  net_earn_coins(const Session *s, int amount, const char *reason);     // BCoins por jugar (AUTH earn_coins: 'play', 'obby' o 'build'); devuelve lo concedido (0 si ya llegaste al tope diario)

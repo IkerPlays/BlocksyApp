@@ -165,6 +165,7 @@ static void ht_build(const Block *bl, int n) {
 }
 // ---- piezas del Studio: cajas giradas, bolas y cilindros (la 3DS las dibuja con su volumen y las usa de suelo/paredes) ----
 static Part parts[MAX_PARTS]; static int nparts;
+static UiText uitexts[MAX_UITEXTS]; static int nuitexts;       // textos de interfaz del Studio (config.ui)
 // ¿La celda (x,y,z) esta ocupada por una pieza con colision? (se mira el centro de la celda dentro de la caja girada)
 static bool part_solid(int x, int y, int z) {
 	for (int i = 0; i < nparts; i++) {
@@ -529,6 +530,11 @@ static void render_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 		ui_text(sx, sy - 12, 0.34f, C2D_Color32(255, 255, 255, 255), C2D_AlignCenter, rem[i].name);
 	}
 	// ---- HUD ----
+	for (int i = 0; i < nuitexts && !photo_mode; i++) {                                         // textos del Studio: {players} {name} {game} {time}
+		const UiText *o = &uitexts[i]; char out[160]; ui_format(o->text, out, sizeof out, nr + 1, sess.username, cur_game.name, (unsigned)((now - t_start) / 1000));
+		float sc = o->size / 28.0f * 0.42f; if (sc < 0.3f) sc = 0.3f; if (sc > 1.0f) sc = 1.0f;
+		float tx_ = o->x * 4.0f, ty_ = o->y * 2.4f; ui_text(tx_ + 1, ty_ + 1, sc, C2D_Color32(0, 0, 0, 200), 0, out); ui_text(tx_, ty_, sc, o->color, 0, out);
+	}
 	if (app_coords_on()) { char cb[48]; snprintf(cb, sizeof cb, "%.1f  %.1f  %.1f", px, py, pz); ui_text(392, 38, 0.34f, COL_TEXT, C2D_AlignRight, cb); }
 	if (app_fps_on() && g_ft_avg > 1) { char fp[24]; snprintf(fp, sizeof fp, "%d FPS", (int)(1000.0f / g_ft_avg + 0.5f)); ui_text(392, 226, 0.34f, COL_TEXT, C2D_AlignRight, fp); }
 	if (night) {                                                                              // sombra de miedo cuando el monstruo esta cerca
@@ -611,9 +617,9 @@ static bool play_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 		g_skymode = (hh < 5 || hh >= 21) ? 3 : hh < 8 ? 1 : (hh >= 17.5f ? 2 : 0);
 	}
 	if (cur_game.has_spawn) { world.spawn[0] = cur_game.spawn[0]; world.spawn[1] = cur_game.spawn[1]; world.spawn[2] = cur_game.spawn[2]; px = world.spawn[0]; py = world.spawn[1]; pz = world.spawn[2]; }      // config.spawn
-	nparts = 0;
+	nparts = 0; nuitexts = 0;
 	if (cur_game.id[0]) {                  // piezas creadas en el Studio de la web
-		nparts = net_fetch_parts(cur_game.id, parts, MAX_PARTS);
+		nparts = net_fetch_parts(cur_game.id, parts, MAX_PARTS, uitexts, &nuitexts);
 		for (int i = 0; i < nparts; i++) if (parts[i].spawn) { world.spawn[0] = parts[i].x; world.spawn[1] = parts[i].y + parts[i].sy * 0.5f + 0.05f; world.spawn[2] = parts[i].z; break; }
 	}
 	px = world.spawn[0]; py = world.spawn[1]; pz = world.spawn[2]; rsp_x = px; rsp_y = py; rsp_z = pz;
@@ -835,6 +841,7 @@ void game_preview(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 	nparts = 0;
 	if (getenv("BLOCKSY_PREVIEW_PARTS")) {                                                  // piezas de ejemplo del Studio
 		Part d[] = {mkpart(4, 0.5f, 2, 4, 1, 4, 0.5f, 0xFF3C9FFF, 0, 1, 0, 255, 0), mkpart(-3, 1.5f, 4, 2, 3, 2, 0, 0xFF4F4FE0, 2, 1, 0, 255, 0), mkpart(0, 3.5f, -3, 3, 3, 3, 0, 0xFFFFD34D, 1, 0, 0, 255, 0), mkpart(-5, 0.25f, -2, 4, 0.5f, 4, 0.8f, 0xFF50D060, 0, 1, 1, 255, 0), mkpart(6, 2, -4, 1, 4, 6, 0.3f, 0xFFB26AE0, 0, 1, 0, 255, 0), mkpart(-7, 1, -6, 3, 2, 3, 0, 0xFFE0A030, 0, 0, 0, 110, 0), mkpart(2, 2.2f, 5, 1, 1, 1, 0, 0xFF60E8FF, 1, 0, 0, 255, 1)};
+		snprintf(uitexts[0].text, sizeof uitexts[0].text, "Jugadores: {players}   {time}"); uitexts[0].x = 3; uitexts[0].y = 85; uitexts[0].size = 28; uitexts[0].color = 0xFF50E0FF; nuitexts = 1;
 		memcpy(parts, d, sizeof d); nparts = (int)(sizeof d / sizeof d[0]);
 		for (int i = 0; i < nparts; i++) { parts[i].cs = cosf(parts[i].ry); parts[i].sn = sinf(parts[i].ry); parts[i].rad = 0.5f * hypotf(parts[i].sx, parts[i].sz) + 0.4f; }
 	}

@@ -581,14 +581,15 @@ int net_list_games(GameInfo *out, int max) {
 	free(r); return n;
 }
 // ---- Piezas del Studio (config.parts): se piden al entrar en un juego y se dibujan/colisionan en main.c (la lectura esta en parts.c) ----
-int net_fetch_parts(const char *game_id, Part *out, int max) {
-	char url[300];
+int net_fetch_parts(const char *game_id, Part *out, int max, UiText *ui, int *nui) {
+	char url[320]; if (nui) *nui = 0;
 	for (const char *q = game_id; *q; q++) if (!((*q >= '0' && *q <= '9') || (*q >= 'a' && *q <= 'z') || (*q >= 'A' && *q <= 'Z') || *q == '-' || *q == '_')) return 0;
-	if (HAS_STORE) snprintf(url, sizeof url, STORE_URL "/rest/v1/games?id=eq.%s&select=parts:config->parts", game_id);
-	else snprintf(url, sizeof url, GAME_URL "/rest/v1/games?id=eq.%s&select=parts:config->parts", game_id);
+	if (HAS_STORE) snprintf(url, sizeof url, STORE_URL "/rest/v1/games?id=eq.%s&select=parts:config->parts,ui:config->ui", game_id);
+	else snprintf(url, sizeof url, GAME_URL "/rest/v1/games?id=eq.%s&select=parts:config->parts,ui:config->ui", game_id);
 	char *r = http(M_GET, url, HAS_STORE ? STORE_ANON_KEY : GAME_ANON_KEY, NULL, NULL, NULL);
 	if (!r) return 0;
 	int n = parts_parse(r, out, max);
+	if (ui && nui) *nui = ui_parse(r, ui, MAX_UITEXTS);
 	free(r); return n;
 }
 // Rellena g[i].players con los jugadores activos (visto en los últimos 15 s)

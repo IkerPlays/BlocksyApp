@@ -19,7 +19,7 @@ Para ver tambien la partida (mundos, piezas del Studio, cielos) compila `main.c`
 ```
 F="-w -std=gnu11 -D__3DS__ -DBLOCKSY_PREVIEW -DBLOCKSY_VERSION=\"0.1.0\" -DAPP_VER=1 -I$H/stub -I$H/libctru/libctru/include -I$H/citro2d/include -I$H/citro3d/include -I$H/curlsrc/include -Isource"
 gcc $F -c source/main.c -Dmain=blocksy_main -o /tmp/m.o
-gcc $F preview/preview.c preview/stub.c source/ui.c source/app.c source/avatar3d.c source/qrcodegen.c /tmp/m.o source/world.c source/update_core.c \
+gcc $F preview/preview.c preview/stub.c source/ui.c source/app.c source/avatar3d.c source/qrcodegen.c /tmp/m.o source/world.c source/update_core.c source/parts.c \
     -o preview/preview -lm -Wl,--unresolved-symbols=ignore-all
 ./preview/preview && python3 preview/render.py preview/out
 ```
