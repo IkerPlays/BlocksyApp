@@ -47,6 +47,7 @@ typedef struct { float x, y, z, sx, sy, sz, ry, cs, sn, rad; unsigned int color;
 int  net_fetch_parts(const char *game_id, Part *out, int max);              // piezas del Studio de un juego (0 si no hay o falla)
 typedef struct { char title[48], game[44], host[24]; long starts; int going, me, clan; } Meetup;   // starts: epoch UTC
 typedef struct { char name[32], tag[8]; int members; } ClanInfo;
+int  net_season(const Session *s, int *season, int *xp);                   // temporada actual y tus puntos (AUTH v16 season_info); 0 si va bien, <0 error
 int  net_my_clan(const Session *s, ClanInfo *c);                           // tu clan (AUTH v17 my_clan): 1 si tienes, 0 si no, <0 error
 int  net_next_meetup(const Session *s, Meetup *m);                         // proxima quedada (AUTH v17 list_meetups); 1 si hay, 0 si no, <0 error
 int  net_list_games(GameInfo *out, int max);
