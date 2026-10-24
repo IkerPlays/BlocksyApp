@@ -227,6 +227,7 @@ static u32 fogged(u32 c, float depth) {
 	return C2D_Color32((u32)r, (u32)g, (u32)b, 255);
 }
 
+static int g_poly_alpha = 255;                                            // piezas semitransparentes (agua, cristal)
 static void draw_poly(float v[8][3], u32 color) {
 	static const int F[6][4] = {{0,1,2,3},{4,5,6,7},{0,1,5,4},{2,3,7,6},{0,3,7,4},{1,2,6,5}};
 	static const float lum[6] = {0.55f, 1.0f, 0.75f, 0.75f, 0.65f, 0.85f};
@@ -239,7 +240,7 @@ static void draw_poly(float v[8][3], u32 color) {
 		if (area <= 0) continue; // cara trasera (orientación según el orden de vértices)
 		// degradado por vértice (gratis): las caras laterales se oscurecen hacia abajo (oclusión ambiental falsa) y la superior hacia el fondo
 		u32 cv[4];
-		for (int k = 0; k < 4; k++) { float fk = lum[f]; if (f >= 2 && q[k] < 4) fk *= 0.74f; else if (f == 1 && d[q[k]] > d[q[0]]) fk *= 0.94f; cv[k] = shade(color, fk); }
+		for (int k = 0; k < 4; k++) { float fk = lum[f]; if (f >= 2 && q[k] < 4) fk *= 0.74f; else if (f == 1 && d[q[k]] > d[q[0]]) fk *= 0.94f; cv[k] = shade(color, fk); if (g_poly_alpha < 255) cv[k] = (cv[k] & 0x00FFFFFFu) | ((u32)g_poly_alpha << 24); }
 		C2D_DrawTriangle(sx[q[0]], sy[q[0]], cv[0], sx[q[1]], sy[q[1]], cv[1], sx[q[2]], sy[q[2]], cv[2], 0);
 		C2D_DrawTriangle(sx[q[0]], sy[q[0]], cv[0], sx[q[2]], sy[q[2]], cv[2], sx[q[3]], sy[q[3]], cv[3], 0);
 	}
@@ -253,13 +254,15 @@ static void draw_part(const Part *o, u32 color) {
 	if (o->shape == 1) {
 		float gx, gy, gd; if (!project(o->x, o->y, o->z, &gx, &gy, &gd)) return;
 		float r = fmaxf(o->sx, fmaxf(o->sy, o->sz)) * 0.5f * FOV / gd;
+		if (o->glow) C2D_DrawCircleSolid(gx, gy, 0, r * 2.2f, (color & 0x00FFFFFFu) | (34u << 24));
 		C2D_DrawCircleSolid(gx, gy, 0, r, shade(color, 0.72f)); C2D_DrawCircleSolid(gx - r * 0.18f, gy - r * 0.2f, 0, r * 0.78f, color); C2D_DrawCircleSolid(gx - r * 0.34f, gy - r * 0.38f, 0, r * 0.3f, shade(color, 1.25f));
 		return;
 	}
 	float k = o->shape == 2 ? 0.88f : 1.0f, hx = o->sx * 0.5f * k, hy = o->sy * 0.5f, hz = o->sz * 0.5f * k, c = cosf(o->ry), s = sinf(o->ry), v[8][3];
 	static const int sg[8][3] = {{-1,-1,-1},{1,-1,-1},{1,-1,1},{-1,-1,1},{-1,1,-1},{1,1,-1},{1,1,1},{-1,1,1}};
 	for (int i = 0; i < 8; i++) { float lx = sg[i][0] * hx, lz = sg[i][2] * hz; v[i][0] = o->x + lx * c + lz * s; v[i][1] = o->y + sg[i][1] * hy; v[i][2] = o->z - lx * s + lz * c; }
-	draw_poly(v, color);
+	g_poly_alpha = o->alpha ? o->alpha : 255; draw_poly(v, color); g_poly_alpha = 255;
+	if (o->glow) { float gx, gy, gd; if (project(o->x, o->y, o->z, &gx, &gy, &gd)) { float r = fmaxf(o->sx, fmaxf(o->sy, o->sz)) * FOV / gd; C2D_DrawCircleSolid(gx, gy, 0, r * 1.6f, (color & 0x00FFFFFFu) | (30u << 24)); } }
 }
 // Contorno de un cubo (el bloque al que apuntas)
 static void draw_outline(int bx, int by, int bz, u32 color) {
@@ -745,7 +748,7 @@ void game_preview(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 	nl = 0;
 	nparts = 0;
 	if (getenv("BLOCKSY_PREVIEW_PARTS")) {                                                  // piezas de ejemplo del Studio
-		Part d[] = {{4, 0.5f, 2, 4, 1, 4, 0.5f, 0xFF3C9FFF, 0, 1, 0}, {-3, 1.5f, 4, 2, 3, 2, 0, 0xFF4F4FE0, 2, 1, 0}, {0, 3.5f, -3, 3, 3, 3, 0, 0xFFFFD34D, 1, 0, 0}, {-5, 0.25f, -2, 4, 0.5f, 4, 0.8f, 0xFF50D060, 0, 1, 1}, {6, 2, -4, 1, 4, 6, 0.3f, 0xFFB26AE0, 0, 1, 0}};
+		Part d[] = {{4, 0.5f, 2, 4, 1, 4, 0.5f, 0xFF3C9FFF, 0, 1, 0}, {-3, 1.5f, 4, 2, 3, 2, 0, 0xFF4F4FE0, 2, 1, 0}, {0, 3.5f, -3, 3, 3, 3, 0, 0xFFFFD34D, 1, 0, 0}, {-5, 0.25f, -2, 4, 0.5f, 4, 0.8f, 0xFF50D060, 0, 1, 1}, {6, 2, -4, 1, 4, 6, 0.3f, 0xFFB26AE0, 0, 1, 0}, {-7, 1, -6, 3, 2, 3, 0, 0xFFE0A030, 0, 0, 0, 110, 0}, {2, 2.2f, 5, 1, 1, 1, 0, 0xFF60E8FF, 1, 0, 0, 255, 1}};
 		memcpy(parts, d, sizeof d); nparts = (int)(sizeof d / sizeof d[0]);
 	}
 	if (getenv("BLOCKSY_PREVIEW_WORLD")) { memset(&hr, 0, sizeof hr); hr.on = world.type == 5; hr.flash = true; hr.mx = -9; hr.mz = -7; hr.mry = 0.7f; hr.dist = 8; hr.ngot = 2; hr.got[0] = hr.got[1] = true; for (int i = 0; i < world.ncells; i++) local[nl++] = world.cells[i]; ht_build(local, nl); local_blocks = local; nr = 0; px = world.spawn[0]; py = world.spawn[1]; pz = world.spawn[2]; if (world.type == 5) { px = 3; pz = 7; hr.mx = -3; hr.mz = -1; hr.mry = 0.4f; hr.dist = 6; } pry = 0.3f; cam_yaw = 0.2f; cam_pitch = 0.45f; cam_dist = 9; cx_ = px; cy_ = py + 1; cz_ = pz; now_ms = 20000; t_start = 0; self_yaw = 0.3f; kind = 2; tx = 0; tz = 0; break_y = place_y = -1; overlap = false; pose_self.legY = 0.74f; render_game(top, bot); return; }

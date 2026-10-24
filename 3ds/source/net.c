@@ -594,8 +594,8 @@ int net_fetch_parts(const char *game_id, Part *out, int max) {
 		p++;
 		while (n < max && (p = next_obj(p, &end))) {
 			const char *st = p; p = end + 1;
-			char ty[12] = "part", sh[12] = "Block", col[12] = "";
-			jstr(st, end, "type", ty, sizeof ty); jstr(st, end, "shape", sh, sizeof sh); jstr(st, end, "color", col, sizeof col);
+			char ty[12] = "part", sh[12] = "Block", col[12] = "", mat[16] = "";
+			jstr(st, end, "type", ty, sizeof ty); jstr(st, end, "shape", sh, sizeof sh); jstr(st, end, "color", col, sizeof col); jstr(st, end, "material", mat, sizeof mat);
 			float tr = jnum(st, end, "transparency"); const char *cl = json_find_from(st, end, "collide");
 			Part *o = &out[n]; memset(o, 0, sizeof *o);
 			o->x = jnum(st, end, "x"); o->y = jnum(st, end, "y"); o->z = jnum(st, end, "z");
@@ -605,6 +605,7 @@ int net_fetch_parts(const char *game_id, Part *out, int max) {
 			o->shape = !strcmp(sh, "Ball") ? 1 : !strcmp(sh, "Cylinder") ? 2 : 0;
 			o->spawn = !strcmp(ty, "spawn");
 			o->collide = !o->spawn && !(cl && *cl == 'f') && tr < 0.7f;                 // lo casi invisible (agua, cristal) no bloquea
+			o->alpha = (unsigned char)((1 - (tr > 0.85f ? 0.85f : tr)) * 255); o->glow = !strcmp(mat, "Neon") && o->alpha > 120;
 			if (tr >= 0.85f) continue;                                                  // invisible: ni se dibuja
 			n++;
 		}
