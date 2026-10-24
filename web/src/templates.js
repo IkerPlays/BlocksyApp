@@ -1,4 +1,4 @@
-import { TAG, FLAG, WAVES, HIDE, ARENA, TEAMS, RACE, TOOLS, KOTH } from './modes.js'
+import { TAG, FLAG, WAVES, HIDE, ARENA, TEAMS, RACE, TOOLS, KOTH, DODGE } from './modes.js'
 // Plantillas de juego completas para empezar rápido en la página Crear (modo, reglas, script Lua y piezas ya puestas)
 const COINS = `-- Recoge 10 monedas para ganar
 local Players = game:GetService("Players")
@@ -44,6 +44,7 @@ export const TEMPLATES = [
   { id: 'tag', key: 'tpl_tag', mode: 'arena', config: { world: 'plaza', allow_build: false, script_lang: 'lua', welcome: 'Pilla-pilla: ¡no la lleves!' }, script: TAG },
   { id: 'tools', key: 'tpl_tools', mode: 'adventure', config: { world: 'plaza', allow_build: false, script_lang: 'lua', welcome: 'Armeria: 1, 2 y 3 equipan herramientas' }, script: TOOLS },
   { id: 'koth', key: 'tpl_koth', mode: 'arena', config: { world: 'plaza', allow_build: false, script_lang: 'lua', welcome: 'Rey de la colina: quédate en el círculo dorado' }, script: KOTH },
+  { id: 'dodge', key: 'tpl_dodge', mode: 'arena', config: { world: 'plaza', allow_build: false, script_lang: 'lua', welcome: 'Esquiva los bloques que caen' }, script: DODGE },
   { id: 'arena', key: 'tpl_arena', mode: 'arena', config: { world: 'plaza', allow_build: false, script_lang: 'lua', double_jump: true, welcome: 'Arena: clic o F para golpear. Gana quien llegue a 15 bajas' }, script: ARENA },
   { id: 'teams', key: 'tpl_teams', mode: 'arena', config: { world: 'plaza', allow_build: false, script_lang: 'lua', welcome: 'Rojo contra Azul: gana el primero en 20 bajas' }, script: TEAMS },
   { id: 'race', key: 'tpl_race', mode: 'obby', config: { world: 'flat', allow_build: false, script_lang: 'lua', welcome: 'Carrera de 3 vueltas: pasa por las puertas en orden' }, script: RACE },

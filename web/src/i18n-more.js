@@ -1,6 +1,8 @@
 // Traducciones completas de los textos añadidos desde la 1.3 (se mezclan en i18n.js; lo que ya esté traducido allí tiene prioridad).
 export const MORE = {
   pt: {
+    tpl_dodge: "Esquiva",
+    tpl_dodge_d: "Multijogador: desvie dos blocos que caem",
     tpl_koth: "Rei da colina",
     tpl_koth_d: "Multijogador: fique dentro do círculo",
     ach_clanmate: "De clã",
@@ -730,6 +732,8 @@ export const MORE = {
     lang_hint: "O idioma é aplicado na hora.",
   },
   fr: {
+    tpl_dodge: "Esquive",
+    tpl_dodge_d: "Multijoueur : évite les blocs qui tombent",
     tpl_koth: "Roi de la colline",
     tpl_koth_d: "Multijoueur : reste dans le cercle",
     ach_clanmate: "Membre de clan",
@@ -1459,6 +1463,8 @@ export const MORE = {
     lang_hint: "La langue s'applique instantanément.",
   },
   de: {
+    tpl_dodge: "Ausweichen",
+    tpl_dodge_d: "Mehrspieler: weiche den fallenden Blöcken aus",
     tpl_koth: "König des Hügels",
     tpl_koth_d: "Mehrspieler: bleib im Kreis",
     ach_clanmate: "Clanmitglied",
@@ -2188,6 +2194,8 @@ export const MORE = {
     lang_hint: "Die Sprache wird sofort angewendet.",
   },
   it: {
+    tpl_dodge: "Schiva",
+    tpl_dodge_d: "Multigiocatore: schiva i blocchi che cadono",
     tpl_koth: "Re della collina",
     tpl_koth_d: "Multigiocatore: resta dentro il cerchio",
     ach_clanmate: "Membro di un clan",
@@ -2934,6 +2942,8 @@ export const MORE = {
     invite_friends: "Invita amici",
   },
   pl: {
+    tpl_dodge: "Unik",
+    tpl_dodge_d: "Wieloosobowa: unikaj spadających bloków",
     tpl_koth: "Król wzgórza",
     tpl_koth_d: "Wieloosobowa: zostań w kole",
     ach_clanmate: "Z klanu",
@@ -3899,6 +3909,8 @@ export const MORE = {
     offline_ready: "Gotowe do użycia offline",
   },
   ru: {
+    tpl_dodge: "Уворот",
+    tpl_dodge_d: "Мультиплеер: уворачивайтесь от падающих блоков",
     tpl_koth: "Царь горы",
     tpl_koth_d: "Мультиплеер: оставайтесь в круге",
     ach_clanmate: "Клановец",
@@ -4864,6 +4876,8 @@ export const MORE = {
     offline_ready: "Готово к работе офлайн",
   },
   ja: {
+    tpl_dodge: "よけまくれ",
+    tpl_dodge_d: "マルチプレイ: 落ちてくるブロックをよけよう",
     tpl_koth: "キング・オブ・ザ・ヒル",
     tpl_koth_d: "マルチプレイ: 円の中にとどまろう",
     ach_clanmate: "クランメンバー",
@@ -5829,6 +5843,8 @@ export const MORE = {
     offline_ready: "オフラインで使えます",
   },
   zh: {
+    tpl_dodge: "躲避",
+    tpl_dodge_d: "多人：躲开掉落的方块",
     tpl_koth: "山丘之王",
     tpl_koth_d: "多人：留在圆圈内",
     ach_clanmate: "战队成员",
@@ -6794,6 +6810,8 @@ export const MORE = {
     offline_ready: "已可离线使用",
   },
   ko: {
+    tpl_dodge: "피하기",
+    tpl_dodge_d: "멀티플레이: 떨어지는 블록을 피하세요",
     tpl_koth: "언덕의 왕",
     tpl_koth_d: "멀티플레이: 원 안에 머무르세요",
     ach_clanmate: "클랜원",

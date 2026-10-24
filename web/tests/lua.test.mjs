@@ -86,7 +86,7 @@ test('RemoteEvent viaja entre dos clientes y solo el servidor recibe OnServerEve
   assert.ok(prints(a).includes('servidor Beto 7')); assert.ok(prints(b).includes('cliente hola 4')); assert.ok(prints(a).includes('cliente hola 4'))
 })
 
-import { TAG, FLAG, WAVES, HIDE, ARENA, TEAMS, RACE, TOOLS, KOTH } from '../src/modes.js'
+import { TAG, FLAG, WAVES, HIDE, ARENA, TEAMS, RACE, TOOLS, KOTH, DODGE } from '../src/modes.js'
 for (const [name, src] of [['pilla-pilla', TAG], ['bandera', FLAG], ['oleadas', WAVES], ['escondite', HIDE], ['arena pvp', ARENA], ['equipos', TEAMS], ['carrera con vueltas', RACE]]) {
   test(`modo ${name}: arranca sin errores con dos jugadores y avisa por RemoteEvent`, () => {
     const h = make(); h.dispatch('init', { me: 'Ana', code: transpile(src) }); h.dispatch('playerjoin', { name: 'Beto' })
@@ -119,4 +119,10 @@ test('rey de la colina: suma puntos dentro del círculo y avisa por RemoteEvent'
   const h = make(); h.dispatch('init', { me: 'Ana', code: transpile(KOTH) })
   for (let i = 0; i < 60; i++) h.dispatch('step', { dt: 0.1, now: 1, x: 0, y: 0, z: -12, others: [] })
   assert.deepEqual(h.errs, []); assert.ok(h.acts.some(a => a[0] === 'remote'), 'debe enviar su puntuación')
+})
+
+test('esquiva: los bloques caen, golpean y te devuelven al centro', () => {
+  const h = make(); h.dispatch('init', { me: 'Ana', code: transpile(DODGE) })
+  for (let i = 0; i < 80; i++) h.dispatch('step', { dt: 0.1, now: 1700000000 + i * 0.1, x: 0, y: 0, z: 0, others: [] })
+  assert.deepEqual(h.errs, []); assert.ok(h.acts.some(a => a[0] === 'new' && a[2] === 'Part'), 'debe crear bloques que caen')
 })

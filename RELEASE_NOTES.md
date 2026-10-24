@@ -1,2 +1,2 @@
-Devbuild 77: King of the hill
-- New multiplayer template: King of the hill. Stay inside the golden circle to earn a point every second; the first to 60 wins and the round restarts. Live scoreboard for everyone.
+Devbuild 78: Dodge template
+- New template: Dodge. Blocks fall at positions every player computes from the clock, so everyone sees the same ones without sending data. A hit sends you back to the center and resets your time; your best time stays on screen.

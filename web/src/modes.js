@@ -475,3 +475,45 @@ task.spawn(function()
   end
 end)
 render()`
+
+// Esquiva: caen bloques en posiciones que todos calculan igual a partir del reloj (sin enviar nada). Cada golpe te devuelve al centro y reinicia tu tiempo.
+export const DODGE = `local Players = game:GetService("Players")
+local TS = game:GetService("TweenService")
+local me = Players.LocalPlayer
+local R = 13
+local gui = Instance.new("ScreenGui"); gui.Parent = me.PlayerGui
+local label = Instance.new("TextLabel"); label.Size = UDim2.new(0, 360, 0, 44); label.Position = UDim2.new(0.5, 0, 0, 14); label.AnchorPoint = Vector2.new(0.5, 0)
+label.BackgroundColor3 = Color3.fromRGB(20, 20, 30); label.BackgroundTransparency = 0.25; label.TextColor3 = Color3.new(1, 1, 1); label.TextSize = 20; label.Parent = gui
+Instance.new("UICorner", label).CornerRadius = UDim.new(0, 12)
+local ring = Instance.new("Part"); ring.Shape = Enum.PartType.Cylinder; ring.Size = Vector3.new(0.3, R * 2, R * 2); ring.Anchored = true; ring.CanCollide = false
+ring.Material = Enum.Material.Neon; ring.Color = Color3.fromRGB(255, 90, 90); ring.Transparency = 0.7; ring.Position = Vector3.new(0, 0.2, 0); ring.Parent = workspace
+local alive, best, falling = 0, 0, {}
+local function spawnAt(x, z)
+  local p = Instance.new("Part"); p.Size = Vector3.new(2.4, 2.4, 2.4); p.Anchored = true; p.CanCollide = false; p.Color = Color3.fromRGB(255, 120, 60)
+  p.Material = Enum.Material.Neon; p.Position = Vector3.new(x, 22, z); p.Parent = workspace
+  TS:Create(p, TweenInfo.new(1.4, Enum.EasingStyle.Linear), { Position = Vector3.new(x, 0.9, z) }):Play()
+  falling[#falling + 1] = { part = p, x = x, z = z, born = os.clock() }
+end
+local function field(k, mul, add) local v = ((k % 10007) * mul + add) % 2003; return (v / 2003 - 0.5) * (R * 1.8) end
+local lastK = 0
+task.spawn(function()
+  while true do
+    task.wait(0.1)
+    local k = os.time()
+    if k ~= lastK then
+      lastK = k; alive += 1; if alive > best then best = alive end
+      spawnAt(field(k, 9973, 17), field(k, 7919, 311)); spawnAt(field(k, 6571, 977), field(k, 8609, 53))
+      label.Text = "Aguantas " .. alive .. " s  ·  mejor " .. best .. " s"
+    end
+    local c = me.Character; local r = c and c:FindFirstChild("HumanoidRootPart")
+    for i = #falling, 1, -1 do
+      local f = falling[i]; local age = os.clock() - f.born
+      if r and age > 1.0 and age < 1.7 and (Vector3.new(f.x, r.Position.Y, f.z) - r.Position).Magnitude < 1.7 then
+        game.sound("hit"); alive = 0; game.teleport(0, 2, 0); f.born = -100
+      end
+      if age > 2.2 then f.part:Destroy(); table.remove(falling, i) end
+    end
+  end
+end)
+game.teleport(0, 2, 0)
+game.title("Esquiva los bloques", 2500)`
