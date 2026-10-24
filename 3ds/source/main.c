@@ -212,6 +212,7 @@ static bool project(float x, float y, float z, float *sx, float *sy, float *dept
 
 typedef struct { float depth; float x, y, z, w, h; u32 color; int av; int pi; } Box;   // av: -1 bloque, 0 yo, 1+i jugador remoto i
 static float g_ft_avg = 33;                               // tiempo medio de fotograma (ms), para el contador de FPS y la calidad adaptativa
+static int jumps_left;                                    // saltos extra disponibles en el aire
 static int g_skymode;                                     // cielo del juego (config.sky): 0 dia, 1 amanecer, 2 atardecer, 3 noche, 4 espacio
 static bool g_new3ds;                                     // New 3DS: 804 MHz y mas memoria => mas bloques y mas distancia
 static Box draw_list[MAX_LOCAL + MAX_PLAYERS * 2 + 4 + 700];
@@ -595,6 +596,7 @@ static bool play_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 		float hh = cur_game.hour; if (hh == 0) { time_t tt = time(NULL); struct tm *lt = localtime(&tt); hh = lt ? lt->tm_hour + lt->tm_min / 60.0f : 12; }
 		g_skymode = (hh < 5 || hh >= 21) ? 3 : hh < 8 ? 1 : (hh >= 17.5f ? 2 : 0);
 	}
+	if (cur_game.has_spawn) { world.spawn[0] = cur_game.spawn[0]; world.spawn[1] = cur_game.spawn[1]; world.spawn[2] = cur_game.spawn[2]; px = world.spawn[0]; py = world.spawn[1]; pz = world.spawn[2]; }      // config.spawn
 	nparts = 0;
 	if (cur_game.id[0]) {                  // piezas creadas en el Studio de la web
 		nparts = net_fetch_parts(cur_game.id, parts, MAX_PARTS);
@@ -704,7 +706,7 @@ static bool play_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 		float mz = -cosf(cam_yaw) * f - sinf(cam_yaw) * s;
 		float len = sqrtf(mx * mx + mz * mz);
 		if (len > 0.001f) { mx /= len; mz /= len; }
-		float speed = ((held & KEY_B) ? 9.0f : 6.0f) * mag * (hr.on && hr.stun > 0 ? 0 : 1);
+		float speed = ((held & KEY_B) ? 9.0f : 6.0f) * (cur_game.speed > 0.5f ? cur_game.speed / 6.0f : 1.0f) * mag * (hr.on && hr.stun > 0 ? 0 : 1);
 		moving = mag > 0.05f;
 		if (moving) pry = atan2f(mx, mz);
 		float nx = px + mx * speed * dt, nz = pz + mz * speed * dt;
@@ -716,8 +718,10 @@ static bool play_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 			for (int i = 0; i < 10; i++) if (puff[i].life > 0) puff[i].life -= dt;
 			puff_t -= dt; if (moving && grounded && puff_t <= 0) { puff_t = (held & KEY_B) ? 0.18f : 0.28f; for (int i = 0; i < 10; i++) if (puff[i].life <= 0) { puff[i].x = px; puff[i].y = py + 0.05f; puff[i].z = pz; puff[i].life = 0.5f; break; } }
 		}
+		if (grounded) jumps_left = 1;
 		if ((down & KEY_A) && grounded) { vy = jump_v; grounded = false; sfx_play(SFX_JUMP); }
-		vy -= 24 * dt; float ny = py + vy * dt; grounded = false;
+		else if ((down & KEY_A) && cur_game.double_jump && jumps_left > 0) { jumps_left--; vy = jump_v * 0.9f; sfx_play(SFX_JUMP); }       // salto doble (config.double_jump)
+		vy -= (cur_game.gravity > 1 ? cur_game.gravity : 24) * dt; float ny = py + vy * dt; grounded = false;
 		if (body_hits(px, ny, pz)) { if (vy < 0) grounded = true; vy = 0; }
 		else py = ny;
 		if (world.floor && py < 0) { py = 0; vy = 0; grounded = true; }

@@ -18,3 +18,5 @@ Devbuild: four new templates and translucent 3DS parts
 - Create game: filter templates by single player, multiplayer or build, and search them.
 - 3DS: the game list is kept on the SD card and shown instantly on startup while the fresh list loads.
 - New template: Quiz (step on the right answer; edit the questions in the script).
+- 3DS: games now use their double jump, walk speed, gravity and spawn point settings.
+- 3DS: fixed reading the game config when a game has Studio parts (world, sky and rules were cut off).
