@@ -226,11 +226,26 @@ static u32 parse_hex(const char *hex) {
 
 // Lo que llevas puesto viaja como "sombrero|gafas|espalda|estela|mascota|" (igual que la web; el aspecto lo calcula cada cliente)
 static void pack_loadout(const Wallet *w) { snprintf(g_my_hat, sizeof g_my_hat, "%s|%s|%s|%s|%s|", w->hat, w->face, w->back, w->trail, w->pet); net_set_hat(g_my_hat); }
+// Copia de la lista de juegos en la SD: al abrir la app se ve al instante (con datos de la ultima vez) mientras llega la lista nueva
+#define GAMES_CACHE "sdmc:/3ds/blocksy/games.cache"
+typedef struct { unsigned magic, size, n; } GamesCacheHdr;
+static void games_cache_save(const GameInfo *g, int n) {
+	if (n <= 0) return;
+	mkdir("sdmc:/3ds", 0777); mkdir("sdmc:/3ds/blocksy", 0777);
+	FILE *f = fopen(GAMES_CACHE, "wb"); if (!f) return;
+	GamesCacheHdr h = {0x42474D31u, (unsigned)sizeof(GameInfo), (unsigned)n};
+	fwrite(&h, sizeof h, 1, f); fwrite(g, sizeof(GameInfo), (size_t)n, f); fclose(f);
+}
+static void games_cache_load(void) {
+	FILE *f = fopen(GAMES_CACHE, "rb"); if (!f) return;
+	GamesCacheHdr h; if (fread(&h, sizeof h, 1, f) == 1 && h.magic == 0x42474D31u && h.size == sizeof(GameInfo) && h.n > 0 && h.n <= MAX_GAMES && fread(g_games, sizeof(GameInfo), h.n, f) == h.n) { g_ngames = (int)h.n; for (int i = 0; i < g_ngames; i++) g_games[i].players = 0; }          // los jugadores conectados se desconocen hasta la primera consulta
+	fclose(f);
+}
 static void refresh_all(void) {
 	static GameInfo tg[MAX_GAMES]; static Person tf[MAX_PEOPLE]; static FriendReq tr[MAX_PEOPLE];
 	int ng = net_list_games(tg, MAX_GAMES);
 	if (ng >= 0) { { int k = 0; for (int i = 0; i < ng; i++) if (tg[i].vis == 0 || !strcmp(tg[i].owner_id, W.s->user_id)) tg[k++] = tg[i]; ng = k; }       // privados y solo con enlace no salen en las listas (salvo los tuyos)
-		ng = net_hide_blocked(tg, ng); net_game_visits(tg, ng); net_player_counts(tg, ng); { static char fid[64][40]; int nfv = net_favorites(W.s, fid, 64); for (int i = 0; i < ng; i++) { tg[i].fav = 0; for (int k = 0; k < nfv; k++) if (!strcmp(tg[i].id, fid[k])) tg[i].fav = 1; } } LightLock_Lock(&lk); memcpy(g_games, tg, sizeof(GameInfo) * ng); g_ngames = ng; LightLock_Unlock(&lk); }
+		ng = net_hide_blocked(tg, ng); net_game_visits(tg, ng); net_player_counts(tg, ng); { static char fid[64][40]; int nfv = net_favorites(W.s, fid, 64); for (int i = 0; i < ng; i++) { tg[i].fav = 0; for (int k = 0; k < nfv; k++) if (!strcmp(tg[i].id, fid[k])) tg[i].fav = 1; } } LightLock_Lock(&lk); memcpy(g_games, tg, sizeof(GameInfo) * ng); g_ngames = ng; LightLock_Unlock(&lk); games_cache_save(tg, ng); }
 	else snprintf(W.msg, sizeof W.msg, "%s", net_login_error());
 	int nf = net_list_friends(W.s, tf, MAX_PEOPLE), nr = net_list_requests(W.s, tr, MAX_PEOPLE);
 	{ static Meetup tm; int mr = net_next_meetup(W.s, &tm); if (mr >= 0) { LightLock_Lock(&lk); g_meetup = tm; g_has_meetup = mr; LightLock_Unlock(&lk); } }
@@ -989,7 +1004,7 @@ static bool acc_cycle(const char *kind, int dir) {         // false: no tienes n
 
 AppResult app_lobby(C3D_RenderTarget *top, C3D_RenderTarget *bot, Session *s, GameInfo *chosen, const char *version) {
 	LightLock_Init(&lk);
-	load_settings();
+	load_settings(); games_cache_load();
 	memset(&W, 0, sizeof W); W.s = s;
 	Ui u = {.page = P_HOME, .modal = -1, .dm = -1, .rm_confirm = -1, .dm_sel = -1};
 	// color actual del avatar -> swatch
