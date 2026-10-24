@@ -69,11 +69,16 @@ Tanda 65: Moderacion en servidor (panel de denuncias, SQL)
 Tanda 66: Idiomas completos (pt, fr, de) y sonido en la 3DS
 Estado: tandas 55 a 66 hechas (devbuilds 55 a 66). Pendiente de lo pedido: dibujar el icono y el banner de los juegos en la 3DS, subida real de imagenes (hoy son JPEG pequenos o enlaces), items/inventario en la 3DS (no ejecuta Lua), it/pl/ru/ja/zh/ko completos.
 
+# Tanda 1.4.x (actualizador y 3DS)
+- Actualizador de la 3DS reescrito: SHA-256 y tamano verificados, descarga reanudable, copia .bak y vuelta atras, prueba de descarga sin instalar, diagnostico de RAM/SD, copia local de la ultima respuesta de GitHub, musica en pausa durante la instalacion.
+- 3DS: piezas del Studio (cajas giradas, bolas, cilindros, translucidas, Neon, aparicion) con colision; cielos de config.sky/config.time; colinas, flores, calidad adaptativa, modo rapido de la New 3DS, FPS, mensaje de bienvenida y proxima quedada en Inicio.
+- Plantillas nuevas: Memoria, Zonas, Cazatesoros, Torre, Laberinto, Reflejos y Piso que cae. Estructuras: castillo, cupula, escalera de caracol, columna.
+
 # Hoja de ruta 1.5 (pendiente tras la estable 1.4.0)
 - Subida real de imagenes (Storage) para iconos, banners y capturas de los juegos; despues dibujarlos en la 3DS (stb_image).
 - Notificaciones push (Web Push) para recordatorios de quedadas con la app cerrada.
 - Aprobar a cada invitado en la edicion compartida del Studio (validacion en servidor) y sincronizar tambien el entorno y los ajustes.
 - Moderacion: sanciones automaticas por varias denuncias, historial por usuario, denunciar imagenes de la galeria.
 - 3DS: ver y usar tienda de temporadas, clanes y quedadas (hoy solo web).
-- Mas plantillas de modos (tower defense, capturar zonas, memoria) y balance de Arena/Equipos con partidas reales.
+- Mas plantillas de modos (tower defense) y balance de Arena/Equipos con partidas reales.
 - Revision de las traducciones de it, pl, ru, ja, zh y ko por personas nativas.
