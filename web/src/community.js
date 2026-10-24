@@ -9,6 +9,14 @@ import { fmtTime, dayLabel, mediaEl } from './social-ui.js'
 const sqlMissing = e => /could not find|does not exist|schema cache/i.test(String(e?.message))
 const noSql = () => el('div', { class: 'panel' }, el('h3', { text: t('need_sql_title') }), el('p', { class: 'muted', text: t('need_sql_v17') }))
 const run = async fn => { try { return await fn() } catch (e) { toast(sqlMissing(e) ? t('need_sql_v17') : /name taken|23505|duplicate/i.test(e.message) ? t('clan_name_taken') : e.message) } }
+// Archivo .ics para añadir la quedada al calendario del móvil o del ordenador
+function downloadIcs(m) {
+  const d = x => new Date(x).toISOString().replace(/[-:]/g, '').replace(/\.\d+/, ''), start = new Date(m.starts_at)
+  const esc = x => String(x).replace(/[\\;,]/g, '\\$&').replace(/\n/g, '\\n')
+  const ics = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Blocksy//ES', 'BEGIN:VEVENT', `UID:${m.id}@blocksy`, `DTSTAMP:${d(Date.now())}`, `DTSTART:${d(start)}`, `DTEND:${d(start.getTime() + 3600_000)}`,
+    `SUMMARY:${esc(m.title)}`, `DESCRIPTION:${esc((m.game_name ? m.game_name + ' · ' : '') + 'Blocksy')}`, 'BEGIN:VALARM', 'TRIGGER:-PT10M', 'ACTION:DISPLAY', `DESCRIPTION:${esc(m.title)}`, 'END:VALARM', 'END:VEVENT', 'END:VCALENDAR'].join('\r\n')
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([ics], { type: 'text/calendar' })); a.download = 'blocksy-quedada.ics'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000)
+}
 const whenLabel = iso => new Date(iso).toLocaleString(getLang(), { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
 const untilLabel = iso => {
   const ms = new Date(iso).getTime() - Date.now(); if (ms <= 0) return t('mt_started')
@@ -82,6 +90,7 @@ export async function eventsPage(root, ctx) {
       el('small', { class: 'muted', text: `${m.game_name || t('mt_any_game')} · ${t('by', { name: m.host })} · ${t('mt_going', { n: m.going })}` })),
     byId[m.game_id] && new Date(m.starts_at).getTime() - Date.now() < 900_000 ? el('button', { class: 'btn primary', text: t('play'), onclick: () => ctx.play(byId[m.game_id]) }) : null,
     el('button', { class: `btn ${m.me ? '' : 'blue'}`, text: m.me ? t('mt_going_you') : t('mt_join'), onclick: () => run(async () => { await social.rsvpMeetup(m.id, !m.me); again() }) }),
+    el('button', { class: 'btn tiny', html: icon('send', 14), title: t('mt_calendar'), onclick: () => downloadIcs(m) }),
     m.mine ? el('button', { class: 'btn tiny danger', html: icon('trash', 14), title: t('delete'), onclick: () => run(async () => { await social.cancelMeetup(m.id); again() }) }) : null)
   setKids(root, el('h1', { class: 'page-title', text: t('nav_events') }), el('p', { class: 'muted', text: t('mt_intro') }),
     el('div', { class: 'panel' }, el('h3', { text: t('mt_create') }), title, el('div', { class: 'row-btns' }, gsel, when),

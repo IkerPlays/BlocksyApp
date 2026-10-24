@@ -1,6 +1,7 @@
 // Traducciones completas de los textos añadidos desde la 1.3 (se mezclan en i18n.js; lo que ya esté traducido allí tiene prioridad).
 export const MORE = {
   pt: {
+    mt_calendar: "Adicionar ao calendário",
     sort_visits: "Mais visitados",
     banned_msg: "Sua conta está suspensa até {until}. Motivo: {reason}",
     banned_forever: "para sempre",
@@ -717,6 +718,7 @@ export const MORE = {
     lang_hint: "O idioma é aplicado na hora.",
   },
   fr: {
+    mt_calendar: "Ajouter au calendrier",
     sort_visits: "Les plus visités",
     banned_msg: "Ton compte est suspendu jusqu'au {until}. Motif : {reason}",
     banned_forever: "pour toujours",
@@ -1433,6 +1435,7 @@ export const MORE = {
     lang_hint: "La langue s'applique instantanément.",
   },
   de: {
+    mt_calendar: "Zum Kalender hinzufügen",
     sort_visits: "Meistbesucht",
     banned_msg: "Dein Konto ist bis {until} gesperrt. Grund: {reason}",
     banned_forever: "für immer",
@@ -2149,6 +2152,7 @@ export const MORE = {
     lang_hint: "Die Sprache wird sofort angewendet.",
   },
   it: {
+    mt_calendar: "Aggiungi al calendario",
     sort_visits: "Più visitati",
     banned_msg: "Il tuo account è sospeso fino al {until}. Motivo: {reason}",
     banned_forever: "per sempre",
@@ -2882,6 +2886,7 @@ export const MORE = {
     invite_friends: "Invita amici",
   },
   pl: {
+    mt_calendar: "Dodaj do kalendarza",
     sort_visits: "Najczęściej odwiedzane",
     banned_msg: "Twoje konto jest zawieszone do {until}. Powód: {reason}",
     banned_forever: "na zawsze",
@@ -3834,6 +3839,7 @@ export const MORE = {
     offline_ready: "Gotowe do użycia offline",
   },
   ru: {
+    mt_calendar: "Добавить в календарь",
     sort_visits: "Самые посещаемые",
     banned_msg: "Ваш аккаунт заблокирован до {until}. Причина: {reason}",
     banned_forever: "навсегда",
@@ -4786,6 +4792,7 @@ export const MORE = {
     offline_ready: "Готово к работе офлайн",
   },
   ja: {
+    mt_calendar: "カレンダーに追加",
     sort_visits: "訪問数順",
     banned_msg: "あなたのアカウントは{until}まで停止されています。理由: {reason}",
     banned_forever: "無期限",
@@ -5738,6 +5745,7 @@ export const MORE = {
     offline_ready: "オフラインで使えます",
   },
   zh: {
+    mt_calendar: "添加到日历",
     sort_visits: "访问最多",
     banned_msg: "你的账号已被封停至 {until}。原因：{reason}",
     banned_forever: "永久",
@@ -6690,6 +6698,7 @@ export const MORE = {
     offline_ready: "已可离线使用",
   },
   ko: {
+    mt_calendar: "캘린더에 추가",
     sort_visits: "방문 많은 순",
     banned_msg: "계정이 {until}까지 정지되었습니다. 사유: {reason}",
     banned_forever: "영구",
