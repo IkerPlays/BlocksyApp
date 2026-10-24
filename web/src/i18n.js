@@ -4,6 +4,7 @@ import { MORE } from './i18n-more.js'
 const D = {
   es: {
     lang_name: 'Español',
+    mt_next: 'Tu próxima quedada',
     mt_calendar: 'Añadir al calendario',
     sort_visits: 'Más visitados',
     banned_msg: 'Tu cuenta está suspendida hasta {until}. Motivo: {reason}', banned_forever: 'siempre', n_warning: 'Aviso del equipo: {text}', visits: 'visitas', nav_mod: 'Moderación', mod_intro: 'Revisa denuncias, avisa o suspende cuentas y bloquea juegos. Todo queda en el registro.', mod_open: 'Abiertas', mod_done: 'Cerradas', mod_users: 'Usuarios', mod_blocked: 'Bloqueados', mod_log: 'Registro', mod_ban_days: '¿Cuántos días? (vacío = para siempre)', mod_reason: 'Motivo', mod_warn_text: 'Texto del aviso', mod_kind_user: 'Usuario o juego', mod_kind_message: 'Mensaje', mod_reported_by: 'denunciado por {name}', mod_reports_n: '{n} denuncias en total', mod_is_banned: 'suspendido', mod_note: 'Nota', mod_dismiss: 'Descartar', mod_resolve: 'Resolver', mod_reopen: 'Reabrir', mod_warn: 'Avisar', mod_unban: 'Quitar suspensión', mod_ban: 'Suspender', mod_del_msg: 'Borrar mensaje', mod_block_game: 'Bloquear juego', mod_none: 'Nada por aquí.', mod_user_ph: 'Nombre de usuario', mod_no_user: 'No existe ese usuario', mod_user_info: 'Desde {d} · {o} denuncias abiertas, {n} en total', mod_unblock: 'Desbloquear',
@@ -132,6 +133,7 @@ const D = {
   },
   en: {
     lang_name: 'English',
+    mt_next: 'Your next meetup',
     mt_calendar: 'Add to calendar',
     sort_visits: 'Most visited',
     banned_msg: 'Your account is suspended until {until}. Reason: {reason}', banned_forever: 'forever', n_warning: 'Warning from the team: {text}', visits: 'visits', nav_mod: 'Moderation', mod_intro: 'Review reports, warn or suspend accounts and block games. Everything is logged.', mod_open: 'Open', mod_done: 'Closed', mod_users: 'Users', mod_blocked: 'Blocked', mod_log: 'Log', mod_ban_days: 'How many days? (empty = forever)', mod_reason: 'Reason', mod_warn_text: 'Warning text', mod_kind_user: 'User or game', mod_kind_message: 'Message', mod_reported_by: 'reported by {name}', mod_reports_n: '{n} reports in total', mod_is_banned: 'suspended', mod_note: 'Note', mod_dismiss: 'Dismiss', mod_resolve: 'Resolve', mod_reopen: 'Reopen', mod_warn: 'Warn', mod_unban: 'Lift suspension', mod_ban: 'Suspend', mod_del_msg: 'Delete message', mod_block_game: 'Block game', mod_none: 'Nothing here.', mod_user_ph: 'Username', mod_no_user: 'That user does not exist', mod_user_info: 'Since {d} · {o} open reports, {n} in total', mod_unblock: 'Unblock',

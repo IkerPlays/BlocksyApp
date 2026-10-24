@@ -219,7 +219,12 @@ export const pages = {
       : el('div', { class: 'empty', text: t('home_no_friends') }))
     paintFriends(friends)
     // racha y recompensa diaria, "seguir jugando", amigos jugando y juego al azar
-    const streakBox = el('div', { class: 'home-chips' }), playingRow = el('div')
+    const streakBox = el('div', { class: 'home-chips' }), playingRow = el('div'), meetBox = el('div')
+    // próxima quedada a la que voy (AUTH v17; si falta el SQL no se muestra nada)
+    social.listMeetups().then(list => {
+      const m = list.find(x => x.me && new Date(x.starts_at).getTime() > Date.now() - 600_000)
+      if (m) setKids(meetBox, el('div', { class: 'continue-card' }, el('div', { class: 'grow' }, el('small', { text: t('mt_next') }), el('h3', { text: m.title }), el('small', { text: new Date(m.starts_at).toLocaleString(getLang(), { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) })), el('button', { class: 'btn', text: t('nav_events'), onclick: () => ctx.go('events') })))
+    }).catch(() => {})
     social.loadWallet().then(w => {
       const claim = w?.can_claim ? el('button', { class: 'btn primary tiny', text: t('shop_claim'), onclick: async () => { try { const r = await social.claimDaily(); toast(t('shop_got', { n: r.amount })); paintStreak() } catch (e) { toast(e.message) } } }) : null
       const paintStreak = () => { const w2 = social.getWallet(); setKids(streakBox, el('span', { class: 'chip-info', html: icon('star', 14) + ' ' + t('shop_streak', { n: w2?.streak ?? 0 }) }), el('span', { class: 'chip-info', html: icon('coin', 14) + ' ' + (w2?.bcoins ?? 0) }), w2?.can_claim ? claim : null) }
@@ -233,7 +238,7 @@ export const pages = {
     paintPlaying(friends)
     setKids(root,
       el('div', { class: 'hero' }, avatar(ctx.profile.username, ctx.profile.avatar_color), el('h1', { text: t('hello', { name: ctx.profile.username }) }), random),
-      streakBox,
+      streakBox, meetBox,
       last ? el('div', { class: 'continue-card' }, el('div', { class: 'thumb sm' + (last.config?.thumb ? ' has-img' : ''), style: `--h:${last.hue ?? hueOf(last.id)}` + (last.config?.thumb ? `;background-image:url(${last.config.thumb})` : '') }, el('div', { class: 'cube' })),
         el('div', { class: 'grow' }, el('small', { text: t('continue') }), el('h3', { text: last.name }), el('small', { text: (counts[last.id] ?? 0) ? t('playing_n', { n: counts[last.id] }) : t('no_one_playing') })),
         el('button', { class: 'btn primary', html: icon('play', 16) + ' ' + t('play'), onclick: () => ctx.play(last) })) : null,
