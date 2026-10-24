@@ -668,6 +668,7 @@ static bool play_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 			int act = ui_game_touch(tp.px, tp.py, emote_menu, chat_view);
 			if (can_build && act >= UI_COLOR0 && act < UI_COLOR0 + NPALETTE) kind = act;
 			else if (act >= UI_EMOTE0 && act < UI_EMOTE0 + NEMOTES) { if (grounded && !moving) snprintf(emote, sizeof emote, "%s", AV_EMOTE_ID[act - UI_EMOTE0]); emote_menu = false; }
+			else if (act >= UI_PHRASE0 && act < UI_PHRASE0 + NPHRASES) { Action pa = {.type = CHAT}; snprintf(pa.text, sizeof pa.text, "%s", UI_PHRASE[act - UI_PHRASE0]); push_action(pa); emote_menu = false; }       // frase rapida
 			else if (act == UI_EMOTE_MENU) emote_menu = !emote_menu;
 			else if (act == UI_CHAT) do_chat();
 			else if (act == UI_QUIT) break;

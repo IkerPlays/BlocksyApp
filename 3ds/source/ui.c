@@ -471,6 +471,8 @@ enum { SW_Y = 126, SW_W = 40, SW_GAP = 8, BTN2_Y = 192, BTN2_H = 36, BTN2_W = 86
 
 bool ui_build_ui = true;                                   // false: el juego no deja construir (se oculta la paleta y las ayudas)
 
+const char *const UI_PHRASE[NPHRASES] = {"Hola!", "GG!", "Gracias", "Ven aqui!"};
+enum { PH_Y = 164, PH_H = 24, PH_W = 65, PH_GAP = 6 };
 void ui_game_bottom(const Session *s, const Remote *rem, int nr, int kind, const char *game, const char *version, bool emote_menu, const ChatLine *hist, int nhist, int hscroll, bool chat_view) {
 	rect(0, 0, 320, 26, COL_PANEL);
 	rect(0, 26, 320, 1, COL_LINE);
@@ -484,6 +486,7 @@ void ui_game_bottom(const Session *s, const Remote *rem, int nr, int kind, const
 			button(x, y, EM_W, EM_H, i == 4 ? COL_PANEL2 : COL_ACCENT_D, false, AV_EMOTE_LABEL[i], 0.46f);
 		}
 		ui_text(160, 150, 0.36f, COL_MUTED, C2D_AlignCenter, "Moverte o saltar corta el emote");
+		for (int i = 0; i < NPHRASES; i++) button(F_X + i * (PH_W + PH_GAP), PH_Y, PH_W, PH_H, COL_PANEL2, false, UI_PHRASE[i], 0.36f);
 	} else {
 		char t[48]; snprintf(t, sizeof t, "Jugadores (%d)", nr + 1);
 		button(10, 30, 130, 17, chat_view ? COL_PANEL2 : COL_ACCENT_D, false, t, 0.38f);
@@ -533,6 +536,7 @@ int ui_game_touch(int x, int y, bool emote_menu, bool chat_view) {
 		if (chat_view && hit(t, 262, 84, 48, 30)) return UI_CHAT_DOWN;
 	}
 	if (emote_menu) for (int i = 0; i < NEMOTES; i++) if (hit(t, F_X + (i % 3) * (EM_W + EM_GAP), EM_Y + 6 + (i / 3) * (EM_H + EM_GAP), EM_W, EM_H)) return UI_EMOTE0 + i;
+	if (emote_menu) for (int i = 0; i < NPHRASES; i++) if (hit(t, F_X + i * (PH_W + PH_GAP), PH_Y, PH_W, PH_H)) return UI_PHRASE0 + i;
 	if (!emote_menu) for (int i = 0; i < NPALETTE; i++) if (hit(t, F_X + (i % 6) * (SW_W + SW_GAP), SW_Y + (i / 6) * 30 - 4, SW_W, 32)) return UI_COLOR0 + i;
 	if (hit(t, F_X, BTN2_Y, BTN2_W, BTN2_H)) return UI_CHAT;
 	if (hit(t, F_X + BTN2_W + BTN2_GAP, BTN2_Y, BTN2_W, BTN2_H)) return UI_EMOTE_MENU;
