@@ -1,2 +1,2 @@
-Devbuild 81: collaboration notice
-- In the Studio, a message appears when someone joins your co-editing session.
+Devbuild 82: harder Dodge
+- Dodge drops more blocks as time passes, and a lot more if you survive 20 seconds.

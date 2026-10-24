@@ -503,6 +503,8 @@ task.spawn(function()
     if k ~= lastK then
       lastK = k; alive += 1; if alive > best then best = alive end
       spawnAt(field(k, 9973, 17), field(k, 7919, 311)); spawnAt(field(k, 6571, 977), field(k, 8609, 53))
+      if (k % 2 == 0) then spawnAt(field(k, 4513, 421), field(k, 3571, 1291)) end                -- más bloques a medida que pasa el tiempo
+      if alive >= 20 then spawnAt(field(k, 2399, 733), field(k, 6173, 89)) end
       label.Text = "Aguantas " .. alive .. " s  ·  mejor " .. best .. " s"
     end
     local c = me.Character; local r = c and c:FindFirstChild("HumanoidRootPart")
