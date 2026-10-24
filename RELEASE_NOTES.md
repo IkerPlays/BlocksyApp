@@ -1,2 +1,2 @@
-Devbuild 74: season on Home
-- Home shows your season and level as a chip that links to the shop.
+Devbuild 75: kill feed
+- Arena and Teams show who eliminated whom for a moment, and the killer hears a coin sound.

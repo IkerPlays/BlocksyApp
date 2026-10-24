@@ -247,6 +247,7 @@ remote.OnClientEvent:Connect(function(kind, a, b, c)
   if kind == "swing" then if a ~= me.Name then swingFx(a) else swingFx(me.Name) end
   elseif kind == "dmg" then
     if a == me.Name and protect <= 0 and not over then local h = hum(); if h and h.Health > 0 and canBeHit(b) then lastAttacker = b; h:TakeDamage(c); game.sound("hit") end end
+  elseif kind == "feed" then status.Text = tostring(a) .. "  >  " .. tostring(b); if a == me.Name then game.sound("coin") end
   elseif kind == "score" then kills, deaths = a, b; render()
   elseif kind == "win" then over = true; game.title(tostring(a) .. " gana!", 5000); game.sound("win"); status.Text = tostring(a) .. " gana!"
   elseif kind == "reset" then over = false; kills, deaths = {}, {}; render() end
@@ -259,6 +260,7 @@ task.spawn(function()
     elseif kind == "died" then
       deaths[player.Name] = (deaths[player.Name] or 0) + 1
       if a and a ~= player.Name then kills[a] = (kills[a] or 0) + 1; onKill(a, player.Name) end
+      if a and a ~= player.Name then remote:FireAllClients("feed", a, player.Name) end
       remote:FireAllClients("score", kills, deaths)
     end
   end)
