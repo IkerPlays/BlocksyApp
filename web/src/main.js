@@ -110,7 +110,7 @@ async function enterApp() {
   paintChip(); showScreen('app')
   auth.startPresence(() => currentGame?.id)
   stopNotif?.(); stopNotif = initNotifications(ctx)
-  stopRemind?.(); stopRemind = startMeetupReminders((m, stage) => { if (settings.dnd) return; const msg = t(stage === 'now' ? 'mt_now' : 'mt_soon', { title: m.title }); toast(msg); try { if ('Notification' in window && Notification.permission === 'granted') new Notification('Blocksy', { body: msg, icon: '/icons/icon-192.png' }) } catch {} })
+  stopRemind?.(); stopRemind = startMeetupReminders((m, stage) => { if (settings.dnd) return; const msg = t(stage === 'now' ? 'mt_now' : 'mt_soon', { title: m.title }); toast(msg); sfx.notify(); try { if ('Notification' in window && Notification.permission === 'granted') new Notification('Blocksy', { body: msg, icon: '/icons/icon-192.png' }) } catch {} })
   social.onWallet(w => { $('coins').innerHTML = icon('coin', 18) + ' ' + (w.bcoins ?? 0) })
   social.loadWallet().catch(() => {})
   route()
