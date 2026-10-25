@@ -247,6 +247,21 @@ static u32 fogged(u32 c, float depth) {
 }
 
 static int g_poly_alpha = 255;                                            // piezas semitransparentes (agua, cristal)
+// Mascotas (pet_*): una cajita que acompana al jugador, con los colores de la web; el equipo viaja en "sombrero|gafas|espalda|estela|mascota|"
+static bool pet_of(const char *loadout, char *out, size_t n) {
+	const char *p = loadout; for (int i = 0; i < 4 && p; i++) { p = strchr(p, '|'); if (p) p++; }
+	if (!p) return false; const char *e = strchr(p, '|'); size_t l = e ? (size_t)(e - p) : strlen(p); if (!l || l >= n) return false;
+	memcpy(out, p, l); out[l] = 0; return !strncmp(out, "pet_", 4);
+}
+static void add_pet(int *nd, const char *loadout, float x, float y, float z, float yaw, float t, int salt) {
+	char id[24]; if (!pet_of(loadout, id, sizeof id)) return;
+	bool slime = !strcmp(id, "pet_slime"), ghost = !strcmp(id, "pet_ghost");
+	u32 col = slime ? C2D_Color32(0x4C, 0xD9, 0x64, 255) : !strcmp(id, "pet_bot") ? C2D_Color32(0xAA, 0xB4, 0xC0, 255) : ghost ? C2D_Color32(0xF0, 0xF0, 0xFF, 255) : C2D_Color32(0x4D, 0x8D, 0xFF, 255);
+	float fx = sinf(yaw), fz = cosf(yaw), bob = 0.12f * sinf(t * 4.0f + salt), qx = x - fx * 0.9f + fz * 0.6f, qz = z - fz * 0.9f - fx * 0.6f;
+	float w = slime ? 0.5f : 0.4f, h = slime ? 0.36f : ghost ? 0.5f : 0.4f, yb = y + 0.1f + (ghost ? 0.25f + bob : 0);
+	float sx, sy, d; if (!project(qx, yb + h * 0.5f, qz, &sx, &sy, &d)) return;
+	draw_list[(*nd)++] = (Box){d, qx - w * 0.5f, yb, qz - w * 0.5f, w, h, fogged(col, d), -1};
+}
 static void draw_poly(float v[8][3], u32 color) {
 	static const int F[6][4] = {{0,1,2,3},{4,5,6,7},{0,1,5,4},{2,3,7,6},{0,3,7,4},{1,2,6,5}};
 	static const float lum[6] = {0.55f, 1.0f, 0.75f, 0.75f, 0.65f, 0.85f};
@@ -477,8 +492,10 @@ static void render_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 		if (project(hr.mx, 1.5f, hr.mz, &sx, &sy, &d)) draw_list[nd++] = (Box){d, hr.mx - 0.45f, 0, hr.mz - 0.45f, 0.9f, 3.0f, 0, -2};
 	}
 	if (project(px, py + .9f, pz, &sx, &sy, &d)) draw_list[nd++] = (Box){d, px, py, pz, 0, 0, 0, 0};
+	add_pet(&nd, g_my_hat, px, py, pz, self_yaw, now / 1000.0f, 0);
 	for (int i = 0; i < nr; i++) if (project(rem[i].x, rem[i].y + .9f, rem[i].z, &sx, &sy, &d))
 		draw_list[nd++] = (Box){d, rem[i].x, rem[i].y, rem[i].z, 0, 0, 0, 1 + i};
+	for (int i = 0; i < nr; i++) add_pet(&nd, rem[i].hat, rem[i].x, rem[i].y, rem[i].z, rem[i].ry, now / 1000.0f, i + 1);
 	qsort(draw_list, nd, sizeof(Box), cmp_box);
 
 	ui_frame_begin();
@@ -868,6 +885,7 @@ void game_preview(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 	snprintf(sess.username, sizeof sess.username, "IkerPlays"); sess.color = 0xFF439FFF; snprintf(cur_game.name, sizeof cur_game.name, "Spawn Plaza");
 	nl = 0;
 	{ const char *sk = getenv("BLOCKSY_PREVIEW_SKY"); g_skymode = sk ? atoi(sk) : 0; }
+	if (getenv("BLOCKSY_PREVIEW_PARTS")) snprintf(g_my_hat, sizeof g_my_hat, "hat_cap||||pet_slime|");
 	nparts = 0;
 	if (getenv("BLOCKSY_PREVIEW_PARTS")) {                                                  // piezas de ejemplo del Studio
 		Part d[] = {mkpart(4, 0.5f, 2, 4, 1, 4, 0.5f, 0xFF3C9FFF, 0, 1, 0, 255, 0), mkpart(-3, 1.5f, 4, 2, 3, 2, 0, 0xFF4F4FE0, 2, 1, 0, 255, 0), mkpart(0, 3.5f, -3, 3, 3, 3, 0, 0xFFFFD34D, 1, 0, 0, 255, 0), mkpart(-5, 0.25f, -2, 4, 0.5f, 4, 0.8f, 0xFF50D060, 0, 1, 1, 255, 0), mkpart(6, 2, -4, 1, 4, 6, 0.3f, 0xFFB26AE0, 0, 1, 0, 255, 0), mkpart(-7, 1, -6, 3, 2, 3, 0, 0xFFE0A030, 0, 0, 0, 110, 0), mkpart(2, 2.2f, 5, 1, 1, 1, 0, 0xFF60E8FF, 1, 0, 0, 255, 1)};

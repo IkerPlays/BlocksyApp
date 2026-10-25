@@ -3,7 +3,7 @@ Blocksy is a multiplayer block-building game for the web and the Nintendo 3DS (h
 ## What's new since 1.4.1
 
 ### Changes
-- 3DS: faces and backs in the Shop.
+- 3DS: faces, backs and pets in the Shop; pets follow players.
 - 3DS: claim season levels and weekly missions from the Shop.
 - 3DS: tree canopies in Hills and Islands are solid like on the web.
 

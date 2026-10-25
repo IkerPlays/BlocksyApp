@@ -541,7 +541,7 @@ static int acc_list(const char *kind, const char **ids, const char **names) {
 }
 static int acc_cur(const char *kind, int n, const char **ids) { const char *e = !strcmp(kind, "hat") ? wallet.hat : wallet.title; for (int i = 0; i < n; i++) if (!strcmp(ids[i], e)) return i; return 0; }
 static const char *acc_name(const char *kind) { const char *ids[24], *nm[24]; int n = acc_list(kind, ids, nm); return nm[acc_cur(kind, n, ids)]; }
-static bool shop_equipped(const ShopItem *it) { return !strcmp(wallet.hat, it->id) || !strcmp(wallet.title, it->id) || !strcmp(wallet.face, it->id) || !strcmp(wallet.back, it->id); }
+static bool shop_equipped(const ShopItem *it) { return !strcmp(wallet.hat, it->id) || !strcmp(wallet.title, it->id) || !strcmp(wallet.face, it->id) || !strcmp(wallet.back, it->id) || !strcmp(wallet.pet, it->id); }
 static u32 rarity_col(int r) { return r == 2 ? C(0xC4, 0x6B, 0xFF) : r == 1 ? C(0x4D, 0x8D, 0xFF) : COL_MUTED; }
 static const char *status_of(const Person *p) { return p->in_game ? tr2("En un juego", "In a game") : p->online ? "Online" : tr2("Desconectado", "Offline"); }
 
