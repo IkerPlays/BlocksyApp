@@ -800,6 +800,11 @@ static bool play_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 			else if (act == UI_CHAT_UP) { if (hscroll < nhist - 5) hscroll++; }
 			else if (act == UI_CHAT_DOWN) { if (hscroll > 0) hscroll--; }
 			else if (chat_view && tp.px < 256 && tp.py >= 50 && tp.py < 120) { chat_drag_y = tp.py; chat_drag = true; }
+			else if (!chat_view && !emote_menu && tp.px < 200 && tp.py >= 64 && tp.py < 112 && (tp.py - 48) / 16 - 1 < nr) {       // tocar un jugador de la lista: te lleva a su lado
+				int i = (tp.py - 48) / 16 - 1;
+				if (hr.on || world.has_fin || race.start) { snprintf(big_msg, sizeof big_msg, "No se puede ir con alguien aqui"); big_until = now + 1800; }
+				else { px = rem[i].x + 1.2f; py = rem[i].y; pz = rem[i].z; for (int k = 0; k < 4 && body_hits(px, py, pz); k++) py += 1.01f; vy = 0; cx_ = px; cy_ = py + 1; cz_ = pz; snprintf(big_msg, sizeof big_msg, "Junto a %.16s", rem[i].name); big_until = now + 1500; sfx_play(SFX_CLICK); }
+			}
 		}
 		if (chat_drag) {                                             // arrastrar sobre el historial para desplazarlo
 			if (held & KEY_TOUCH) { touchPosition tp; hidTouchRead(&tp); int dy = tp.py - chat_drag_y; if (dy > 12 && hscroll < nhist - 5) { hscroll++; chat_drag_y = tp.py; } else if (dy < -12 && hscroll > 0) { hscroll--; chat_drag_y = tp.py; } }

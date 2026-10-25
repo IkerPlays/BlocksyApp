@@ -513,6 +513,7 @@ void ui_game_bottom(const Session *s, const Remote *rem, int nr, int kind, const
 			if (rem[i].is3ds) { float bx = 30 + text_w(rem[i].name, 0.45f) + 8; rrect(bx, y + 1, 30, 13, 4, C(0xE6, 0x00, 0x12)); ui_text(bx + 15, y + 1, 0.32f, COL_TEXT, C2D_AlignCenter, "3DS"); }
 		}
 		ui_text(310, 52, 0.36f, COL_MUTED, C2D_AlignRight, "A saltar  B correr");
+		if (nr > 0) ui_text(310, 100, 0.34f, COL_MUTED, C2D_AlignRight, "Toca un jugador: ir con el");
 		if (ui_build_ui) ui_text(310, 66, 0.36f, COL_MUTED, C2D_AlignRight, "X poner  Y romper");
 		}
 
