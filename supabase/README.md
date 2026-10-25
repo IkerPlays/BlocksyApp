@@ -100,3 +100,9 @@ Lua estilo Roblox: cada jugador ejecuta el script en su navegador (como un Local
 - **AUTH** `auth/v17.sql`: clanes (chat y juegos compartidos), quedadas con fecha y mensajes con imagen o voz (crea el bucket privado `dm-media`). Necesita `social.sql`.
 - **AUTH** `auth/v18.sql`: moderacion en servidor (denuncias, baneos, bloqueo de juegos, registro) y contador de visitas. Despues, hazte administrador con el `insert` que hay al principio del archivo y **vuelve a desplegar la Edge Function `game-session` en GAME y en STORE** (Verify JWT desactivado): asi los baneos tambien impiden abrir sesion de juego.
 - **AUTH** `auth/v19.sql`: denunciar mensajes del chat de clan y quedadas (boton con bandera), que el equipo los pueda borrar o cancelar desde Moderacion y ver la lista de suspendidos. Necesita v17.sql y v18.sql.
+
+## Instalar la 1.4 de golpe
+- Proyecto AUTH: pega `auth/install-1.4.sql` (v15 a v19 en orden) en el SQL Editor y pulsa Run. Es seguro repetirlo.
+- Proyecto STORE: pega `store/install-1.4.sql` (articulos de temporada).
+- Vuelve a desplegar la funcion `functions/game-session` en GAME y en STORE (con *Verify JWT* desactivado).
+- Para ser moderador: `insert into staff (user_id) select id from profiles where username = 'TU_NOMBRE';` en AUTH.
