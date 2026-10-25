@@ -175,3 +175,14 @@ test('preguntas: muestra la pregunta y premia la loseta correcta', () => {
   for (let i = 0; i < 40; i++) h.dispatch('step', { dt: 0.1, now: 1700000000 + i * 0.1, x: 3, y: 1, z: 8, others: [] })
   assert.deepEqual(h.errs, []); assert.ok(h.acts.filter(a => a[0] === 'new' && a[2] === 'Part').length >= 4, 'cuatro losetas')
 })
+
+// Todas las plantillas con script se ejecutan 8 s de juego simulado desde varias posiciones sin dar errores de Lua
+import { TEMPLATES } from '../src/templates.js'
+for (const tpl of TEMPLATES.filter(x => x.script)) {
+  test(`plantilla ${tpl.id}: se ejecuta sin errores`, () => {
+    const h = make(); h.dispatch('init', { me: 'Ana', code: transpile(tpl.script) })
+    const pos = [[0, 1, 0], [6, 1, -6], [-12, 1, 8], [9, 30, 0]]
+    for (let i = 0; i < 80; i++) { const p = pos[Math.floor(i / 20) % pos.length]; h.dispatch('step', { dt: 0.1, now: 1700000000 + i * 0.1, x: p[0], y: p[1], z: p[2], others: [{ id: 'u2', name: 'Bruno', x: 3, y: 1, z: 3 }] }) }
+    assert.deepEqual(h.errs, [])
+  })
+}
