@@ -407,6 +407,7 @@ export function createStudio(ctx) {
     const add = (ok, key) => items.push([ok, key])
     add(parts.some(p => p.type === 'spawn') || !!c.spawn, 'ck_spawn'); add(!!(game.name && game.name.trim().length >= 3), 'ck_name'); add(!!(game.description && game.description.trim().length >= 10), 'ck_desc')
     add(!!c.thumb, 'ck_thumb'); add(Array.isArray(c.tags) && c.tags.length > 0, 'ck_tags'); add(!!c.welcome, 'ck_welcome'); add(index.size > 0 || parts.length > 0, 'ck_content'); add(!c.draft, 'ck_public')
+    add(parts.length <= 160, 'ck_3ds_parts'); add(index.size <= 2048, 'ck_3ds_blocks'); add((c.ui?.length ?? 0) <= 8, 'ck_3ds_ui'); add(!game.script?.trim(), 'ck_3ds_script')       // la 3DS dibuja hasta 160 piezas, 2048 bloques y 8 textos, y no ejecuta scripts
     if (game.script?.trim()) { const er = c.script_lang === 'lua' ? await checkLua(game.script).catch(e => e.message) : checkSyntax(game.script); add(!er, 'ck_script') }
     const ok = items.filter(i => i[0]).length
     listBox.replaceChildren(h('b', { text: `${t('st_checklist')} · ${ok}/${items.length}` }), ...items.map(([k, key]) => h('div', { class: 'ck-row ' + (k ? 'ok' : 'no') }, h('span', { text: k ? '✓' : '✗' }), h('span', { text: t(key) }))), h('button', { type: 'button', class: 'btn tiny', text: t('close'), onclick: () => listBox.classList.add('hidden') }))

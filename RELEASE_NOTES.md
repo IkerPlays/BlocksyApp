@@ -7,3 +7,5 @@ Devbuild: tree canopies are solid on the 3DS
 - 3DS: trails (spark, fire, rainbow, bubbles) are drawn behind moving players, and the Shop sells and equips them.
 - 3DS: JSON text escapes (new lines, accents written as codes) are read correctly; game rules, sky and physics reading is now covered by a native test.
 - 3DS: the game card says when a game uses scripts (their rules only run on the web).
+- Studio checklist now has 3DS compatibility checks (parts, blocks, on-screen texts and scripts).
+- Fixed four texts that showed their internal name instead of a translation (search, player sync interval, delete message confirmation, edited) and added a test that fails when code uses a text key that does not exist.

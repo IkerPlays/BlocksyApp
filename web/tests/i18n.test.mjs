@@ -17,3 +17,16 @@ test('las traducciones conservan los {marcadores} del inglés', () => {
     for (const l of ['es', 'pt', 'fr', 'de', 'it', 'pl', 'ru', 'ja', 'zh', 'ko']) assert.equal(ph(at(l, k)), want, `${l}.${k}`)
   }
 })
+
+// Toda clave literal que el codigo pide con t('...') debe existir (si no, el usuario ve el nombre de la clave)
+import fs from 'node:fs'
+test('las claves usadas en el codigo existen', () => {
+  const have = new Set(m.allKeys()), missing = new Set()
+  for (const f of fs.readdirSync(new URL('../src/', import.meta.url))) {
+    if (!f.endsWith('.js') || f.startsWith('i18n')) continue
+    const src = fs.readFileSync(new URL('../src/' + f, import.meta.url), 'utf8')
+    for (const mm of src.matchAll(/\bt\('([a-z][a-z0-9_]*)'[,)]/g)) if (!have.has(mm[1])) missing.add(`${f}: ${mm[1]}`)
+  }
+  // claves dinamicas que se montan por trozos (t('mode_' + x)) no se detectan aqui, solo las literales
+  assert.deepEqual([...missing].sort(), [])
+})
