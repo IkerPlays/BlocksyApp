@@ -14,7 +14,7 @@
 #include <sys/stat.h>
 
 static int s_lang;   // 0 español, 1 English, 2 Portugues (ajuste guardado)
-static int s_music = -1, s_mvol = 60, s_sfx = 1, s_autoinst = 1, s_fps = 0, s_coords = 0;      // s_autoinst: instalar solo las estables nuevas                          // musica de la playlist: -1 = sin decidir (activada solo en New 3DS)
+static int s_music = -1, s_mvol = 60, s_sfx = 1, s_autoinst = 1, s_fps = 0, s_coords = 0, s_radar = 1, s_fxp = 1;      // s_autoinst: instalar solo las estables nuevas                          // musica de la playlist: -1 = sin decidir (activada solo en New 3DS)
 static int s_forest = 1, s_steps = 1, s_showdev, s_ach;     // s_ach: logros conseguidos (bits)                 // s_showdev: ofrecer devbuilds aunque se use una version estable
 static int s_notif_on = 1;                                      // avisos emergentes
 static int s_sync = 2;                                          // nivel de sincronización (índice en SYNC_MS)
@@ -26,6 +26,8 @@ int app_music_vol(void) { return s_mvol; }
 int app_sfx_on(void) { return s_sfx; }
 int app_fps_on(void) { return s_fps; }
 int app_coords_on(void) { return s_coords; }
+int app_radar_on(void) { return s_radar; }
+int app_fx_on(void) { return s_fxp; }
 int app_forest_level(void) { return s_forest; }
 int app_steps_on(void) { return s_steps; }
 static const char *const PT_TR[][2] = {
@@ -35,6 +37,8 @@ static const char *const PT_TR[][2] = {
 	{"%s wants to be your friend", "%s quer ser seu amigo"},
 	{"+ Add friend (username)", "+ Adicionar amigo (usuario)"},
 	{"Account", "Conta"},
+	{"Player radar", "Radar de jogadores"},
+	{"Block particles", "Particulas de blocos"},
 	{"Alerts cleared", "Avisos apagados"},
 	{"Alerts need an email login.", "Os avisos exigem login com email."},
 	{"Alerts", "Avisos"},
@@ -436,6 +440,8 @@ static void load_settings(void) {
 		else if (!strncmp(line, "autoinst=", 9)) s_autoinst = atoi(line + 9) ? 1 : 0;
 		else if (!strncmp(line, "fps=", 4)) s_fps = atoi(line + 4) ? 1 : 0;
 		else if (!strncmp(line, "coords=", 7)) s_coords = atoi(line + 7) ? 1 : 0;
+		else if (!strncmp(line, "radar=", 6)) s_radar = atoi(line + 6) ? 1 : 0;
+		else if (!strncmp(line, "fxp=", 4)) s_fxp = atoi(line + 4) ? 1 : 0;
 		else if (!strncmp(line, "mvol=", 5)) { int v = atoi(line + 5); s_mvol = v < 0 ? 0 : v > 100 ? 100 : v; }
 		else if (!strncmp(line, "showdev=", 8)) s_showdev = atoi(line + 8) ? 1 : 0;
 		else if (!strncmp(line, "steps=", 6)) s_steps = atoi(line + 6) ? 1 : 0;
@@ -448,7 +454,7 @@ static void load_settings(void) {
 static void save_settings(void) {
 	mkdir("sdmc:/3ds", 0777); mkdir("sdmc:/3ds/blocksy", 0777);
 	FILE *f = fopen(SETTINGS_FILE, "w"); if (!f) return;
-	fprintf(f, "last_game=%s\ndist=%d\nauto=%d\nlang=%d\nsync=%d\nnotif=%d\nforest=%d\nsteps=%d\nshowdev=%d\nach=%d\nmusic=%d\nmvol=%d\nsfx=%d\nautoinst=%d\nfps=%d\ncoords=%d\n", s_last_game, s_dist, s_auto, s_lang, s_sync, s_notif_on, s_forest, s_steps, s_showdev, s_ach, app_music_on(), s_mvol, s_sfx, s_autoinst, s_fps, s_coords); fclose(f);
+	fprintf(f, "last_game=%s\ndist=%d\nauto=%d\nlang=%d\nsync=%d\nnotif=%d\nforest=%d\nsteps=%d\nshowdev=%d\nach=%d\nmusic=%d\nmvol=%d\nsfx=%d\nautoinst=%d\nfps=%d\ncoords=%d\nradar=%d\nfxp=%d\n", s_last_game, s_dist, s_auto, s_lang, s_sync, s_notif_on, s_forest, s_steps, s_showdev, s_ach, app_music_on(), s_mvol, s_sfx, s_autoinst, s_fps, s_coords, s_radar, s_fxp); fclose(f);
 }
 
 // ---------- estado de la interfaz ----------
@@ -525,7 +531,7 @@ static int count_rows(const Ui *u, const Session *s) {
 	switch (u->page) {
 	case P_HOME: case P_DISCOVER: return build_view(u, s, view);
 	case P_FRIENDS: return build_people(s, pr);
-	case P_SETTINGS: return 16;
+	case P_SETTINGS: return 18;
 	case P_NOTIF: return nnotifs + 1;
 	case P_SHOP: return nshop + 1 + g_nmis + (g_season ? 1 : 0) + g_nwk;
 	case P_UPDATE: return update_can_rollback() ? 6 : 5;
@@ -1005,7 +1011,7 @@ static void pane(const Ui *u, const Session *s) {
 		break; }
 	case P_SETTINGS: {
 		const char *dn[3] = {tr2("Corta", "Short"), tr2("Media", "Medium"), tr2("Larga", "Long")};
-		char l[16][48]; const char *fn[3] = {tr2("Facil", "Easy"), "Normal", tr2("Dificil", "Hard")};
+		char l[18][48]; const char *fn[3] = {tr2("Facil", "Easy"), "Normal", tr2("Dificil", "Hard")};
 		snprintf(l[0], 48, "%s: %s", tr2("Distancia", "Distance"), dn[s_dist]);
 		snprintf(l[1], 48, "%s: %d ms", tr2("Sincronizacion", "Sync"), SYNC_MS[s_sync]);
 		snprintf(l[2], 48, "%s: %s", tr2("Updates al abrir", "Updates on start"), s_auto ? tr2("Si", "Yes") : "No");
@@ -1021,7 +1027,9 @@ static void pane(const Ui *u, const Session *s) {
 		snprintf(l[13], 48, "%s: %s", tr2("Instalar estables solas", "Auto-install stable"), s_autoinst ? tr2("Si", "Yes") : "No");
 		snprintf(l[14], 48, "%s: %s", tr2("Mostrar FPS", "Show FPS"), s_fps ? tr2("Si", "Yes") : "No");
 		snprintf(l[15], 48, "%s: %s", tr2("Mostrar coordenadas", "Show coordinates"), s_coords ? tr2("Si", "Yes") : "No");
-		for (int i = 0; i < vis && u->scroll + i < 16; i++) {
+		snprintf(l[16], 48, "%s: %s", tr2("Radar de jugadores", "Player radar"), s_radar ? tr2("Si", "Yes") : "No");
+		snprintf(l[17], 48, "%s: %s", tr2("Particulas de bloques", "Block particles"), s_fxp ? tr2("Si", "Yes") : "No");
+		for (int i = 0; i < vis && u->scroll + i < 18; i++) {
 			int r = u->scroll + i; float y = LIST_Y + 2 + i * rh;
 			if (r == 1) {                                       // barra deslizante: toca o arrastra para elegir (izquierda = rapido)
 				ui_button(PANE_X, y, PANE_W - 4, rh - 4, COL_PANEL2, u->cur == 1, l[1], 0.38f);
@@ -1338,6 +1346,8 @@ AppResult app_lobby(C3D_RenderTarget *top, C3D_RenderTarget *bot, Session *s, Ga
 				else if (act_row == 13) { s_autoinst = !s_autoinst; save_settings(); }
 				else if (act_row == 14) { s_fps = !s_fps; save_settings(); }
 				else if (act_row == 15) { s_coords = !s_coords; save_settings(); }
+				else if (act_row == 16) { s_radar = !s_radar; save_settings(); }
+				else if (act_row == 17) { s_fxp = !s_fxp; save_settings(); }
 				break;
 			}
 		}

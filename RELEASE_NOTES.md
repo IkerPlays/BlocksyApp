@@ -1,2 +1,4 @@
-Devbuild: two new templates
-- Web: new Studio templates "Coin rush" (collect coins for 60 s, keeps your record) and "Time trial" (six gates in order, best lap). Translated into all 11 languages.
+Devbuild: 3DS particles and radar
+- 3DS: placing and breaking blocks throws small debris in the block color, and hard landings kick up dust with a thud sound.
+- 3DS: a player radar (top right) shows nearby players; up is where the camera looks.
+- 3DS Settings: new rows "Player radar" and "Block particles" to turn them off.

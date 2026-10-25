@@ -277,6 +277,7 @@ typedef struct { float x, y, z, vx, vy, vz, life; u32 col; } FxP;
 static FxP fxs[40]; static unsigned fx_seed = 12345;
 static float fx_rnd(void) { fx_seed = fx_seed * 1664525u + 1013904223u; return ((fx_seed >> 8) & 0xFFFF) / 65535.0f - 0.5f; }
 static void fx_burst(float cx, float cy, float cz, u32 col, int n, float spd) {
+	if (!app_fx_on()) return;
 	for (int k = 0; k < n; k++) {
 		int slot = -1; float oldest = 1e9f;
 		for (int i = 0; i < 40; i++) { if (fxs[i].life <= 0) { slot = i; break; } if (fxs[i].life < oldest) { oldest = fxs[i].life; slot = i; } }
@@ -671,6 +672,19 @@ static void render_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 	}
 	char pc[32]; if (g_ping > 0) snprintf(pc, sizeof pc, "%d jugando  %d ms", nr + 1, g_ping); else snprintf(pc, sizeof pc, "%d jugando", nr + 1);
 	float pw = ui_text_width(pc, 0.4f) + 16; ui_rrect(392 - pw, 8, pw, 22, 8, C2D_Color32(0, 0, 0, 130)); ui_text(392 - pw / 2, 11, 0.4f, COL_TEXT, C2D_AlignCenter, pc);
+	if (nr > 0 && app_radar_on()) {                                                               // radar: jugadores cercanos (arriba = hacia donde mira la camara)
+		const float cx = 364, cy = 64, rr = 30, range = 24;
+		C2D_DrawCircleSolid(cx, cy, 0, rr + 2, C2D_Color32(0, 0, 0, 90)); C2D_DrawCircleSolid(cx, cy, 0, rr, C2D_Color32(20, 28, 48, 120));
+		ui_rect(cx - 0.5f, cy - rr + 3, 1, rr * 2 - 6, C2D_Color32(255, 255, 255, 28)); ui_rect(cx - rr + 3, cy - 0.5f, rr * 2 - 6, 1, C2D_Color32(255, 255, 255, 28));
+		float fdx2 = -sinf(cam_yaw), fdz2 = -cosf(cam_yaw);
+		for (int i = 0; i < nr && i < MAX_PLAYERS; i++) {
+			float dx = rem[i].x - px, dz = rem[i].z - pz, fw = dx * fdx2 + dz * fdz2, rt = dx * -fdz2 + dz * fdx2, dist = hypotf(fw, rt);
+			if (dist > range) { fw *= range / dist; rt *= range / dist; }
+			float ex = cx + rt / range * (rr - 4), ey = cy - fw / range * (rr - 4);
+			C2D_DrawCircleSolid(ex, ey, 0, 3.2f, C2D_Color32(0, 0, 0, 160)); C2D_DrawCircleSolid(ex, ey, 0, 2.4f, rem[i].color | 0xFF000000u);
+		}
+		C2D_DrawTriangle(cx, cy - 4.5f, C2D_Color32(0xFF, 0xD3, 0x4D, 255), cx - 3.2f, cy + 3, C2D_Color32(0xFF, 0xD3, 0x4D, 255), cx + 3.2f, cy + 3, C2D_Color32(0xFF, 0xD3, 0x4D, 255), 0);
+	}
 	int shown = 0; for (int i = 0; i < 4; i++) if (chat[i].until > now) shown++;
 	for (int i = 0, row = 0; i < 4; i++) if (chat[i].until > now) {          // chat reciente, abajo a la izquierda
 		char line[140]; snprintf(line, sizeof line, "%s: %s", chat[i].name, chat[i].text);

@@ -17,6 +17,8 @@ int app_forest_level(void);  // dificultad del bosque: 0 facil, 1 normal, 2 difi
 int app_steps_on(void);      // polvo al caminar
 int app_music_on(void);      // musica de la playlist activada
 int app_sfx_on(void);        // efectos de sonido activados
+int app_radar_on(void);      // radar de jugadores en la partida
+int app_fx_on(void);         // particulas al poner/romper bloques y aterrizar
 int app_coords_on(void);     // mostrar coordenadas X Y Z en la partida
 int app_fps_on(void);        // mostrar los fotogramas por segundo en la partida
 int app_music_vol(void);     // volumen de la musica (0-100)
