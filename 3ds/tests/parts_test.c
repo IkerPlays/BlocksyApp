@@ -34,6 +34,16 @@ int main(void) {
 	char fo[96]; ui_format(ut[1].text, fo, sizeof fo, 3, "Iker", "Mi juego", 125); assert(!strcmp(fo, "Jugadores 3 - 2:05"));
 	ui_format("{game}: {name} {x}", fo, sizeof fo, 1, "Ana", "Plaza", 0); assert(!strcmp(fo, "Plaza: Ana {x}"));
 	assert(ui_parse("[{\"ui\": null}]", ut, MAX_UITEXTS) == 0);
+	// config de un juego con piezas ANTES de las demas claves (jsonb ordena por longitud): nada se pierde
+	{
+		const char *cfg = "{\"jump\": 10, \"seed\": 5, \"sky\": \"sunset\", \"fog\": 0.5, \"parts\": [{\"x\":1,\"sx\":2},{\"x\":2}], \"time\": 20, \"world\": \"islands\", \"speed\": 9, \"spawn\": [2, 5.5, -3], \"gravity\": 18,"
+			" \"welcome\": \"Hola\\nmundo\", \"allow_chat\": false, \"allow_build\": true, \"double_jump\": true, \"visibility\": \"unlisted\", \"allow_emotes\": true}";
+		GameInfo g; memset(&g, 0, sizeof g); g.allow_build = -1; g.jump = 8.6f; g.seed = 1337;
+		gameinfo_parse_config(&g, cfg, cfg + strlen(cfg));
+		assert(!strcmp(g.world, "islands") && !strcmp(g.sky, "sunset") && g.vis == 1 && g.seed == 5 && g.jump == 10);
+		assert(g.speed == 9 && g.gravity == 18 && g.fog == 0.5f && g.double_jump && g.has_spawn && g.spawn[0] == 2 && g.spawn[1] == 5.5f && g.spawn[2] == -3);
+		assert(!g.allow_chat && g.allow_emotes && g.allow_build == 1 && g.hour == 20 && !strcmp(g.welcome, "Hola mundo"));
+	}
 	printf("parts: todo bien\n");
 	return 0;
 }

@@ -5,3 +5,4 @@ Devbuild: tree canopies are solid on the 3DS
 - 3DS: the last game you played is shown first on Home.
 - 3DS: the Shop also sells and equips faces, backpacks/capes and pets. Pets (cube, slime, bot, ghost) now follow players on the 3DS, yours and other players'.
 - 3DS: trails (spark, fire, rainbow, bubbles) are drawn behind moving players, and the Shop sells and equips them.
+- 3DS: JSON text escapes (new lines, accents written as codes) are read correctly; game rules, sky and physics reading is now covered by a native test.

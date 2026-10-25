@@ -80,3 +80,15 @@ void ui_format(const char *text, char *out, size_t n, int players, const char *n
 	}
 	out[k] = 0;
 }
+
+// Lee la configuracion de un juego (config de la tabla games) en un GameInfo; cf..ce es el objeto config completo
+void gameinfo_parse_config(GameInfo *g, const char *cf, const char *ce) {
+			jstr(cf, ce, "world", g->world, sizeof g->world); jstr(cf, ce, "weather", g->weather, sizeof g->weather);
+			{ char vs[12] = ""; jstr(cf, ce, "visibility", vs, sizeof vs); g->vis = !strcmp(vs, "private") ? 2 : !strcmp(vs, "unlisted") ? 1 : 0; if (!vs[0]) { const char *dr = json_find_from(cf, ce, "draft"); if (dr && *dr == 't') g->vis = 2; } }
+			jstr(cf, ce, "sky", g->sky, sizeof g->sky); { const char *q = json_find_from(cf, ce, "speed"); g->speed = q ? strtof(q, NULL) : 0; q = json_find_from(cf, ce, "fog"); g->fog = q ? strtof(q, NULL) : 0; q = json_find_from(cf, ce, "gravity"); g->gravity = q ? strtof(q, NULL) : 0; q = json_find_from(cf, ce, "double_jump"); g->double_jump = q && *q == 't';
+		  q = json_find_from(cf, ce, "spawn"); if (q && *q == '[') { char *e1; float a0 = strtof(q + 1, &e1), a1 = strtof(e1 + (*e1 == ','), &e1), a2 = strtof(e1 + (*e1 == ','), NULL); g->spawn[0] = a0; g->spawn[1] = a1; g->spawn[2] = a2; g->has_spawn = 1; } }
+		  g->allow_chat = g->allow_emotes = 1; { const char *q = json_find_from(cf, ce, "allow_chat"); if (q) g->allow_chat = *q == 't'; q = json_find_from(cf, ce, "allow_emotes"); if (q) g->allow_emotes = *q == 't'; } g->hour = -1; { const char *tp = json_find_from(cf, ce, "time"); if (tp && ((*tp >= '0' && *tp <= '9') || *tp == '-')) g->hour = strtof(tp, NULL); } jstr(cf, ce, "welcome", g->welcome, sizeof g->welcome); for (char *q = g->welcome; *q; q++) if (*q == '\n') *q = ' '; jstr(cf, ce, "about", g->about, sizeof g->about); jstr(cf, ce, "track", g->track, sizeof g->track); for (char *q = g->about; *q; q++) if (*q == '\n') *q = ' ';
+			const char *ab = json_find_from(cf, ce, "allow_build"); if (ab) g->allow_build = *ab == 't';
+			const char *jp = json_find_from(cf, ce, "jump"); if (jp) g->jump = strtof(jp, NULL);
+			const char *sd = json_find_from(cf, ce, "seed"); if (sd) g->seed = (int)strtof(sd, NULL);
+}

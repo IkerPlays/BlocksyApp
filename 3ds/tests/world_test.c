@@ -5,6 +5,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 static World w;
 static unsigned long long sum_of(int seed) {
 	world_build(&w, "hills", seed); unsigned long long s = 0;

@@ -22,7 +22,21 @@ static inline const char *find_val(const char *obj, const char *end, const char 
 static inline bool jstr(const char *obj, const char *end, const char *key, char *dst, size_t n) {
 	const char *p = find_val(obj, end, key); if (!p || *p != '"') return false;
 	p++; size_t i = 0;
-	while (*p && *p != '"' && p < end && i + 1 < n) { if (*p == '\\' && p[1]) p++; dst[i++] = *p++; }
+	while (*p && *p != '"' && p < end && i + 1 < n) {
+		if (*p == '\\' && p[1]) {                                         // escapes de JSON: \n \t \uXXXX (los demas se copian tal cual)
+			p++;
+			if (*p == 'n') { dst[i++] = '\n'; p++; continue; }
+			if (*p == 't') { dst[i++] = '\t'; p++; continue; }
+			if (*p == 'u' && p[1] && p[2] && p[3] && p[4]) {
+				unsigned cp = (unsigned)strtoul((char[5]){p[1], p[2], p[3], p[4], 0}, NULL, 16); p += 5;
+				if (cp < 0x80 && i + 1 < n) dst[i++] = (char)cp;
+				else if (cp < 0x800 && i + 2 < n) { dst[i++] = (char)(0xC0 | (cp >> 6)); dst[i++] = (char)(0x80 | (cp & 0x3F)); }
+				else if (i + 3 < n) { dst[i++] = (char)(0xE0 | (cp >> 12)); dst[i++] = (char)(0x80 | ((cp >> 6) & 0x3F)); dst[i++] = (char)(0x80 | (cp & 0x3F)); }
+				continue;
+			}
+		}
+		dst[i++] = *p++;
+	}
 	dst[i] = 0; return true;
 }
 static inline float jnum(const char *obj, const char *end, const char *key) {
