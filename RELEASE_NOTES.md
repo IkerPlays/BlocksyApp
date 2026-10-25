@@ -13,3 +13,4 @@ Devbuild: tree canopies are solid on the 3DS
 - 3DS: on the Friends page, X opens the game your selected friend is playing.
 - 3DS: chat messages appear as speech bubbles above the player who said them for 5 seconds.
 - 3DS: slow data (missions, season, clan, next meetup) is refreshed every 90 seconds instead of every 12, saving network and battery; actions refresh it right away.
+- 3DS: the game list, visits, hidden games and favorites are also refreshed every 90 seconds (players online still every 12 s): about half the network calls while browsing.

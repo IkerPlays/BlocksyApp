@@ -288,9 +288,15 @@ static volatile int g_force_slow = 1;                                    // 1 = 
 static void refresh_all(void) {
 	bool slow = g_force_slow || osGetTime() - g_last_slow > 90000; if (slow) { g_force_slow = 0; g_last_slow = osGetTime(); }       // los datos lentos se piden cada 90 s (no cada 12 s): menos red y bateria
 	static GameInfo tg[MAX_GAMES]; static Person tf[MAX_PEOPLE]; static FriendReq tr[MAX_PEOPLE];
-	int ng = net_list_games(tg, MAX_GAMES);
-	if (ng >= 0) { { int k = 0; for (int i = 0; i < ng; i++) if (tg[i].vis == 0 || !strcmp(tg[i].owner_id, W.s->user_id)) tg[k++] = tg[i]; ng = k; }       // privados y solo con enlace no salen en las listas (salvo los tuyos)
-		ng = net_hide_blocked(tg, ng); net_game_visits(tg, ng); net_player_counts(tg, ng); { static char fid[64][40]; int nfv = net_favorites(W.s, fid, 64); for (int i = 0; i < ng; i++) { tg[i].fav = 0; for (int k = 0; k < nfv; k++) if (!strcmp(tg[i].id, fid[k])) tg[i].fav = 1; } } LightLock_Lock(&lk); memcpy(g_games, tg, sizeof(GameInfo) * ng); g_ngames = ng; LightLock_Unlock(&lk); games_cache_save(tg, ng); }
+	bool relist = slow || g_ngames == 0;                                    // la lista de juegos, visitas, bloqueados y favoritos se piden cada 90 s; los jugadores conectados, cada 12 s
+	int ng = relist ? net_list_games(tg, MAX_GAMES) : g_ngames;
+	if (!relist) { LightLock_Lock(&lk); memcpy(tg, g_games, sizeof(GameInfo) * (size_t)ng); LightLock_Unlock(&lk); }
+	if (ng >= 0) {
+		if (relist) { int k = 0; for (int i = 0; i < ng; i++) if (tg[i].vis == 0 || !strcmp(tg[i].owner_id, W.s->user_id)) tg[k++] = tg[i]; ng = k;        // privados y solo con enlace no salen en las listas (salvo los tuyos)
+			ng = net_hide_blocked(tg, ng); net_game_visits(tg, ng); }
+		net_player_counts(tg, ng);
+		if (relist) { static char fid[64][40]; int nfv = net_favorites(W.s, fid, 64); for (int i = 0; i < ng; i++) { tg[i].fav = 0; for (int k = 0; k < nfv; k++) if (!strcmp(tg[i].id, fid[k])) tg[i].fav = 1; } }
+		LightLock_Lock(&lk); memcpy(g_games, tg, sizeof(GameInfo) * (size_t)ng); g_ngames = ng; LightLock_Unlock(&lk); if (relist) games_cache_save(tg, ng); }
 	else snprintf(W.msg, sizeof W.msg, "%s", net_login_error());
 	int nf = net_list_friends(W.s, tf, MAX_PEOPLE), nr = net_list_requests(W.s, tr, MAX_PEOPLE);
 	if (slow) { static MissionRow tmr[6]; int nm = net_my_missions(W.s, tmr, 6); if (nm >= 0) { LightLock_Lock(&lk); memcpy(g_mis, tmr, sizeof(MissionRow) * nm); g_nmis = nm; LightLock_Unlock(&lk); } }
