@@ -30,3 +30,13 @@ test('las claves usadas en el codigo existen', () => {
   // claves dinamicas que se montan por trozos (t('mode_' + x)) no se detectan aqui, solo las literales
   assert.deepEqual([...missing].sort(), [])
 })
+
+// Plantillas y estructuras: sus nombres se piden con claves montadas (t(x.key), 'pf_' + id), asi que se comprueban aparte
+test('plantillas y logros tienen nombre y descripcion', async () => {
+  const { TEMPLATES } = await import('../src/templates.js')
+  const have = new Set(m.allKeys()), bad = []
+  for (const x of TEMPLATES) for (const k of [x.key, x.key + '_d']) if (!have.has(k)) bad.push(k)
+  const ach = fs.readFileSync(new URL('../src/achievements.js', import.meta.url), 'utf8')
+  for (const mm of ach.matchAll(/id: '([a-z0-9_]+)'/g)) for (const k of ['ach_' + mm[1], 'ach_' + mm[1] + '_d']) if (!have.has(k)) bad.push(k)
+  assert.deepEqual(bad, [])
+})
