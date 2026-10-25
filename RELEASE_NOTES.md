@@ -4,3 +4,4 @@ Devbuild: tree canopies are solid on the 3DS
 - 3DS: weekly missions are in the Shop too, with claim buttons.
 - 3DS: the last game you played is shown first on Home.
 - 3DS: the Shop also sells and equips faces, backpacks/capes and pets. Pets (cube, slime, bot, ghost) now follow players on the 3DS, yours and other players'.
+- 3DS: trails (spark, fire, rainbow, bubbles) are drawn behind moving players, and the Shop sells and equips them.

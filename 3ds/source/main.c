@@ -247,6 +247,30 @@ static u32 fogged(u32 c, float depth) {
 }
 
 static int g_poly_alpha = 255;                                            // piezas semitransparentes (agua, cristal)
+// Estelas (trail_*): particulas que deja el jugador al moverse; nacen en render_game segun cuanto se ha desplazado y se encogen en 0,6 s
+typedef struct { float x, y, z; u64 born; u32 col; } TrailP;
+static TrailP trl[MAX_PLAYERS + 1][6]; static float trl_lx[MAX_PLAYERS + 1], trl_lz[MAX_PLAYERS + 1]; static int trl_n[MAX_PLAYERS + 1];
+static bool trail_of(const char *loadout, char *out, size_t n) {
+	const char *p = loadout; for (int i = 0; i < 3 && p; i++) { p = strchr(p, '|'); if (p) p++; }
+	if (!p) return false; const char *e = strchr(p, '|'); size_t l = e ? (size_t)(e - p) : strlen(p); if (!l || l >= n) return false;
+	memcpy(out, p, l); out[l] = 0; return !strncmp(out, "trail_", 6);
+}
+static void trail_update(int slot, const char *loadout, float x, float y, float z, u64 now) {
+	char id[24]; if (!trail_of(loadout, id, sizeof id)) { trl_lx[slot] = x; trl_lz[slot] = z; return; }
+	float dx = x - trl_lx[slot], dz = z - trl_lz[slot];
+	if (dx * dx + dz * dz > 0.04f && dx * dx + dz * dz < 25.0f) {
+		u32 col = !strcmp(id, "trail_fire") ? C2D_Color32(0xFF, 0x6B, 0x2B, 255) : !strcmp(id, "trail_bubbles") ? C2D_Color32(0x7E, 0xD6, 0xFF, 255) : !strcmp(id, "trail_rainbow") ? C2D_Color32((u32)(128 + 127 * sinf(now * 0.004f)), (u32)(128 + 127 * sinf(now * 0.004f + 2.1f)), (u32)(128 + 127 * sinf(now * 0.004f + 4.2f)), 255) : C2D_Color32(0xFF, 0xE0, 0x66, 255);
+		TrailP *t = &trl[slot][trl_n[slot]++ % 6]; t->x = x; t->y = y + 0.1f; t->z = z; t->born = now; t->col = col;
+	}
+	trl_lx[slot] = x; trl_lz[slot] = z;
+}
+static void trail_add(int *nd, int slot, u64 now) {
+	for (int k = 0; k < 6; k++) {
+		const TrailP *t = &trl[slot][k]; if (!t->born || now - t->born > 600) continue;
+		float f = 1.0f - (now - t->born) / 600.0f, w = 0.05f + 0.16f * f, sx, sy, d; if (!project(t->x, t->y + 0.1f, t->z, &sx, &sy, &d)) continue;
+		draw_list[(*nd)++] = (Box){d, t->x - w * 0.5f, t->y + (1.0f - f) * 0.3f, t->z - w * 0.5f, w, w, fogged(t->col, d), -1};
+	}
+}
 // Mascotas (pet_*): una cajita que acompana al jugador, con los colores de la web; el equipo viaja en "sombrero|gafas|espalda|estela|mascota|"
 static bool pet_of(const char *loadout, char *out, size_t n) {
 	const char *p = loadout; for (int i = 0; i < 4 && p; i++) { p = strchr(p, '|'); if (p) p++; }
@@ -493,9 +517,11 @@ static void render_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 	}
 	if (project(px, py + .9f, pz, &sx, &sy, &d)) draw_list[nd++] = (Box){d, px, py, pz, 0, 0, 0, 0};
 	add_pet(&nd, g_my_hat, px, py, pz, self_yaw, now / 1000.0f, 0);
+	trail_update(0, g_my_hat, px, py, pz, now); trail_add(&nd, 0, now);
 	for (int i = 0; i < nr; i++) if (project(rem[i].x, rem[i].y + .9f, rem[i].z, &sx, &sy, &d))
 		draw_list[nd++] = (Box){d, rem[i].x, rem[i].y, rem[i].z, 0, 0, 0, 1 + i};
 	for (int i = 0; i < nr; i++) add_pet(&nd, rem[i].hat, rem[i].x, rem[i].y, rem[i].z, rem[i].ry, now / 1000.0f, i + 1);
+	for (int i = 0; i < nr && i < MAX_PLAYERS; i++) { trail_update(i + 1, rem[i].hat, rem[i].x, rem[i].y, rem[i].z, now); trail_add(&nd, i + 1, now); }
 	qsort(draw_list, nd, sizeof(Box), cmp_box);
 
 	ui_frame_begin();

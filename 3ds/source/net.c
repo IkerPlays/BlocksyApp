@@ -841,8 +841,8 @@ int net_wallet(const Session *s, Wallet *w) {
 }
 int net_shop_list(const Session *s, ShopItem *out, int max) {
 	if (!s->token[0]) return -2;
-	char *r = HAS_STORE ? http(M_GET, STORE_URL "/rest/v1/shop_items?select=id,kind,name,price,rarity&price=lt.1000000000&kind=in.(hat,title,crate,face,back,pet)&order=sort&limit=40", STORE_ANON_KEY, NULL, NULL, NULL)
-	                    : http(M_GET, AUTH_URL "/rest/v1/shop_items?select=id,kind,name,price,rarity&price=lt.1000000000&kind=in.(hat,title,crate,face,back,pet)&order=sort&limit=40", AUTH_ANON_KEY, s->token, NULL, NULL);
+	char *r = HAS_STORE ? http(M_GET, STORE_URL "/rest/v1/shop_items?select=id,kind,name,price,rarity&price=lt.1000000000&kind=in.(hat,title,crate,face,back,pet,trail)&order=sort&limit=40", STORE_ANON_KEY, NULL, NULL, NULL)
+	                    : http(M_GET, AUTH_URL "/rest/v1/shop_items?select=id,kind,name,price,rarity&price=lt.1000000000&kind=in.(hat,title,crate,face,back,pet,trail)&order=sort&limit=40", AUTH_ANON_KEY, s->token, NULL, NULL);
 	if (!r) return -1;
 	int n = 0; const char *p = r, *end;
 	while (n < max && (p = next_obj(p, &end))) {
