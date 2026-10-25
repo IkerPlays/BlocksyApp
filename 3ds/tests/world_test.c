@@ -18,8 +18,8 @@ int main(void) {
 	world_build(&w, "hills", 1337);
 	assert(world_hill_h(&w, 0, 0) == 0 && world_hill_h(&w, 50, 0) == 0);                // plano en el punto de aparicion y fuera del mapa
 	assert(world_floor_solid(&w, 20, 0, 20) == (world_hill_h(&w, 20, 20) > 0) && !world_floor_solid(&w, 20, 40, 20));
-	// islas: terreno y troncos (las copas no son celdas en la 3DS) iguales a islands() de la web
-	static const unsigned long long ISL[3] = {1696328948324138206ULL, 13292020927844984756ULL, 4943517512990620254ULL}; static const int SEEDS[3] = {1337, 1, 424242}, NT[3] = {7, 8, 6};
+	// islas: terreno, troncos y copas (todo lo solido) iguales a islands() de la web
+	static const unsigned long long ISL[3] = {3563164243629994242ULL, 10860030409129458612ULL, 11818400767541499814ULL}; static const int SEEDS[3] = {1337, 1, 424242}, NT[3] = {7, 8, 6};
 	for (int k = 0; k < 3; k++) {
 		world_build(&w, "islands", SEEDS[k]); unsigned long long s = 0;
 		for (int x = -45; x <= 45; x++) for (int y = -12; y <= 12; y++) for (int z = -45; z <= 45; z++) {
@@ -66,6 +66,19 @@ int main(void) {
 			for (int i = 0; i < w.ntrees; i++) s = s * 31 + (unsigned long long)(((unsigned)w.tree[i][0] & 0xFFFF) * 65536u + ((unsigned)w.tree[i][1] & 0xFFFF));
 			for (int i = 0; i < w.norbs; i++) n += (size_t)snprintf(ob + n, sizeof ob - n, "(%g,%g)", w.orb[i][0], w.orb[i][2]);
 			if (w.ntrees != 150 || s != FO[k].h || strcmp(ob, FO[k].orbs)) { printf("FALLA bosque semilla %d: %d arboles, hash %llu, fragmentos %s\n", FO[k].seed, w.ntrees, s, ob); return 1; }
+		}
+	}
+	// copas de los arboles (colinas e islas): toda celda de hojas de la web es solida en la 3DS
+	{
+		static const char *const WN[2] = {"hills", "islands"}; static const unsigned long long LEAFSUM[2] = {0, 0}; (void)LEAFSUM;
+		for (int k = 0; k < 2; k++) {
+			world_build(&w, WN[k], 1337); int n = 0;
+			for (int ti = 0; ti < w.ntrees; ti++) for (int dx = -2; dx <= 2; dx++) for (int dz = -2; dz <= 2; dz++) for (int dy = 3; dy <= 5; dy++) {
+				bool leaf = dy == 5 ? (abs(dx) + abs(dz) <= 1) : !(abs(dx) + abs(dz) > 3 || (dx == 0 && dz == 0 && dy == 3));
+				if (leaf) { assert(world_floor_solid(&w, w.tree[ti][0] + dx, w.tree_y[ti] + dy, w.tree[ti][1] + dz)); n++; }
+				else if (dy == 3 && dx == 0 && dz == 0) { assert(!world_floor_solid(&w, w.tree[ti][0], w.tree_y[ti] + 3, w.tree[ti][1]) || world_hill_h(&w, w.tree[ti][0], w.tree[ti][1]) > w.tree_y[ti] + 3); }
+			}
+			assert(n > 100);
 		}
 	}
 	puts("world: todo bien"); return 0;

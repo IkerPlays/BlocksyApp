@@ -29,10 +29,11 @@ unsigned world_plaza_color(int x, int z) {
 	return ((x + z) & 1) ? hexc("#d5d9de") : hexc("#c3c8cf");
 }
 static bool island_solid(const World *w, int x, int y, int z);
+static bool leaf_solid(const World *w, int x, int y, int z);
 bool world_floor_solid(const World *w, int x, int y, int z) {
 	if (w->type == 5) return y >= 0 && y <= 2 && abs(x) <= 50 && abs(z) <= 50 && w->tgrid[(x + 50) * 101 + z + 50];     // troncos del bosque
-	if (w->type == 9) return y >= 0 && y < world_hill_h(w, x, z);
-	if (w->type == 10) return island_solid(w, x, y, z);
+	if (w->type == 9) return (y >= 0 && y < world_hill_h(w, x, z)) || leaf_solid(w, x, y, z);
+	if (w->type == 10) return island_solid(w, x, y, z) || leaf_solid(w, x, y, z);
 	return (w->type == 1 || w->type == 3) && y == 0 && abs(x) <= w->plaza_n && abs(z) <= w->plaza_n;
 }
 
@@ -207,6 +208,17 @@ static void build_islands(World *w, int seed) {
 		w->isl[w->nisl][0] = cx; w->isl[w->nisl][1] = cy; w->isl[w->nisl][2] = cz; w->isl[w->nisl][3] = rad; w->isl_thick[w->nisl] = 3 + rnd() * 3; w->nisl++;
 		if (rad >= 4 && rnd() < 0.7) isl_tree(w, cx, cy + 1, cz);
 	}
+}
+// Copas de los arboles de colinas e islas (las celdas de hojas de tree() en la web): solidas igual que alli
+static bool leaf_solid(const World *w, int x, int y, int z) {
+	for (int i = 0; i < w->ntrees; i++) {
+		int dx = x - w->tree[i][0], dz = z - w->tree[i][1], dy = y - w->tree_y[i];
+		if (dy < 3 || dy > 5 || abs(dx) > 2 || abs(dz) > 2) continue;
+		if (dy == 5) { if (abs(dx) + abs(dz) <= 1) return true; continue; }
+		if (abs(dx) + abs(dz) > 3 || (dx == 0 && dz == 0 && dy == 3)) continue;
+		return true;
+	}
+	return false;
 }
 void world_build(World *w, const char *name, int seed) {
 	memset(w, 0, sizeof *w);
