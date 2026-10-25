@@ -1,4 +1,4 @@
-import { TAG, FLAG, WAVES, HIDE, ARENA, TEAMS, RACE, TOOLS, KOTH, DODGE, SIMON, ZONES, TREASURE, TOWER, MAZE, REFLEX, CRUMBLE, QUIZ, RISE } from './modes.js'
+import { TAG, FLAG, WAVES, HIDE, ARENA, TEAMS, RACE, TOOLS, KOTH, DODGE, SIMON, ZONES, TREASURE, TOWER, MAZE, REFLEX, CRUMBLE, QUIZ, RISE, COINRUSH, TIMETRIAL } from './modes.js'
 // Plantillas de juego completas para empezar rápido en la página Crear (modo, reglas, script Lua y piezas ya puestas)
 const COINS = `-- Recoge 10 monedas para ganar
 local Players = game:GetService("Players")
@@ -53,6 +53,8 @@ export const TEMPLATES = [
   { id: 'reflex', key: 'tpl_reflex', mode: 'arena', config: { world: 'checker', allow_build: false, script_lang: 'lua', welcome: 'Reflejos: pisa la loseta cuando se ponga verde' }, script: REFLEX },
   { id: 'crumble', key: 'tpl_crumble', mode: 'obby', config: { world: 'void', allow_build: false, script_lang: 'lua', welcome: 'Piso que cae: cruza antes de que desaparezca' }, script: CRUMBLE },
   { id: 'rise', key: 'tpl_rise', mode: 'obby', config: { world: 'void', allow_build: false, script_lang: 'lua', welcome: 'Lava ascendente: trepa antes de que te alcance' }, script: RISE },
+  { id: 'coinrush', key: 'tpl_coinrush', mode: 'adventure', config: { world: 'plaza', allow_build: false, script_lang: 'lua', welcome: 'Fiebre de monedas: 60 segundos' }, script: COINRUSH },
+  { id: 'timetrial', key: 'tpl_timetrial', mode: 'obby', config: { world: 'flat', allow_build: false, script_lang: 'lua', welcome: 'Contrarreloj: pasa por las puertas en orden' }, script: TIMETRIAL },
   { id: 'quiz', key: 'tpl_quiz', mode: 'arena', config: { world: 'checker', allow_build: false, script_lang: 'lua', welcome: 'Preguntas: pisa la respuesta correcta' }, script: QUIZ },
   { id: 'arena', key: 'tpl_arena', mode: 'arena', config: { world: 'plaza', allow_build: false, script_lang: 'lua', double_jump: true, welcome: 'Arena: clic o F para golpear. Gana quien llegue a 15 bajas' }, script: ARENA },
   { id: 'teams', key: 'tpl_teams', mode: 'arena', config: { world: 'plaza', allow_build: false, script_lang: 'lua', welcome: 'Rojo contra Azul: gana el primero en 20 bajas' }, script: TEAMS },

@@ -833,6 +833,83 @@ task.spawn(function()
 end)
 game.title("La lava sube: trepa por las plataformas", 2500)`
 
+// Fiebre de monedas: 60 segundos para recoger todas las monedas que puedas; aparecen nuevas al azar. Guarda tu récord.
+export const COINRUSH = `local Players = game:GetService("Players")
+local me = Players.LocalPlayer
+local gui = Instance.new("ScreenGui"); gui.Parent = me.PlayerGui
+local label = Instance.new("TextLabel"); label.Size = UDim2.new(0, 440, 0, 44); label.Position = UDim2.new(0.5, 0, 0, 14); label.AnchorPoint = Vector2.new(0.5, 0)
+label.BackgroundColor3 = Color3.fromRGB(20, 20, 30); label.BackgroundTransparency = 0.25; label.TextColor3 = Color3.new(1, 1, 1); label.TextSize = 20; label.Parent = gui
+Instance.new("UICorner", label).CornerRadius = UDim.new(0, 12)
+local coins, score, best, t0 = {}, 0, 0, os.clock()
+local function spawn()
+  local c = Instance.new("Part"); c.Size = Vector3.new(1, 1, 0.3); c.Anchored = true; c.CanCollide = false; c.Material = Enum.Material.Neon
+  c.Color = Color3.fromRGB(255, 205, 40); c.Position = Vector3.new((math.random() - 0.5) * 36, 1.2, (math.random() - 0.5) * 36); c.Parent = workspace
+  coins[#coins + 1] = c
+end
+local function newRound() for _, c in ipairs(coins) do c:Destroy() end; coins = {}; score = 0; t0 = os.clock(); for i = 1, 10 do spawn() end; game.teleport(0, 2, 0) end
+newRound()
+task.spawn(function()
+  while true do
+    task.wait(0.12)
+    local left = 60 - (os.clock() - t0)
+    local c = me.Character; local r = c and c:FindFirstChild("HumanoidRootPart")
+    if left <= 0 then
+      if score > best then best = score end
+      game.sound("win"); game.title("Tiempo! " .. score .. " monedas (récord " .. best .. ")", 3500); task.wait(4); newRound()
+    elseif r then
+      for i = #coins, 1, -1 do
+        local k = coins[i]
+        k.Rotation = Vector3.new(0, (os.clock() * 180) % 360, 0)
+        if (Vector3.new(k.Position.X, r.Position.Y, k.Position.Z) - r.Position).Magnitude < 2 then
+          k:Destroy(); table.remove(coins, i); score += 1; game.sound("coin"); spawn()
+        end
+      end
+      label.Text = "Monedas " .. score .. "  ·  " .. math.ceil(left) .. " s  ·  récord " .. best
+    end
+  end
+end)
+game.title("Recoge todas las monedas que puedas en 60 s", 2500)`
+
+// Contrarreloj: pasa por 6 puertas en círculo, en orden, y mejora tu mejor vuelta.
+export const TIMETRIAL = `local Players = game:GetService("Players")
+local me = Players.LocalPlayer
+local gui = Instance.new("ScreenGui"); gui.Parent = me.PlayerGui
+local label = Instance.new("TextLabel"); label.Size = UDim2.new(0, 460, 0, 44); label.Position = UDim2.new(0.5, 0, 0, 14); label.AnchorPoint = Vector2.new(0.5, 0)
+label.BackgroundColor3 = Color3.fromRGB(20, 20, 30); label.BackgroundTransparency = 0.25; label.TextColor3 = Color3.new(1, 1, 1); label.TextSize = 20; label.Parent = gui
+Instance.new("UICorner", label).CornerRadius = UDim.new(0, 12)
+local N, R = 6, 22
+local gates = {}
+for i = 1, N do
+  local a = (i - 1) / N * math.pi * 2
+  local g = Instance.new("Part"); g.Size = Vector3.new(5, 6, 0.6); g.Anchored = true; g.CanCollide = false; g.Material = Enum.Material.Neon; g.Transparency = 0.35
+  g.Position = Vector3.new(math.cos(a) * R, 3, math.sin(a) * R); g.Rotation = Vector3.new(0, -a * 180 / math.pi + 90, 0); g.Color = Color3.fromRGB(90, 140, 255); g.Parent = workspace
+  gates[i] = g
+end
+local nextGate, t0, best, laps = 1, 0, 0, 0
+local function paint() for i, g in ipairs(gates) do g.Color = (i == nextGate) and Color3.fromRGB(60, 230, 120) or Color3.fromRGB(90, 140, 255) end end
+local function restart() nextGate = 1; t0 = os.clock(); paint(); game.teleport(R, 2, -6) end
+restart()
+task.spawn(function()
+  while true do
+    task.wait(0.08)
+    local c = me.Character; local r = c and c:FindFirstChild("HumanoidRootPart")
+    if r then
+      local g = gates[nextGate]
+      if (Vector3.new(g.Position.X, r.Position.Y, g.Position.Z) - r.Position).Magnitude < 4 then
+        game.sound("click"); nextGate += 1
+        if nextGate > N then
+          local t = math.floor((os.clock() - t0) * 10) / 10; laps += 1
+          if best == 0 or t < best then best = t end
+          game.sound("win"); game.title("Vuelta " .. laps .. ": " .. t .. " s (mejor " .. best .. " s)", 3000); nextGate = 1; t0 = os.clock()
+        end
+        paint()
+      end
+    end
+    label.Text = "Puerta " .. nextGate .. "/" .. N .. "  ·  " .. string.format("%.1f", os.clock() - t0) .. " s" .. (best > 0 and ("  ·  mejor " .. best .. " s") or "")
+  end
+end)
+game.title("Pasa por las puertas verdes en orden", 2500)`
+
 // Piso que cae: cada loseta desaparece poco después de pisarla y vuelve a los pocos segundos. Cruza hasta la meta sin caer al vacío.
 export const CRUMBLE = `local Players = game:GetService("Players")
 local me = Players.LocalPlayer

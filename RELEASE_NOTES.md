@@ -1,2 +1,2 @@
-Devbuild: new template Rising lava
-- Web: new Studio template "Rising lava" (obby): the lava climbs, you climb the platforms; it shows your height, time and record. Translated into all 11 languages.
+Devbuild: two new templates
+- Web: new Studio templates "Coin rush" (collect coins for 60 s, keeps your record) and "Time trial" (six gates in order, best lap). Translated into all 11 languages.
