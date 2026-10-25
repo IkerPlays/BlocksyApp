@@ -136,6 +136,7 @@ jobs:
           gcc -std=gnu11 -Wall -Isource tests/parts_test.c source/parts.c -o /tmp/pt -lm && /tmp/pt
           gcc -std=gnu11 -Wall -Isource tests/world_test.c source/world.c -o /tmp/wt -lm && /tmp/wt
           gcc -std=gnu11 -Wall -Isource tests/json_test.c -o /tmp/jt && /tmp/jt
+          gcc -std=gnu11 -Isource tests/fuzz.c source/update_core.c source/parts.c -o /tmp/fz -lm && /tmp/fz
 
       - name: Build .3dsx and .cia
         working-directory: 3ds
