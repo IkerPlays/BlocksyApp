@@ -232,6 +232,7 @@ static UpdateProgress g_prog; static char g_upd_msg[100]; static int g_upd_log; 
 #define g_upd_pct g_prog.pct
 static volatile int g_upd_auto;                               // 1 = instalar la estable nueva sola (una vez por sesion, como Iker's Tube)
 static volatile int g_upd_announce;                           // 1 = avisar con un toast de que hay versión nueva
+static u64 g_last_slow;
 static MissionRow g_mis[6], g_wk[6]; static int g_nmis, g_nwk;                         // misiones diarias (AUTH)
 static int g_season, g_season_xp, g_season_claimed;                                       // temporada actual y tus puntos (AUTH v16)
 static ClanInfo g_clan; static volatile int g_has_clan;                  // tu clan (AUTH v17), se ve en Inicio
@@ -283,18 +284,20 @@ static void games_cache_load(void) {
 	GamesCacheHdr h; if (fread(&h, sizeof h, 1, f) == 1 && h.magic == 0x42474D31u && h.size == sizeof(GameInfo) && h.n > 0 && h.n <= MAX_GAMES && fread(g_games, sizeof(GameInfo), h.n, f) == h.n) { g_ngames = (int)h.n; for (int i = 0; i < g_ngames; i++) g_games[i].players = 0; }          // los jugadores conectados se desconocen hasta la primera consulta
 	fclose(f);
 }
+static volatile int g_force_slow = 1;                                    // 1 = en el proximo refresco tambien se piden los datos lentos (misiones, temporada, clan, quedada)
 static void refresh_all(void) {
+	bool slow = g_force_slow || osGetTime() - g_last_slow > 90000; if (slow) { g_force_slow = 0; g_last_slow = osGetTime(); }       // los datos lentos se piden cada 90 s (no cada 12 s): menos red y bateria
 	static GameInfo tg[MAX_GAMES]; static Person tf[MAX_PEOPLE]; static FriendReq tr[MAX_PEOPLE];
 	int ng = net_list_games(tg, MAX_GAMES);
 	if (ng >= 0) { { int k = 0; for (int i = 0; i < ng; i++) if (tg[i].vis == 0 || !strcmp(tg[i].owner_id, W.s->user_id)) tg[k++] = tg[i]; ng = k; }       // privados y solo con enlace no salen en las listas (salvo los tuyos)
 		ng = net_hide_blocked(tg, ng); net_game_visits(tg, ng); net_player_counts(tg, ng); { static char fid[64][40]; int nfv = net_favorites(W.s, fid, 64); for (int i = 0; i < ng; i++) { tg[i].fav = 0; for (int k = 0; k < nfv; k++) if (!strcmp(tg[i].id, fid[k])) tg[i].fav = 1; } } LightLock_Lock(&lk); memcpy(g_games, tg, sizeof(GameInfo) * ng); g_ngames = ng; LightLock_Unlock(&lk); games_cache_save(tg, ng); }
 	else snprintf(W.msg, sizeof W.msg, "%s", net_login_error());
 	int nf = net_list_friends(W.s, tf, MAX_PEOPLE), nr = net_list_requests(W.s, tr, MAX_PEOPLE);
-	{ static MissionRow tmr[6]; int nm = net_my_missions(W.s, tmr, 6); if (nm >= 0) { LightLock_Lock(&lk); memcpy(g_mis, tmr, sizeof(MissionRow) * nm); g_nmis = nm; LightLock_Unlock(&lk); } }
-	{ static MissionRow twk[6]; int nw = net_my_weekly(W.s, twk, 6); if (nw >= 0) { LightLock_Lock(&lk); memcpy(g_wk, twk, sizeof(MissionRow) * nw); g_nwk = nw; LightLock_Unlock(&lk); } }
-	{ int se = 0, sx = 0, sc = 0; if (net_season(W.s, &se, &sx, &sc) == 0 && se > 0) { g_season = se; g_season_xp = sx; g_season_claimed = sc; } }
-	{ static ClanInfo tc; int cr = net_my_clan(W.s, &tc); if (cr >= 0) { LightLock_Lock(&lk); g_clan = tc; g_has_clan = cr; LightLock_Unlock(&lk); } }
-	{ static Meetup tm; int mr = net_next_meetup(W.s, &tm); if (mr >= 0) { LightLock_Lock(&lk); g_meetup = tm; g_has_meetup = mr; LightLock_Unlock(&lk); } }
+	if (slow) { static MissionRow tmr[6]; int nm = net_my_missions(W.s, tmr, 6); if (nm >= 0) { LightLock_Lock(&lk); memcpy(g_mis, tmr, sizeof(MissionRow) * nm); g_nmis = nm; LightLock_Unlock(&lk); } }
+	if (slow) { static MissionRow twk[6]; int nw = net_my_weekly(W.s, twk, 6); if (nw >= 0) { LightLock_Lock(&lk); memcpy(g_wk, twk, sizeof(MissionRow) * nw); g_nwk = nw; LightLock_Unlock(&lk); } }
+	if (slow) { int se = 0, sx = 0, sc = 0; if (net_season(W.s, &se, &sx, &sc) == 0 && se > 0) { g_season = se; g_season_xp = sx; g_season_claimed = sc; } }
+	if (slow) { static ClanInfo tc; int cr = net_my_clan(W.s, &tc); if (cr >= 0) { LightLock_Lock(&lk); g_clan = tc; g_has_clan = cr; LightLock_Unlock(&lk); } }
+	if (slow) { static Meetup tm; int mr = net_next_meetup(W.s, &tm); if (mr >= 0) { LightLock_Lock(&lk); g_meetup = tm; g_has_meetup = mr; LightLock_Unlock(&lk); } }
 	int un = net_unread_total(W.s); if (un >= 0) { if (un > g_unread) sfx_play(SFX_NOTIFY); g_unread = un; }
 	{	// BCoins y tienda
 		static Wallet tw; static ShopItem ts[40];
@@ -1090,6 +1093,7 @@ static bool prompt(char *dst, size_t n, const char *hint) {
 
 static void request(Req r, const char *a, const char *b, int n) {
 	if (W.req || W.busy) return;
+	g_force_slow = 1;                                                       // una accion del usuario (reclamar, comprar, Y...) refresca tambien los datos lentos
 	snprintf(W.arg, sizeof W.arg, "%s", a ? a : ""); snprintf(W.arg2, sizeof W.arg2, "%s", b ? b : ""); W.n = n; W.req = r;
 }
 
