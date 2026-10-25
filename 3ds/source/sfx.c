@@ -18,6 +18,7 @@ static const Note SOUNDS[SFX_COUNT][3] = {
 	[SFX_CHECKPOINT] = {{660, 660, 0.08f, 0, 0.6f}, {880, 880, 0.08f, 0, 0.6f}, {1175, 1175, 0.16f, 0, 0.6f}},
 	[SFX_WIN]        = {{523, 523, 0.1f, 0, 0.65f}, {659, 659, 0.1f, 0, 0.65f}, {1046, 1046, 0.32f, 0, 0.65f}},
 	[SFX_NOTIFY]     = {{880, 880, 0.07f, 0, 0.5f}, {1175, 1175, 0.14f, 0, 0.5f}},
+	[SFX_LAND]       = {{140, 60, 0.08f, 0.35f, 0.55f}},
 };
 static s16 *g_buf[SFX_COUNT]; static int g_len[SFX_COUNT];
 static ndspWaveBuf g_wb[NCH]; static int g_next; static bool g_ok;

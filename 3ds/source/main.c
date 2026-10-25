@@ -272,6 +272,28 @@ static void trail_add(int *nd, int slot, u64 now) {
 		draw_list[(*nd)++] = (Box){d, t->x - w * 0.5f, t->y + (1.0f - f) * 0.3f, t->z - w * 0.5f, w, w, fogged(t->col, d), -1};
 	}
 }
+// Particulas de bloques (fx_*): trocitos al poner/romper un bloque y polvo al aterrizar; solo se ven (no se sincronizan), viven 0,7 s
+typedef struct { float x, y, z, vx, vy, vz, life; u32 col; } FxP;
+static FxP fxs[40]; static unsigned fx_seed = 12345;
+static float fx_rnd(void) { fx_seed = fx_seed * 1664525u + 1013904223u; return ((fx_seed >> 8) & 0xFFFF) / 65535.0f - 0.5f; }
+static void fx_burst(float cx, float cy, float cz, u32 col, int n, float spd) {
+	for (int k = 0; k < n; k++) {
+		int slot = -1; float oldest = 1e9f;
+		for (int i = 0; i < 40; i++) { if (fxs[i].life <= 0) { slot = i; break; } if (fxs[i].life < oldest) { oldest = fxs[i].life; slot = i; } }
+		FxP *p = &fxs[slot]; p->x = cx + fx_rnd() * 0.6f; p->y = cy + fx_rnd() * 0.4f; p->z = cz + fx_rnd() * 0.6f;
+		p->vx = fx_rnd() * spd; p->vy = 1.5f + (fx_rnd() + 0.5f) * spd; p->vz = fx_rnd() * spd; p->life = 0.5f + (fx_rnd() + 0.5f) * 0.3f; p->col = col;
+	}
+}
+static void fx_step(float dt) {
+	for (int i = 0; i < 40; i++) { FxP *p = &fxs[i]; if (p->life <= 0) continue; p->life -= dt; p->vy -= 14.0f * dt; p->x += p->vx * dt; p->y += p->vy * dt; p->z += p->vz * dt; if (p->y < 0 && world.floor) { p->y = 0; p->vy = 0; p->vx *= 0.5f; p->vz *= 0.5f; } }
+}
+static void fx_add(int *nd) {
+	for (int i = 0; i < 40; i++) {
+		const FxP *p = &fxs[i]; if (p->life <= 0) continue;
+		float w = 0.06f + 0.1f * fminf(1.0f, p->life * 1.6f), sx, sy, d; if (!project(p->x, p->y + 0.1f, p->z, &sx, &sy, &d) || d > fog_far) continue;
+		draw_list[(*nd)++] = (Box){d - 0.05f, p->x - w * 0.5f, p->y, p->z - w * 0.5f, w, w, fogged(p->col, d), -1};
+	}
+}
 // Mascotas (pet_*): una cajita que acompana al jugador, con los colores de la web; el equipo viaja en "sombrero|gafas|espalda|estela|mascota|"
 static bool pet_of(const char *loadout, char *out, size_t n) {
 	const char *p = loadout; for (int i = 0; i < 4 && p; i++) { p = strchr(p, '|'); if (p) p++; }
@@ -518,7 +540,7 @@ static void render_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 	}
 	if (project(px, py + .9f, pz, &sx, &sy, &d)) draw_list[nd++] = (Box){d, px, py, pz, 0, 0, 0, 0};
 	add_pet(&nd, g_my_hat, px, py, pz, self_yaw, now / 1000.0f, 0);
-	trail_update(0, g_my_hat, px, py, pz, now); trail_add(&nd, 0, now);
+	trail_update(0, g_my_hat, px, py, pz, now); trail_add(&nd, 0, now); fx_add(&nd);
 	for (int i = 0; i < nr; i++) if (project(rem[i].x, rem[i].y + .9f, rem[i].z, &sx, &sy, &d))
 		draw_list[nd++] = (Box){d, rem[i].x, rem[i].y, rem[i].z, 0, 0, 0, 1 + i};
 	for (int i = 0; i < nr; i++) add_pet(&nd, rem[i].hat, rem[i].x, rem[i].y, rem[i].z, rem[i].ry, now / 1000.0f, i + 1);
@@ -826,9 +848,10 @@ static bool play_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 		if ((down & KEY_A) && grounded) { vy = jump_v; grounded = false; sfx_play(SFX_JUMP); }
 		else if ((down & KEY_A) && cur_game.double_jump && jumps_left > 0) { jumps_left--; vy = jump_v * 0.9f; sfx_play(SFX_JUMP); }       // salto doble (config.double_jump)
 		vy -= (cur_game.gravity > 1 ? cur_game.gravity : 24) * dt; float ny = py + vy * dt; grounded = false;
-		if (body_hits(px, ny, pz)) { if (vy < 0) grounded = true; vy = 0; }
+		if (body_hits(px, ny, pz)) { if (vy < -9.0f) { fx_burst(px, py + 0.1f, pz, C2D_Color32(0xD8, 0xD8, 0xD0, 255), 6, 2.2f); sfx_play(SFX_LAND); } if (vy < 0) grounded = true; vy = 0; }
 		else py = ny;
-		if (world.floor && py < 0) { py = 0; vy = 0; grounded = true; }
+		fx_step(dt);
+		if (world.floor && py < 0) { if (vy < -9.0f) { fx_burst(px, 0.1f, pz, C2D_Color32(0xD8, 0xD8, 0xD0, 255), 6, 2.2f); sfx_play(SFX_LAND); } py = 0; vy = 0; grounded = true; }
 		if (!world.floor && py < world.void_y) {                              // caíste al vacío: vuelves al último punto de control
 			px = rsp_x; py = rsp_y; pz = rsp_z; vy = 0; cx_ = px; cy_ = py + 1; cz_ = pz;
 			snprintf(big_msg, sizeof big_msg, "Has caido"); big_until = now + 1200;
@@ -858,13 +881,13 @@ static bool play_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 		for (int dy = 0; dy < 3 && break_y < 0; dy++) if (breakable(tx, ty + dy, tz)) break_y = ty + dy;        // el bloque más bajo (solo los de jugadores)
 		overlap = place_y >= 0 && fabsf(px - (tx + .5f)) < 0.8f && fabsf(pz - (tz + .5f)) < 0.8f && py < place_y + 1 && py + 1.8f > place_y;
 		if (can_build && (down & KEY_X) && place_y >= 0 && !overlap && nblocks < MAX_BLOCKS) {
-			push_action((Action){.type = PLACE, .x = tx, .y = place_y, .z = tz, .kind = kind}); sfx_play(SFX_PLACE);
+			push_action((Action){.type = PLACE, .x = tx, .y = place_y, .z = tz, .kind = kind}); sfx_play(SFX_PLACE); fx_burst(tx + .5f, place_y + .5f, tz + .5f, PALETTE[kind % NPALETTE], 6, 2.0f);
 			LightLock_Lock(&lock); if (nblocks < MAX_BLOCKS) blocks[nblocks++] = (Block){tx, place_y, tz, kind}; LightLock_Unlock(&lock);
 		}
 		if (can_build && (down & KEY_Y) && break_y >= 0) {
 			push_action((Action){.type = BREAK, .x = tx, .y = break_y, .z = tz}); sfx_play(SFX_BREAK);
 			LightLock_Lock(&lock);
-			for (int i = 0; i < nblocks; i++) if (blocks[i].x == tx && blocks[i].y == break_y && blocks[i].z == tz) { blocks[i] = blocks[--nblocks]; break; }
+			for (int i = 0; i < nblocks; i++) if (blocks[i].x == tx && blocks[i].y == break_y && blocks[i].z == tz) { fx_burst(tx + .5f, break_y + .5f, tz + .5f, PALETTE[blocks[i].kind % NPALETTE], 10, 3.0f); blocks[i] = blocks[--nblocks]; break; }
 			LightLock_Unlock(&lock);
 		}
 
@@ -930,7 +953,8 @@ void game_preview(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 		memcpy(parts, d, sizeof d); nparts = (int)(sizeof d / sizeof d[0]);
 		for (int i = 0; i < nparts; i++) { parts[i].cs = cosf(parts[i].ry); parts[i].sn = sinf(parts[i].ry); parts[i].rad = 0.5f * hypotf(parts[i].sx, parts[i].sz) + 0.4f; }
 	}
-	if (getenv("BLOCKSY_PREVIEW_WORLD")) { memset(&hr, 0, sizeof hr); hr.on = world.type == 5; hr.flash = true; hr.mx = -9; hr.mz = -7; hr.mry = 0.7f; hr.dist = 8; hr.ngot = 2; hr.got[0] = hr.got[1] = true; for (int i = 0; i < world.ncells; i++) local[nl++] = world.cells[i]; ht_build(local, nl); local_blocks = local; nr = 0; px = world.spawn[0]; py = world.spawn[1]; pz = world.spawn[2]; if (world.type == 5) { px = 3; pz = 7; hr.mx = -3; hr.mz = -1; hr.mry = 0.4f; hr.dist = 6; } pry = 0.3f; cam_yaw = 0.2f; cam_pitch = 0.45f; cam_dist = 9; cx_ = px; cy_ = py + 1; cz_ = pz; now_ms = 20000; t_start = 0; self_yaw = 0.3f; kind = 2; tx = 0; tz = 0; break_y = place_y = -1; overlap = false; pose_self.legY = 0.74f; { const char *ts = getenv("BLOCKSY_PREVIEW_T"); if (ts) { float t = (float)atof(ts); cam_yaw = 0.2f + t * 0.55f; cam_pitch = 0.4f + 0.12f * sinf(t * 0.8f); cam_dist = 12 - 0.8f * t; now_ms = 20000 + (int)(t * 1000); strcpy(emote, "dance"); pose_self.legY = 0.74f; for (int f = 0; f < (int)(t * 20) + 1; f++) av_pose_update(&pose_self, "dance", 0.05f, f * 0.05f); } }
+	if (getenv("BLOCKSY_PREVIEW_WORLD")) { memset(&hr, 0, sizeof hr); hr.on = world.type == 5; hr.flash = true; hr.mx = -9; hr.mz = -7; hr.mry = 0.7f; hr.dist = 8; hr.ngot = 2; hr.got[0] = hr.got[1] = true; for (int i = 0; i < world.ncells; i++) local[nl++] = world.cells[i]; ht_build(local, nl); local_blocks = local; nr = 0; px = world.spawn[0]; py = world.spawn[1]; pz = world.spawn[2]; if (world.type == 5) { px = 3; pz = 7; hr.mx = -3; hr.mz = -1; hr.mry = 0.4f; hr.dist = 6; } pry = 0.3f; cam_yaw = 0.2f; cam_pitch = 0.45f; cam_dist = 9; cx_ = px; cy_ = py + 1; cz_ = pz; now_ms = 20000; t_start = 0; self_yaw = 0.3f; kind = 2; tx = 0; tz = 0; break_y = place_y = -1; overlap = false; pose_self.legY = 0.74f; if (getenv("BLOCKSY_PREVIEW_PARTS")) { fx_burst(px + 1.0f, py + 0.6f, pz + 0.3f, 0xFF3C9FFF, 14, 3.0f); fx_burst(px - 0.8f, py + 0.2f, pz + 0.6f, 0xFFD8D8D0, 8, 2.2f); for (int i = 0; i < 2; i++) fx_step(0.07f); }
+	{ const char *ts = getenv("BLOCKSY_PREVIEW_T"); if (ts) { float t = (float)atof(ts); cam_yaw = 0.2f + t * 0.55f; cam_pitch = 0.4f + 0.12f * sinf(t * 0.8f); cam_dist = 12 - 0.8f * t; now_ms = 20000 + (int)(t * 1000); strcpy(emote, "dance"); pose_self.legY = 0.74f; for (int f = 0; f < (int)(t * 20) + 1; f++) av_pose_update(&pose_self, "dance", 0.05f, f * 0.05f); } }
 	render_game(top, bot); return; }
 	for (int x = -6; x <= 6; x++) for (int z = -6; z <= 6; z++) if ((x + z) % 4 == 0) local[nl++] = (Block){x, 0, z, 4};
 	for (int y = 0; y < 3; y++) for (int i = -5; i <= 5; i++) { local[nl++] = (Block){i, y, -5, 1}; local[nl++] = (Block){-5, y, i, 2}; if (i % 2) local[nl++] = (Block){i, y, 5, 3}; }
