@@ -83,6 +83,7 @@ void ui_format(const char *text, char *out, size_t n, int players, const char *n
 
 // Lee la configuracion de un juego (config de la tabla games) en un GameInfo; cf..ce es el objeto config completo
 void gameinfo_parse_config(GameInfo *g, const char *cf, const char *ce) {
+	{ char sl[8] = ""; jstr(cf, ce, "script_lang", sl, sizeof sl); g->has_script = sl[0] != 0; }        // juegos con script (Lua/JS): la 3DS no los ejecuta
 			jstr(cf, ce, "world", g->world, sizeof g->world); jstr(cf, ce, "weather", g->weather, sizeof g->weather);
 			{ char vs[12] = ""; jstr(cf, ce, "visibility", vs, sizeof vs); g->vis = !strcmp(vs, "private") ? 2 : !strcmp(vs, "unlisted") ? 1 : 0; if (!vs[0]) { const char *dr = json_find_from(cf, ce, "draft"); if (dr && *dr == 't') g->vis = 2; } }
 			jstr(cf, ce, "sky", g->sky, sizeof g->sky); { const char *q = json_find_from(cf, ce, "speed"); g->speed = q ? strtof(q, NULL) : 0; q = json_find_from(cf, ce, "fog"); g->fog = q ? strtof(q, NULL) : 0; q = json_find_from(cf, ce, "gravity"); g->gravity = q ? strtof(q, NULL) : 0; q = json_find_from(cf, ce, "double_jump"); g->double_jump = q && *q == 't';

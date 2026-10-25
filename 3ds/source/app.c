@@ -160,6 +160,8 @@ static const char *const PT_TR[][2] = {
 	{"Season fully claimed", "Temporada toda reclamada"},
 	{"All claimed", "Todos reclamados"},
 	{"Tier", "Nivel"},
+	{"Scripted", "Com script"},
+	{"rules only on web", "regras so na web"},
 	{"Week: place 300 blocks", "Semana: coloque 300 blocos"},
 	{"Week: play 120 min", "Semana: jogue 120 min"},
 	{"Week: win 5 races", "Semana: ganhe 5 corridas"},
@@ -798,7 +800,8 @@ static void modal_top(const Ui *u) {
 	char a[16], b[16]; snprintf(a, sizeof a, "%d", g->players); snprintf(b, sizeof b, "%d", g->max);
 	ui_text(184, 100, 0.6f, COL_TEXT, 0, a); ui_text(184, 120, 0.34f, COL_MUTED, 0, "jugando");
 	ui_text(236, 100, 0.6f, COL_TEXT, 0, b);  ui_text(236, 120, 0.34f, COL_MUTED, 0, "max. jugadores");
-	ui_text(310, 104, 0.4f, COL_TEXT, 0, "Web + 3DS"); ui_text(310, 120, 0.34f, COL_MUTED, 0, "plataformas");
+	if (g->has_script) { ui_text(310, 104, 0.4f, C(0xF5, 0xC5, 0x42), 0, tr2("Con script", "Scripted")); ui_text(310, 120, 0.34f, COL_MUTED, 0, tr2("reglas solo en la web", "rules only on web")); }
+	else { ui_text(310, 104, 0.4f, COL_TEXT, 0, "Web + 3DS"); ui_text(310, 120, 0.34f, COL_MUTED, 0, "plataformas"); }
 	static char lines[3][96]; int nl = wrap(g->about[0] ? g->about : g->desc[0] ? g->desc : "Sin descripcion.", 0.42f, 180, lines, 3);
 	for (int i = 0; i < nl; i++) ui_text(184, 142 + i * 15, 0.42f, COL_MUTED, 0, lines[i]);
 	{ char hint[64]; snprintf(hint, sizeof hint, "A: %s     X: %s     B: %s", tr2("jugar", "play"), g->fav ? tr2("quitar favorito", "unfavorite") : tr2("favorito", "favorite"), tr2("cerrar", "close")); ui_text(200, 196, 0.38f, COL_MUTED, C2D_AlignCenter, hint); }

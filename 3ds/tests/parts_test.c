@@ -42,6 +42,7 @@ int main(void) {
 		gameinfo_parse_config(&g, cfg, cfg + strlen(cfg));
 		assert(!strcmp(g.world, "islands") && !strcmp(g.sky, "sunset") && g.vis == 1 && g.seed == 5 && g.jump == 10);
 		assert(g.speed == 9 && g.gravity == 18 && g.fog == 0.5f && g.double_jump && g.has_spawn && g.spawn[0] == 2 && g.spawn[1] == 5.5f && g.spawn[2] == -3);
+		assert(!g.has_script); gameinfo_parse_config(&g, "{\"script_lang\": \"lua\"}", "{\"script_lang\": \"lua\"}" + 23); assert(g.has_script); gameinfo_parse_config(&g, cfg, cfg + strlen(cfg));
 		assert(!g.allow_chat && g.allow_emotes && g.allow_build == 1 && g.hour == 20 && !strcmp(g.welcome, "Hola mundo"));
 	}
 	printf("parts: todo bien\n");
