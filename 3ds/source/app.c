@@ -355,7 +355,7 @@ static void upd_install_job(int which) {
 	}
 	bool ok = update_install(&r, &g_prog, err, sizeof err);
 	if (ok) update_mark_installed(r.tag);
-	if (ok) snprintf(g_upd_msg, sizeof g_upd_msg, update_is_cia() ? tr2("Instalada. Reiniciando Blocksy...", "Installed. Restarting Blocksy...") : tr2("Actualizada. Vuelve a abrirla desde el Homebrew Launcher", "Updated. Open it again from the Homebrew Launcher"));
+	if (ok) snprintf(g_upd_msg, sizeof g_upd_msg, "%s", update_is_cia() ? tr2("Instalada. Reiniciando Blocksy...", "Installed. Restarting Blocksy...") : tr2("Actualizada. Vuelve a abrirla desde el Homebrew Launcher", "Updated. Open it again from the Homebrew Launcher"));
 	else snprintf(g_upd_msg, sizeof g_upd_msg, "%s", err);
 	g_upd_state = ok ? 3 : 4;
 }
