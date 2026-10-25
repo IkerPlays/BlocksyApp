@@ -675,15 +675,21 @@ bool net_mission_add(const Session *s, const char *key, int n) {
 	char *r = http(M_POST, AUTH_URL "/rest/v1/rpc/mission_add", AUTH_ANON_KEY, s->token, body, NULL);
 	bool ok = r != NULL; free(r); return ok;
 }
-int net_season(const Session *s, int *season, int *xp) {
+int net_season(const Session *s, int *season, int *xp, int *claimed) {
 	if (!s->token[0]) return -2;
 	char *r = http(M_POST, AUTH_URL "/rest/v1/rpc/season_info", AUTH_ANON_KEY, s->token, "{}", NULL);
 	if (!r) return -1;
 	const char *e = r + strlen(r);
-	*season = (int)jnum(r, e, "season"); *xp = (int)jnum(r, e, "xp");
+	*season = (int)jnum(r, e, "season"); *xp = (int)jnum(r, e, "xp"); *claimed = (int)jnum(r, e, "claimed");
 	free(r); return 0;
 }
 // Tu clan: my_clan devuelve un objeto con name, tag y members[] (o null si no tienes)
+int net_season_claim(const Session *s) {
+	if (!s->token[0]) return -2;
+	char *r = http(M_POST, AUTH_URL "/rest/v1/rpc/season_claim", AUTH_ANON_KEY, s->token, "{}", NULL);
+	if (!r) return last_err[0] && strstr(last_err, "not ready") ? 0 : -1;
+	int a = (int)jnum(r, r + strlen(r), "coins"); free(r); return a;
+}
 int net_my_clan(const Session *s, ClanInfo *c) {
 	if (!s->token[0]) return -2;
 	char *r = http(M_POST, AUTH_URL "/rest/v1/rpc/my_clan", AUTH_ANON_KEY, s->token, "{}", NULL);

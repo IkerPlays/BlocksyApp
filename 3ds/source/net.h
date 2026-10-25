@@ -54,7 +54,8 @@ typedef struct { char key[16]; int goal, reward, n, claimed; } MissionRow;
 int  net_my_missions(const Session *s, MissionRow *out, int max);          // misiones diarias de hoy (AUTH my_missions); numero de filas o <0
 int  net_mission_claim(const Session *s, const char *key);                // recompensa en BCoins (>0), 0 si no estaba lista, <0 error
 bool net_mission_add(const Session *s, const char *key, int n);           // suma progreso a una mision diaria/semanal (AUTH v15/v16 mission_add); n <= 20
-int  net_season(const Session *s, int *season, int *xp);                   // temporada actual y tus puntos (AUTH v16 season_info); 0 si va bien, <0 error
+int  net_season(const Session *s, int *season, int *xp, int *claimed);        // temporada actual, tus puntos y niveles ya reclamados
+int  net_season_claim(const Session *s);                                  // reclama el siguiente nivel: BCoins (>0), 0 no esta listo, <0 error                   // temporada actual y tus puntos (AUTH v16 season_info); 0 si va bien, <0 error
 int  net_my_clan(const Session *s, ClanInfo *c);                           // tu clan (AUTH v17 my_clan): 1 si tienes, 0 si no, <0 error
 int  net_next_meetup(const Session *s, Meetup *m);                         // proxima quedada (AUTH v17 list_meetups); 1 si hay, 0 si no, <0 error
 int  net_list_games(GameInfo *out, int max);
