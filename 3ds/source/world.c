@@ -165,11 +165,18 @@ static double noise2(double x, double z, int seed) {
 	return a + (b - a) * sx + (c - a) * sz + (a - b - c + d) * sx * sz;
 }
 #define HILL_R 38
-int world_hill_h(const World *w, int x, int z) {
+static int hill_h_raw(const World *w, int x, int z) {
 	double d = hypot(x, z); if (d > HILL_R) return 0;
 	double h = 1.5 + noise2(x * 0.07, z * 0.07, w->seed) * 6 + noise2(x * 0.19, z * 0.19, w->seed + 7) * 2.2;
 	double k = (d - 4) / 10; k = k < 0 ? 0 : k > 1 ? 1 : k; h *= k;
 	int r = jsround(h); return r < 0 ? 0 : r;
+}
+// El calculo usa doubles (lento en la 3DS) y se pide cientos de veces por fotograma: se guarda en una tabla directa
+int world_hill_h(const World *w, int x, int z) {
+	static struct { int x, z, seed; short h; bool ok; } cache[4096];
+	unsigned i = ((unsigned)x * 73856093u ^ (unsigned)z * 19349663u) & 4095u;
+	if (cache[i].ok && cache[i].x == x && cache[i].z == z && cache[i].seed == w->seed) return cache[i].h;
+	int h = hill_h_raw(w, x, z); cache[i].x = x; cache[i].z = z; cache[i].seed = w->seed; cache[i].h = (short)h; cache[i].ok = true; return h;
 }
 bool world_hill_top_sand(int x, int z) { return hypot(x, z) > HILL_R - 6; }
 static void build_hills(World *w, int seed) {
