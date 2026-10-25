@@ -129,12 +129,13 @@ jobs:
           echo "Title version: $n"
           echo "n=$n" >> "$GITHUB_OUTPUT"
 
-      - name: Native tests (updater core and Studio parts reader)
+      - name: Native tests (updater, Studio parts, worlds, JSON)
         working-directory: 3ds
         run: |
           gcc -std=gnu11 -Wall -Isource tests/update_core_test.c source/update_core.c -o /tmp/uct && /tmp/uct
           gcc -std=gnu11 -Wall -Isource tests/parts_test.c source/parts.c -o /tmp/pt -lm && /tmp/pt
           gcc -std=gnu11 -Wall -Isource tests/world_test.c source/world.c -o /tmp/wt -lm && /tmp/wt
+          gcc -std=gnu11 -Wall -Isource tests/json_test.c -o /tmp/jt && /tmp/jt
 
       - name: Build .3dsx and .cia
         working-directory: 3ds
