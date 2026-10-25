@@ -105,4 +105,4 @@ Lua estilo Roblox: cada jugador ejecuta el script en su navegador (como un Local
 - Proyecto AUTH: pega `auth/install-1.4.sql` (v15 a v19 en orden) en el SQL Editor y pulsa Run. Es seguro repetirlo.
 - Proyecto STORE: pega `store/install-1.4.sql` (articulos de temporada).
 - Vuelve a desplegar la funcion `functions/game-session` en GAME y en STORE (con *Verify JWT* desactivado).
-- Para ser moderador: `insert into staff (user_id) select id from profiles where username = 'TU_NOMBRE';` en AUTH.
+- Para ser moderador: `insert into public.staff (user_id, role) select id, 'admin' from public.profiles where lower(username) = lower('TuNombre') on conflict (user_id) do update set role = excluded.role;` en AUTH.
