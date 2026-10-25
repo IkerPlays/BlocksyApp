@@ -8,7 +8,7 @@ Blocksy is a multiplayer block-building game for the web and the Nintendo 3DS (h
 - 3DS: faces, backs, pets and trails in the Shop; pets and trails are drawn.
 - 3DS: claim season levels and weekly missions from the Shop.
 - 3DS: tree canopies in Hills and Islands are solid like on the web.
+- New Studio template: Rising lava.
 
 ## Installing
 - Install `Blocksy.cia` with FBI, or copy `Blocksy.3dsx` to the `3ds` folder of the SD card and run it from the Homebrew Launcher.
-- New Studio template: Rising lava.
