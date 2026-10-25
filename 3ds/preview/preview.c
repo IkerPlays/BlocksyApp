@@ -21,6 +21,7 @@ int main(void) {
 	static const char *names[] = {"home", "discover", "avatar", "friends", "alerts", "shop", "update_", "settings"};
 	for (int p = 0; p < 8; p++) { fprintf(g_out, "SCENE %s\n", names[p]); app_preview(&top, &bot, p, -1, p == 0 ? 1 : 0, v); }
 	fprintf(g_out, "SCENE update\n"); app_preview(&top, &bot, 6, -1, 0, v);
+	fprintf(g_out, "SCENE shop_missions\n"); app_preview(&top, &bot, 5, -1, 9, v);
 	fprintf(g_out, "SCENE update_downloading\n"); app_preview(&top, &bot, 6, -3, 2, v);
 	fprintf(g_out, "SCENE update_error\n"); app_preview(&top, &bot, 6, -5, 1, v);
 	fprintf(g_out, "SCENE chat_dm\n"); app_preview(&top, &bot, 3, -20, 0, v);

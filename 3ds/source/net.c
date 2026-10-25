@@ -651,6 +651,24 @@ int net_earn_coins(const Session *s, int amount, const char *reason) {
 	char *r = http(M_POST, AUTH_URL "/rest/v1/rpc/earn_coins", AUTH_ANON_KEY, s->token, body, NULL);
 	int n = r ? atoi(r) : 0; free(r); return n > 0 ? n : 0;
 }
+int net_my_missions(const Session *s, MissionRow *out, int max) {
+	if (!s->token[0]) return -2;
+	char *r = http(M_POST, AUTH_URL "/rest/v1/rpc/my_missions", AUTH_ANON_KEY, s->token, "{}", NULL);
+	if (!r) return -1;
+	int n = 0; const char *p = r, *end;
+	while (n < max && (p = next_obj(p, &end))) {
+		MissionRow *m = &out[n]; memset(m, 0, sizeof *m);
+		if (jstr(p, end, "key", m->key, sizeof m->key)) { m->goal = (int)jnum(p, end, "goal"); m->reward = (int)jnum(p, end, "reward"); m->n = (int)jnum(p, end, "n"); m->claimed = jbool(p, end, "claimed"); n++; }
+		p = end + 1;
+	}
+	free(r); return n;
+}
+int net_mission_claim(const Session *s, const char *key) {
+	char body[60]; snprintf(body, sizeof body, "{\"p_key\":\"%s\"}", key);
+	char *r = http(M_POST, AUTH_URL "/rest/v1/rpc/mission_claim", AUTH_ANON_KEY, s->token, body, NULL);
+	if (!r) return last_err[0] && strstr(last_err, "not ready") ? 0 : -1;
+	int a = atoi(r); free(r); return a;
+}
 bool net_mission_add(const Session *s, const char *key, int n) {
 	if (!s->token[0] || n <= 0) return false;
 	char body[80]; snprintf(body, sizeof body, "{\"p_key\":\"%s\",\"p_add\":%d}", key, n > 20 ? 20 : n);
