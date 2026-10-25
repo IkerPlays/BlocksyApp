@@ -52,7 +52,9 @@ typedef struct { char name[32], tag[8]; int members; } ClanInfo;
 int  net_earn_coins(const Session *s, int amount, const char *reason);     // BCoins por jugar (AUTH earn_coins: 'play', 'obby' o 'build'); devuelve lo concedido (0 si ya llegaste al tope diario)
 typedef struct { char key[16]; int goal, reward, n, claimed; } MissionRow;
 int  net_my_missions(const Session *s, MissionRow *out, int max);          // misiones diarias de hoy (AUTH my_missions); numero de filas o <0
-int  net_mission_claim(const Session *s, const char *key);                // recompensa en BCoins (>0), 0 si no estaba lista, <0 error
+int  net_mission_claim(const Session *s, const char *key);
+int  net_my_weekly(const Session *s, MissionRow *out, int max);           // misiones semanales (AUTH v16 my_weekly: {"list":[...]})
+int  net_weekly_claim(const Session *s, const char *key);                 // recompensa en BCoins (>0), 0 no lista, <0 error                // recompensa en BCoins (>0), 0 si no estaba lista, <0 error
 bool net_mission_add(const Session *s, const char *key, int n);           // suma progreso a una mision diaria/semanal (AUTH v15/v16 mission_add); n <= 20
 int  net_season(const Session *s, int *season, int *xp, int *claimed);        // temporada actual, tus puntos y niveles ya reclamados
 int  net_season_claim(const Session *s);                                  // reclama el siguiente nivel: BCoins (>0), 0 no esta listo, <0 error                   // temporada actual y tus puntos (AUTH v16 season_info); 0 si va bien, <0 error

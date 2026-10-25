@@ -160,6 +160,11 @@ static const char *const PT_TR[][2] = {
 	{"Season fully claimed", "Temporada toda reclamada"},
 	{"All claimed", "Todos reclamados"},
 	{"Tier", "Nivel"},
+	{"Week: place 300 blocks", "Semana: coloque 300 blocos"},
+	{"Week: play 120 min", "Semana: jogue 120 min"},
+	{"Week: win 5 races", "Semana: ganhe 5 corridas"},
+	{"Week: send 40 messages", "Semana: envie 40 mensagens"},
+	{"Week: add 3 friends", "Semana: adicione 3 amigos"},
 	{"touch screen", "tela de toque"},
 	{"More items and missions on the touch screen", "Mais itens e missoes na tela de toque"},
 	{"Already claimed", "Ja reclamada"},
@@ -222,7 +227,7 @@ static UpdateProgress g_prog; static char g_upd_msg[100]; static int g_upd_log; 
 #define g_upd_pct g_prog.pct
 static volatile int g_upd_auto;                               // 1 = instalar la estable nueva sola (una vez por sesion, como Iker's Tube)
 static volatile int g_upd_announce;                           // 1 = avisar con un toast de que hay versión nueva
-static MissionRow g_mis[6]; static int g_nmis;                         // misiones diarias (AUTH)
+static MissionRow g_mis[6], g_wk[6]; static int g_nmis, g_nwk;                         // misiones diarias (AUTH)
 static int g_season, g_season_xp, g_season_claimed;                                       // temporada actual y tus puntos (AUTH v16)
 static ClanInfo g_clan; static volatile int g_has_clan;                  // tu clan (AUTH v17), se ve en Inicio
 static Meetup g_meetup; static volatile int g_has_meetup;                // proxima quedada (AUTH v17), se ve en Inicio
@@ -235,7 +240,7 @@ static bool cur_is_dev(void) { return strstr(g_upd.cur, "-dev") != NULL || !strc
 // ¿Hay algo nuevo? Una estable nueva siempre; una devbuild nueva solo si se usa una devbuild
 static bool upd_available(void) { return g_upd_have && (g_upd.stable.newer || (g_upd.dev.newer && (cur_is_dev() || s_showdev))); }
 
-typedef enum { RQ_NONE, RQ_REFRESH, RQ_ADD, RQ_REMOVE, RQ_COLOR, RQ_UPD_CHECK, RQ_UPD_INSTALL, RQ_ACCEPT, RQ_DM_SEND, RQ_DM_FETCH, RQ_DM_EDIT, RQ_DM_DEL, RQ_NOTIF_READ, RQ_NOTIF_CLEAR, RQ_BUY, RQ_CRATE, RQ_CLAIM, RQ_EQUIP, RQ_FAV, RQ_MISSION, RQ_SEASON } Req;
+typedef enum { RQ_NONE, RQ_REFRESH, RQ_ADD, RQ_REMOVE, RQ_COLOR, RQ_UPD_CHECK, RQ_UPD_INSTALL, RQ_ACCEPT, RQ_DM_SEND, RQ_DM_FETCH, RQ_DM_EDIT, RQ_DM_DEL, RQ_NOTIF_READ, RQ_NOTIF_CLEAR, RQ_BUY, RQ_CRATE, RQ_CLAIM, RQ_EQUIP, RQ_FAV, RQ_MISSION, RQ_SEASON, RQ_WEEKLY } Req;
 typedef struct {
 	volatile int req, busy, quit, offline, seq, done_ok;
 	char arg[48], arg2[104]; int n;
@@ -281,6 +286,7 @@ static void refresh_all(void) {
 	else snprintf(W.msg, sizeof W.msg, "%s", net_login_error());
 	int nf = net_list_friends(W.s, tf, MAX_PEOPLE), nr = net_list_requests(W.s, tr, MAX_PEOPLE);
 	{ static MissionRow tmr[6]; int nm = net_my_missions(W.s, tmr, 6); if (nm >= 0) { LightLock_Lock(&lk); memcpy(g_mis, tmr, sizeof(MissionRow) * nm); g_nmis = nm; LightLock_Unlock(&lk); } }
+	{ static MissionRow twk[6]; int nw = net_my_weekly(W.s, twk, 6); if (nw >= 0) { LightLock_Lock(&lk); memcpy(g_wk, twk, sizeof(MissionRow) * nw); g_nwk = nw; LightLock_Unlock(&lk); } }
 	{ int se = 0, sx = 0, sc = 0; if (net_season(W.s, &se, &sx, &sc) == 0 && se > 0) { g_season = se; g_season_xp = sx; g_season_claimed = sc; } }
 	{ static ClanInfo tc; int cr = net_my_clan(W.s, &tc); if (cr >= 0) { LightLock_Lock(&lk); g_clan = tc; g_has_clan = cr; LightLock_Unlock(&lk); } }
 	{ static Meetup tm; int mr = net_next_meetup(W.s, &tm); if (mr >= 0) { LightLock_Lock(&lk); g_meetup = tm; g_has_meetup = mr; LightLock_Unlock(&lk); } }
@@ -362,6 +368,7 @@ static void worker_thread(void *arg) {
 				else snprintf(W.msg, sizeof W.msg, "%s", rc2 == 1 ? tr2("No tienes suficientes BCoins", "Not enough BCoins") : tr2("No se pudo abrir", "Could not open")); refresh_all(); break; }
 			case RQ_FAV: { int fv = net_toggle_favorite(W.s, W.arg); W.done_ok = fv >= 0; snprintf(W.msg, sizeof W.msg, "%s", fv < 0 ? tr2("Entra con email para usar favoritos", "Favorites need an email login") : fv ? tr2("Anadido a favoritos", "Added to favorites") : tr2("Quitado de favoritos", "Removed from favorites")); refresh_all(); break; }
 			case RQ_MISSION: { int mr = net_mission_claim(W.s, W.arg); W.done_ok = mr > 0; if (mr > 0) { sfx_play(SFX_COIN); snprintf(W.msg, sizeof W.msg, "+%d BCoins", mr); } else snprintf(W.msg, sizeof W.msg, "%s", tr2("Aun no esta lista", "Not ready yet")); refresh_all(); break; }
+			case RQ_WEEKLY: { int wr = net_weekly_claim(W.s, W.arg); W.done_ok = wr > 0; if (wr > 0) { sfx_play(SFX_COIN); snprintf(W.msg, sizeof W.msg, "+%d BCoins", wr); } else snprintf(W.msg, sizeof W.msg, "%s", tr2("Aun no esta lista", "Not ready yet")); refresh_all(); break; }
 			case RQ_SEASON: { int sr = net_season_claim(W.s); W.done_ok = sr > 0; if (sr > 0) { sfx_play(SFX_WIN); snprintf(W.msg, sizeof W.msg, "+%d BCoins", sr); } else snprintf(W.msg, sizeof W.msg, "%s", tr2("Aun no hay nivel listo", "No level ready yet")); refresh_all(); break; }
 			case RQ_CLAIM: { int ca = net_claim_daily(W.s); W.done_ok = ca > 0; if (ca > 0) sfx_play(SFX_COIN); if (ca > 0) snprintf(W.msg, sizeof W.msg, "+%d BCoins", ca); else snprintf(W.msg, sizeof W.msg, "%s", ca == 0 ? tr2("Ya la recogiste hoy", "Already claimed today") : tr2("Error", "Error")); refresh_all(); break; }
 			case RQ_EQUIP: W.done_ok = net_equip(W.s, W.arg, W.arg2); snprintf(W.msg, sizeof W.msg, "%s", W.done_ok ? tr2("Hecho", "Done") : "Error"); refresh_all(); break;
@@ -498,7 +505,7 @@ static int count_rows(const Ui *u, const Session *s) {
 	case P_FRIENDS: return build_people(s, pr);
 	case P_SETTINGS: return 16;
 	case P_NOTIF: return nnotifs + 1;
-	case P_SHOP: return nshop + 1 + g_nmis + (g_season ? 1 : 0);
+	case P_SHOP: return nshop + 1 + g_nmis + (g_season ? 1 : 0) + g_nwk;
 	case P_UPDATE: return update_can_rollback() ? 6 : 5;
 	}
 	return 0;
@@ -896,10 +903,20 @@ static void pane(const Ui *u, const Session *s) {
 		break; }
 	case P_SHOP: {
 		if (!g_account) { ui_text(PANE_X, 40, 0.42f, COL_MUTED, 0, tr2("No disponible con QR.", "Not available with QR.")); break; }
-		for (int i = 0; i < vis && u->scroll + i < nshop + 1 + g_nmis + (g_season ? 1 : 0); i++) {
+		for (int i = 0; i < vis && u->scroll + i < nshop + 1 + g_nmis + (g_season ? 1 : 0) + g_nwk; i++) {
 			int r = u->scroll + i; float y = LIST_Y + i * rh;
 			if (r == u->cur) ui_rrect(PANE_X - 2, y, PANE_W + 2, rh - 3, 8, COL_PANEL2);
 			if (r == 0) { ui_button(PANE_X, y + 3, PANE_W - 4, rh - 8, wallet.can_claim ? COL_GREEN : COL_PANEL2, false, wallet.can_claim ? tr2("Recoger recompensa diaria", "Claim daily reward") : tr2("Recompensa ya recogida", "Reward claimed"), 0.4f); continue; }
+			if (r > nshop + g_nmis + (g_season ? 1 : 0)) {                                         // mision semanal
+				const MissionRow *mi = &g_wk[r - nshop - g_nmis - (g_season ? 1 : 0) - 1]; char nm[48], pr[32]; static const char *const WK[5] = {"w_place_300", "w_play_120", "w_obby_5", "w_chat_40", "w_friend_3"};
+				const char *tx[5] = {tr2("Semana: coloca 300 bloques", "Week: place 300 blocks"), tr2("Semana: juega 120 min", "Week: play 120 min"), tr2("Semana: gana 5 carreras", "Week: win 5 races"), tr2("Semana: envia 40 mensajes", "Week: send 40 messages"), tr2("Semana: anade 3 amigos", "Week: add 3 friends")};
+				const char *name = mi->key; for (int k = 0; k < 5; k++) if (!strcmp(mi->key, WK[k])) name = tx[k];
+				snprintf(nm, sizeof nm, "%s", name); char f_[48]; fit(f_, sizeof f_, nm, 0.36f, PANE_W - 78); ui_text(PANE_X + 6, y + 4, 0.36f, COL_TEXT, 0, f_);
+				snprintf(pr, sizeof pr, "%d/%d", mi->n > mi->goal ? mi->goal : mi->n, mi->goal); ui_text(PANE_X + 6, y + 18, 0.32f, COL_MUTED, 0, pr);
+				bool ready = mi->n >= mi->goal && !mi->claimed; char lab[24]; if (mi->claimed) snprintf(lab, sizeof lab, "%s", tr2("Hecha", "Done")); else if (ready) snprintf(lab, sizeof lab, "+%d", mi->reward); else snprintf(lab, sizeof lab, "%d BC", mi->reward);
+				ui_button(PANE_X + PANE_W - 60, y + 5, 58, 24, ready ? COL_GREEN : COL_PANEL2, false, lab, 0.36f);
+				continue;
+			}
 			if (g_season && r == nshop + 1 + g_nmis) {                                              // temporada: siguiente nivel por reclamar
 				int t = g_season_claimed + 1; bool done = t > 10, ready = !done && g_season_xp >= t * 100; char l1[48], l2[40], f_[48];
 				snprintf(l1, sizeof l1, "%s %d: %s %d", tr2("Temporada", "Season"), g_season, tr2("nivel", "level"), g_season_xp / 100 > 10 ? 10 : g_season_xp / 100); fit(f_, sizeof f_, l1, 0.38f, PANE_W - 78); ui_text(PANE_X + 6, y + 4, 0.38f, COL_TEXT, 0, f_);
@@ -1251,6 +1268,7 @@ AppResult app_lobby(C3D_RenderTarget *top, C3D_RenderTarget *bot, Session *s, Ga
 				break;
 			case P_SHOP:
 				if (act_row == 0) { if (wallet.can_claim) request(RQ_CLAIM, NULL, NULL, 0); else toast(&u, tr2("Ya la recogiste hoy", "Already claimed today")); }
+				else if (act_row > nshop + g_nmis + (g_season ? 1 : 0)) { int wi = act_row - nshop - g_nmis - (g_season ? 1 : 0) - 1; if (wi >= 0 && wi < g_nwk) { const MissionRow *m = &g_wk[wi]; if (m->claimed) toast(&u, tr2("Ya la reclamaste", "Already claimed")); else if (m->n < m->goal) toast(&u, tr2("Aun no esta lista", "Not ready yet")); else request(RQ_WEEKLY, m->key, NULL, 0); } }
 				else if (g_season && act_row == nshop + 1 + g_nmis) { int t = g_season_claimed + 1; if (t > 10) toast(&u, tr2("Ya reclamaste toda la temporada", "Season fully claimed")); else if (g_season_xp < t * 100) toast(&u, tr2("Aun no hay nivel listo", "No level ready yet")); else request(RQ_SEASON, NULL, NULL, 0); }
 				else if (act_row > nshop) { int mi = act_row - nshop - 1; if (mi >= 0 && mi < g_nmis) { const MissionRow *m = &g_mis[mi]; if (m->claimed) toast(&u, tr2("Ya la reclamaste", "Already claimed")); else if (m->n < m->goal) toast(&u, tr2("Aun no esta lista", "Not ready yet")); else request(RQ_MISSION, m->key, NULL, 0); } }
 				else if (act_row - 1 < nshop) {
