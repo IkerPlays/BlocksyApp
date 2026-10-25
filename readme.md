@@ -57,6 +57,7 @@ La app de 3DS replica la web: **Inicio, Descubrir, Avatar, Amigos, Crear y Ajust
 **Actualizaciones:** la sección *Actualizar* de la app busca en las releases de GitHub la última versión estable y la última devbuild y las instala con un toque.
 Inicio de sesión en la 3DS: con email y contraseña (pantalla táctil) o **«Con QR»**: la consola muestra un QR, lo escaneas con el móvil/tablet, inicias sesión allí y pulsas *Autorizar*. Requiere `supabase/game/link-login.sql`.
 Controles: círculo mover · A saltar · X poner · Y romper · B color · SELECT chat · L/R cámara · START salir.
+**3DS, novedades de uso:** en *Descubrir*, SELECT cambia el filtro de modo; en la pantalla táctil, *Emotes* también trae cuatro frases rápidas de chat; la *Tienda* lista las misiones diarias y semanales y los niveles de temporada para reclamarlos; en *Ajustes* hay contador de FPS, coordenadas e instalación automática de estables; *Actualizar* tiene *Probar descarga* y *Volver a la versión anterior*.
 
 ## Estado
 La web tiene interfaz estilo Roblox (Inicio, Descubrir, Avatar, Amigos, Crear, Ajustes) y menú en el juego (Esc). La web compila (`vite build`). **El código de 3DS no se ha compilado aún** (no hay
