@@ -796,6 +796,43 @@ task.spawn(function()
 end)
 game.title("Pisa la loseta en cuanto se ponga verde", 2500)`
 
+// Lava ascendente: la lava sube sin parar; trepa por las plataformas y aguanta el mayor tiempo posible.
+export const RISE = `local Players = game:GetService("Players")
+local me = Players.LocalPlayer
+local gui = Instance.new("ScreenGui"); gui.Parent = me.PlayerGui
+local label = Instance.new("TextLabel"); label.Size = UDim2.new(0, 420, 0, 44); label.Position = UDim2.new(0.5, 0, 0, 14); label.AnchorPoint = Vector2.new(0.5, 0)
+label.BackgroundColor3 = Color3.fromRGB(20, 20, 30); label.BackgroundTransparency = 0.25; label.TextColor3 = Color3.new(1, 1, 1); label.TextSize = 20; label.Parent = gui
+Instance.new("UICorner", label).CornerRadius = UDim.new(0, 12)
+local base = Instance.new("Part"); base.Size = Vector3.new(12, 1, 12); base.Anchored = true; base.Position = Vector3.new(0, 0, 0); base.Color = Color3.fromRGB(120, 130, 160); base.Parent = workspace
+for i = 1, 40 do
+  local p = Instance.new("Part"); p.Size = Vector3.new(5, 0.8, 5); p.Anchored = true
+  local a = i * 2.4
+  p.Position = Vector3.new(math.cos(a) * 7, i * 3, math.sin(a) * 7); p.Color = Color3.fromHSV((i % 10) / 10, 0.5, 1); p.Parent = workspace
+end
+local lava = Instance.new("Part"); lava.Size = Vector3.new(60, 1, 60); lava.Anchored = true; lava.CanCollide = false; lava.Material = Enum.Material.Neon
+lava.Color = Color3.fromRGB(255, 90, 30); lava.Transparency = 0.2; lava.Parent = workspace
+local level, t0, best = -6, os.clock(), 0
+local function reset() level = -6; t0 = os.clock(); game.teleport(0, 3, 0) end
+reset()
+task.spawn(function()
+  while true do
+    task.wait(0.1)
+    level = level + 0.1 * (0.6 + (os.clock() - t0) / 60)
+    lava.Position = Vector3.new(0, level, 0)
+    local c = me.Character; local r = c and c:FindFirstChild("HumanoidRootPart")
+    local secs = math.floor(os.clock() - t0)
+    if r and r.Position.Y < level + 1 then
+      game.sound("hit"); if secs > best then best = secs end
+      label.Text = "Te alcanzó la lava: " .. secs .. " s  ·  récord " .. best .. " s"; task.wait(2); reset()
+    elseif r and r.Position.Y > 120 then
+      game.sound("coin"); label.Text = "Llegaste a la cima en " .. secs .. " s!"; task.wait(3); reset()
+    else
+      label.Text = "Sube!  altura " .. (r and math.floor(r.Position.Y) or 0) .. "  ·  " .. secs .. " s  ·  récord " .. best .. " s"
+    end
+  end
+end)
+game.title("La lava sube: trepa por las plataformas", 2500)`
+
 // Piso que cae: cada loseta desaparece poco después de pisarla y vuelve a los pocos segundos. Cruza hasta la meta sin caer al vacío.
 export const CRUMBLE = `local Players = game:GetService("Players")
 local me = Players.LocalPlayer

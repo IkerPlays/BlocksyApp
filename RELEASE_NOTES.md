@@ -1,16 +1,2 @@
-Devbuild: tree canopies are solid on the 3DS
-- 3DS: the leaves of trees in Hills and Islands are now solid, like on the web (parity-tested against the web worlds).
-- 3DS: the Shop lists your season progress and lets you claim the next season level (BCoins and the level 5 and 10 rewards).
-- 3DS: weekly missions are in the Shop too, with claim buttons.
-- 3DS: the last game you played is shown first on Home.
-- 3DS: the Shop also sells and equips faces, backpacks/capes and pets. Pets (cube, slime, bot, ghost) now follow players on the 3DS, yours and other players'.
-- 3DS: trails (spark, fire, rainbow, bubbles) are drawn behind moving players, and the Shop sells and equips them.
-- 3DS: JSON text escapes (new lines, accents written as codes) are read correctly; game rules, sky and physics reading is now covered by a native test.
-- 3DS: the game card says when a game uses scripts (their rules only run on the web).
-- Studio checklist now has 3DS compatibility checks (parts, blocks, on-screen texts and scripts).
-- Fixed four texts that showed their internal name instead of a translation (search, player sync interval, delete message confirmation, edited) and added a test that fails when code uses a text key that does not exist.
-- 3DS: the Friends list shows the name of the game each friend is playing.
-- 3DS: on the Friends page, X opens the game your selected friend is playing.
-- 3DS: chat messages appear as speech bubbles above the player who said them for 5 seconds.
-- 3DS: slow data (missions, season, clan, next meetup) is refreshed every 90 seconds instead of every 12, saving network and battery; actions refresh it right away.
-- 3DS: the game list, visits, hidden games and favorites are also refreshed every 90 seconds (players online still every 12 s): about half the network calls while browsing.
+Devbuild: new template Rising lava
+- Web: new Studio template "Rising lava" (obby): the lava climbs, you climb the platforms; it shows your height, time and record. Translated into all 11 languages.
