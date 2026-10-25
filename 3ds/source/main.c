@@ -40,6 +40,7 @@ static float rsp_x, rsp_y, rsp_z;                      // punto de reaparición 
 static struct { u64 start; int cp; bool done; } race;  // carrera: cronómetro, punto de control y meta
 static char big_msg[64]; static u64 big_until;         // mensaje grande sobre la partida (punto de control, meta...)
 static Remote remotes[MAX_PLAYERS]; static int nremotes;
+typedef struct { char name[24], text[44]; u64 until; } Bubble; static Bubble bubbles[8];     // globos de chat sobre la cabeza (5 s)
 static ChatMsg chat_new[8]; static int nchat_new;          // mensajes nuevos que la interfaz todavía no ha mostrado
 static volatile bool running = true;
 static float px = 0.5f, py = 3, pz = 0.5f, pry = 0; // posición propia (leída por el hilo)
@@ -602,6 +603,13 @@ static void render_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 		ui_text(sx + 1, sy - 11, 0.34f, C2D_Color32(0, 0, 0, 200), C2D_AlignCenter, rem[i].name);
 		ui_text(sx, sy - 12, 0.34f, C2D_Color32(255, 255, 255, 255), C2D_AlignCenter, rem[i].name);
 	}
+	for (int b = 0; b < 8; b++) if (bubbles[b].until > now && bubbles[b].name[0]) {              // globos de chat sobre quien habla
+		float bx = 0, by = 0, bz = 0; bool have = false;
+		if (!strcmp(bubbles[b].name, sess.username)) { bx = px; by = py; bz = pz; have = true; }
+		else for (int i = 0; i < nr; i++) if (!strcmp(rem[i].name, bubbles[b].name)) { bx = rem[i].x; by = rem[i].y; bz = rem[i].z; have = true; break; }
+		float gx, gy, gd; if (!have || !project(bx, by + 2.05f, bz, &gx, &gy, &gd) || gd > 30) continue;
+		float tw = ui_text_width(bubbles[b].text, 0.34f) + 12; ui_rrect(gx - tw / 2, gy - 34, tw, 16, 7, C2D_Color32(255, 255, 255, 235)); ui_text(gx, gy - 33, 0.34f, C2D_Color32(0x20, 0x22, 0x28, 255), C2D_AlignCenter, bubbles[b].text);
+	}
 	// ---- HUD ----
 	for (int i = 0; i < nuitexts && !photo_mode; i++) {                                         // textos del Studio: {players} {name} {game} {time}
 		const UiText *o = &uitexts[i]; char out[160]; ui_format(o->text, out, sizeof out, nr + 1, sess.username, cur_game.name, (unsigned)((now - t_start) / 1000));
@@ -682,7 +690,7 @@ static void render_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 // Una partida. Devuelve true para volver al lobby; false si el usuario pulsa START (salir de la app).
 static bool play_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 	LightLock_Init(&lock);
-	nblocks = nremotes = qn = nchat_new = 0; pry = 0; vy = 0; grounded = false; moving = 0; running = true; want_offline = false;
+	memset(bubbles, 0, sizeof bubbles); nblocks = nremotes = qn = nchat_new = 0; pry = 0; vy = 0; grounded = false; moving = 0; running = true; want_offline = false;
 	world_build(&world, cur_game.world, cur_game.seed);                         // mundo base (plaza, carrera...) igual que en la web
 	g_skymode = !strcmp(cur_game.sky, "dawn") ? 1 : !strcmp(cur_game.sky, "sunset") ? 2 : !strcmp(cur_game.sky, "night") ? 3 : !strcmp(cur_game.sky, "space") ? 4 : 0;
 	if (!cur_game.sky[0] && cur_game.hour >= 0) {                              // config.time: hora del dia (0 = sigue la hora real de la consola)
@@ -769,6 +777,8 @@ static bool play_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 		memcpy(rem, remotes, sizeof(Remote) * nremotes); nr = nremotes;
 		if (nchat_new) sfx_play(SFX_NOTIFY);
 		for (int i = 0; i < nchat_new; i++) {                       // mensajes nuevos -> lista visible 10 s
+			{ int slot = -1, oldest = 0; for (int b = 0; b < 8; b++) { if (!strcmp(bubbles[b].name, chat_new[i].name)) { slot = b; break; } if (bubbles[b].until < bubbles[oldest].until) oldest = b; } if (slot < 0) slot = oldest;
+			  snprintf(bubbles[slot].name, sizeof bubbles[slot].name, "%s", chat_new[i].name); snprintf(bubbles[slot].text, sizeof bubbles[slot].text, "%s", chat_new[i].text); if (strlen(chat_new[i].text) > 40) { bubbles[slot].text[38] = '.'; bubbles[slot].text[39] = '.'; bubbles[slot].text[40] = 0; } bubbles[slot].until = now + 5000; }
 			memmove(&chat[0], &chat[1], sizeof chat[0] * 3);
 			snprintf(chat[3].name, sizeof chat[3].name, "%s", chat_new[i].name); snprintf(chat[3].text, sizeof chat[3].text, "%s", chat_new[i].text); chat[3].until = now + 10000;
 			if (nhist == 120) { memmove(&hist[0], &hist[1], sizeof hist[0] * 119); nhist = 119; }
@@ -912,6 +922,7 @@ void game_preview(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 	nl = 0;
 	{ const char *sk = getenv("BLOCKSY_PREVIEW_SKY"); g_skymode = sk ? atoi(sk) : 0; }
 	if (getenv("BLOCKSY_PREVIEW_PARTS")) snprintf(g_my_hat, sizeof g_my_hat, "hat_cap||||pet_slime|");
+	if (getenv("BLOCKSY_PREVIEW_PARTS")) { snprintf(bubbles[0].name, sizeof bubbles[0].name, "%s", sess.username); snprintf(bubbles[0].text, sizeof bubbles[0].text, "Hola a todos!"); bubbles[0].until = 25000; }
 	nparts = 0;
 	if (getenv("BLOCKSY_PREVIEW_PARTS")) {                                                  // piezas de ejemplo del Studio
 		Part d[] = {mkpart(4, 0.5f, 2, 4, 1, 4, 0.5f, 0xFF3C9FFF, 0, 1, 0, 255, 0), mkpart(-3, 1.5f, 4, 2, 3, 2, 0, 0xFF4F4FE0, 2, 1, 0, 255, 0), mkpart(0, 3.5f, -3, 3, 3, 3, 0, 0xFFFFD34D, 1, 0, 0, 255, 0), mkpart(-5, 0.25f, -2, 4, 0.5f, 4, 0.8f, 0xFF50D060, 0, 1, 1, 255, 0), mkpart(6, 2, -4, 1, 4, 6, 0.3f, 0xFFB26AE0, 0, 1, 0, 255, 0), mkpart(-7, 1, -6, 3, 2, 3, 0, 0xFFE0A030, 0, 0, 0, 110, 0), mkpart(2, 2.2f, 5, 1, 1, 1, 0, 0xFF60E8FF, 1, 0, 0, 255, 1)};
