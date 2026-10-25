@@ -26,7 +26,7 @@ bool net_init(void);
 void net_exit(void);
 
 typedef struct { char id[40]; char name[44]; char desc[104]; char owner_id[40]; char owner[24]; int hue, max, players, fav; long visits; char mode[8]; char world[12]; char weather[8]; char about[200]; char track[64]; int vis; int allow_build; float jump; int seed; char sky[10]; char welcome[64]; float hour; float speed, gravity, fog; int double_jump, has_spawn, allow_chat, allow_emotes, has_script; float spawn[3]; } GameInfo;   // hour: config.time (-1 = no definida, 0 = ciclo automatico)   // allow_build: -1 según el modo
-typedef struct { char id[40]; char name[24]; unsigned int color; int online, in_game; } Person;
+typedef struct { char id[40]; char name[24]; unsigned int color; int online, in_game; char game[40]; } Person;   // game: id del juego en el que esta
 #define MAX_GAMES  32
 #define MAX_PEOPLE 32
 

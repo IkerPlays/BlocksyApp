@@ -160,6 +160,7 @@ static const char *const PT_TR[][2] = {
 	{"Season fully claimed", "Temporada toda reclamada"},
 	{"All claimed", "Todos reclamados"},
 	{"Tier", "Nivel"},
+	{"Playing", "Jogando"},
 	{"Scripted", "Com script"},
 	{"rules only on web", "regras so na web"},
 	{"Week: place 300 blocks", "Semana: coloque 300 blocos"},
@@ -545,7 +546,14 @@ static int acc_cur(const char *kind, int n, const char **ids) { const char *e = 
 static const char *acc_name(const char *kind) { const char *ids[24], *nm[24]; int n = acc_list(kind, ids, nm); return nm[acc_cur(kind, n, ids)]; }
 static bool shop_equipped(const ShopItem *it) { return !strcmp(wallet.hat, it->id) || !strcmp(wallet.title, it->id) || !strcmp(wallet.face, it->id) || !strcmp(wallet.back, it->id) || !strcmp(wallet.pet, it->id) || !strcmp(wallet.trail, it->id); }
 static u32 rarity_col(int r) { return r == 2 ? C(0xC4, 0x6B, 0xFF) : r == 1 ? C(0x4D, 0x8D, 0xFF) : COL_MUTED; }
-static const char *status_of(const Person *p) { return p->in_game ? tr2("En un juego", "In a game") : p->online ? "Online" : tr2("Desconectado", "Offline"); }
+static const char *status_of(const Person *p) {
+	static char buf[6][64]; static int k;
+	if (p->in_game) {
+		for (int i = 0; i < ngames; i++) if (!strcmp(games[i].id, p->game)) { char *b = buf[k++ % 6]; snprintf(b, 64, "%s: %s", tr2("Jugando", "Playing"), games[i].name); return b; }
+		return tr2("En un juego", "In a game");
+	}
+	return p->online ? "Online" : tr2("Desconectado", "Offline");
+}
 
 // ================= PANTALLA SUPERIOR =================
 static void top_bar(const Ui *u, const Session *s, bool busy) {
@@ -1039,7 +1047,7 @@ void app_preview(C3D_RenderTarget *top, C3D_RenderTarget *bot, int page, int mod
 	static const int hue[] = {205, 20, 350, 140, 280, 60}, pl[] = {3, 5, 0, 2, 1, 0};
 	for (int i = 0; i < 6; i++) { GameInfo *g = &games[i]; memset(g, 0, sizeof *g); snprintf(g->id, 40, "g%d", i); snprintf(g->name, 44, "%s", nm[i]); snprintf(g->owner, 24, i == 4 ? "Iker" : "Blocksy"); snprintf(g->owner_id, 40, i == 4 ? "me" : "x"); g->hue = hue[i]; g->players = pl[i]; g->max = 20; snprintf(g->desc, 104, "Mundo abierto para construir con tus amigos desde la web o la 3DS. Empieza aqui!"); }
 	ngames = 6; static const char *fn[] = {"Marta", "Dani", "Lucia", "Pablo", "Nora"};
-	for (int i = 0; i < 5; i++) { Person *p = &friends[i]; memset(p, 0, sizeof *p); snprintf(p->name, 24, "%s", fn[i]); p->color = parse_hex(AVATAR_COLORS[i + 1]); p->online = i < 3; p->in_game = i == 1; snprintf(p->id, 40, "f%d", i); }
+	for (int i = 0; i < 5; i++) { Person *p = &friends[i]; memset(p, 0, sizeof *p); snprintf(p->name, 24, "%s", fn[i]); p->color = parse_hex(AVATAR_COLORS[i + 1]); p->online = i < 3; p->in_game = i == 1; if (i == 1) snprintf(p->game, 40, "g1"); snprintf(p->id, 40, "f%d", i); }
 	nfriends = 5; nreqs = 1; snprintf(reqs[0].name, 24, "Carlos"); reqs[0].color = parse_hex("#1abc9c"); unread = 2; g_account = 1;
 	{ static const char *const mk[5] = {"place_50", "play_10", "obby_win", "chat_5", "friend_1"}; for (int i = 0; i < 5; i++) { snprintf(g_mis[i].key, 16, "%s", mk[i]); g_mis[i].goal = i == 0 ? 50 : i == 1 ? 10 : i == 2 ? 1 : i == 3 ? 5 : 1; g_mis[i].reward = 20 + i * 10; g_mis[i].n = i == 0 ? 50 : i == 1 ? 4 : 0; g_mis[i].claimed = i == 3; } g_nmis = 5; }
 	snprintf(g_clan.name, sizeof g_clan.name, "Los Constructores"); snprintf(g_clan.tag, sizeof g_clan.tag, "LCN"); g_clan.members = 6; g_has_clan = 1; g_season = 2; g_season_xp = 340;

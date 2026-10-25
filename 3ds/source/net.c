@@ -609,7 +609,7 @@ static int parse_people(const char *r, Person *out, int max) {
 		const char *st = p; p = end + 1;
 		if (!jstr(st, end, "id", o->id, sizeof o->id)) continue;
 		jstr(st, end, "username", o->name, sizeof o->name); jstr(st, end, "avatar_color", col, sizeof col); o->color = parse_color(col);
-		o->online = jbool(st, end, "is_online"); o->in_game = jstr(st, end, "current_game", cg, sizeof cg);
+		o->online = jbool(st, end, "is_online"); o->in_game = jstr(st, end, "current_game", cg, sizeof cg); snprintf(o->game, sizeof o->game, "%s", cg);
 		n++;
 	}
 	return n;

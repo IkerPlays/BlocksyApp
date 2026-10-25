@@ -9,3 +9,4 @@ Devbuild: tree canopies are solid on the 3DS
 - 3DS: the game card says when a game uses scripts (their rules only run on the web).
 - Studio checklist now has 3DS compatibility checks (parts, blocks, on-screen texts and scripts).
 - Fixed four texts that showed their internal name instead of a translation (search, player sync interval, delete message confirmation, edited) and added a test that fails when code uses a text key that does not exist.
+- 3DS: the Friends list shows the name of the game each friend is playing.
