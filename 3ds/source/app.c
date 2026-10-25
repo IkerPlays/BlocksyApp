@@ -469,6 +469,7 @@ static int build_view(const Ui *u, const Session *s, int *view) {
 	if (u->page == P_HOME) {                                   // populares primero
 		for (int i = 0; i < ngames; i++) view[n++] = i;
 		for (int i = 1; i < n; i++) { int v = view[i], j = i - 1; while (j >= 0 && (games[view[j]].fav < games[v].fav || (games[view[j]].fav == games[v].fav && games[view[j]].players < games[v].players))) { view[j + 1] = view[j]; j--; } view[j + 1] = v; }
+		for (int i = 1; i < n && s_last_game[0]; i++) if (!strcmp(games[view[i]].id, s_last_game)) { int v = view[i]; memmove(&view[1], &view[0], sizeof(int) * (size_t)i); view[0] = v; break; }          // el ultimo juego al que entraste, primero
 	} else if (u->page == P_DISCOVER) {
 		for (int pass = 0; pass < 2; pass++) for (int i = 0; i < ngames; i++) {
 			if ((pass == 0) != (games[i].fav != 0)) continue;                                      // favoritos primero
