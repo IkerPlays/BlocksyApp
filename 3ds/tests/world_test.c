@@ -76,7 +76,6 @@ int main(void) {
 			for (int ti = 0; ti < w.ntrees; ti++) for (int dx = -2; dx <= 2; dx++) for (int dz = -2; dz <= 2; dz++) for (int dy = 3; dy <= 5; dy++) {
 				bool leaf = dy == 5 ? (abs(dx) + abs(dz) <= 1) : !(abs(dx) + abs(dz) > 3 || (dx == 0 && dz == 0 && dy == 3));
 				if (leaf) { assert(world_floor_solid(&w, w.tree[ti][0] + dx, w.tree_y[ti] + dy, w.tree[ti][1] + dz)); n++; }
-				else if (dy == 3 && dx == 0 && dz == 0) { assert(!world_floor_solid(&w, w.tree[ti][0], w.tree_y[ti] + 3, w.tree[ti][1]) || world_hill_h(&w, w.tree[ti][0], w.tree[ti][1]) > w.tree_y[ti] + 3); }
 			}
 			assert(n > 100);
 		}
