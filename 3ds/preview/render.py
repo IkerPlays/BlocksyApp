@@ -12,7 +12,8 @@ def col(u):
 def blend(img, ov): img.alpha_composite(ov)
 scenes = {}
 cur = None; imgs = None
-lines = open('preview/ops.txt').read().split('\n')
+import os
+lines = open(os.environ.get('OPS', 'preview/ops.txt')).read().split('\n')
 def new_scene(name):
     global imgs
     imgs = {0: Image.new('RGBA', (W[0][0]*S, W[0][1]*S), (0,0,0,255)), 1: Image.new('RGBA', (W[1][0]*S, W[1][1]*S), (0,0,0,255))}

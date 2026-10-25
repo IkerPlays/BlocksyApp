@@ -1,0 +1,11 @@
+const { chromium } = require('playwright')
+;(async () => {
+  const b = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] })
+  const ctx = await b.newContext({ viewport: { width: 1280, height: 720 }, recordVideo: { dir: process.argv[2] + '/script', size: { width: 1280, height: 720 } } })
+  const p = await ctx.newPage()
+  await p.goto('http://localhost:5188/preview/game.html?world=checker&sky=night&script=' + encodeURIComponent("on('join', () => { title('Build your own games', 5000) })"))
+  await p.waitForTimeout(5500)
+  await p.keyboard.down('KeyW'); await p.waitForTimeout(2500); await p.keyboard.up('KeyW'); await p.keyboard.press('Space'); await p.mouse.move(640, 360); await p.mouse.down()
+  for (let i = 0; i < 10; i++) { await p.mouse.move(640 + i * 30, 360); await p.waitForTimeout(150) } await p.mouse.up(); await p.waitForTimeout(1500)
+  await p.close(); await ctx.close(); await b.close()
+})()
