@@ -161,6 +161,8 @@ static const char *const PT_TR[][2] = {
 	{"All claimed", "Todos reclamados"},
 	{"Tier", "Nivel"},
 	{"Playing", "Jogando"},
+	{"Pick a friend who is playing", "Escolha um amigo que esteja jogando"},
+	{"I can't find that game in the list", "Nao encontro esse jogo na lista"},
 	{"Scripted", "Com script"},
 	{"rules only on web", "regras so na web"},
 	{"Week: place 300 blocks", "Semana: coloque 300 blocos"},
@@ -1160,7 +1162,10 @@ AppResult app_lobby(C3D_RenderTarget *top, C3D_RenderTarget *bot, Session *s, Ga
 			if (down & KEY_A) act_row = u.cur;
 			if (down & KEY_Y) request(RQ_REFRESH, NULL, NULL, 0);
 			if (u.page == P_DISCOVER && (down & KEY_SELECT)) { s_mfilter = (s_mfilter + 1) % 6; u.cur = 0; u.scroll = 0; }
-			if (down & KEY_X) { if (u.page == P_DISCOVER) { prompt(u.search, sizeof u.search, "Buscar juegos"); u.cur = 0; u.scroll = 0; } else if (u.page == P_AVATAR) prev_demo = (prev_demo + 1) % (NEMOTES + 1); }
+			if (down & KEY_X) { if (u.page == P_DISCOVER) { prompt(u.search, sizeof u.search, "Buscar juegos"); u.cur = 0; u.scroll = 0; } else if (u.page == P_AVATAR) prev_demo = (prev_demo + 1) % (NEMOTES + 1); else if (u.page == P_FRIENDS) {                // X: abre el juego en el que esta tu amigo
+				PRow pr2[MAX_PEOPLE + 1 + MAX_PEOPLE]; int np = build_people(s, pr2);
+				if (u.cur < np && pr2[u.cur].kind == 2 && pr2[u.cur].p->in_game) { bool found = false; for (int gi = 0; gi < ngames; gi++) if (!strcmp(games[gi].id, pr2[u.cur].p->game)) { u.modal = gi; found = true; break; } if (!found) toast(&u, tr2("No encuentro ese juego en la lista", "I can't find that game in the list")); }
+				else toast(&u, tr2("Elige un amigo que este jugando", "Pick a friend who is playing")); } }
 		}
 
 		// ---- táctil ----
