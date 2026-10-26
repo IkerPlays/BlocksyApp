@@ -240,6 +240,7 @@ static const OptDef OPTS[NOPT] = {
 	[OPT_RUNTOGGLE] = {"runtoggle", "Correr con B alternado", "Toggle run with B", "Correr com B alternado", 2, 0},
 	[OPT_WIFI]      = {"wifi", "Senal WiFi en pantalla", "Wi-Fi signal on screen", "Sinal Wi-Fi na tela", 2, 0},
 	[OPT_CLOCK]     = {"clock", "Hora en pantalla", "Clock on screen", "Hora na tela", 2, 0},
+	[OPT_AUTOSIT]   = {"autosit", "Sentarse tras 45 s quieto", "Sit down after 45 s idle", "Sentar apos 45 s parado", 2, 0},
 	[OPT_SORT]      = {"sort", "Orden de los juegos", "Game order", "Ordem dos jogos", 3, 0, {"Populares", "Jugadores", "Nombre"}, {"Popular", "Players", "Name"}},
 };
 static int s_opt[NOPT]; static bool s_opt_init;

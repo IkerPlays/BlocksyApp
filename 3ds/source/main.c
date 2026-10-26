@@ -86,6 +86,7 @@ static void push_action(Action a) { LightLock_Lock(&lock); if (qn < QMAX) queue[
 static void net_thread(void *arg) {
 	(void)arg;
 	u64 last_blocks = 0, last_presence = 0, last_chat = 0, last_token = osGetTime(), last_alerts = 0; long alert_id = -1; int alert_un = -1;
+	float idle_x = 0, idle_y = 0, idle_z = 0; char idle_anim[12] = ""; u64 idle_since = osGetTime();      // si no te mueves, se pregunta con menos frecuencia (ahorra red y bateria)
 	long chat_last = -1; int m_place = 0, m_chat = 0, m_play = 0; u64 last_missions = osGetTime(), last_coins = osGetTime();      // progreso de misiones diarias/semanales que se envia por lotes
 	net_visit(&sess, net_game());
 	if (world.has_fin) { TopTime tt[5]; int tn = net_best_times(tt, 5); if (tn >= 0) { LightLock_Lock(&lock); memcpy(g_top, tt, sizeof tt); g_ntop = tn; LightLock_Unlock(&lock); } }
@@ -154,7 +155,10 @@ static void net_thread(void *arg) {
 			if (un >= 0) { if (!msg[0] && alert_un >= 0 && un > alert_un) snprintf(msg, sizeof msg, "Mensaje nuevo de un amigo"); alert_un = un; }
 			if (msg[0]) { LightLock_Lock(&lock); snprintf(game_alert, sizeof game_alert, "%s", msg); game_alert_until = osGetTime() + 5000; LightLock_Unlock(&lock); }
 		}
-		svcSleepThread((qn ? 30 : (long long)app_sync_ms()) * 1000000LL);   // pausa entre envíos/lecturas: ajuste "Sincronizacion" (por defecto 100 ms)
+		{ u64 tn = osGetTime(); LightLock_Lock(&lock); float ax = px, ay = py, az = pz; char aa[12]; memcpy(aa, send_anim, sizeof aa); LightLock_Unlock(&lock); aa[11] = 0;
+		  if (fabsf(ax - idle_x) > 0.01f || fabsf(ay - idle_y) > 0.01f || fabsf(az - idle_z) > 0.01f || strcmp(aa, idle_anim) || qn) { idle_x = ax; idle_y = ay; idle_z = az; snprintf(idle_anim, sizeof idle_anim, "%s", aa); idle_since = tn; } }
+		long long pause_ms = qn ? 30 : (long long)app_sync_ms(); if (!qn && osGetTime() - idle_since > 8000 && pause_ms < 250) pause_ms = 250;      // 8 s quieto: 250 ms entre peticiones
+		svcSleepThread(pause_ms * 1000000LL);   // pausa entre envíos/lecturas: ajuste "Sincronizacion" (por defecto 100 ms)
 	}
 	// Al salir (en este hilo, que ya tiene la conexión TLS abierta): dejar la partida
 	if (world.type == 5 && hr.host) net_npc_release(&sess);
@@ -284,7 +288,7 @@ typedef struct { float x, y, z, vx, vy, vz, life; u32 col; } FxP;
 static FxP fxs[40]; static unsigned fx_seed = 12345;
 static float fx_rnd(void) { fx_seed = fx_seed * 1664525u + 1013904223u; return ((fx_seed >> 8) & 0xFFFF) / 65535.0f - 0.5f; }
 static void fx_burst(float cx, float cy, float cz, u32 col, int n, float spd) {
-	if (!app_fx_on()) return;
+	if (!app_fx_on() || g_ft_avg > 55) return;                                // sin particulas si va muy lento
 	for (int k = 0; k < n; k++) {
 		int slot = -1; float oldest = 1e9f;
 		for (int i = 0; i < 40; i++) { if (fxs[i].life <= 0) { slot = i; break; } if (fxs[i].life < oldest) { oldest = fxs[i].life; slot = i; } }
@@ -638,8 +642,9 @@ static void render_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 	else if (can_build && place_y >= 0 && !overlap) draw_outline(tx, place_y, tz, PALETTE[kind]);
 	// nombres sobre los jugadores
 	for (int i = 0; i < nr && app_opt(OPT_NAMETAGS); i++) if (project(rem[i].x, rem[i].y + 2.05f, rem[i].z, &sx, &sy, &d) && d < 26) {
-		ui_text(sx + 1, sy - 11, 0.34f, C2D_Color32(0, 0, 0, 200), C2D_AlignCenter, rem[i].name);
-		ui_text(sx, sy - 12, 0.34f, C2D_Color32(255, 255, 255, 255), C2D_AlignCenter, rem[i].name);
+		float naf = d < 14 ? 255.0f : 255.0f * (26 - d) / 12 + 20; u8 na = (u8)(naf > 255 ? 255 : naf);                                       // el nombre se desvanece con la distancia
+		ui_text(sx + 1, sy - 11, 0.34f, C2D_Color32(0, 0, 0, na * 200 / 255), C2D_AlignCenter, rem[i].name);
+		ui_text(sx, sy - 12, 0.34f, C2D_Color32(255, 255, 255, na), C2D_AlignCenter, rem[i].name);
 	}
 	for (int b = 0; b < 8; b++) if (app_opt(OPT_BUBBLES) && bubbles[b].until > now && bubbles[b].name[0]) {              // globos de chat sobre quien habla
 		float bx = 0, by = 0, bz = 0; bool have = false;
@@ -667,9 +672,11 @@ static void render_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 		char hb[64]; snprintf(hb, sizeof hb, "Fragmentos %d/%d   Linterna %s (X)", hr.ngot, world.norbs, hr.flash ? "ON" : "OFF");
 		float w = ui_text_width(hb, 0.42f) + 18; ui_rrect(8, 8, w, 22, 8, C2D_Color32(0, 0, 0, 150)); ui_text(8 + w / 2, 11, 0.42f, COL_TEXT, C2D_AlignCenter, hb);
 	} else if (can_build) {
-		ui_rrect(8, 8, 74, 26, 8, C2D_Color32(0, 0, 0, 130));
-		ui_rrect(14, 12, 24, 18, 5, PALETTE[kind]);
-		char hb[24]; snprintf(hb, sizeof hb, "%d/%d", kind + 1, NPALETTE); ui_text(46, 11, 0.42f, COL_TEXT, 0, hb);
+		char hb[40]; snprintf(hb, sizeof hb, "%d/%d  %s", kind + 1, NPALETTE, blk_name(kind));                  // bloque elegido: debajo de la brujula (antes se pisaban)
+		float hw = ui_text_width(hb, 0.4f) + 46; int hy = app_opt(OPT_COMPASS) ? 32 : 8;
+		ui_rrect(8, hy, hw, 24, 8, C2D_Color32(0, 0, 0, 130));
+		ui_rrect(13, hy + 3, 22, 18, 5, PALETTE[kind]);
+		ui_text(41, hy + 4, 0.4f, COL_TEXT, 0, hb);
 	}
 	if (g_weather) {                                                           // lluvia o nieve (clima del juego), partículas deterministas
 		float tw = (now - t_start) / 1000.0f;
@@ -701,8 +708,9 @@ static void render_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 			float dx = rem[i].x - px, dz = rem[i].z - pz, fw = dx * fdx2 + dz * fdz2, rt = dx * -fdz2 + dz * fdx2, dist = hypotf(fw, rt);
 			if (dist > range) { fw *= range / dist; rt *= range / dist; }
 			float ex = cx + rt / range * (rr - 4), ey = cy - fw / range * (rr - 4);
-			C2D_DrawCircleSolid(ex, ey, 0, 3.2f, C2D_Color32(0, 0, 0, 160)); C2D_DrawCircleSolid(ex, ey, 0, 2.4f, rem[i].color | 0xFF000000u);
+			C2D_DrawCircleSolid(ex, ey, 0, 3.4f, rem[i].is3ds ? C2D_Color32(0xE6, 0x00, 0x12, 255) : C2D_Color32(0, 0, 0, 160)); C2D_DrawCircleSolid(ex, ey, 0, 2.4f, rem[i].color | 0xFF000000u);       // aro rojo = jugador de 3DS
 		}
+		ui_text(cx + sinf(cam_yaw) * (rr - 1) - 2.5f, cy - cosf(cam_yaw) * (rr - 1) - 5, 0.28f, C2D_Color32(0xFF, 0x6B, 0x6B, 255), 0, "N");                      // el norte gira con la camara
 		C2D_DrawTriangle(cx, cy - 4.5f, C2D_Color32(0xFF, 0xD3, 0x4D, 255), cx - 3.2f, cy + 3, C2D_Color32(0xFF, 0xD3, 0x4D, 255), cx + 3.2f, cy + 3, C2D_Color32(0xFF, 0xD3, 0x4D, 255), 0);
 	}
 	int shown = 0; for (int i = 0; i < 4; i++) if (chat[i].until > now) shown++;
@@ -788,6 +796,8 @@ static bool play_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 		u64 now = osGetTime();
 		float dt = (now - t_last) / 1000.0f; t_last = now; if (dt < 0.001f) dt = 0.001f; if (dt > 0.05f) dt = 0.05f;   // la física sigue al tiempo real
 		u32 down = hidKeysDown(), held = hidKeysHeld();
+		{ static float idle_s; circlePosition ic; hidCircleRead(&ic); idle_s = (held & ~KEY_TOUCH) || abs(ic.dx) > 15 || abs(ic.dy) > 15 || (down & KEY_TOUCH) ? 0 : idle_s + dt;
+		  if (app_opt(OPT_AUTOSIT) && idle_s > 45 && !emote[0] && grounded && cur_game.allow_emotes) snprintf(emote, sizeof emote, "sit"); }                // sentarse solo tras 45 s sin tocar nada
 		if (down & KEY_START) { back = false; break; }
 
 		// ---- cámara: L/R y C-stick (New 3DS / 2DS XL); D-pad arriba/abajo = zoom ----
