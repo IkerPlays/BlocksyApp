@@ -1,5 +1,2 @@
-Devbuild: 3DS particles, radar and teleport to a player
-- 3DS: placing and breaking blocks throws small debris in the block color, and hard landings kick up dust with a thud sound.
-- 3DS: a player radar (top right) shows nearby players; up is where the camera looks.
-- 3DS Settings: new rows "Player radar" and "Block particles" to turn them off.
-- 3DS: tap a player name in the Players list (bottom screen) to go next to them. Disabled in races and in the Dark Forest.
+Devbuild: 3DS continuous sky
+- 3DS: games with a time of day (config.time, or the console clock) now have a smooth sky: dawn, day, dusk and night blend into each other instead of jumping between fixed skies.

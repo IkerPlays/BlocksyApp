@@ -228,6 +228,7 @@ static bool project(float x, float y, float z, float *sx, float *sy, float *dept
 typedef struct { float depth; float x, y, z, w, h; u32 color; int av; int pi; } Box;   // av: -1 bloque, 0 yo, 1+i jugador remoto i
 static float g_ft_avg = 33;                               // tiempo medio de fotograma (ms), para el contador de FPS y la calidad adaptativa
 static int jumps_left;                                    // saltos extra disponibles en el aire
+static float g_tod = -1;                                  // hora del dia (0-24) para el cielo continuo; -1 = cielo fijo (g_skymode)
 static int g_skymode;                                     // cielo del juego (config.sky): 0 dia, 1 amanecer, 2 atardecer, 3 noche, 4 espacio
 static bool g_new3ds;                                     // New 3DS: 804 MHz y mas memoria => mas bloques y mas distancia
 static Box draw_list[MAX_LOCAL + MAX_PLAYERS * 2 + 4 + 700];
@@ -465,8 +466,15 @@ static void render_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 	static const unsigned char SKT[5][3] = {{0x4F, 0x9F, 0xE8}, {0x6A, 0x7C, 0xC8}, {0x58, 0x48, 0x98}, {0x02, 0x03, 0x0A}, {0x00, 0x00, 0x06}};     // arriba del cielo
 	static const unsigned char SKH[5][3] = {{0xD8, 0xEC, 0xFF}, {0xFF, 0xCB, 0xA0}, {0xFF, 0x9C, 0x6C}, {0x0C, 0x14, 0x26}, {0x06, 0x06, 0x14}};   // horizonte y niebla
 	static const float DIM[5] = {1.0f, 0.92f, 0.82f, 0.55f, 0.5f};
-	float dim = night ? 0.62f : DIM[skm];
-	if (!night) { g_sky[0] = SKH[skm][0]; g_sky[1] = SKH[skm][1]; g_sky[2] = SKH[skm][2]; }
+	float skt[3] = {SKT[skm][0], SKT[skm][1], SKT[skm][2]}, skh[3] = {SKH[skm][0], SKH[skm][1], SKH[skm][2]}, dim = night ? 0.62f : DIM[skm];
+	if (!night && g_tod >= 0 && skm < 4) {                                                   // cielo continuo: mezcla de los cielos fijos segun la hora (amanecer 5-8, atardecer 17-21)
+		static const float KH[] = {0, 4.5f, 6.5f, 9, 16.5f, 18.5f, 20.5f, 24}; static const int KM[] = {3, 3, 1, 0, 0, 2, 3, 3};
+		int k = 0; while (k < 6 && g_tod >= KH[k + 1]) k++;
+		float f = (g_tod - KH[k]) / (KH[k + 1] - KH[k]); if (f < 0) f = 0; if (f > 1) f = 1; int a = KM[k], b = KM[k + 1];
+		for (int c = 0; c < 3; c++) { skt[c] = SKT[a][c] + (SKT[b][c] - SKT[a][c]) * f; skh[c] = SKH[a][c] + (SKH[b][c] - SKH[a][c]) * f; }
+		dim = DIM[a] + (DIM[b] - DIM[a]) * f; starry = (a == 3 ? 1 - (b == 3 ? 0 : f) : (b == 3 ? f : 0)) > 0.5f; skm = starry ? 3 : (dim < 0.88f ? 2 : 0);
+	}
+	if (!night) { g_sky[0] = (unsigned char)skh[0]; g_sky[1] = (unsigned char)skh[1]; g_sky[2] = (unsigned char)skh[2]; }
 	float fdx = -sinf(cam_yaw), fdz = -cosf(cam_yaw);                                       // hacia donde mira la camara (la linterna)
 	#define NIGHT_D(X, Z, D) (night ? lit_depth((X) - px, (Z) - pz, fdx, fdz, (D)) : (D))
 	int nd = 0; float sx, sy, d;
@@ -553,7 +561,7 @@ static void render_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 	C2D_TargetClear(top, C2D_Color32(SKY_R, SKY_G, SKY_B, 255));
 	C2D_SceneBegin(top);
 	if (night) { u32 t0 = C2D_Color32(0x02, 0x03, 0x0A, 255), t1 = C2D_Color32(0x0C, 0x14, 0x26, 255); C2D_DrawRectangle(0, 0, 0, 400, 150, t0, t0, t1, t1); }
-	else C2D_DrawRectangle(0, 0, 0, 400, 150, C2D_Color32(SKT[skm][0], SKT[skm][1], SKT[skm][2], 255), C2D_Color32(SKT[skm][0], SKT[skm][1], SKT[skm][2], 255), C2D_Color32(SKY_R, SKY_G, SKY_B, 255), C2D_Color32(SKY_R, SKY_G, SKY_B, 255));   // cielo
+	else C2D_DrawRectangle(0, 0, 0, 400, 150, C2D_Color32((u8)skt[0], (u8)skt[1], (u8)skt[2], 255), C2D_Color32((u8)skt[0], (u8)skt[1], (u8)skt[2], 255), C2D_Color32(SKY_R, SKY_G, SKY_B, 255), C2D_Color32(SKY_R, SKY_G, SKY_B, 255));   // cielo
 	if (starry) {                                                                           // luna y estrellas que giran con la camara
 		float yawo = cam_yaw * 90.0f, mxp = fmodf(250 - yawo + 4000.0f, 560.0f) - 80;
 		C2D_DrawEllipseSolid(mxp - 16, 20, 0, 32, 32, C2D_Color32(0xBF, 0xD0, 0xF0, 40)); C2D_DrawEllipseSolid(mxp - 9, 27, 0, 18, 18, C2D_Color32(0xE8, 0xEE, 0xFF, 255));
@@ -728,10 +736,11 @@ static bool play_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 	LightLock_Init(&lock);
 	memset(bubbles, 0, sizeof bubbles); nblocks = nremotes = qn = nchat_new = 0; pry = 0; vy = 0; grounded = false; moving = 0; running = true; want_offline = false;
 	world_build(&world, cur_game.world, cur_game.seed);                         // mundo base (plaza, carrera...) igual que en la web
+	g_tod = -1;
 	g_skymode = !strcmp(cur_game.sky, "dawn") ? 1 : !strcmp(cur_game.sky, "sunset") ? 2 : !strcmp(cur_game.sky, "night") ? 3 : !strcmp(cur_game.sky, "space") ? 4 : 0;
 	if (!cur_game.sky[0] && cur_game.hour >= 0) {                              // config.time: hora del dia (0 = sigue la hora real de la consola)
 		float hh = cur_game.hour; if (hh == 0) { time_t tt = time(NULL); struct tm *lt = localtime(&tt); hh = lt ? lt->tm_hour + lt->tm_min / 60.0f : 12; }
-		g_skymode = (hh < 5 || hh >= 21) ? 3 : hh < 8 ? 1 : (hh >= 17.5f ? 2 : 0);
+		g_skymode = (hh < 5 || hh >= 21) ? 3 : hh < 8 ? 1 : (hh >= 17.5f ? 2 : 0); g_tod = hh;
 	}
 	if (cur_game.has_spawn) { world.spawn[0] = cur_game.spawn[0]; world.spawn[1] = cur_game.spawn[1]; world.spawn[2] = cur_game.spawn[2]; px = world.spawn[0]; py = world.spawn[1]; pz = world.spawn[2]; }      // config.spawn
 	nparts = 0; nuitexts = 0;
@@ -869,7 +878,7 @@ static bool play_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 		vy -= (cur_game.gravity > 1 ? cur_game.gravity : 24) * dt; float ny = py + vy * dt; grounded = false;
 		if (body_hits(px, ny, pz)) { if (vy < -9.0f) { fx_burst(px, py + 0.1f, pz, C2D_Color32(0xD8, 0xD8, 0xD0, 255), 6, 2.2f); sfx_play(SFX_LAND); } if (vy < 0) grounded = true; vy = 0; }
 		else py = ny;
-		fx_step(dt);
+		fx_step(dt); if (cur_game.hour == 0 && g_tod >= 0) { g_tod += dt / 3600.0f; if (g_tod >= 24) g_tod -= 24; }
 		if (world.floor && py < 0) { if (vy < -9.0f) { fx_burst(px, 0.1f, pz, C2D_Color32(0xD8, 0xD8, 0xD0, 255), 6, 2.2f); sfx_play(SFX_LAND); } py = 0; vy = 0; grounded = true; }
 		if (!world.floor && py < world.void_y) {                              // caíste al vacío: vuelves al último punto de control
 			px = rsp_x; py = rsp_y; pz = rsp_z; vy = 0; cx_ = px; cy_ = py + 1; cz_ = pz;
@@ -962,7 +971,7 @@ void game_preview(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 	{ const char *pw = getenv("BLOCKSY_PREVIEW_WORLD"); world_build(&world, pw ? pw : "", 0); can_build = true; ui_build_ui = true; }
 	snprintf(sess.username, sizeof sess.username, "IkerPlays"); sess.color = 0xFF439FFF; snprintf(cur_game.name, sizeof cur_game.name, "Spawn Plaza");
 	nl = 0;
-	{ const char *sk = getenv("BLOCKSY_PREVIEW_SKY"); g_skymode = sk ? atoi(sk) : 0; }
+	{ const char *sk = getenv("BLOCKSY_PREVIEW_SKY"); g_skymode = sk ? atoi(sk) : 0; } { const char *td = getenv("BLOCKSY_PREVIEW_TOD"); g_tod = td ? (float)atof(td) : -1; }
 	if (getenv("BLOCKSY_PREVIEW_PARTS")) snprintf(g_my_hat, sizeof g_my_hat, "hat_cap||||pet_slime|");
 	if (getenv("BLOCKSY_PREVIEW_PARTS")) { snprintf(bubbles[0].name, sizeof bubbles[0].name, "%s", sess.username); snprintf(bubbles[0].text, sizeof bubbles[0].text, "Hola a todos!"); bubbles[0].until = 25000; }
 	nparts = 0;
