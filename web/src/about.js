@@ -32,12 +32,16 @@ const NEWS = { es: [
   'La 3DS dibuja las piezas del Estudio, cielos y horas del día, y muestra tu clan, temporada y próxima quedada.',
   'Actualizador de la 3DS nuevo: descargas verificadas, reanudables y con vuelta atrás.',
   'Seis logros nuevos y clanes, quedadas, temporadas y moderación.',
+  'Plantillas nuevas: Lava ascendente, Fiebre de monedas y Contrarreloj.',
+  'La 3DS estrena partículas de bloques, radar de jugadores, cielo continuo y 20 opciones nuevas en Ajustes.',
 ], en: [
   'New templates: Memory, Zones, Treasure hunt, Tower, Maze, Reflexes, Crumbling floor and Quiz, with filters and search.',
   'Studio: castle, dome, spiral staircase and pillar; a warning above 160 parts (the 3DS limit).',
   'The 3DS draws Studio parts, skies and times of day, and shows your clan, season and next meetup.',
   'New 3DS updater: verified, resumable downloads with rollback.',
   'Six new achievements, plus clans, meetups, seasons and moderation.',
+  'New templates: Rising lava, Coin rush and Time trial.',
+  'The 3DS gets block particles, a player radar, a smooth sky and 20 new options in Settings.',
 ] }
 export function whatsNew() { return (NEWS[document.documentElement.lang] ?? NEWS.en).slice() }
 export const isNewVersion = () => { try { return localStorage.getItem(SEEN_KEY) !== APP_VERSION } catch { return false } }

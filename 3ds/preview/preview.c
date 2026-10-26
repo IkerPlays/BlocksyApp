@@ -20,6 +20,8 @@ int main(void) {
 	fprintf(g_out, "SCENE login_busy\n");   ui_preview_login(&top, &bot, 0, 1, v);
 	static const char *names[] = {"home", "discover", "avatar", "friends", "alerts", "shop", "update_", "settings"};
 	for (int p = 0; p < 8; p++) { fprintf(g_out, "SCENE %s\n", names[p]); app_preview(&top, &bot, p, -1, p == 0 ? 1 : 0, v); }
+	fprintf(g_out, "SCENE settings_end\n"); app_preview(&top, &bot, 7, -1, 34, v);
+	fprintf(g_out, "SCENE settings_mid\n"); app_preview(&top, &bot, 7, -1, 24, v);
 	fprintf(g_out, "SCENE update\n"); app_preview(&top, &bot, 6, -1, 0, v);
 	fprintf(g_out, "SCENE shop_missions\n"); app_preview(&top, &bot, 5, -1, 9, v);
 	fprintf(g_out, "SCENE update_downloading\n"); app_preview(&top, &bot, 6, -3, 2, v);

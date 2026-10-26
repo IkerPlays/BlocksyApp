@@ -38,7 +38,13 @@ static World world;                                    // mundo base del juego (
 static bool can_build = true; static float jump_v = 8.6f;
 static float rsp_x, rsp_y, rsp_z;                      // punto de reaparición (último punto de control)
 static struct { u64 start; int cp; bool done; } race;  // carrera: cronómetro, punto de control y meta
-static char big_msg[64]; static u64 big_until;         // mensaje grande sobre la partida (punto de control, meta...)
+static char big_msg[64]; static u64 big_until;
+static Block undo_stack[8]; static int undo_n; static long g_placed_total; static u64 g_game_start; static bool g_run_tog, sel_used_g;      // deshacer (SELECT+Y), contador de bloques puestos, reloj de la partida, correr alternado
+static char prev_names[MAX_PLAYERS][24]; static int prev_n; static u64 toast_until; static char toast_txt[48];      // avisos de quien entra o sale
+static const char *const BLK_ES[12] = {"Blanco", "Rojo", "Naranja", "Verde", "Azul", "Morado", "Amarillo", "Turquesa", "Rosa", "Marron", "Gris", "Celeste"};
+static const char *const BLK_EN[12] = {"White", "Red", "Orange", "Green", "Blue", "Purple", "Yellow", "Teal", "Pink", "Brown", "Gray", "Sky blue"};
+static const char *const BLK_PT[12] = {"Branco", "Vermelho", "Laranja", "Verde", "Azul", "Roxo", "Amarelo", "Turquesa", "Rosa", "Marrom", "Cinza", "Celeste"};
+static const char *blk_name(int k) { int l = app_lang(); k = (k % 12 + 12) % 12; return l == 2 ? BLK_PT[k] : l == 1 ? BLK_EN[k] : BLK_ES[k]; }         // mensaje grande sobre la partida (punto de control, meta...)
 static Remote remotes[MAX_PLAYERS]; static int nremotes;
 typedef struct { char name[24], text[44]; u64 until; } Bubble; static Bubble bubbles[8];     // globos de chat sobre la cabeza (5 s)
 static ChatMsg chat_new[8]; static int nchat_new;          // mensajes nuevos que la interfaz todavía no ha mostrado
@@ -480,7 +486,7 @@ static void render_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 	int nd = 0; float sx, sy, d;
 	for (int i = 0; i < nl; i++) if (project(local[i].x + .5f, local[i].y + .5f, local[i].z + .5f, &sx, &sy, &d) && d < fog_far + 6)
 		draw_list[nd++] = (Box){d, local[i].x, local[i].y, local[i].z, 1, 1, fogged(shade(local[i].kind < 0 ? local[i].color : PALETTE[local[i].kind % NPALETTE], dim * (((local[i].x * 7 + local[i].y * 13 + local[i].z * 5) & 3) == 0 ? 0.93f : 1.0f)), NIGHT_D(local[i].x + .5f, local[i].z + .5f, d)), -1};
-	if (!night && skm < 3 && world.floor && (world.type == 0 || world.type == 1) && !nparts) {              // flores y matas de adorno (solo se ven: no estorban ni se sincronizan)
+	if (app_opt(OPT_DECOR) && !night && skm < 3 && world.floor && (world.type == 0 || world.type == 1) && !nparts) {              // flores y matas de adorno (solo se ven: no estorban ni se sincronizan)
 		static const u32 FLOWER[4] = {0xFF3C4CE0, 0xFF3CC8F5, 0xFFF5F5F5, 0xFFD8609B};
 		int bx = (int)floorf(px), bz = (int)floorf(pz), rr = 6 + lvl;
 		for (int gx = -rr; gx <= rr; gx++) for (int gz = -rr; gz <= rr; gz++) {
@@ -606,7 +612,7 @@ static void render_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 	// sombras redondas bajo los jugadores
 	for (int i = -1; i < nr; i++) {
 		float ex = i < 0 ? px : rem[i].x, ey = i < 0 ? py : rem[i].y, ez = i < 0 ? pz : rem[i].z; float gx, gy, gd;
-		if (world.floor && !night && project(ex, floorf(ey) + 0.02f, ez, &gx, &gy, &gd) && gd < fog_far) { float r = 120.0f / (gd + 2.0f); C2D_DrawEllipseSolid(gx - r, gy - r * 0.35f, 0, r * 2, r * 0.7f, C2D_Color32(0, 0, 0, 70)); }
+		if (app_opt(OPT_SHADOWS) && world.floor && !night && project(ex, floorf(ey) + 0.02f, ez, &gx, &gy, &gd) && gd < fog_far) { float r = 120.0f / (gd + 2.0f); C2D_DrawEllipseSolid(gx - r, gy - r * 0.35f, 0, r * 2, r * 0.7f, C2D_Color32(0, 0, 0, 70)); }
 	}
 	// citro2d tiene un límite de objetos por frame: se descartan los más lejanos
 	int first = nd > cap ? nd - cap : 0;
@@ -627,14 +633,15 @@ static void render_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 		else { int j = b->av - 1; rem_style[j] = av_style(rem[j].name, rem[j].color); av_apply_loadout(&rem_style[j], rem[j].hat); av_draw(&cam, rem[j].x, rem[j].y, rem[j].z, rem[j].ry, &rem_style[j], &rem_pose[j], fog_near, fog_far); }
 	}
 	// contorno: blanco = lo que romperá Y; del color elegido = dónde pondrá X
-	if (can_build && break_y >= 0) draw_outline(tx, break_y, tz, C2D_Color32(255, 255, 255, 255));
+	if (!app_opt(OPT_OUTLINE)) {}
+	else if (can_build && break_y >= 0) draw_outline(tx, break_y, tz, C2D_Color32(255, 255, 255, 255));
 	else if (can_build && place_y >= 0 && !overlap) draw_outline(tx, place_y, tz, PALETTE[kind]);
 	// nombres sobre los jugadores
-	for (int i = 0; i < nr; i++) if (project(rem[i].x, rem[i].y + 2.05f, rem[i].z, &sx, &sy, &d) && d < 26) {
+	for (int i = 0; i < nr && app_opt(OPT_NAMETAGS); i++) if (project(rem[i].x, rem[i].y + 2.05f, rem[i].z, &sx, &sy, &d) && d < 26) {
 		ui_text(sx + 1, sy - 11, 0.34f, C2D_Color32(0, 0, 0, 200), C2D_AlignCenter, rem[i].name);
 		ui_text(sx, sy - 12, 0.34f, C2D_Color32(255, 255, 255, 255), C2D_AlignCenter, rem[i].name);
 	}
-	for (int b = 0; b < 8; b++) if (bubbles[b].until > now && bubbles[b].name[0]) {              // globos de chat sobre quien habla
+	for (int b = 0; b < 8; b++) if (app_opt(OPT_BUBBLES) && bubbles[b].until > now && bubbles[b].name[0]) {              // globos de chat sobre quien habla
 		float bx = 0, by = 0, bz = 0; bool have = false;
 		if (!strcmp(bubbles[b].name, sess.username)) { bx = px; by = py; bz = pz; have = true; }
 		else for (int i = 0; i < nr; i++) if (!strcmp(rem[i].name, bubbles[b].name)) { bx = rem[i].x; by = rem[i].y; bz = rem[i].z; have = true; break; }
@@ -647,8 +654,13 @@ static void render_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 		float sc = o->size / 28.0f * 0.42f; if (sc < 0.3f) sc = 0.3f; if (sc > 1.0f) sc = 1.0f;
 		float tx_ = o->x * 4.0f, ty_ = o->y * 2.4f; ui_text(tx_ + 1, ty_ + 1, sc, C2D_Color32(0, 0, 0, 200), 0, out); ui_text(tx_, ty_, sc, o->color, 0, out);
 	}
-	if (app_coords_on()) { char cb[48]; snprintf(cb, sizeof cb, "%.1f  %.1f  %.1f", px, py, pz); ui_text(392, 38, 0.34f, COL_TEXT, C2D_AlignRight, cb); }
-	if (app_fps_on() && g_ft_avg > 1) { char fp[24]; snprintf(fp, sizeof fp, "%d FPS", (int)(1000.0f / g_ft_avg + 0.5f)); ui_text(392, 226, 0.34f, COL_TEXT, C2D_AlignRight, fp); }
+	if (app_coords_on()) { char cb[48]; snprintf(cb, sizeof cb, "%.1f  %.1f  %.1f  (%.0f m)", px, py, pz, hypotf(px - world.spawn[0], pz - world.spawn[2])); ui_text(392, 38, 0.34f, COL_TEXT, C2D_AlignRight, cb); }
+	if (app_fps_on() && g_ft_avg > 1) { char fp[24]; int fv = (int)(1000.0f / g_ft_avg + 0.5f); snprintf(fp, sizeof fp, "%d FPS", fv); ui_text(392, 226, 0.34f, fv >= 24 ? C2D_Color32(0x7A, 0xE0, 0x7A, 255) : fv >= 15 ? C2D_Color32(0xFF, 0xD3, 0x4D, 255) : C2D_Color32(0xFF, 0x6B, 0x6B, 255), C2D_AlignRight, fp); }
+	if (app_opt(OPT_TIMER) && g_game_start) { unsigned sec = (unsigned)((now - g_game_start) / 1000); char tb[24]; snprintf(tb, sizeof tb, "%u:%02u:%02u", sec / 3600, sec / 60 % 60, sec % 60); ui_text(392, 214, 0.34f, COL_MUTED, C2D_AlignRight, tb); }
+	if (app_opt(OPT_WIFI)) { int ws = osGetWifiStrength(); for (int b = 0; b < 3; b++) ui_rect(8 + b * 5, 38 - b * 3 - 3 + 6, 3, 3 + b * 3, b < ws ? C2D_Color32(0x7A, 0xE0, 0x7A, 255) : C2D_Color32(255, 255, 255, 60)); }
+	if (app_opt(OPT_CLOCK)) { time_t tt = time(NULL); struct tm *lt = localtime(&tt); if (lt) { char cl[16]; snprintf(cl, sizeof cl, "%02d:%02d", lt->tm_hour, lt->tm_min); ui_text(30, 33, 0.34f, COL_MUTED, 0, cl); } }
+	if (app_opt(OPT_BLOCKCNT)) { char bc[40]; snprintf(bc, sizeof bc, "%s %ld", app_lang() == 1 ? "Placed" : app_lang() == 2 ? "Postos" : "Puestos", g_placed_total); ui_text(392, 202, 0.34f, COL_MUTED, C2D_AlignRight, bc); }
+	if (toast_until > now && toast_txt[0]) { float tw = ui_text_width(toast_txt, 0.4f) + 20; ui_rrect(200 - tw / 2, 150, tw, 20, 8, C2D_Color32(0, 0, 0, 160)); ui_text(200, 152, 0.4f, COL_TEXT, C2D_AlignCenter, toast_txt); }
 	if (night) {                                                                              // sombra de miedo cuando el monstruo esta cerca
 		float fear = hr.stun > 0 ? 0.8f : fmaxf(0, 1 - hr.dist / 22); int a = (int)(fear * 80);
 		if (a > 4) { ui_rect(0, 0, 400, 240, C2D_Color32(0x60, 0, 0, a / 2)); ui_rect(0, 0, 40, 240, C2D_Color32(0x40, 0, 0, a)); ui_rect(360, 0, 40, 240, C2D_Color32(0x40, 0, 0, a)); ui_rect(0, 0, 400, 24, C2D_Color32(0x40, 0, 0, a)); ui_rect(0, 216, 400, 24, C2D_Color32(0x40, 0, 0, a)); }
@@ -672,16 +684,16 @@ static void render_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 		float k2 = puff[i].life / 0.5f, r2 = (1 - k2) * 7 + 2; C2D_DrawEllipseSolid(sx2 - r2, sy2 - r2 * 0.5f, 0, r2 * 2, r2, C2D_Color32(0xE6, 0xE6, 0xE6, (u8)(150 * k2)));
 	}
 	if (!photo_mode) {
-	{                                                                           // brujula: rumbo de la camara con N E S O
+	if (app_opt(OPT_COMPASS)) {                                                 // brujula: rumbo de la camara con N E S O
 		float hd = fmodf(-cam_yaw * 180.0f / (float)M_PI + 3600.0f, 360.0f); static const char *const CL[8] = {"N", "NE", "E", "SE", "S", "SO", "O", "NO"};
 		ui_rrect(8, 8, 150, 20, 8, C2D_Color32(0, 0, 0, 130));
 		for (int k = -3; k <= 3; k++) { float a = floorf(hd / 45.0f + 0.5f) * 45.0f + k * 45.0f, off = a - hd, x = 83 + off * 0.55f; if (x < 14 || x > 152) continue; int idx = ((int)roundf(a / 45.0f) % 8 + 8) % 8; ui_text(x, 11, 0.4f, idx == 0 ? C2D_Color32(0xFF, 0x6B, 0x6B, 255) : COL_TEXT, C2D_AlignCenter, CL[idx]); }
 		ui_rect(83, 8, 2, 4, C2D_Color32(0xFF, 0xD3, 0x4D, 255));
 	}
 	char pc[32]; if (g_ping > 0) snprintf(pc, sizeof pc, "%d jugando  %d ms", nr + 1, g_ping); else snprintf(pc, sizeof pc, "%d jugando", nr + 1);
-	float pw = ui_text_width(pc, 0.4f) + 16; ui_rrect(392 - pw, 8, pw, 22, 8, C2D_Color32(0, 0, 0, 130)); ui_text(392 - pw / 2, 11, 0.4f, COL_TEXT, C2D_AlignCenter, pc);
+	if (app_opt(OPT_PILL)) { float pw = ui_text_width(pc, 0.4f) + 16; ui_rrect(392 - pw, 8, pw, 22, 8, C2D_Color32(0, 0, 0, 130)); ui_text(392 - pw / 2, 11, 0.4f, g_ping > 0 && g_ping > 400 ? C2D_Color32(0xFF, 0x6B, 0x6B, 255) : g_ping > 200 ? C2D_Color32(0xFF, 0xD3, 0x4D, 255) : COL_TEXT, C2D_AlignCenter, pc); }
 	if (nr > 0 && app_radar_on()) {                                                               // radar: jugadores cercanos (arriba = hacia donde mira la camara)
-		const float cx = 364, cy = 64, rr = 30, range = 24;
+		static const float RR[3] = {12, 24, 48}; const float cx = 364, cy = 64, rr = 30, range = RR[app_opt(OPT_RADARR) % 3];
 		C2D_DrawCircleSolid(cx, cy, 0, rr + 2, C2D_Color32(0, 0, 0, 90)); C2D_DrawCircleSolid(cx, cy, 0, rr, C2D_Color32(20, 28, 48, 120));
 		ui_rect(cx - 0.5f, cy - rr + 3, 1, rr * 2 - 6, C2D_Color32(255, 255, 255, 28)); ui_rect(cx - rr + 3, cy - 0.5f, rr * 2 - 6, 1, C2D_Color32(255, 255, 255, 28));
 		float fdx2 = -sinf(cam_yaw), fdz2 = -cosf(cam_yaw);
@@ -751,7 +763,7 @@ static bool play_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 	px = world.spawn[0]; py = world.spawn[1]; pz = world.spawn[2]; rsp_x = px; rsp_y = py; rsp_z = pz;
 	can_build = cur_game.allow_build >= 0 ? cur_game.allow_build > 0 : !strcmp(cur_game.mode, "build");   // solo los juegos de bloques dejan construir
 	ui_build_ui = can_build;
-	jump_v = cur_game.jump > 1 ? cur_game.jump : 8.6f; memset(&race, 0, sizeof race); big_msg[0] = 0; big_until = 0; photo_mode = false; memset(puff, 0, sizeof puff);
+	g_game_start = osGetTime(); g_placed_total = 0; undo_n = 0; g_run_tog = false; prev_n = -1; toast_until = 0; jump_v = cur_game.jump > 1 ? cur_game.jump : 8.6f; memset(&race, 0, sizeof race); big_msg[0] = 0; big_until = 0; photo_mode = false; memset(puff, 0, sizeof puff);
 	if (cur_game.welcome[0]) {                                                  // mensaje de bienvenida del creador (como en la web), cortado en una palabra para que quepa
 		snprintf(big_msg, sizeof big_msg, "%s", cur_game.welcome);
 		if (strlen(big_msg) > 38) { size_t k = 38; while (k > 10 && big_msg[k] != ' ') k--; if (k <= 10) k = 38; while (k > 0 && ((unsigned char)big_msg[k] & 0xC0) == 0x80) k--; big_msg[k] = 0; }
@@ -780,18 +792,21 @@ static bool play_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 
 		// ---- cámara: L/R y C-stick (New 3DS / 2DS XL); D-pad arriba/abajo = zoom ----
 		circlePosition cs; hidCstickRead(&cs);
-		if (held & KEY_L) cam_yaw -= 2.4f * dt;
-		if (held & KEY_R) cam_yaw += 2.4f * dt;
-		if (abs(cs.dx) > 20) cam_yaw += cs.dx / 156.0f * 2.6f * dt;
-		if (abs(cs.dy) > 20) cam_pitch = fminf(1.4f, fmaxf(0.05f, cam_pitch - cs.dy / 156.0f * 1.6f * dt));
+		float cspd = app_opt(OPT_CAMSPD) == 0 ? 0.6f : app_opt(OPT_CAMSPD) == 2 ? 1.5f : 1.0f, cinv = app_opt(OPT_INVERT) ? -1.0f : 1.0f;      // ajustes: velocidad e inversion de la camara
+		if (held & KEY_L) cam_yaw -= 2.4f * cspd * dt;
+		if (held & KEY_R) cam_yaw += 2.4f * cspd * dt;
+		if (abs(cs.dx) > 20) cam_yaw += cs.dx / 156.0f * 2.6f * cspd * dt;
+		if (abs(cs.dy) > 20) cam_pitch = fminf(1.4f, fmaxf(0.05f, cam_pitch - cinv * cs.dy / 156.0f * 1.6f * cspd * dt));
 		if (held & KEY_DUP) cam_dist = fmaxf(4, cam_dist - 6 * dt);
 		if (held & KEY_DDOWN) cam_dist = fminf(20, cam_dist + 6 * dt);
 		if (can_build && (down & KEY_DRIGHT)) kind = (kind + 1) % NPALETTE;
 		if (can_build && (down & KEY_DLEFT)) kind = (kind + NPALETTE - 1) % NPALETTE;
+		if (can_build && (down & (KEY_DRIGHT | KEY_DLEFT)) && app_opt(OPT_BLOCKNAME)) { snprintf(toast_txt, sizeof toast_txt, "%s (%d/%d)", blk_name(kind), kind + 1, NPALETTE); toast_until = now + 1100; }
 		if (((held & KEY_L) && (held & KEY_R)) && (down & (KEY_L | KEY_R))) { photo_mode = !photo_mode; snprintf(big_msg, sizeof big_msg, "%s", photo_mode ? "Modo foto (L+R)" : "Modo foto off"); big_until = now + 1200; }
 		{                                                                        // SELECT: toque = chat; mantener 1 s = volver al punto de inicio
 			static u64 sel_at; static bool sel_used;
 			if (down & KEY_SELECT) { sel_at = now; sel_used = false; }
+			if (sel_used_g) { sel_used = true; sel_used_g = false; }
 			if ((held & KEY_SELECT) && !sel_used && now - sel_at >= 900) { sel_used = true; px = rsp_x; py = rsp_y; pz = rsp_z; vy = 0; cx_ = px; cy_ = py + 1; cz_ = pz; snprintf(big_msg, sizeof big_msg, "Al punto de inicio"); big_until = now + 1200; }
 			if ((hidKeysUp() & KEY_SELECT) && !sel_used) do_chat();
 		}
@@ -825,7 +840,12 @@ static bool play_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 		memcpy(local, blocks, sizeof(Block) * nblocks); nl = nblocks;
 		for (int i = 0; i < world.ncells && nl < MAX_LOCAL; i++) local[nl++] = world.cells[i];      // bloques fijos del mundo
 		memcpy(rem, remotes, sizeof(Remote) * nremotes); nr = nremotes;
-		if (nchat_new) sfx_play(SFX_NOTIFY);
+		if (prev_n >= 0) {                                                                                    // avisos: quien entra o sale de la partida
+			for (int i = 0; i < nr; i++) { bool had = false; for (int j = 0; j < prev_n; j++) if (!strcmp(prev_names[j], rem[i].name)) { had = true; break; } if (!had) { snprintf(toast_txt, sizeof toast_txt, "%.20s %s", rem[i].name, app_lang() == 1 ? "joined" : app_lang() == 2 ? "entrou" : "entro"); toast_until = now + 2200; } }
+			for (int j = 0; j < prev_n; j++) { bool still = false; for (int i = 0; i < nr; i++) if (!strcmp(prev_names[j], rem[i].name)) { still = true; break; } if (!still) { snprintf(toast_txt, sizeof toast_txt, "%.20s %s", prev_names[j], app_lang() == 1 ? "left" : app_lang() == 2 ? "saiu" : "salio"); toast_until = now + 2200; } }
+		}
+		prev_n = nr < MAX_PLAYERS ? nr : MAX_PLAYERS; for (int i = 0; i < prev_n; i++) snprintf(prev_names[i], sizeof prev_names[i], "%s", rem[i].name);
+		if (nchat_new && app_opt(OPT_CHATSND)) sfx_play(SFX_NOTIFY);
 		for (int i = 0; i < nchat_new; i++) {                       // mensajes nuevos -> lista visible 10 s
 			{ int slot = -1, oldest = 0; for (int b = 0; b < 8; b++) { if (!strcmp(bubbles[b].name, chat_new[i].name)) { slot = b; break; } if (bubbles[b].until < bubbles[oldest].until) oldest = b; } if (slot < 0) slot = oldest;
 			  snprintf(bubbles[slot].name, sizeof bubbles[slot].name, "%s", chat_new[i].name); snprintf(bubbles[slot].text, sizeof bubbles[slot].text, "%s", chat_new[i].text); if (strlen(chat_new[i].text) > 40) { bubbles[slot].text[38] = '.'; bubbles[slot].text[39] = '.'; bubbles[slot].text[40] = 0; } bubbles[slot].until = now + 5000; }
@@ -860,7 +880,8 @@ static bool play_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 		float mz = -cosf(cam_yaw) * f - sinf(cam_yaw) * s;
 		float len = sqrtf(mx * mx + mz * mz);
 		if (len > 0.001f) { mx /= len; mz /= len; }
-		float speed = ((held & KEY_B) ? 9.0f : 6.0f) * (cur_game.speed > 0.5f ? cur_game.speed / 6.0f : 1.0f) * mag * (hr.on && hr.stun > 0 ? 0 : 1);
+		if (app_opt(OPT_RUNTOGGLE) && (down & KEY_B)) g_run_tog = !g_run_tog; bool run_now = app_opt(OPT_RUNTOGGLE) ? g_run_tog : (held & KEY_B) != 0;
+		float speed = (run_now ? 9.0f : 6.0f) * (cur_game.speed > 0.5f ? cur_game.speed / 6.0f : 1.0f) * mag * (hr.on && hr.stun > 0 ? 0 : 1);
 		moving = mag > 0.05f;
 		if (moving) pry = atan2f(mx, mz);
 		float nx = px + mx * speed * dt, nz = pz + mz * speed * dt;
@@ -868,9 +889,10 @@ static bool play_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 		else if (grounded && !body_hits(nx, py + 1.01f, pz)) { px = nx; py += 1.01f; }
 		if (!body_hits(px, py, nz)) pz = nz;
 		else if (grounded && !body_hits(px, py + 1.01f, nz)) { pz = nz; py += 1.01f; }
+		{ static float step_t; step_t -= dt; if (moving && grounded && step_t <= 0) { step_t = run_now ? 0.24f : 0.36f; if (app_opt(OPT_STEPSND)) sfx_play(SFX_STEP); } }
 		if (app_steps_on()) {                                                  // polvo al caminar (cada 0.28 s)
 			for (int i = 0; i < 10; i++) if (puff[i].life > 0) puff[i].life -= dt;
-			puff_t -= dt; if (moving && grounded && puff_t <= 0) { puff_t = (held & KEY_B) ? 0.18f : 0.28f; for (int i = 0; i < 10; i++) if (puff[i].life <= 0) { puff[i].x = px; puff[i].y = py + 0.05f; puff[i].z = pz; puff[i].life = 0.5f; break; } }
+			puff_t -= dt; if (moving && grounded && puff_t <= 0) { puff_t = run_now ? 0.18f : 0.28f; for (int i = 0; i < 10; i++) if (puff[i].life <= 0) { puff[i].x = px; puff[i].y = py + 0.05f; puff[i].z = pz; puff[i].life = 0.5f; break; } }
 		}
 		if (grounded) jumps_left = 1;
 		if ((down & KEY_A) && grounded) { vy = jump_v; grounded = false; sfx_play(SFX_JUMP); }
@@ -908,11 +930,29 @@ static bool play_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 		for (int dy = 0; dy < 4 && place_y < 0; dy++) if (!solid_at(tx, ty + dy, tz)) place_y = ty + dy;      // primer hueco libre (apila si hay bloque)
 		for (int dy = 0; dy < 3 && break_y < 0; dy++) if (breakable(tx, ty + dy, tz)) break_y = ty + dy;        // el bloque más bajo (solo los de jugadores)
 		overlap = place_y >= 0 && fabsf(px - (tx + .5f)) < 0.8f && fabsf(pz - (tz + .5f)) < 0.8f && py < place_y + 1 && py + 1.8f > place_y;
-		if (can_build && (down & KEY_X) && place_y >= 0 && !overlap && nblocks < MAX_BLOCKS) {
+		bool sel_held = (held & KEY_SELECT) != 0;                                                           // SELECT + X = elegir el bloque que apuntas; SELECT + Y = deshacer
+		static u64 xh_at, yh_at, rep_at;
+		if (down & KEY_X) xh_at = now; if (down & KEY_Y) yh_at = now;
+		bool rep_ok = app_opt(OPT_REPEAT) && now - rep_at >= 240;                                           // mantener X o Y repite cada 0,24 s tras 0,4 s
+		bool x_go = (down & KEY_X) || (rep_ok && (held & KEY_X) && now - xh_at >= 400), y_go = (down & KEY_Y) || (rep_ok && (held & KEY_Y) && now - yh_at >= 400);
+		if (sel_held && (down & KEY_X) && can_build && break_y >= 0) {
+			int pk = -1; LightLock_Lock(&lock); for (int i = 0; i < nblocks; i++) if (blocks[i].x == tx && blocks[i].y == break_y && blocks[i].z == tz) { pk = blocks[i].kind; break; } LightLock_Unlock(&lock);
+			if (pk >= 0) { kind = pk % NPALETTE; snprintf(toast_txt, sizeof toast_txt, "%s (%d/%d)", blk_name(kind), kind + 1, NPALETTE); toast_until = now + 1100; sfx_play(SFX_CLICK); }
+			x_go = y_go = false; sel_used_g = true;
+		}
+		if (sel_held && (down & KEY_Y) && can_build) {
+			if (undo_n > 0) { Block ub = undo_stack[--undo_n]; push_action((Action){.type = BREAK, .x = ub.x, .y = ub.y, .z = ub.z}); sfx_play(SFX_BREAK);
+				LightLock_Lock(&lock); for (int i = 0; i < nblocks; i++) if (blocks[i].x == ub.x && blocks[i].y == ub.y && blocks[i].z == ub.z) { fx_burst(ub.x + .5f, ub.y + .5f, ub.z + .5f, PALETTE[ub.kind % NPALETTE], 8, 2.5f); blocks[i] = blocks[--nblocks]; break; } LightLock_Unlock(&lock);
+				snprintf(toast_txt, sizeof toast_txt, "%s", app_lang() == 1 ? "Undone" : app_lang() == 2 ? "Desfeito" : "Deshecho"); toast_until = now + 900; }
+			x_go = y_go = false; sel_used_g = true;
+		}
+		if (x_go || y_go) rep_at = now;
+		if (can_build && x_go && place_y >= 0 && !overlap && nblocks < MAX_BLOCKS) {
 			push_action((Action){.type = PLACE, .x = tx, .y = place_y, .z = tz, .kind = kind}); sfx_play(SFX_PLACE); fx_burst(tx + .5f, place_y + .5f, tz + .5f, PALETTE[kind % NPALETTE], 6, 2.0f);
 			LightLock_Lock(&lock); if (nblocks < MAX_BLOCKS) blocks[nblocks++] = (Block){tx, place_y, tz, kind}; LightLock_Unlock(&lock);
+			g_placed_total++; if (undo_n == 8) { memmove(undo_stack, undo_stack + 1, sizeof(Block) * 7); undo_n = 7; } undo_stack[undo_n++] = (Block){tx, place_y, tz, kind};
 		}
-		if (can_build && (down & KEY_Y) && break_y >= 0) {
+		if (can_build && y_go && break_y >= 0) {
 			push_action((Action){.type = BREAK, .x = tx, .y = break_y, .z = tz}); sfx_play(SFX_BREAK);
 			LightLock_Lock(&lock);
 			for (int i = 0; i < nblocks; i++) if (blocks[i].x == tx && blocks[i].y == break_y && blocks[i].z == tz) { fx_burst(tx + .5f, break_y + .5f, tz + .5f, PALETTE[blocks[i].kind % NPALETTE], 10, 3.0f); blocks[i] = blocks[--nblocks]; break; }

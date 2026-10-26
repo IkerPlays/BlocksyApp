@@ -11,6 +11,7 @@
 #include <time.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 #include <sys/stat.h>
 
 static int s_lang;   // 0 español, 1 English, 2 Portugues (ajuste guardado)
@@ -27,6 +28,7 @@ int app_sfx_on(void) { return s_sfx; }
 int app_fps_on(void) { return s_fps; }
 int app_coords_on(void) { return s_coords; }
 int app_radar_on(void) { return s_radar; }
+int app_lang(void) { return s_lang; }
 int app_fx_on(void) { return s_fxp; }
 int app_forest_level(void) { return s_forest; }
 int app_steps_on(void) { return s_steps; }
@@ -216,6 +218,38 @@ static const char *tr2(const char *es, const char *en) {
 	return s_lang ? en : es;
 }
 static const char *const LANG_NAME[3] = {"Espanol", "English", "Portugues"};
+// Opciones de juego (Ajustes): cada una tiene un id (enum en app.h), clave de guardado, textos es/en/pt y 2 o 3 valores
+typedef struct { const char *key, *es, *en, *pt; int n, def; const char *ves[3], *ven[3]; } OptDef;
+static const OptDef OPTS[NOPT] = {
+	[OPT_NAMETAGS]  = {"nametags", "Nombres sobre jugadores", "Player name tags", "Nomes sobre jogadores", 2, 1},
+	[OPT_BUBBLES]   = {"bubbles", "Globos de chat", "Chat bubbles", "Baloes de chat", 2, 1},
+	[OPT_INVERT]    = {"invert", "Invertir camara vertical", "Invert camera Y", "Inverter camera vertical", 2, 0},
+	[OPT_CAMSPD]    = {"camspd", "Velocidad de camara", "Camera speed", "Velocidade da camera", 3, 1, {"Lenta", "Normal", "Rapida"}, {"Slow", "Normal", "Fast"}},
+	[OPT_RADARR]    = {"radarr", "Alcance del radar", "Radar range", "Alcance do radar", 3, 1, {"12 m", "24 m", "48 m"}, {"12 m", "24 m", "48 m"}},
+	[OPT_COMPASS]   = {"compass", "Brujula", "Compass", "Bussola", 2, 1},
+	[OPT_PILL]      = {"pill", "Contador de jugadores", "Player counter", "Contador de jogadores", 2, 1},
+	[OPT_OUTLINE]   = {"outline", "Contorno del bloque", "Block outline", "Contorno do bloco", 2, 1},
+	[OPT_SHADOWS]   = {"shadows", "Sombras bajo jugadores", "Player shadows", "Sombras sob jogadores", 2, 1},
+	[OPT_DECOR]     = {"decor", "Flores y adornos", "Flowers and decor", "Flores e enfeites", 2, 1},
+	[OPT_STEPSND]   = {"stepsnd", "Sonido de pasos", "Footstep sounds", "Som de passos", 2, 0},
+	[OPT_CHATSND]   = {"chatsnd", "Sonido de chat", "Chat sound", "Som do chat", 2, 1},
+	[OPT_TIMER]     = {"timer", "Reloj de la partida", "Session clock", "Relogio da partida", 2, 0},
+	[OPT_BLOCKCNT]  = {"blockcnt", "Contador de bloques", "Block counter", "Contador de blocos", 2, 0},
+	[OPT_REPEAT]    = {"repeat", "Repetir al mantener X/Y", "Hold X/Y to repeat", "Repetir ao segurar X/Y", 2, 1},
+	[OPT_BLOCKNAME] = {"blockname", "Nombre del bloque al cambiar", "Block name on switch", "Nome do bloco ao trocar", 2, 1},
+	[OPT_RUNTOGGLE] = {"runtoggle", "Correr con B alternado", "Toggle run with B", "Correr com B alternado", 2, 0},
+	[OPT_WIFI]      = {"wifi", "Senal WiFi en pantalla", "Wi-Fi signal on screen", "Sinal Wi-Fi na tela", 2, 0},
+	[OPT_CLOCK]     = {"clock", "Hora en pantalla", "Clock on screen", "Hora na tela", 2, 0},
+	[OPT_SORT]      = {"sort", "Orden de los juegos", "Game order", "Ordem dos jogos", 3, 0, {"Populares", "Jugadores", "Nombre"}, {"Popular", "Players", "Name"}},
+};
+static int s_opt[NOPT]; static bool s_opt_init;
+static void opt_defaults(void) { if (s_opt_init) return; s_opt_init = true; for (int i = 0; i < NOPT; i++) s_opt[i] = OPTS[i].def; }
+int app_opt(int id) { opt_defaults(); return id >= 0 && id < NOPT ? s_opt[id] : 0; }
+static const char *opt_name(int i) { return s_lang == 2 ? OPTS[i].pt : s_lang ? OPTS[i].en : OPTS[i].es; }
+static const char *opt_val(int i) {
+	if (OPTS[i].n == 2) return s_opt[i] ? (s_lang ? "Yes" : "Si") : "No";
+	return s_lang ? OPTS[i].ven[s_opt[i] % 3] : OPTS[i].ves[s_opt[i] % 3];
+}
 // (Crear juegos es solo de la web y de la cuenta autorizada: no está en la 3DS)
 enum { P_HOME, P_DISCOVER, P_AVATAR, P_FRIENDS, P_NOTIF, P_SHOP, P_UPDATE, P_SETTINGS, NPAGES };
 static const char *const PAGE_NAME_ES[NPAGES] = {"Inicio", "Descubrir", "Avatar", "Amigos", "Avisos", "Tienda", "Actualizar", "Ajustes"};
@@ -427,9 +461,10 @@ static char s_last_game[40]; static int s_dist = 1;
 int app_draw_level(void) { return s_dist; }
 static void load_settings(void) {
 	FILE *f = fopen(SETTINGS_FILE, "r"); if (!f) return;
-	char line[96];
+	char line[96]; opt_defaults();
 	while (fgets(line, sizeof line, f)) {
 		line[strcspn(line, "\r\n")] = 0;
+		if (!strncmp(line, "opt.", 4)) { for (int i = 0; i < NOPT; i++) { size_t kl = strlen(OPTS[i].key); if (!strncmp(line + 4, OPTS[i].key, kl) && line[4 + kl] == '=') { int v = atoi(line + 5 + kl); s_opt[i] = v < 0 || v >= OPTS[i].n ? OPTS[i].def : v; } } continue; }
 		if (!strncmp(line, "last_game=", 10)) snprintf(s_last_game, sizeof s_last_game, "%s", line + 10);
 		else if (!strncmp(line, "dist=", 5)) s_dist = atoi(line + 5) % 3;
 		else if (!strncmp(line, "auto=", 5)) s_auto = atoi(line + 5) != 0;
@@ -454,7 +489,7 @@ static void load_settings(void) {
 static void save_settings(void) {
 	mkdir("sdmc:/3ds", 0777); mkdir("sdmc:/3ds/blocksy", 0777);
 	FILE *f = fopen(SETTINGS_FILE, "w"); if (!f) return;
-	fprintf(f, "last_game=%s\ndist=%d\nauto=%d\nlang=%d\nsync=%d\nnotif=%d\nforest=%d\nsteps=%d\nshowdev=%d\nach=%d\nmusic=%d\nmvol=%d\nsfx=%d\nautoinst=%d\nfps=%d\ncoords=%d\nradar=%d\nfxp=%d\n", s_last_game, s_dist, s_auto, s_lang, s_sync, s_notif_on, s_forest, s_steps, s_showdev, s_ach, app_music_on(), s_mvol, s_sfx, s_autoinst, s_fps, s_coords, s_radar, s_fxp); fclose(f);
+	fprintf(f, "last_game=%s\ndist=%d\nauto=%d\nlang=%d\nsync=%d\nnotif=%d\nforest=%d\nsteps=%d\nshowdev=%d\nach=%d\nmusic=%d\nmvol=%d\nsfx=%d\nautoinst=%d\nfps=%d\ncoords=%d\nradar=%d\nfxp=%d\n", s_last_game, s_dist, s_auto, s_lang, s_sync, s_notif_on, s_forest, s_steps, s_showdev, s_ach, app_music_on(), s_mvol, s_sfx, s_autoinst, s_fps, s_coords, s_radar, s_fxp); for (int i = 0; i < NOPT; i++) fprintf(f, "opt.%s=%d\n", OPTS[i].key, app_opt(i)); fclose(f);
 }
 
 // ---------- estado de la interfaz ----------
@@ -509,6 +544,11 @@ static int build_view(const Ui *u, const Session *s, int *view) {
 			}
 			view[n++] = i;
 		}
+		if (app_opt(OPT_SORT)) for (int i = 1; i < n; i++) {                                      // orden elegido en Ajustes (los favoritos siguen primero)
+			int v = view[i], j = i - 1;
+			while (j >= 0 && (games[view[j]].fav == games[v].fav ? (app_opt(OPT_SORT) == 1 ? games[view[j]].players < games[v].players : strcasecmp(games[view[j]].name, games[v].name) > 0) : games[view[j]].fav < games[v].fav)) { view[j + 1] = view[j]; j--; }
+			view[j + 1] = v;
+		}
 	}
 	return n;
 }
@@ -531,7 +571,7 @@ static int count_rows(const Ui *u, const Session *s) {
 	switch (u->page) {
 	case P_HOME: case P_DISCOVER: return build_view(u, s, view);
 	case P_FRIENDS: return build_people(s, pr);
-	case P_SETTINGS: return 18;
+	case P_SETTINGS: return 19 + NOPT;
 	case P_NOTIF: return nnotifs + 1;
 	case P_SHOP: return nshop + 1 + g_nmis + (g_season ? 1 : 0) + g_nwk;
 	case P_UPDATE: return update_can_rollback() ? 6 : 5;
@@ -1011,7 +1051,7 @@ static void pane(const Ui *u, const Session *s) {
 		break; }
 	case P_SETTINGS: {
 		const char *dn[3] = {tr2("Corta", "Short"), tr2("Media", "Medium"), tr2("Larga", "Long")};
-		char l[18][48]; const char *fn[3] = {tr2("Facil", "Easy"), "Normal", tr2("Dificil", "Hard")};
+		char l[19 + NOPT][48]; const char *fn[3] = {tr2("Facil", "Easy"), "Normal", tr2("Dificil", "Hard")};
 		snprintf(l[0], 48, "%s: %s", tr2("Distancia", "Distance"), dn[s_dist]);
 		snprintf(l[1], 48, "%s: %d ms", tr2("Sincronizacion", "Sync"), SYNC_MS[s_sync]);
 		snprintf(l[2], 48, "%s: %s", tr2("Updates al abrir", "Updates on start"), s_auto ? tr2("Si", "Yes") : "No");
@@ -1029,7 +1069,9 @@ static void pane(const Ui *u, const Session *s) {
 		snprintf(l[15], 48, "%s: %s", tr2("Mostrar coordenadas", "Show coordinates"), s_coords ? tr2("Si", "Yes") : "No");
 		snprintf(l[16], 48, "%s: %s", tr2("Radar de jugadores", "Player radar"), s_radar ? tr2("Si", "Yes") : "No");
 		snprintf(l[17], 48, "%s: %s", tr2("Particulas de bloques", "Block particles"), s_fxp ? tr2("Si", "Yes") : "No");
-		for (int i = 0; i < vis && u->scroll + i < 18; i++) {
+		for (int o = 0; o < NOPT; o++) snprintf(l[18 + o], 48, "%s: %s", opt_name(o), opt_val(o));
+		snprintf(l[18 + NOPT], 48, "%s", tr2("Restaurar opciones de juego", "Reset game options"));
+		for (int i = 0; i < vis && u->scroll + i < 19 + NOPT; i++) {
 			int r = u->scroll + i; float y = LIST_Y + 2 + i * rh;
 			if (r == 1) {                                       // barra deslizante: toca o arrastra para elegir (izquierda = rapido)
 				ui_button(PANE_X, y, PANE_W - 4, rh - 4, COL_PANEL2, u->cur == 1, l[1], 0.38f);
@@ -1348,6 +1390,8 @@ AppResult app_lobby(C3D_RenderTarget *top, C3D_RenderTarget *bot, Session *s, Ga
 				else if (act_row == 15) { s_coords = !s_coords; save_settings(); }
 				else if (act_row == 16) { s_radar = !s_radar; save_settings(); }
 				else if (act_row == 17) { s_fxp = !s_fxp; save_settings(); }
+				else if (act_row == 18 + NOPT) { opt_defaults(); for (int o = 0; o < NOPT; o++) s_opt[o] = OPTS[o].def; save_settings(); toast(&u, tr2("Opciones restauradas", "Options reset")); }
+				else if (act_row >= 18 && act_row < 18 + NOPT) { int o = act_row - 18; opt_defaults(); s_opt[o] = (s_opt[o] + 1) % OPTS[o].n; save_settings(); }
 				break;
 			}
 		}

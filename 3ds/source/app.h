@@ -29,3 +29,8 @@ void app_notif_text(const Notif *n, char *out, size_t sz);   // texto de un avis
 // Solo para generar capturas en el ordenador (ver 3ds/preview)
 void app_preview(C3D_RenderTarget *top, C3D_RenderTarget *bot, int page, int modal, int cursor, const char *version);
 #endif
+
+// Opciones de juego del menu Ajustes (app_opt(OPT_X)): valor 0/1 o 0-2
+enum { OPT_NAMETAGS, OPT_BUBBLES, OPT_INVERT, OPT_CAMSPD, OPT_RADARR, OPT_COMPASS, OPT_PILL, OPT_OUTLINE, OPT_SHADOWS, OPT_DECOR, OPT_STEPSND, OPT_CHATSND, OPT_TIMER, OPT_BLOCKCNT, OPT_REPEAT, OPT_BLOCKNAME, OPT_RUNTOGGLE, OPT_WIFI, OPT_CLOCK, OPT_SORT, NOPT };
+int app_opt(int id);
+int app_lang(void);          // 0 es, 1 en, 2 pt
