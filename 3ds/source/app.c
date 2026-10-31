@@ -1,6 +1,7 @@
 // Lobby de Blocksy para 3DS: réplica de la web (barra superior, menú lateral, Inicio, Descubrir, Avatar, Amigos, Crear, Ajustes).
 // Pantalla superior = la "página" de la web. Pantalla inferior (táctil) = menú lateral + lista/acciones de la página.
 #include "app.h"
+#include "opts.h"
 #include "sfx.h"
 #include "ui.h"
 #include "update.h"
@@ -218,33 +219,8 @@ static const char *tr2(const char *es, const char *en) {
 	return s_lang ? en : es;
 }
 static const char *const LANG_NAME[3] = {"Espanol", "English", "Portugues"};
-// Opciones de juego (Ajustes): cada una tiene un id (enum en app.h), clave de guardado, textos es/en/pt y 2 o 3 valores
-typedef struct { const char *key, *es, *en, *pt; int n, def; const char *ves[3], *ven[3]; } OptDef;
-static const OptDef OPTS[NOPT] = {
-	[OPT_NAMETAGS]  = {"nametags", "Nombres sobre jugadores", "Player name tags", "Nomes sobre jogadores", 2, 1},
-	[OPT_BUBBLES]   = {"bubbles", "Globos de chat", "Chat bubbles", "Baloes de chat", 2, 1},
-	[OPT_INVERT]    = {"invert", "Invertir camara vertical", "Invert camera Y", "Inverter camera vertical", 2, 0},
-	[OPT_CAMSPD]    = {"camspd", "Velocidad de camara", "Camera speed", "Velocidade da camera", 3, 1, {"Lenta", "Normal", "Rapida"}, {"Slow", "Normal", "Fast"}},
-	[OPT_RADARR]    = {"radarr", "Alcance del radar", "Radar range", "Alcance do radar", 3, 1, {"12 m", "24 m", "48 m"}, {"12 m", "24 m", "48 m"}},
-	[OPT_COMPASS]   = {"compass", "Brujula", "Compass", "Bussola", 2, 1},
-	[OPT_PILL]      = {"pill", "Contador de jugadores", "Player counter", "Contador de jogadores", 2, 1},
-	[OPT_OUTLINE]   = {"outline", "Contorno del bloque", "Block outline", "Contorno do bloco", 2, 1},
-	[OPT_SHADOWS]   = {"shadows", "Sombras bajo jugadores", "Player shadows", "Sombras sob jogadores", 2, 1},
-	[OPT_DECOR]     = {"decor", "Flores y adornos", "Flowers and decor", "Flores e enfeites", 2, 1},
-	[OPT_STEPSND]   = {"stepsnd", "Sonido de pasos", "Footstep sounds", "Som de passos", 2, 0},
-	[OPT_CHATSND]   = {"chatsnd", "Sonido de chat", "Chat sound", "Som do chat", 2, 1},
-	[OPT_TIMER]     = {"timer", "Reloj de la partida", "Session clock", "Relogio da partida", 2, 0},
-	[OPT_BLOCKCNT]  = {"blockcnt", "Contador de bloques", "Block counter", "Contador de blocos", 2, 0},
-	[OPT_REPEAT]    = {"repeat", "Repetir al mantener X/Y", "Hold X/Y to repeat", "Repetir ao segurar X/Y", 2, 1},
-	[OPT_BLOCKNAME] = {"blockname", "Nombre del bloque al cambiar", "Block name on switch", "Nome do bloco ao trocar", 2, 1},
-	[OPT_RUNTOGGLE] = {"runtoggle", "Correr con B alternado", "Toggle run with B", "Correr com B alternado", 2, 0},
-	[OPT_WIFI]      = {"wifi", "Senal WiFi en pantalla", "Wi-Fi signal on screen", "Sinal Wi-Fi na tela", 2, 0},
-	[OPT_CLOCK]     = {"clock", "Hora en pantalla", "Clock on screen", "Hora na tela", 2, 0},
-	[OPT_AUTOSIT]   = {"autosit", "Sentarse tras 45 s quieto", "Sit down after 45 s idle", "Sentar apos 45 s parado", 2, 0},
-	[OPT_SORT]      = {"sort", "Orden de los juegos", "Game order", "Ordem dos jogos", 3, 0, {"Populares", "Jugadores", "Nombre"}, {"Popular", "Players", "Name"}},
-};
 static int s_opt[NOPT]; static bool s_opt_init;
-static void opt_defaults(void) { if (s_opt_init) return; s_opt_init = true; for (int i = 0; i < NOPT; i++) s_opt[i] = OPTS[i].def; }
+static void opt_defaults(void) { if (s_opt_init) return; s_opt_init = true; opts_defaults(s_opt); }
 int app_opt(int id) { opt_defaults(); return id >= 0 && id < NOPT ? s_opt[id] : 0; }
 static const char *opt_name(int i) { return s_lang == 2 ? OPTS[i].pt : s_lang ? OPTS[i].en : OPTS[i].es; }
 static const char *opt_val(int i) {
@@ -465,7 +441,7 @@ static void load_settings(void) {
 	char line[96]; opt_defaults();
 	while (fgets(line, sizeof line, f)) {
 		line[strcspn(line, "\r\n")] = 0;
-		if (!strncmp(line, "opt.", 4)) { for (int i = 0; i < NOPT; i++) { size_t kl = strlen(OPTS[i].key); if (!strncmp(line + 4, OPTS[i].key, kl) && line[4 + kl] == '=') { int v = atoi(line + 5 + kl); s_opt[i] = v < 0 || v >= OPTS[i].n ? OPTS[i].def : v; } } continue; }
+		if (opts_parse_line(s_opt, line)) continue;
 		if (!strncmp(line, "last_game=", 10)) snprintf(s_last_game, sizeof s_last_game, "%s", line + 10);
 		else if (!strncmp(line, "dist=", 5)) s_dist = atoi(line + 5) % 3;
 		else if (!strncmp(line, "auto=", 5)) s_auto = atoi(line + 5) != 0;
@@ -490,7 +466,7 @@ static void load_settings(void) {
 static void save_settings(void) {
 	mkdir("sdmc:/3ds", 0777); mkdir("sdmc:/3ds/blocksy", 0777);
 	FILE *f = fopen(SETTINGS_FILE, "w"); if (!f) return;
-	fprintf(f, "last_game=%s\ndist=%d\nauto=%d\nlang=%d\nsync=%d\nnotif=%d\nforest=%d\nsteps=%d\nshowdev=%d\nach=%d\nmusic=%d\nmvol=%d\nsfx=%d\nautoinst=%d\nfps=%d\ncoords=%d\nradar=%d\nfxp=%d\n", s_last_game, s_dist, s_auto, s_lang, s_sync, s_notif_on, s_forest, s_steps, s_showdev, s_ach, app_music_on(), s_mvol, s_sfx, s_autoinst, s_fps, s_coords, s_radar, s_fxp); for (int i = 0; i < NOPT; i++) fprintf(f, "opt.%s=%d\n", OPTS[i].key, app_opt(i)); fclose(f);
+	fprintf(f, "last_game=%s\ndist=%d\nauto=%d\nlang=%d\nsync=%d\nnotif=%d\nforest=%d\nsteps=%d\nshowdev=%d\nach=%d\nmusic=%d\nmvol=%d\nsfx=%d\nautoinst=%d\nfps=%d\ncoords=%d\nradar=%d\nfxp=%d\n", s_last_game, s_dist, s_auto, s_lang, s_sync, s_notif_on, s_forest, s_steps, s_showdev, s_ach, app_music_on(), s_mvol, s_sfx, s_autoinst, s_fps, s_coords, s_radar, s_fxp); for (int i = 0; i < NOPT; i++) fprintf(f, "%s", opts_format(i, app_opt(i))); fclose(f);
 }
 
 // ---------- estado de la interfaz ----------
@@ -1391,7 +1367,7 @@ AppResult app_lobby(C3D_RenderTarget *top, C3D_RenderTarget *bot, Session *s, Ga
 				else if (act_row == 15) { s_coords = !s_coords; save_settings(); }
 				else if (act_row == 16) { s_radar = !s_radar; save_settings(); }
 				else if (act_row == 17) { s_fxp = !s_fxp; save_settings(); }
-				else if (act_row == 18 + NOPT) { opt_defaults(); for (int o = 0; o < NOPT; o++) s_opt[o] = OPTS[o].def; save_settings(); toast(&u, tr2("Opciones restauradas", "Options reset")); }
+				else if (act_row == 18 + NOPT) { opt_defaults(); opts_defaults(s_opt); save_settings(); toast(&u, tr2("Opciones restauradas", "Options reset")); }
 				else if (act_row >= 18 && act_row < 18 + NOPT) { int o = act_row - 18; opt_defaults(); s_opt[o] = (s_opt[o] + 1) % OPTS[o].n; save_settings(); }
 				break;
 			}
