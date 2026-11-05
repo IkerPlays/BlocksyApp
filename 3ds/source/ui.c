@@ -288,25 +288,25 @@ static void login_draw(C3D_RenderTarget *top, C3D_RenderTarget *bot, const Login
 	// pestañas (como en la web)
 	rrect(F_X, TAB_Y, F_W, TAB_H, 8, COL_PANEL2);
 	rrect(F_X + 3 + (s->signup ? F_W / 2 - 3 : 0), TAB_Y + 3, F_W / 2 - 3, TAB_H - 6, 6, COL_ACCENT_D);
-	ui_text(F_X + F_W / 4, TAB_Y + 4, 0.5f, s->signup ? COL_MUTED : COL_TEXT, C2D_AlignCenter, "Entrar");
-	ui_text(F_X + 3 * F_W / 4, TAB_Y + 4, 0.5f, s->signup ? COL_TEXT : COL_MUTED, C2D_AlignCenter, "Crear cuenta");
+	ui_text(F_X + F_W / 4, TAB_Y + 4, 0.5f, s->signup ? COL_MUTED : COL_TEXT, C2D_AlignCenter, ui_t("Entrar", "Log in", "Entrar"));
+	ui_text(F_X + 3 * F_W / 4, TAB_Y + 4, 0.5f, s->signup ? COL_TEXT : COL_MUTED, C2D_AlignCenter, ui_t("Crear cuenta", "Sign up", "Criar conta"));
 	bool f = !busy;
 	if (s->signup) field(fld_y(s, FLD_USER), "Nombre de usuario", s->user, false, f && s->focus == FLD_USER, true);
 	field(fld_y(s, FLD_EMAIL), "Email", s->email, false, f && s->focus == FLD_EMAIL, true);
-	field(fld_y(s, FLD_PASS), "Contrasena", s->pass, true, f && s->focus == FLD_PASS, s->show);
+	field(fld_y(s, FLD_PASS), ui_t("Contrasena", "Password", "Senha"), s->pass, true, f && s->focus == FLD_PASS, s->show);
 	int py = fld_y(s, FLD_PASS);
 	rrect(F_X + F_W - EYE_W, py + 5, EYE_W - 5, F_H - 10, 6, COL_LINE);                // ojo: mostrar/ocultar
-	ui_text(F_X + F_W - EYE_W / 2 - 2, py + 9, 0.4f, COL_TEXT, C2D_AlignCenter, s->show ? "Ocultar" : "Ver");
+	ui_text(F_X + F_W - EYE_W / 2 - 2, py + 9, 0.4f, COL_TEXT, C2D_AlignCenter, s->show ? ui_t("Ocultar", "Hide", "Ocultar") : ui_t("Ver", "Show", "Ver"));
 	if (!s->signup) {
 		int cy = fld_y(s, FLD_CHECK);
 		if (f && s->focus == FLD_CHECK) rrect(F_X - 2, cy - 2, 22, 22, 5, COL_ACCENT);
 		rrect(F_X, cy, 18, 18, 4, s->remember ? COL_GREEN : COL_PANEL2);
 		if (s->remember) ui_text(F_X + 9, cy + 1, 0.45f, COL_TEXT, C2D_AlignCenter, "x");
-		ui_text(F_X + 28, cy + 1, 0.45f, COL_TEXT, 0, "Mantener la sesion iniciada");
-		button(F_X, BTN_Y, ENTER_W, BTN_H, COL_GREEN, f && s->focus == FLD_ENTER, "Entrar", 0.65f);
-		button(QR_X, BTN_Y, QR_W, BTN_H, COL_ACCENT, f && s->focus == FLD_QR, "Con QR", 0.5f);
+		ui_text(F_X + 28, cy + 1, 0.45f, COL_TEXT, 0, ui_t("Mantener la sesion iniciada", "Keep me logged in", "Manter sessao iniciada"));
+		button(F_X, BTN_Y, ENTER_W, BTN_H, COL_GREEN, f && s->focus == FLD_ENTER, ui_t("Entrar", "Log in", "Entrar"), 0.65f);
+		button(QR_X, BTN_Y, QR_W, BTN_H, COL_ACCENT, f && s->focus == FLD_QR, ui_t("Con QR", "With QR", "Com QR"), 0.5f);
 	} else {
-		button(F_X, BTN_Y, F_W, BTN_H, COL_GREEN, f && s->focus == FLD_ENTER, "Crear cuenta", 0.65f);
+		button(F_X, BTN_Y, F_W, BTN_H, COL_GREEN, f && s->focus == FLD_ENTER, ui_t("Crear cuenta", "Sign up", "Criar conta"), 0.65f);
 	}
 	if (s->msg) ui_text(160, 226, 0.42f, s->msg_color, C2D_AlignCenter, s->msg);
 	C3D_FrameEnd(0);
@@ -345,19 +345,19 @@ static bool qr_screen(C3D_RenderTarget *top, C3D_RenderTarget *bot, Session *ses
 			for (int y = 0; y < size; y++) for (int x = 0; x < size; x++)
 				if (qrcodegen_getModule(qr, x, y)) rect(ox + (x + 4) * scale, oy + (y + 4) * scale, scale, scale, C(0, 0, 0));
 		} else {
-			char b[32]; ui_text(200, 108, 0.7f, COL_TEXT, C2D_AlignCenter, dots("Pidiendo codigo", b, sizeof b));
+			char b[32]; ui_text(200, 108, 0.7f, COL_TEXT, C2D_AlignCenter, dots(ui_t("Pidiendo codigo", "Requesting code", "Pedindo codigo"), b, sizeof b));
 		}
 		C2D_TargetClear(bot, COL_BG); C2D_SceneBegin(bot);
-		ui_text(160, 10, 0.6f, COL_TEXT, C2D_AlignCenter, "Entrar con otro dispositivo");
+		ui_text(160, 10, 0.6f, COL_TEXT, C2D_AlignCenter, ui_t("Entrar con otro dispositivo", "Log in with another device", "Entrar com outro dispositivo"));
 		ui_text(160, 42, 0.45f, COL_MUTED, C2D_AlignCenter, "1. Escanea el QR con tu movil o tablet");
 		ui_text(160, 60, 0.45f, COL_MUTED, C2D_AlignCenter, "2. Inicia sesion y pulsa Autorizar");
 		if (have_qr) {
 			rrect(70, 90, 180, 46, 8, COL_PANEL);
 			ui_text(160, 96, 0.95f, COL_TEXT, C2D_AlignCenter, job.code);
-			ui_text(160, 142, 0.38f, COL_MUTED, C2D_AlignCenter, "o escribe el codigo en " WEB_HOST "/link");
-			char b[40]; ui_text(160, 160, 0.42f, COL_ACCENT, C2D_AlignCenter, dots("Esperando", b, sizeof b));
+			ui_text(160, 142, 0.38f, COL_MUTED, C2D_AlignCenter, ui_t("o escribe el codigo en " WEB_HOST "/link", "or type the code at " WEB_HOST "/link", "ou digite o codigo em " WEB_HOST "/link"));
+			char b[40]; ui_text(160, 160, 0.42f, COL_ACCENT, C2D_AlignCenter, dots(ui_t("Esperando", "Waiting", "Esperando"), b, sizeof b));
 		}
-		button(60, 186, 200, 40, C(0xC0, 0x39, 0x2B), false, "Cancelar", 0.5f);
+		button(60, 186, 200, 40, C(0xC0, 0x39, 0x2B), false, ui_t("Cancelar", "Cancel", "Cancelar"), 0.5f);
 		C3D_FrameEnd(0);
 	}
 	job.cancel = true; join(th);
@@ -462,7 +462,7 @@ void ui_message(C3D_RenderTarget *top, C3D_RenderTarget *bot, const char *title,
 		char buf[256]; snprintf(buf, sizeof buf, "%s", msg);        // el mensaje usa \n para separar líneas
 		int line = 0;
 		for (char *p = strtok(buf, "\n"); p; p = strtok(NULL, "\n"), line++) ui_text(20, 64 + line * 18, 0.45f, COL_MUTED, 0, p);
-		ui_text(160, 215, 0.45f, COL_MUTED, C2D_AlignCenter, "START para salir");
+		ui_text(160, 215, 0.45f, COL_MUTED, C2D_AlignCenter, ui_t("START para salir", "START to exit", "START para sair"));
 		C3D_FrameEnd(0);
 	}
 }

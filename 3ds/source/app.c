@@ -436,6 +436,7 @@ static void worker_thread(void *arg) {
 #define SETTINGS_FILE "sdmc:/3ds/blocksy/settings.txt"
 static char s_last_game[40]; static int s_dist = 1;
 int app_draw_level(void) { return s_dist; }
+void app_load_settings(void);
 static void load_settings(void) {
 	FILE *f = fopen(SETTINGS_FILE, "r"); if (!f) return;
 	char line[96]; opt_defaults();
@@ -463,6 +464,7 @@ static void load_settings(void) {
 	}
 	fclose(f);
 }
+void app_load_settings(void) { load_settings(); }             // para que el login ya salga en el idioma elegido
 static void save_settings(void) {
 	mkdir("sdmc:/3ds", 0777); mkdir("sdmc:/3ds/blocksy", 0777);
 	FILE *f = fopen(SETTINGS_FILE, "w"); if (!f) return;
