@@ -417,7 +417,7 @@ bool ui_login(C3D_RenderTarget *top, C3D_RenderTarget *bot, Session *sess, const
 		}
 		if (act == FLD_USER && s.signup && edit_text(s.user, sizeof s.user, "Nombre de usuario", false)) { s.msg = NULL; s.focus = FLD_EMAIL; }
 		else if (act == FLD_EMAIL && edit_text(s.email, sizeof s.email, "Email", false)) { s.msg = NULL; s.focus = FLD_PASS; }
-		else if (act == FLD_PASS && edit_text(s.pass, sizeof s.pass, "Contrasena", true)) { s.msg = NULL; s.focus = FLD_ENTER; }
+		else if (act == FLD_PASS && edit_text(s.pass, sizeof s.pass, ui_t("Contrasena", "Password", "Senha"), true)) { s.msg = NULL; s.focus = FLD_ENTER; }
 		else if (act == FLD_CHECK && !s.signup) s.remember = !s.remember;
 		else if (act == FLD_ENTER) {
 			if (!s.email[0] || !s.pass[0] || (s.signup && !s.user[0])) { s.msg = s.signup ? "Rellena usuario, email y contrasena" : "Escribe tu email y tu contrasena"; s.msg_color = COL_RED; }

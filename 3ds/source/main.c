@@ -152,7 +152,7 @@ static void net_thread(void *arg) {
 		if (sess.token[0] && app_notif_on() && now - last_alerts > 12000) {          // avisos de amigos también durante la partida
 			last_alerts = now; static Notif an[6]; int c = net_list_notifs(&sess, an, 6); int un = net_unread_total(&sess); char msg[96] = "";
 			if (c >= 0) { for (int i = 0; i < c; i++) { if (alert_id >= 0 && an[i].id > alert_id && !an[i].read && !msg[0]) app_notif_text(&an[i], msg, sizeof msg); } long mx_id = 0; for (int i = 0; i < c; i++) if (an[i].id > mx_id) mx_id = an[i].id; if (mx_id > alert_id) alert_id = mx_id; if (alert_id < 0) alert_id = 0; }
-			if (un >= 0) { if (!msg[0] && alert_un >= 0 && un > alert_un) snprintf(msg, sizeof msg, "Mensaje nuevo de un amigo"); alert_un = un; }
+			if (un >= 0) { if (!msg[0] && alert_un >= 0 && un > alert_un) snprintf(msg, sizeof msg, "%s", ui_t("Mensaje nuevo de un amigo", "New message from a friend", "Nova mensagem de um amigo")); alert_un = un; }
 			if (msg[0]) { LightLock_Lock(&lock); snprintf(game_alert, sizeof game_alert, "%s", msg); game_alert_until = osGetTime() + 5000; LightLock_Unlock(&lock); }
 		}
 		{ u64 tn = osGetTime(); LightLock_Lock(&lock); float ax = px, ay = py, az = pz; char aa[12]; memcpy(aa, send_anim, sizeof aa); LightLock_Unlock(&lock); aa[11] = 0;
@@ -669,7 +669,7 @@ static void render_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 	if (night) {                                                                              // sombra de miedo cuando el monstruo esta cerca
 		float fear = hr.stun > 0 ? 0.8f : fmaxf(0, 1 - hr.dist / 22); int a = (int)(fear * 80);
 		if (a > 4) { ui_rect(0, 0, 400, 240, C2D_Color32(0x60, 0, 0, a / 2)); ui_rect(0, 0, 40, 240, C2D_Color32(0x40, 0, 0, a)); ui_rect(360, 0, 40, 240, C2D_Color32(0x40, 0, 0, a)); ui_rect(0, 0, 400, 24, C2D_Color32(0x40, 0, 0, a)); ui_rect(0, 216, 400, 24, C2D_Color32(0x40, 0, 0, a)); }
-		char hb[64]; snprintf(hb, sizeof hb, "Fragmentos %d/%d   Linterna %s (X)", hr.ngot, world.norbs, hr.flash ? "ON" : "OFF");
+		char hb[64]; snprintf(hb, sizeof hb, "%s %d/%d   %s %s (X)", ui_t("Fragmentos", "Shards", "Fragmentos"), hr.ngot, world.norbs, ui_t("Linterna", "Flashlight", "Lanterna"), hr.flash ? "ON" : "OFF");
 		float w = ui_text_width(hb, 0.42f) + 18; ui_rrect(8, 8, w, 22, 8, C2D_Color32(0, 0, 0, 150)); ui_text(8 + w / 2, 11, 0.42f, COL_TEXT, C2D_AlignCenter, hb);
 	} else if (can_build) {
 		char hb[40]; snprintf(hb, sizeof hb, "%d/%d  %s", kind + 1, NPALETTE, blk_name(kind));                  // bloque elegido: debajo de la brujula (antes se pisaban)
