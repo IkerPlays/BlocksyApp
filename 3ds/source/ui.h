@@ -55,7 +55,10 @@ typedef struct { char name[24], text[100]; } ChatLine;      // historial de chat
 extern bool ui_build_ui;
 void ui_game_bottom(const Session *s, const Remote *rem, int nr, int kind, const char *game, const char *version, bool emote_menu, const ChatLine *hist, int nhist, int hscroll, bool chat_view);
 #define NPHRASES 4
-extern const char *const UI_PHRASE[NPHRASES];                     // frases rapidas del menu de emotes (se envian al chat al tocarlas)
+const char *ui_phrase(int i);
+const char *ui_emote_label(int i);
+const char *ui_t(const char *es, const char *en, const char *pt);   // texto segun el idioma elegido en Ajustes
+//                     // frases rapidas del menu de emotes (se envian al chat al tocarlas)
 int  ui_game_touch(int x, int y, bool emote_menu, bool chat_view);        // UI_NONE, UI_COLOR0 + n, UI_CHAT o UI_QUIT (volver al lobby)
 
 #ifdef BLOCKSY_PREVIEW

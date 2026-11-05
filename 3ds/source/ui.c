@@ -1,5 +1,6 @@
 // Interfaz táctil de Blocksy (citro2d): login, mensajes y panel de la pantalla inferior.
 #include "ui.h"
+#include "app.h"
 #include "config.h"
 #include "qrcodegen.h"
 #include "avatar3d.h"
@@ -471,7 +472,15 @@ enum { SW_Y = 126, SW_W = 40, SW_GAP = 8, BTN2_Y = 192, BTN2_H = 36, BTN2_W = 86
 
 bool ui_build_ui = true;                                   // false: el juego no deja construir (se oculta la paleta y las ayudas)
 
-const char *const UI_PHRASE[NPHRASES] = {"Hola!", "GG!", "Gracias", "Ven aqui!"};
+const char *ui_t(const char *es, const char *en, const char *pt) { int l = app_lang(); return l == 1 ? en : l == 2 ? pt : es; }      // texto segun el idioma de Ajustes
+const char *ui_emote_label(int i) {
+	static const char *const EN[5] = {"Wave", "Dance", "Cheer", "Clap", "Sit"}, *const PT[5] = {"Acenar", "Dancar", "Comemorar", "Aplaudir", "Sentar"};
+	return i >= 0 && i < 5 && app_lang() == 1 ? EN[i] : i >= 0 && i < 5 && app_lang() == 2 ? PT[i] : AV_EMOTE_LABEL[i];
+}
+const char *ui_phrase(int i) {
+	static const char *const ES[NPHRASES] = {"Hola!", "GG!", "Gracias", "Ven aqui!"}, *const EN[NPHRASES] = {"Hi!", "GG!", "Thanks", "Come here!"}, *const PT[NPHRASES] = {"Oi!", "GG!", "Obrigado", "Vem ca!"};
+	return ui_t(ES[i], EN[i], PT[i]);
+}
 enum { PH_Y = 164, PH_H = 24, PH_W = 65, PH_GAP = 6 };
 void ui_game_bottom(const Session *s, const Remote *rem, int nr, int kind, const char *game, const char *version, bool emote_menu, const ChatLine *hist, int nhist, int hscroll, bool chat_view) {
 	rect(0, 0, 320, 26, COL_PANEL);
@@ -480,17 +489,17 @@ void ui_game_bottom(const Session *s, const Remote *rem, int nr, int kind, const
 	ui_text(310, 5, 0.42f, COL_MUTED, C2D_AlignRight, version);
 
 	if (emote_menu) {                                          // selector de emotes (tocar uno lo lanza; moverte o saltar lo corta)
-		ui_text(160, 30, 0.45f, COL_MUTED, C2D_AlignCenter, "Elige un emote");
+		ui_text(160, 30, 0.45f, COL_MUTED, C2D_AlignCenter, ui_t("Elige un emote", "Pick an emote", "Escolha um emote"));
 		for (int i = 0; i < NEMOTES; i++) {
 			float x = F_X + (i % 3) * (EM_W + EM_GAP), y = EM_Y + 6 + (i / 3) * (EM_H + EM_GAP);
-			button(x, y, EM_W, EM_H, i == 4 ? COL_PANEL2 : COL_ACCENT_D, false, AV_EMOTE_LABEL[i], 0.46f);
+			button(x, y, EM_W, EM_H, i == 4 ? COL_PANEL2 : COL_ACCENT_D, false, ui_emote_label(i), 0.46f);
 		}
-		ui_text(160, 150, 0.36f, COL_MUTED, C2D_AlignCenter, "Moverte o saltar corta el emote");
-		for (int i = 0; i < NPHRASES; i++) button(F_X + i * (PH_W + PH_GAP), PH_Y, PH_W, PH_H, COL_PANEL2, false, UI_PHRASE[i], 0.36f);
+		ui_text(160, 150, 0.36f, COL_MUTED, C2D_AlignCenter, ui_t("Moverte o saltar corta el emote", "Moving or jumping stops the emote", "Mover ou pular interrompe o emote"));
+		for (int i = 0; i < NPHRASES; i++) button(F_X + i * (PH_W + PH_GAP), PH_Y, PH_W, PH_H, COL_PANEL2, false, ui_phrase(i), 0.36f);
 	} else {
-		char t[48]; snprintf(t, sizeof t, "Jugadores (%d)", nr + 1);
+		char t[48]; snprintf(t, sizeof t, "%s (%d)", ui_t("Jugadores", "Players", "Jogadores"), nr + 1);
 		button(10, 30, 130, 17, chat_view ? COL_PANEL2 : COL_ACCENT_D, false, t, 0.38f);
-		button(146, 30, 84, 17, chat_view ? COL_ACCENT_D : COL_PANEL2, false, "Historial", 0.38f);
+		button(146, 30, 84, 17, chat_view ? COL_ACCENT_D : COL_PANEL2, false, ui_t("Historial", "History", "Historico"), 0.38f);
 		if (chat_view) {                                        // historial de chat con scroll (botones o arrastrar)
 			int end = nhist - hscroll; if (end < 0) end = 0; int start = end - 5; if (start < 0) start = 0;
 			float y = 52;
@@ -499,7 +508,7 @@ void ui_game_bottom(const Session *s, const Remote *rem, int nr, int kind, const
 				while (strlen(l) > 4 && text_w(l, 0.38f) > 238) l[strlen(l) - 1] = 0;
 				ui_text(10, y, 0.38f, i == nhist - 1 ? COL_TEXT : COL_MUTED, 0, l);
 			}
-			if (!nhist) ui_text(10, 60, 0.4f, COL_MUTED, 0, "Aun no hay mensajes.");
+			if (!nhist) ui_text(10, 60, 0.4f, COL_MUTED, 0, ui_t("Aun no hay mensajes.", "No messages yet.", "Ainda nao ha mensagens."));
 			button(262, 50, 48, 28, COL_PANEL2, false, "^", 0.5f); button(262, 84, 48, 28, COL_PANEL2, false, "v", 0.5f);
 			if (nhist > 5) { float th = 60.0f * 5 / nhist, ty = 52 + (60 - th) * (1.0f - (float)hscroll / (nhist - 5)); rrect(256, ty, 3, th, 1.5f, COL_LINE); }
 		}
@@ -512,9 +521,9 @@ void ui_game_bottom(const Session *s, const Remote *rem, int nr, int kind, const
 			ui_text(30, y, 0.45f, COL_TEXT, 0, rem[i].name);
 			if (rem[i].is3ds) { float bx = 30 + text_w(rem[i].name, 0.45f) + 8; rrect(bx, y + 1, 30, 13, 4, C(0xE6, 0x00, 0x12)); ui_text(bx + 15, y + 1, 0.32f, COL_TEXT, C2D_AlignCenter, "3DS"); }
 		}
-		ui_text(310, 52, 0.36f, COL_MUTED, C2D_AlignRight, "A saltar  B correr");
-		if (nr > 0) ui_text(310, 100, 0.34f, COL_MUTED, C2D_AlignRight, "Toca un jugador: ir con el");
-		if (ui_build_ui) ui_text(310, 66, 0.36f, COL_MUTED, C2D_AlignRight, "X poner  Y romper");
+		ui_text(310, 52, 0.36f, COL_MUTED, C2D_AlignRight, ui_t("A saltar  B correr", "A jump  B run", "A pular  B correr"));
+		if (nr > 0) ui_text(310, 100, 0.34f, COL_MUTED, C2D_AlignRight, ui_t("Toca un jugador: ir con el", "Tap a player to go to them", "Toque num jogador para ir ate ele"));
+		if (ui_build_ui) ui_text(310, 66, 0.36f, COL_MUTED, C2D_AlignRight, ui_t("X poner  Y romper", "X place  Y break", "X por  Y quebrar"));
 		}
 
 		for (int i = 0; ui_build_ui && i < NPALETTE; i++) {
@@ -524,8 +533,8 @@ void ui_game_bottom(const Session *s, const Remote *rem, int nr, int kind, const
 		}
 	}
 	button(F_X, BTN2_Y, BTN2_W, BTN2_H, COL_ACCENT, false, "Chat", 0.48f);
-	button(F_X + BTN2_W + BTN2_GAP, BTN2_Y, BTN2_W, BTN2_H, emote_menu ? COL_GREEN : COL_PANEL2, false, emote_menu ? "Cerrar" : "Emotes", 0.48f);
-	button(F_X + 2 * (BTN2_W + BTN2_GAP), BTN2_Y, BTN2_W, BTN2_H, COL_PANEL2, false, "< Lobby", 0.48f);
+	button(F_X + BTN2_W + BTN2_GAP, BTN2_Y, BTN2_W, BTN2_H, emote_menu ? COL_GREEN : COL_PANEL2, false, emote_menu ? ui_t("Cerrar", "Close", "Fechar") : "Emotes", 0.48f);
+	button(F_X + 2 * (BTN2_W + BTN2_GAP), BTN2_Y, BTN2_W, BTN2_H, COL_PANEL2, false, ui_t("< Lobby", "< Lobby", "< Lobby"), 0.48f);
 }
 
 int ui_game_touch(int x, int y, bool emote_menu, bool chat_view) {

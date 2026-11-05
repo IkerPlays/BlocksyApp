@@ -384,7 +384,7 @@ static void draw_hills(u32 col, float dist, float base_h, float amp, float seed)
 static int cmp_box(const void *a, const void *b) { float d = ((const Box *)b)->depth - ((const Box *)a)->depth; return d > 0 ? 1 : d < 0 ? -1 : 0; }
 
 static void do_chat(void) {
-	if (!cur_game.allow_chat) { snprintf(big_msg, sizeof big_msg, "El chat esta desactivado"); big_until = osGetTime() + 2000; return; }
+	if (!cur_game.allow_chat) { snprintf(big_msg, sizeof big_msg, "%s", ui_t("El chat esta desactivado", "Chat is disabled", "O chat esta desativado")); big_until = osGetTime() + 2000; return; }
 	Action a = {.type = CHAT}; SwkbdState kb; swkbdInit(&kb, SWKBD_TYPE_NORMAL, 2, 90); swkbdSetHintText(&kb, "Mensaje");
 	if (swkbdInputText(&kb, a.text, sizeof a.text) == SWKBD_BUTTON_CONFIRM) {
 		for (char *c = a.text; *c; c++) if (*c == '"' || *c == '\\') *c = ' ';
@@ -446,11 +446,11 @@ static void forest_frame(float dt, u64 now, u32 down) {
 	for (int i = 0; i < world.norbs && hr.stun <= 0 && hr.phase == 0; i++) {   // recoger fragmentos
 		if (hr.got[i] || hypotf(world.orb[i][0] - px, world.orb[i][2] - pz) > 1.5f || fabsf(py - world.orb[i][1]) > 2.5f) continue;
 		LightLock_Lock(&lock); hr.got[i] = true; int n = ++hr.ngot, rd = hr.round; LightLock_Unlock(&lock);
-		push_action((Action){.type = EVT, .x = i, .text = "orb"}); snprintf(big_msg, sizeof big_msg, "Fragmento %d/%d", n, world.norbs); big_until = now + 1600;
+		push_action((Action){.type = EVT, .x = i, .text = "orb"}); snprintf(big_msg, sizeof big_msg, "%s %d/%d", ui_t("Fragmento", "Shard", "Fragmento"), n, world.norbs); big_until = now + 1600;
 		if (n >= world.norbs) push_action((Action){.type = EVT, .x = rd, .text = "win"});
 	}
 	if (hr.stun <= 0 && hr.phase == 0 && d < 1.15f && hypotf(px, pz) > world.safe) {       // te atrapa
-		hr.stun = 2.2f; hr.tele_at = now + 900; snprintf(big_msg, sizeof big_msg, "Te atrapo!"); big_until = now + 2200; push_action((Action){.type = EVT, .text = "caught"});
+		hr.stun = 2.2f; hr.tele_at = now + 900; snprintf(big_msg, sizeof big_msg, "%s", ui_t("Te atrapo!", "Caught you!", "Te peguei!")); big_until = now + 2200; push_action((Action){.type = EVT, .text = "caught"});
 	}
 	if (hr.tele_at && now >= hr.tele_at) { hr.tele_at = 0; hr_teleport(); }
 	float rr = hypotf(px, pz); if (rr > world.radius - 0.5f) { px *= (world.radius - 0.5f) / rr; pz *= (world.radius - 0.5f) / rr; }
@@ -697,7 +697,7 @@ static void render_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 		for (int k = -3; k <= 3; k++) { float a = floorf(hd / 45.0f + 0.5f) * 45.0f + k * 45.0f, off = a - hd, x = 83 + off * 0.55f; if (x < 14 || x > 152) continue; int idx = ((int)roundf(a / 45.0f) % 8 + 8) % 8; ui_text(x, 11, 0.4f, idx == 0 ? C2D_Color32(0xFF, 0x6B, 0x6B, 255) : COL_TEXT, C2D_AlignCenter, CL[idx]); }
 		ui_rect(83, 8, 2, 4, C2D_Color32(0xFF, 0xD3, 0x4D, 255));
 	}
-	char pc[32]; if (g_ping > 0) snprintf(pc, sizeof pc, "%d jugando  %d ms", nr + 1, g_ping); else snprintf(pc, sizeof pc, "%d jugando", nr + 1);
+	char pc[32]; if (g_ping > 0) snprintf(pc, sizeof pc, "%d %s  %d ms", nr + 1, ui_t("jugando", "playing", "jogando"), g_ping); else snprintf(pc, sizeof pc, "%d %s", nr + 1, ui_t("jugando", "playing", "jogando"));
 	if (app_opt(OPT_PILL)) { float pw = ui_text_width(pc, 0.4f) + 16; ui_rrect(392 - pw, 8, pw, 22, 8, C2D_Color32(0, 0, 0, 130)); ui_text(392 - pw / 2, 11, 0.4f, g_ping > 0 && g_ping > 400 ? C2D_Color32(0xFF, 0x6B, 0x6B, 255) : g_ping > 200 ? C2D_Color32(0xFF, 0xD3, 0x4D, 255) : COL_TEXT, C2D_AlignCenter, pc); }
 	if (nr > 0 && app_radar_on()) {                                                               // radar: jugadores cercanos (arriba = hacia donde mira la camara)
 		static const float RR[3] = {12, 24, 48}; const float cx = 364, cy = 64, rr = 30, range = RR[app_opt(OPT_RADARR) % 3];
@@ -742,7 +742,7 @@ static void render_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 	}
 	if (now - t_start < 9000) {                                               // ayuda de controles los primeros segundos
 		ui_rrect(70, 206, 260, 22, 9, C2D_Color32(0, 0, 0, 150));
-		ui_text(200, 209, 0.38f, COL_TEXT, C2D_AlignCenter, can_build ? "A saltar  B correr  X poner  Y romper  +/- color" : night ? "A saltar  B correr  X linterna  Huye del monstruo" : "A saltar  B correr  L/R camara");
+		ui_text(200, 209, 0.38f, COL_TEXT, C2D_AlignCenter, can_build ? ui_t("A saltar  B correr  X poner  Y romper  +/- color", "A jump  B run  X place  Y break  +/- color", "A pular  B correr  X por  Y quebrar  +/- cor") : night ? ui_t("A saltar  B correr  X linterna  Huye del monstruo", "A jump  B run  X flashlight  Run from the monster", "A pular  B correr  X lanterna  Fuja do monstro") : ui_t("A saltar  B correr  L/R camara", "A jump  B run  L/R camera", "A pular  B correr  L/R camera"));
 	}
 	}                                                                          // fin de la interfaz (se oculta en el modo foto)
 	C2D_TargetClear(bot, C2D_Color32(0x23, 0x25, 0x27, 255));
@@ -780,7 +780,7 @@ static bool play_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 	cam_yaw = 0; cam_pitch = 0.5f; cam_dist = 9; cx_ = px; cy_ = py + 1; cz_ = pz;
 	audio_game(true, cur_game.track); net_set_game(cur_game.id); g_weather = !strcmp(cur_game.weather, "rain") ? 1 : !strcmp(cur_game.weather, "snow") ? 2 : 0; g_ntop = 0;
 	memset(&hr, 0, sizeof hr); ev_last = -1; hr.on = world.type == 5; hr.flash = true; hr.mx = hr.mtx = world.mon_start[0]; hr.mz = hr.mtz = world.mon_start[2]; hr.dist = 99;
-	if (hr.on) { snprintf(big_msg, sizeof big_msg, "Recoge %d fragmentos y huye", world.norbs); big_until = osGetTime() + 5000; }
+	if (hr.on) { snprintf(big_msg, sizeof big_msg, "%s %d %s", ui_t("Recoge", "Collect", "Colete"), world.norbs, ui_t("fragmentos y huye", "shards and run", "fragmentos e fuja")); big_until = osGetTime() + 5000; }
 	s32 prio = 0; svcGetThreadPriority(&prio, CUR_THREAD_HANDLE);
 	Thread th = threadCreate(net_thread, NULL, 256 * 1024, prio + 1, 0, false);   // prioridad menor que la UI
 
@@ -812,12 +812,12 @@ static bool play_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 		if (can_build && (down & KEY_DRIGHT)) kind = (kind + 1) % NPALETTE;
 		if (can_build && (down & KEY_DLEFT)) kind = (kind + NPALETTE - 1) % NPALETTE;
 		if (can_build && (down & (KEY_DRIGHT | KEY_DLEFT)) && app_opt(OPT_BLOCKNAME)) { snprintf(toast_txt, sizeof toast_txt, "%s (%d/%d)", blk_name(kind), kind + 1, NPALETTE); toast_until = now + 1100; }
-		if (((held & KEY_L) && (held & KEY_R)) && (down & (KEY_L | KEY_R))) { photo_mode = !photo_mode; snprintf(big_msg, sizeof big_msg, "%s", photo_mode ? "Modo foto (L+R)" : "Modo foto off"); big_until = now + 1200; }
+		if (((held & KEY_L) && (held & KEY_R)) && (down & (KEY_L | KEY_R))) { photo_mode = !photo_mode; snprintf(big_msg, sizeof big_msg, "%s", photo_mode ? ui_t("Modo foto (L+R)", "Photo mode (L+R)", "Modo foto (L+R)") : ui_t("Modo foto off", "Photo mode off", "Modo foto desligado")); big_until = now + 1200; }
 		{                                                                        // SELECT: toque = chat; mantener 1 s = volver al punto de inicio
 			static u64 sel_at; static bool sel_used;
 			if (down & KEY_SELECT) { sel_at = now; sel_used = false; }
 			if (sel_used_g) { sel_used = true; sel_used_g = false; }
-			if ((held & KEY_SELECT) && !sel_used && now - sel_at >= 900) { sel_used = true; px = rsp_x; py = rsp_y; pz = rsp_z; vy = 0; cx_ = px; cy_ = py + 1; cz_ = pz; snprintf(big_msg, sizeof big_msg, "Al punto de inicio"); big_until = now + 1200; }
+			if ((held & KEY_SELECT) && !sel_used && now - sel_at >= 900) { sel_used = true; px = rsp_x; py = rsp_y; pz = rsp_z; vy = 0; cx_ = px; cy_ = py + 1; cz_ = pz; snprintf(big_msg, sizeof big_msg, "%s", ui_t("Al punto de inicio", "Back to the start", "De volta ao inicio")); big_until = now + 1200; }
 			if ((hidKeysUp() & KEY_SELECT) && !sel_used) do_chat();
 		}
 		if (down & KEY_TOUCH) {
@@ -825,8 +825,8 @@ static bool play_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 			int act = ui_game_touch(tp.px, tp.py, emote_menu, chat_view);
 			if (can_build && act >= UI_COLOR0 && act < UI_COLOR0 + NPALETTE) kind = act;
 			else if (act >= UI_EMOTE0 && act < UI_EMOTE0 + NEMOTES) { if (grounded && !moving) snprintf(emote, sizeof emote, "%s", AV_EMOTE_ID[act - UI_EMOTE0]); emote_menu = false; }
-			else if (act >= UI_PHRASE0 && act < UI_PHRASE0 + NPHRASES) { if (cur_game.allow_chat) { Action pa = {.type = CHAT}; snprintf(pa.text, sizeof pa.text, "%s", UI_PHRASE[act - UI_PHRASE0]); push_action(pa); } emote_menu = false; }       // frase rapida
-			else if (act == UI_EMOTE_MENU) { if (cur_game.allow_emotes) emote_menu = !emote_menu; else { snprintf(big_msg, sizeof big_msg, "Los emotes estan desactivados"); big_until = now + 2000; } }
+			else if (act >= UI_PHRASE0 && act < UI_PHRASE0 + NPHRASES) { if (cur_game.allow_chat) { Action pa = {.type = CHAT}; snprintf(pa.text, sizeof pa.text, "%s", ui_phrase(act - UI_PHRASE0)); push_action(pa); } emote_menu = false; }       // frase rapida
+			else if (act == UI_EMOTE_MENU) { if (cur_game.allow_emotes) emote_menu = !emote_menu; else { snprintf(big_msg, sizeof big_msg, "%s", ui_t("Los emotes estan desactivados", "Emotes are disabled", "Os emotes estao desativados")); big_until = now + 2000; } }
 			else if (act == UI_CHAT) do_chat();
 			else if (act == UI_QUIT) break;
 			else if (act == UI_TAB_PLAYERS) chat_view = false;
@@ -836,8 +836,8 @@ static bool play_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 			else if (chat_view && tp.px < 256 && tp.py >= 50 && tp.py < 120) { chat_drag_y = tp.py; chat_drag = true; }
 			else if (!chat_view && !emote_menu && tp.px < 200 && tp.py >= 64 && tp.py < 112 && (tp.py - 48) / 16 - 1 < nr) {       // tocar un jugador de la lista: te lleva a su lado
 				int i = (tp.py - 48) / 16 - 1;
-				if (hr.on || world.has_fin || race.start) { snprintf(big_msg, sizeof big_msg, "No se puede ir con alguien aqui"); big_until = now + 1800; }
-				else { px = rem[i].x + 1.2f; py = rem[i].y; pz = rem[i].z; for (int k = 0; k < 4 && body_hits(px, py, pz); k++) py += 1.01f; vy = 0; cx_ = px; cy_ = py + 1; cz_ = pz; snprintf(big_msg, sizeof big_msg, "Junto a %.16s", rem[i].name); big_until = now + 1500; sfx_play(SFX_CLICK); }
+				if (hr.on || world.has_fin || race.start) { snprintf(big_msg, sizeof big_msg, "%s", ui_t("No se puede ir con alguien aqui", "You cannot go to a player here", "Nao da para ir ate alguem aqui")); big_until = now + 1800; }
+				else { px = rem[i].x + 1.2f; py = rem[i].y; pz = rem[i].z; for (int k = 0; k < 4 && body_hits(px, py, pz); k++) py += 1.01f; vy = 0; cx_ = px; cy_ = py + 1; cz_ = pz; snprintf(big_msg, sizeof big_msg, "%s %.16s", ui_t("Junto a", "Next to", "Junto de"), rem[i].name); big_until = now + 1500; sfx_play(SFX_CLICK); }
 			}
 		}
 		if (chat_drag) {                                             // arrastrar sobre el historial para desplazarlo
@@ -914,17 +914,17 @@ static bool play_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 		if (world.floor && py < 0) { if (vy < -9.0f) { fx_burst(px, 0.1f, pz, C2D_Color32(0xD8, 0xD8, 0xD0, 255), 6, 2.2f); sfx_play(SFX_LAND); } py = 0; vy = 0; grounded = true; }
 		if (!world.floor && py < world.void_y) {                              // caíste al vacío: vuelves al último punto de control
 			px = rsp_x; py = rsp_y; pz = rsp_z; vy = 0; cx_ = px; cy_ = py + 1; cz_ = pz;
-			snprintf(big_msg, sizeof big_msg, "Has caido"); big_until = now + 1200;
+			snprintf(big_msg, sizeof big_msg, "%s", ui_t("Has caido", "You fell", "Voce caiu")); big_until = now + 1200;
 		}
-		{ char tn[64]; if (audio_take_note(tn, sizeof tn)) { snprintf(big_msg, sizeof big_msg, "Musica: %.40s", tn); big_until = now + 3000; } }
-		if (race_rank > 0 && race.done) { int rk = race_rank; race_rank = 0; snprintf(big_msg, sizeof big_msg, "Puesto %d en el top", rk); big_until = now + 4000; }
+		{ char tn[64]; if (audio_take_note(tn, sizeof tn)) { snprintf(big_msg, sizeof big_msg, "%s: %.40s", ui_t("Musica", "Music", "Musica"), tn); big_until = now + 3000; } }
+		if (race_rank > 0 && race.done) { int rk = race_rank; race_rank = 0; snprintf(big_msg, sizeof big_msg, "%s %d", ui_t("Puesto en el top:", "Top rank:", "Posicao no top:"), rk); big_until = now + 4000; }
 		if (world.ncp || world.has_fin) {                                      // carrera: cronómetro, puntos de control y meta
 			if (!race.start && moving) race.start = now;
 			for (int i = 0; i < world.ncp; i++) if (world.cp[i].id > race.cp && hypotf(px - world.cp[i].x, pz - world.cp[i].z) < 2.2f && fabsf(py - world.cp[i].y) < 2.5f) {
-				race.cp = world.cp[i].id; rsp_x = world.cp[i].x; rsp_y = world.cp[i].y; rsp_z = world.cp[i].z; snprintf(big_msg, sizeof big_msg, "Punto de control %d", race.cp); big_until = now + 1400; sfx_play(SFX_CHECKPOINT);
+				race.cp = world.cp[i].id; rsp_x = world.cp[i].x; rsp_y = world.cp[i].y; rsp_z = world.cp[i].z; snprintf(big_msg, sizeof big_msg, "%s %d", ui_t("Punto de control", "Checkpoint", "Ponto de controle"), race.cp); big_until = now + 1400; sfx_play(SFX_CHECKPOINT);
 			}
 			if (world.has_fin && !race.done && hypotf(px - world.fin[0], pz - world.fin[2]) < world.fin_r && fabsf(py - world.fin[1]) < 3) {
-				race.done = true; sfx_play(SFX_WIN); unsigned ms = (unsigned)(now - (race.start ? race.start : now)); if (ms >= 1500) push_action((Action){.type = TIME, .x = (int)ms}); snprintf(big_msg, sizeof big_msg, "Meta! %u:%05.2f", ms / 60000, (ms % 60000) / 1000.0f); big_until = now + 5000;
+				race.done = true; sfx_play(SFX_WIN); unsigned ms = (unsigned)(now - (race.start ? race.start : now)); if (ms >= 1500) push_action((Action){.type = TIME, .x = (int)ms}); snprintf(big_msg, sizeof big_msg, "%s %u:%05.2f", ui_t("Meta!", "Finish!", "Chegada!"), ms / 60000, (ms % 60000) / 1000.0f); big_until = now + 5000;
 			}
 			if (race.done && now > big_until - 500) { px = world.spawn[0]; py = world.spawn[1]; pz = world.spawn[2]; rsp_x = px; rsp_y = py; rsp_z = pz; vy = 0; cx_ = px; cy_ = py + 1; cz_ = pz; memset(&race, 0, sizeof race); }
 		}

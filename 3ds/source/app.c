@@ -1087,6 +1087,7 @@ static void draw_all(C3D_RenderTarget *top, C3D_RenderTarget *bot, const Ui *u, 
 
 #ifdef BLOCKSY_PREVIEW
 void app_preview(C3D_RenderTarget *top, C3D_RenderTarget *bot, int page, int modal, int cursor, const char *version) {
+	{ const char *pl = getenv("BLOCKSY_PREVIEW_LANG"); if (pl) s_lang = atoi(pl); }
 	static Session s; snprintf(s.username, sizeof s.username, "Iker"); snprintf(s.user_id, sizeof s.user_id, "me"); s.color = parse_hex("#ff9f43");
 	static const char *nm[] = {"Spawn Plaza", "Parkour Tower", "Lava Escape", "Sky Islands", "Mundo de Iker", "Castillos"};
 	static const int hue[] = {205, 20, 350, 140, 280, 60}, pl[] = {3, 5, 0, 2, 1, 0};
