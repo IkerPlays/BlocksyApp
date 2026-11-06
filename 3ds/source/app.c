@@ -504,6 +504,7 @@ typedef struct {
 // copias locales (para dibujar sin bloquear al hilo de red)
 static GameInfo games[MAX_GAMES]; static int ngames;
 static Person friends[MAX_PEOPLE]; static int nfriends;
+int app_is_friend(const char *name) { for (int i = 0; i < nfriends; i++) if (!strcmp(friends[i].name, name)) return 1; return 0; }      // para marcar a tus amigos en la partida
 static FriendReq reqs[MAX_PEOPLE]; static int nreqs; static DmMsg dm[40]; static int ndm; static Notif notifs[16]; static int nnotifs, notif_unread; static ShopItem shop[40]; static int nshop; static Wallet wallet; static int unread;
 
 static void sync_data(void) {

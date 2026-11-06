@@ -33,4 +33,5 @@ void app_preview(C3D_RenderTarget *top, C3D_RenderTarget *bot, int page, int mod
 #include "opts.h"
 int app_opt(int id);
 int app_lang(void);
+int app_is_friend(const char *name);   // 1 si el jugador esta en tu lista de amigos
 void app_load_settings(void);   // lee los ajustes guardados (idioma y opciones); se puede llamar antes del login          // 0 es, 1 en, 2 pt
