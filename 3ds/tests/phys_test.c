@@ -3,6 +3,9 @@
 #include "phys.h"
 static int fails;
 #define CHECK(c) do { if (!(c)) { printf("FALLO linea %d: %s\n", __LINE__, #c); fails++; } } while (0)
+// bloque solido entre lo (incluido) y hi: el cuerpo "choca" si el rango [y, y+1.8] toca el bloque
+typedef struct { float lo, hi; } Slab;
+static int slab_hits(void *ctx, float y) { const Slab *s = ctx; return y < s->hi && y + 1.8f > s->lo; }
 int main(void) {
 	const float dt = 1.0f / 60;
 	JumpState s = {0, 0};
@@ -31,6 +34,11 @@ int main(void) {
 	jump_step(&g, dt, 1, 0, -6, 1, 1); CHECK(jump_step(&g, dt, 0, 1, 0, 1, 1) == 0);
 	// mantener A en el suelo no salta dos veces seguidas por el guardado
 	JumpState h = {0, 0}; CHECK(jump_step(&h, dt, 1, 1, 0, 1, 0) == 1); CHECK(jump_step(&h, dt, 0, 1, 0, 1, 0) == 0);
+	// salir de un bloque que te pusieron encima
+	{ Slab s1 = {0.5f, 1.5f}; float y = 0.6f; CHECK(unstick_y(&y, slab_hits, &s1) == 1 && y > 1.5f - 0.001f && !slab_hits(&s1, y)); }
+	{ Slab s2 = {0.0f, 0.0f}; float y = 0.0f; CHECK(unstick_y(&y, slab_hits, &s2) == 0 && y == 0.0f); }             // sin bloque: no te mueve
+	{ Slab s3 = {2.0f, 3.0f}; float y = 2.0f - 1.8f - 0.02f; CHECK(unstick_y(&y, slab_hits, &s3) == 0); }          // de pie justo debajo, sin tocar: no te mueve
+	{ Slab s4 = {0.5f, 40.0f}; float y = 0.6f; CHECK(unstick_y(&y, slab_hits, &s4) == 0 && y == 0.6f); }          // sin hueco: se queda donde estaba
 	if (fails) { printf("%d fallos\n", fails); return 1; }
 	puts("phys: todo bien"); return 0;
 }

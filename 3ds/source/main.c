@@ -219,6 +219,7 @@ static bool body_hits(float x, float y, float z) {
 	return false;
 }
 
+static int unstick_hits(void *ctx, float y) { const float *c = ctx; return body_hits(c[0], y, c[1]); }
 // ---------- Render 3D con proyección manual sobre citro2d ----------
 static float cam_yaw = 0, cam_pitch = 0.5f, cam_dist = 9;
 static float cx_, cy_, cz_;
@@ -911,6 +912,7 @@ static bool play_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 		float len = sqrtf(mx * mx + mz * mz);
 		if (len > 0.001f) { mx /= len; mz /= len; }
 		if (app_opt(OPT_RUNTOGGLE) && (down & KEY_B)) g_run_tog = !g_run_tog; bool run_now = app_opt(OPT_RUNTOGGLE) ? g_run_tog : (held & KEY_B) != 0;
+		{ struct { float x, z; } uc = {px, pz}; if (unstick_y(&py, unstick_hits, &uc)) vy = 0; }      // te pusieron un bloque encima: sales hacia arriba (si no hay hueco, no te mueve)
 		float speed = (run_now ? 9.0f : 6.0f) * (cur_game.speed > 0.5f ? cur_game.speed / 6.0f : 1.0f) * mag * (hr.on && hr.stun > 0 ? 0 : 1);
 		moving = mag > 0.05f;
 		if (moving) pry = atan2f(mx, mz);
