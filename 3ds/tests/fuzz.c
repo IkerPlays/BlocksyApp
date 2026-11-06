@@ -1,7 +1,8 @@
 // Fuzz de los lectores (releases, piezas, textos, config): entradas JSON mutadas al azar no deben romper nada.
-// Con sanitizers:  gcc -std=gnu11 -fsanitize=address,undefined -g -Isource tests/fuzz.c source/update_core.c source/parts.c -o /tmp/fuzz -lm && ASAN_OPTIONS=detect_leaks=0 /tmp/fuzz   (desde 3ds/)
+// Con sanitizers:  gcc -std=gnu11 -fsanitize=address,undefined -g -Isource tests/fuzz.c source/update_core.c source/parts.c source/opts.c -o /tmp/fuzz -lm && ASAN_OPTIONS=detect_leaks=0 /tmp/fuzz   (desde 3ds/)
 #include "update.h"
 #include "parts.h"
+#include "opts.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -19,6 +20,15 @@ int main(void) {
 		if (it & 1) { int k = core_parse_api(buf, rels, 8); core_select(rels, k, "1.4.0", &ui); k = core_parse_atom(buf, "IkerPlays/BlocksyApp", rels, 8); core_select(rels, k, "1.4.1-dev.3", &ui); }
 		else { parts_parse(buf, ps, MAX_PARTS); ui_parse(buf, ut, MAX_UITEXTS); memset(&g, 0, sizeof g); gameinfo_parse_config(&g, buf, buf + strlen(buf)); if (ut[0].text[0]) ui_format(ut[0].text, out, sizeof out, 3, "x", "y", 99); }
 		free(buf);
+	}
+	{                                                                          // opciones: lineas del archivo de ajustes mutadas
+		int v[NOPT]; opts_defaults(v); char line[64];
+		for (int it = 0; it < 20000; it++) {
+			snprintf(line, sizeof line, "opt.%s=%d", OPTS[rand() % NOPT].key, rand() % 9 - 3);
+			int muts = rand() % 4; for (int m = 0; m < muts; m++) { int len = (int)strlen(line); if (!len) break; int pos = rand() % len; if (rand() & 1) line[pos] = (char)(rand() & 0xFF); else line[pos] = 0; }
+			opts_parse_line(v, line);
+			for (int i = 0; i < NOPT; i++) if (v[i] < 0 || v[i] >= OPTS[i].n) { puts("fuzz: opcion fuera de rango"); return 1; }
+		}
 	}
 	puts("fuzz: sin fallos"); return 0;
 }
