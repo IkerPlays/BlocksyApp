@@ -1,6 +1,7 @@
 // Cliente HTTP (libcurl + mbedtls) para PostgREST / GoTrue / Edge Functions de Supabase.
 // httpc de libctru falla con el TLS de Cloudflare/Supabase; libcurl con mbedtls sí funciona.
 #include "net.h"
+const char *ui_t(const char *es, const char *en, const char *pt);   // texto segun el idioma de Ajustes (ui.c)
 #include "parts.h"
 #include "config.h"
 #include "json.h"
@@ -216,7 +217,7 @@ static unsigned int parse_color(const char *hex) { // "#rrggbb" -> ABGR
 static char login_err[96] = "";
 const char *net_login_error(void) { return login_err; }
 static void set_err(const char *what) {
-	if (last_status == 0) snprintf(login_err, sizeof login_err, "Sin conexion: %.70s", last_err);
+	if (last_status == 0) snprintf(login_err, sizeof login_err, "%s: %.70s", ui_t("Sin conexion", "No connection", "Sem conexao"), last_err);
 	else if (last_err[0]) snprintf(login_err, sizeof login_err, "%s (%d): %.50s", what, last_status, last_err);
 	else snprintf(login_err, sizeof login_err, "%s (%d)", what, last_status);
 }
@@ -269,8 +270,8 @@ static bool open_game_session(Session *s) {
 	static char sbody[1800]; snprintf(sbody, sizeof sbody, "{\"token\":\"%s\"}", s->token);
 	char *r = http(M_POST, GAME_URL "/functions/v1/game-session", GAME_ANON_KEY, GAME_ANON_KEY, sbody, NULL); // Authorization: Bearer anon (pasa Verify JWT)
 	if (!r) {
-		if (last_status == 404) snprintf(login_err, sizeof login_err, "Falta la funcion game-session (404)");
-		else set_err("No se pudo abrir la sesion de juego");
+		if (last_status == 404) snprintf(login_err, sizeof login_err, "%s", ui_t("Falta la funcion game-session (404)", "Missing game-session function (404)", "Falta a funcao game-session (404)"));
+		else set_err(ui_t("No se pudo abrir la sesion de juego", "Could not open the game session", "Nao foi possivel abrir a sessao de jogo"));
 		return false;
 	}
 	const char *end = r + strlen(r); char col[12] = "";
@@ -280,23 +281,23 @@ static bool open_game_session(Session *s) {
 	jstr(r, end, "color", col, sizeof col);
 	s->color = parse_color(col);
 	free(r);
-	if (!ok) snprintf(login_err, sizeof login_err, "Sesion de juego no valida");
+	if (!ok) snprintf(login_err, sizeof login_err, "%s", ui_t("Sesion de juego no valida", "Invalid game session", "Sessao de jogo invalida"));
 	return ok;
 }
 
 // Inicia sesión (username == NULL) o crea la cuenta (username != NULL) y abre la sesión de juego
 bool net_login(Session *s, const char *email, const char *password, const char *username) {
 	login_err[0] = 0;
-	if (sizeof(AUTH_URL) <= 1 || sizeof(GAME_URL) <= 1) { snprintf(login_err, sizeof login_err, "Este build no tiene config de Supabase"); return false; }
+	if (sizeof(AUTH_URL) <= 1 || sizeof(GAME_URL) <= 1) { snprintf(login_err, sizeof login_err, "%s", ui_t("Este build no tiene config de Supabase", "This build has no Supabase config", "Este build nao tem config do Supabase")); return false; }
 	char body[320];
 	if (username) snprintf(body, sizeof body, "{\"email\":\"%s\",\"password\":\"%s\",\"data\":{\"username\":\"%s\"}}", email, password, username);
 	else snprintf(body, sizeof body, "{\"email\":\"%s\",\"password\":\"%s\"}", email, password);
 	char *r = http(M_POST, username ? AUTH_URL "/auth/v1/signup" : AUTH_URL "/auth/v1/token?grant_type=password", AUTH_ANON_KEY, NULL, body, NULL);
 	if (!r) {
-		if (username && (last_status == 422 || last_status == 400)) snprintf(login_err, sizeof login_err, "No se pudo crear: email repetido o contrasena corta");
-		else if (last_status == 400) snprintf(login_err, sizeof login_err, "Email o contrasena incorrectos");
-		else if (last_status == 401 || last_status == 403) snprintf(login_err, sizeof login_err, "Clave de Supabase invalida (%d)", last_status);
-		else set_err("Error del servidor de cuentas");
+		if (username && (last_status == 422 || last_status == 400)) snprintf(login_err, sizeof login_err, "%s", ui_t("No se pudo crear: email repetido o contrasena corta", "Could not sign up: email in use or password too short", "Nao foi possivel criar: email repetido ou senha curta"));
+		else if (last_status == 400) snprintf(login_err, sizeof login_err, "%s", ui_t("Email o contrasena incorrectos", "Wrong email or password", "Email ou senha incorretos"));
+		else if (last_status == 401 || last_status == 403) snprintf(login_err, sizeof login_err, "%s (%d)", ui_t("Clave de Supabase invalida", "Invalid Supabase key", "Chave do Supabase invalida"), last_status);
+		else set_err(ui_t("Error del servidor de cuentas", "Account server error", "Erro do servidor de contas"));
 		return false;
 	}
 	const char *end = r + strlen(r);
@@ -306,7 +307,7 @@ bool net_login(Session *s, const char *email, const char *password, const char *
 	s->refresh[0] = 0; jstr(r, end, "refresh_token", s->refresh, sizeof s->refresh);
 	free(r);
 	if (!ok) {
-		snprintf(login_err, sizeof login_err, username ? "Cuenta creada. Confirma tu email y entra" : "Respuesta de login no valida");
+		snprintf(login_err, sizeof login_err, "%s", username ? ui_t("Cuenta creada. Confirma tu email y entra", "Account created. Confirm your email and log in", "Conta criada. Confirme seu email e entre") : ui_t("Respuesta de login no valida", "Invalid login response", "Resposta de login invalida"));
 		return false;
 	}
 	return open_game_session(s);
@@ -320,8 +321,8 @@ bool net_refresh(Session *s, bool new_game_session) {
 	char body[240]; snprintf(body, sizeof body, "{\"refresh_token\":\"%s\"}", s->refresh);
 	char *r = http(M_POST, AUTH_URL "/auth/v1/token?grant_type=refresh_token", AUTH_ANON_KEY, NULL, body, NULL);
 	if (!r) {
-		if (last_status == 400 || last_status == 401) snprintf(login_err, sizeof login_err, "La sesion guardada ha caducado");
-		else set_err("No se pudo renovar la sesion");
+		if (last_status == 400 || last_status == 401) snprintf(login_err, sizeof login_err, "%s", ui_t("La sesion guardada ha caducado", "Your saved session expired", "A sessao salva expirou"));
+		else set_err(ui_t("No se pudo renovar la sesion", "Could not renew the session", "Nao foi possivel renovar a sessao"));
 		return false;
 	}
 	const char *end = r + strlen(r);
@@ -330,7 +331,7 @@ bool net_refresh(Session *s, bool new_game_session) {
 	const char *u = strstr(r, "\"user\":{");
 	ok = ok && u && jstr(u, end, "id", uid, sizeof uid);
 	free(r);
-	if (!ok) { snprintf(login_err, sizeof login_err, "Respuesta de renovacion no valida"); return false; }
+	if (!ok) { snprintf(login_err, sizeof login_err, "%s", ui_t("Respuesta de renovacion no valida", "Invalid renewal response", "Resposta de renovacao invalida")); return false; }
 	snprintf(s->token, sizeof s->token, "%s", tok); snprintf(s->refresh, sizeof s->refresh, "%s", ref); snprintf(s->user_id, sizeof s->user_id, "%s", uid);
 	return new_game_session ? open_game_session(s) : true;
 }
@@ -345,29 +346,29 @@ static void fill_session(Session *s, const char *r, const char *end) {
 }
 bool net_link_start(char *code, size_t cn, char *poll, size_t pn) {
 	login_err[0] = 0;
-	if (sizeof(GAME_URL) <= 1) { snprintf(login_err, sizeof login_err, "Este build no tiene config de Supabase"); return false; }
+	if (sizeof(GAME_URL) <= 1) { snprintf(login_err, sizeof login_err, "%s", ui_t("Este build no tiene config de Supabase", "This build has no Supabase config", "Este build nao tem config do Supabase")); return false; }
 	char *r = http(M_POST, GAME_URL "/rest/v1/rpc/link_start", GAME_ANON_KEY, NULL, "{}", NULL);
 	if (!r) {
-		if (last_status == 404 && strstr(last_err, "Could not find")) snprintf(login_err, sizeof login_err, "Falta link-login.sql en Game (404)");
-		else set_err("No se pudo crear el codigo");
+		if (last_status == 404 && strstr(last_err, "Could not find")) snprintf(login_err, sizeof login_err, "%s", ui_t("Falta link-login.sql en Game (404)", "link-login.sql is missing in Game (404)", "Falta link-login.sql em Game (404)"));
+		else set_err(ui_t("No se pudo crear el codigo", "Could not create the code", "Nao foi possivel criar o codigo"));
 		return false;
 	}
 	bool ok = jstr(r, r + strlen(r), "code", code, cn) && jstr(r, r + strlen(r), "poll", poll, pn);
 	free(r);
-	if (!ok) snprintf(login_err, sizeof login_err, "Respuesta no valida del servidor");
+	if (!ok) snprintf(login_err, sizeof login_err, "%s", ui_t("Respuesta no valida del servidor", "Invalid server response", "Resposta invalida do servidor"));
 	return ok;
 }
 // 1 = aprobado (sesión rellena), 0 = pendiente, -1 = caducado o error
 int net_link_poll(Session *s, const char *code, const char *poll) {
 	char body[160]; snprintf(body, sizeof body, "{\"p_code\":\"%s\",\"p_poll\":\"%s\"}", code, poll);
 	char *r = http(M_POST, GAME_URL "/rest/v1/rpc/link_poll", GAME_ANON_KEY, NULL, body, NULL);
-	if (!r) { set_err("Error consultando el codigo"); return last_status == 0 ? 0 : -1; }   // sin red: reintenta
+	if (!r) { set_err(ui_t("Error consultando el codigo", "Error checking the code", "Erro ao consultar o codigo")); return last_status == 0 ? 0 : -1; }   // sin red: reintenta
 	const char *end = r + strlen(r); char st[16] = "";
 	jstr(r, end, "status", st, sizeof st);
 	int ret = -1;
 	if (!strcmp(st, "pending")) ret = 0;
 	else if (!strcmp(st, "ok")) { fill_session(s, r, end); s->token[0] = 0; ret = s->secret[0] ? 1 : -1; }
-	else snprintf(login_err, sizeof login_err, "El codigo ha caducado");
+	else snprintf(login_err, sizeof login_err, "%s", ui_t("El codigo ha caducado", "The code expired", "O codigo expirou"));
 	free(r); return ret;
 }
 // Comprueba una sesión guardada (s->secret ya relleno)
@@ -375,7 +376,7 @@ bool net_resume(Session *s) {
 	login_err[0] = 0;
 	char body[96]; snprintf(body, sizeof body, "{\"p_secret\":\"%s\"}", s->secret);
 	char *r = http(M_POST, GAME_URL "/rest/v1/rpc/whoami", GAME_ANON_KEY, NULL, body, NULL);
-	if (!r) { set_err("No se pudo reanudar"); return false; }
+	if (!r) { set_err(ui_t("No se pudo reanudar", "Could not resume", "Nao foi possivel retomar")); return false; }
 	const char *end = r + strlen(r);
 	bool ok = jstr(r, end, "player_id", s->user_id, sizeof s->user_id);
 	if (ok) { char col[12] = ""; strcpy(s->username, "player"); jstr(r, end, "username", s->username, sizeof s->username); jstr(r, end, "color", col, sizeof col); s->color = parse_color(col); }
@@ -553,7 +554,7 @@ void net_npc_release(const Session *s) {
 int net_list_games(GameInfo *out, int max) {
 	char *r = HAS_STORE ? http(M_GET, STORE_URL "/rest/v1/games?select=id,name,description,owner_id,owner_name,hue,max_players,mode,config&order=created_at.asc&limit=32", STORE_ANON_KEY, NULL, NULL, NULL)
 	                    : http(M_GET, GAME_URL "/rest/v1/games?select=id,name,description,owner_id,owner_name,hue,max_players,mode,config&order=created_at.asc&limit=32", GAME_ANON_KEY, NULL, NULL, NULL);
-	if (!r) { set_err("No se pudo cargar la lista de juegos"); return -1; }
+	if (!r) { set_err(ui_t("No se pudo cargar la lista de juegos", "Could not load the game list", "Nao foi possivel carregar a lista de jogos")); return -1; }
 	int n = 0; const char *p = r, *end;
 	while (n < max && (p = next_obj(p, &end))) {
 		GameInfo *g = &out[n]; memset(g, 0, sizeof *g);

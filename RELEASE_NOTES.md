@@ -1,2 +1,2 @@
-Devbuild: 3DS translations
-- 3DS: the Dark Forest HUD, the friend message alert and the password keyboard title follow the language chosen in Settings.
+Devbuild: 3DS login errors in your language
+- 3DS: the login, sign up, QR code and game list error messages follow the language chosen in Settings.
