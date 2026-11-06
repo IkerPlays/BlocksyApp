@@ -686,6 +686,15 @@ static void render_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 			else { float x = fmodf(bx + sinf(tw * 1.3f + i) * 14 + 400, 400), y = fmodf(by + tw * (38 + (i % 4) * 9), 240); C2D_DrawRectSolid(x, y, 0, 2.4f, 2.4f, C2D_Color32(255, 255, 255, 220)); }
 		}
 	}
+	if (app_opt(OPT_FIREFLY) && starry && world.floor && !hr.on && world.type != 7) {                  // luciernagas: de noche, puntos de luz que flotan y parpadean cerca del jugador
+		float tw = (now - t_start) / 1000.0f;
+		for (int i = 0; i < 14; i++) {
+			unsigned h = (unsigned)(i + 7) * 2654435761u; float ox = ((h >> 4 & 255) / 255.0f - 0.5f) * 16, oz = ((h >> 12 & 255) / 255.0f - 0.5f) * 16, oy = 0.6f + (h >> 20 & 63) / 63.0f * 2.2f;
+			float fx = px + ox + sinf(tw * 0.5f + i) * 1.4f, fz = pz + oz + cosf(tw * 0.4f + i * 1.7f) * 1.4f, fy = (world.floor ? 0.0f : py) + oy + sinf(tw * 0.9f + i * 2.1f) * 0.4f, gx, gy, gd;
+			float blink = 0.5f + 0.5f * sinf(tw * 2.6f + i * 3.3f); if (blink < 0.25f || !project(fx, fy, fz, &gx, &gy, &gd) || gd > fog_far) continue;
+			C2D_DrawCircleSolid(gx, gy, 0, 5.0f, C2D_Color32(0xFF, 0xE0, 0x66, (u8)(50 * blink))); C2D_DrawCircleSolid(gx, gy, 0, 1.6f, C2D_Color32(0xFF, 0xF2, 0xA0, (u8)(255 * blink)));
+		}
+	}
 	for (int i = 0; i < 10; i++) if (puff[i].life > 0) {                       // polvo de los pasos
 		float sx2, sy2, d2; if (!project(puff[i].x, puff[i].y, puff[i].z, &sx2, &sy2, &d2)) continue;
 		float k2 = puff[i].life / 0.5f, r2 = (1 - k2) * 7 + 2; C2D_DrawEllipseSolid(sx2 - r2, sy2 - r2 * 0.5f, 0, r2 * 2, r2, C2D_Color32(0xE6, 0xE6, 0xE6, (u8)(150 * k2)));
