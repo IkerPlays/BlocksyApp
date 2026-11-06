@@ -40,6 +40,21 @@ static const char *const PT_TR[][2] = {
 	{"%s wants to be your friend", "%s quer ser seu amigo"},
 	{"+ Add friend (username)", "+ Adicionar amigo (usuario)"},
 	{"Account", "Conta"},
+	{"Add friends from Friends to see them here.", "Adicione amigos em Amigos para ve-los aqui."},
+	{"Log in with email and password to see your friends.", "Entre com email e senha para ver seus amigos."},
+	{"Loading games...", "Carregando jogos..."},
+	{"Search games  (X)", "Buscar jogos  (X)"},
+	{"No games match.", "Nenhum jogo encontrado."},
+	{"Log in with email and password to save.", "Entre com email e senha para salvar."},
+	{"Installed version", "Versao instalada"},
+	{"Checking for updates...", "Procurando atualizacoes..."},
+	{"It will install as .cia (replaces this app).", "Sera instalado como .cia (substitui este app)."},
+	{"It will install as .3dsx (replaces this file).", "Sera instalado como .3dsx (substitui este arquivo)."},
+	{"Your data and session are kept.", "Seus dados e sua sessao sao mantidos."},
+	{"platforms", "plataformas"},
+	{"No results.", "Sem resultados."},
+	{"Loading...", "Carregando..."},
+	{"Search (X)", "Buscar (X)"},
 	{"Player radar", "Radar de jogadores"},
 	{"Block particles", "Particulas de blocos"},
 	{"Alerts cleared", "Avisos apagados"},
@@ -662,12 +677,12 @@ static void page_top(const Ui *u, const Session *s) {
 			float cx = 30 + i * 52; char nm[24]; fit(nm, sizeof nm, friends[i].name, 0.34f, 48);
 			ui_avatar(cx, 104, 13, friends[i].color, friends[i].online, friends[i].name);
 			ui_text(cx, 119, 0.34f, COL_TEXT, C2D_AlignCenter, nm);
-		} else ui_text(14, 94, 0.42f, COL_MUTED, 0, g_account ? "Anade amigos desde Amigos para verlos aqui." : "Entra con email y contrasena para ver a tus amigos.");
+		} else ui_text(14, 94, 0.42f, COL_MUTED, 0, g_account ? tr2("Anade amigos desde Amigos para verlos aqui.", "Add friends from Friends to see them here.") : tr2("Entra con email y contrasena para ver a tus amigos.", "Log in with email and password to see your friends."));
 		int n = build_view(u, s, view);
 		section(132, "Populares ahora", "Ver todo");
 		int first = u->cur > 4 ? u->cur - 4 : 0;
 		for (int i = 0; i < 5 && first + i < n; i++) game_card(14 + i * 76, 154, 58, &games[view[first + i]], first + i == u->cur, true);
-		if (!n) ui_text(14, 160, 0.45f, COL_MUTED, 0, "Cargando juegos...");
+		if (!n) ui_text(14, 160, 0.45f, COL_MUTED, 0, tr2("Cargando juegos...", "Loading games..."));
 		if (g_has_meetup) {                                                                         // proxima quedada: junto al saludo si cabe
 			float x0 = 58 + ui_text_width(hi, 0.8f) + 10; if (x0 < 214) x0 = 214;
 			if (386 - x0 >= 100) {
@@ -681,12 +696,12 @@ static void page_top(const Ui *u, const Session *s) {
 	case P_DISCOVER: {
 		ui_text(14, 33, 0.8f, COL_TEXT, 0, "Descubrir");
 		ui_rrect(14, 64, 372, 22, 11, COL_PANEL2);
-		ui_text(28, 66, 0.42f, u->search[0] ? COL_TEXT : COL_MUTED, 0, u->search[0] ? u->search : "Buscar juegos  (X)");
+		ui_text(28, 66, 0.42f, u->search[0] ? COL_TEXT : COL_MUTED, 0, u->search[0] ? u->search : tr2("Buscar juegos  (X)", "Search games  (X)"));
 		{ char mf_[48]; snprintf(mf_, sizeof mf_, "%s: %s  (SELECT)", tr2("Modo", "Mode"), mfilter_label()); ui_text(372, 67, 0.36f, s_mfilter ? COL_GREEN : COL_MUTED, C2D_AlignRight, mf_); }
 		int n = build_view(u, s, view);
 		int per = 5, first = (u->cur / per >= 2 ? (u->cur / per - 1) * per : 0);
 		for (int i = 0; i < 10 && first + i < n; i++) game_card(14 + (i % per) * 76, 96 + (i / per) * 74, 52, &games[view[first + i]], first + i == u->cur, false);
-		if (!n) ui_text(14, 110, 0.45f, COL_MUTED, 0, "No hay juegos que coincidan.");
+		if (!n) ui_text(14, 110, 0.45f, COL_MUTED, 0, tr2("No hay juegos que coincidan.", "No games match."));
 		break; }
 	case P_AVATAR: {
 		ui_text(14, 33, 0.8f, COL_TEXT, 0, "Avatar");
@@ -694,7 +709,7 @@ static void page_top(const Ui *u, const Session *s) {
 		ui_rrect(26, 78, 112, 136, 10, C(0x2E, 0x31, 0x38));
 		avatar_preview(82, 152, s, parse_hex(AVATAR_COLORS[u->swatch]));
 		ui_text(156, 80, 0.7f, COL_TEXT, 0, s->username);
-		if (!g_account) ui_text(156, 104, 0.38f, COL_RED, 0, "Entra con email y contrasena para guardar.");
+		if (!g_account) ui_text(156, 104, 0.38f, COL_RED, 0, tr2("Entra con email y contrasena para guardar.", "Log in with email and password to save."));
 		if (g_account) { char pf[96]; int na = 0; for (int i = 0; i < 5; i++) na += (s_ach >> i) & 1; snprintf(pf, sizeof pf, "%d BC | %s %d | %s %d | %s %d/5", wallet.bcoins, tr2("racha", "streak"), wallet.streak, tr2("amigos", "friends"), nfriends, tr2("logros", "ach."), na); ui_text(156, 104, 0.36f, COL_ACCENT, 0, pf); }
 		{ char dm[48]; snprintf(dm, sizeof dm, "X: %s%s%s", tr2("probar emote", "try emote"), prev_demo ? "  (" : "", prev_demo ? AV_EMOTE_LABEL[prev_demo - 1] : ""); if (prev_demo) strncat(dm, ")", sizeof dm - strlen(dm) - 1); ui_text(156, 118, 0.38f, COL_ACCENT, 0, dm); }
 		{ char l[64], f[64]; snprintf(l, sizeof l, "%s: %s", tr2("Sombrero", "Hat"), acc_name("hat")); fit(f, sizeof f, l, 0.42f, 226); ui_text(156, 134, 0.42f, COL_TEXT, 0, f);
@@ -783,7 +798,7 @@ static void page_top(const Ui *u, const Session *s) {
 		ui_text(14, 33, 0.8f, COL_TEXT, 0, PAGE_NAME[P_UPDATE]);
 		if (g_upd_have && g_upd.from_cache) ui_text(386, 40, 0.32f, COL_RED, C2D_AlignRight, tr2("Sin conexion con GitHub: datos guardados", "No GitHub connection: saved data"));
 		ui_rrect(14, 66, 372, 160, 12, COL_PANEL);
-		ui_text(30, 76, 0.48f, COL_TEXT, 0, "Version instalada"); ui_text(370, 76, 0.48f, COL_MUTED, C2D_AlignRight, g_upd.cur[0] ? g_upd.cur : "?");
+		ui_text(30, 76, 0.48f, COL_TEXT, 0, tr2("Version instalada", "Installed version")); ui_text(370, 76, 0.48f, COL_MUTED, C2D_AlignRight, g_upd.cur[0] ? g_upd.cur : "?");
 		ui_rect(26, 100, 348, 1, COL_LINE);
 		for (int i = 0; i < 2; i++) {
 			const Rel *r = i ? &g_upd.dev : &g_upd.stable; float y = 108 + i * 32;
@@ -807,7 +822,7 @@ static void page_top(const Ui *u, const Session *s) {
 			if (g_prog.attempt > 1) { char q[24]; snprintf(q, sizeof q, " [%d/5]", g_prog.attempt); strncat(p, q, sizeof p - strlen(p) - 1); }
 			char fp[96]; fit(fp, sizeof fp, p, 0.38f, 336); ui_text(30, 182, 0.38f, COL_TEXT, 0, fp);
 			ui_rrect(30, 204, 340, 10, 5, COL_PANEL2); if (g_prog.pct > 0) ui_rrect(30, 204, 340.0f * g_prog.pct / 100, 10, 5, COL_GREEN);
-		} else if (g_upd_state == 1) ui_text(30, 184, 0.44f, COL_MUTED, 0, "Buscando actualizaciones...");
+		} else if (g_upd_state == 1) ui_text(30, 184, 0.44f, COL_MUTED, 0, tr2("Buscando actualizaciones...", "Checking for updates..."));
 		else if (g_upd_msg[0]) { char m[100]; fit(m, sizeof m, g_upd_msg, 0.42f, 330); ui_text(30, 184, 0.42f, g_upd_state == 3 ? COL_GREEN : COL_RED, 0, m); }
 		else {
 			if (g_upd_log && g_upd.log[0]) {
@@ -819,7 +834,7 @@ static void page_top(const Ui *u, const Session *s) {
 			static char nl_[4][96]; char flat_[420]; snprintf(flat_, sizeof flat_, "%s", nr_->notes); for (char *q = flat_; *q; q++) if (*q == '\n') *q = ' ';
 			int nn_ = nr_->valid && flat_[0] ? wrap(flat_, 0.36f, 330, nl_, 4) : 0;       // notas de la release (resumen)
 			if (nn_) { for (int i = 0; i < nn_ && i < 3; i++) ui_text(30, 178 + i * 15, 0.36f, COL_MUTED, 0, nl_[i]); if (nn_ > 3) ui_text(30, 223, 0.3f, COL_MUTED, 0, "..."); }
-			else { ui_text(30, 180, 0.4f, COL_MUTED, 0, update_is_cia() ? "Se instalara como .cia (se reemplaza esta app)." : "Se instalara como .3dsx (se reemplaza este fichero)."); ui_text(30, 196, 0.38f, COL_MUTED, 0, "Tus datos y tu sesion se conservan."); }
+			else { ui_text(30, 180, 0.4f, COL_MUTED, 0, update_is_cia() ? tr2("Se instalara como .cia (se reemplaza esta app).", "It will install as .cia (replaces this app).") : tr2("Se instalara como .3dsx (se reemplaza este fichero).", "It will install as .3dsx (replaces this file).")); ui_text(30, 196, 0.38f, COL_MUTED, 0, tr2("Tus datos y tu sesion se conservan.", "Your data and session are kept.")); }
 			if (nr_->valid && (nr_->cia_size || nr_->dsx_size)) { unsigned sz = update_is_cia() ? nr_->cia_size : nr_->dsx_size; char z_[40]; snprintf(z_, sizeof z_, "%u.%u MB%s", sz >> 20, (sz >> 17) % 10 * 10 / 8 % 10, nr_->date[0] ? " - " : ""); if (nr_->date[0]) strncat(z_, nr_->date, sizeof z_ - strlen(z_) - 1); ui_text(370, 224, 0.3f, COL_MUTED, C2D_AlignRight, z_); }
 			}
 		}
@@ -852,7 +867,7 @@ static void modal_top(const Ui *u) {
 	ui_text(184, 100, 0.6f, COL_TEXT, 0, a); ui_text(184, 120, 0.34f, COL_MUTED, 0, "jugando");
 	ui_text(236, 100, 0.6f, COL_TEXT, 0, b);  ui_text(236, 120, 0.34f, COL_MUTED, 0, "max. jugadores");
 	if (g->has_script) { ui_text(310, 104, 0.4f, C(0xF5, 0xC5, 0x42), 0, tr2("Con script", "Scripted")); ui_text(310, 120, 0.34f, COL_MUTED, 0, tr2("reglas solo en la web", "rules only on web")); }
-	else { ui_text(310, 104, 0.4f, COL_TEXT, 0, "Web + 3DS"); ui_text(310, 120, 0.34f, COL_MUTED, 0, "plataformas"); }
+	else { ui_text(310, 104, 0.4f, COL_TEXT, 0, "Web + 3DS"); ui_text(310, 120, 0.34f, COL_MUTED, 0, tr2("plataformas", "platforms")); }
 	static char lines[3][96]; int nl = wrap(g->about[0] ? g->about : g->desc[0] ? g->desc : "Sin descripcion.", 0.42f, 180, lines, 3);
 	for (int i = 0; i < nl; i++) ui_text(184, 142 + i * 15, 0.42f, COL_MUTED, 0, lines[i]);
 	{ char hint[64]; snprintf(hint, sizeof hint, "A: %s     X: %s     B: %s", tr2("jugar", "play"), g->fav ? tr2("quitar favorito", "unfavorite") : tr2("favorito", "favorite"), tr2("cerrar", "close")); ui_text(200, 196, 0.38f, COL_MUTED, C2D_AlignCenter, hint); }
@@ -906,9 +921,9 @@ static void pane(const Ui *u, const Session *s) {
 	switch (u->page) {
 	case P_HOME: case P_DISCOVER: {
 		int n = build_view(u, s, view);
-		if (u->page == P_DISCOVER) { ui_rrect(PANE_X + 78, 4, PANE_W - 78, 20, 10, COL_PANEL2); ui_text(PANE_X + 86, 5, 0.38f, u->search[0] ? COL_TEXT : COL_MUTED, 0, u->search[0] ? u->search : "Buscar (X)"); }
+		if (u->page == P_DISCOVER) { ui_rrect(PANE_X + 78, 4, PANE_W - 78, 20, 10, COL_PANEL2); ui_text(PANE_X + 86, 5, 0.38f, u->search[0] ? COL_TEXT : COL_MUTED, 0, u->search[0] ? u->search : tr2("Buscar (X)", "Search (X)")); }
 		for (int i = 0; i < vis && u->scroll + i < n; i++) list_game_row(LIST_Y + i * rh, &games[view[u->scroll + i]], u->scroll + i == u->cur, NULL);
-		if (!n) ui_text(PANE_X, 50, 0.44f, COL_MUTED, 0, u->page == P_DISCOVER && u->search[0] ? "Sin resultados." : "Cargando...");
+		if (!n) ui_text(PANE_X, 50, 0.44f, COL_MUTED, 0, u->page == P_DISCOVER && u->search[0] ? tr2("Sin resultados.", "No results.") : tr2("Cargando...", "Loading..."));
 		break; }
 	case P_FRIENDS: {
 		int n = build_people(s, pr);

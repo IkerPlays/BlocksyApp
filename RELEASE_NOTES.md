@@ -1,2 +1,2 @@
-Devbuild: 3DS login errors in your language
-- 3DS: the login, sign up, QR code and game list error messages follow the language chosen in Settings.
+Devbuild: 3DS translations
+- 3DS: login errors and the remaining Spanish-only texts of Home, Discover, Update and Settings (loading, search, no results, installed version, update notices) follow the language chosen in Settings.
