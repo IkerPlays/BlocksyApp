@@ -695,6 +695,15 @@ static void render_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 			C2D_DrawCircleSolid(gx, gy, 0, 5.0f, C2D_Color32(0xFF, 0xE0, 0x66, (u8)(50 * blink))); C2D_DrawCircleSolid(gx, gy, 0, 1.6f, C2D_Color32(0xFF, 0xF2, 0xA0, (u8)(255 * blink)));
 		}
 	}
+	if (g_weather == 1 && world.floor) {                                                    // lluvia: ondas en el suelo cerca del jugador
+		float tw = (now - t_start) / 1000.0f;
+		for (int i = 0; i < 10; i++) {
+			unsigned h = (unsigned)(i + 3) * 2246822519u; float ph = fmodf(tw * 1.3f + (h >> 8 & 255) / 255.0f, 1.0f);
+			float rx = px + ((h >> 4 & 255) / 255.0f - 0.5f) * 12, rz = pz + ((h >> 16 & 255) / 255.0f - 0.5f) * 12, gx, gy, gd;
+			if (!project(rx, 0.03f, rz, &gx, &gy, &gd) || gd > fog_far) continue;
+			float r = 2.5f + ph * (80.0f / (gd + 3.0f)); C2D_DrawEllipseSolid(gx - r, gy - r * 0.3f, 0, r * 2, r * 0.6f, C2D_Color32(0xC8, 0xE0, 0xFF, (u8)(190 * (1 - ph))));
+		}
+	}
 	for (int i = 0; i < 10; i++) if (puff[i].life > 0) {                       // polvo de los pasos
 		float sx2, sy2, d2; if (!project(puff[i].x, puff[i].y, puff[i].z, &sx2, &sy2, &d2)) continue;
 		float k2 = puff[i].life / 0.5f, r2 = (1 - k2) * 7 + 2; C2D_DrawEllipseSolid(sx2 - r2, sy2 - r2 * 0.5f, 0, r2 * 2, r2, C2D_Color32(0xE6, 0xE6, 0xE6, (u8)(150 * k2)));
@@ -1030,7 +1039,7 @@ void game_preview(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 	{ const char *pw = getenv("BLOCKSY_PREVIEW_WORLD"); world_build(&world, pw ? pw : "", 0); can_build = true; ui_build_ui = true; }
 	snprintf(sess.username, sizeof sess.username, "IkerPlays"); sess.color = 0xFF439FFF; snprintf(cur_game.name, sizeof cur_game.name, "Spawn Plaza");
 	nl = 0;
-	{ const char *sk = getenv("BLOCKSY_PREVIEW_SKY"); g_skymode = sk ? atoi(sk) : 0; } { const char *td = getenv("BLOCKSY_PREVIEW_TOD"); g_tod = td ? (float)atof(td) : -1; }
+	{ const char *sk = getenv("BLOCKSY_PREVIEW_SKY"); g_skymode = sk ? atoi(sk) : 0; } { const char *td = getenv("BLOCKSY_PREVIEW_TOD"); g_tod = td ? (float)atof(td) : -1; } { const char *wx = getenv("BLOCKSY_PREVIEW_WEATHER"); g_weather = wx ? atoi(wx) : 0; }
 	if (getenv("BLOCKSY_PREVIEW_PARTS")) snprintf(g_my_hat, sizeof g_my_hat, "hat_cap||||pet_slime|");
 	if (getenv("BLOCKSY_PREVIEW_PARTS")) { snprintf(bubbles[0].name, sizeof bubbles[0].name, "%s", sess.username); snprintf(bubbles[0].text, sizeof bubbles[0].text, "Hola a todos!"); bubbles[0].until = 25000; }
 	nparts = 0;
