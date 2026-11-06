@@ -26,6 +26,7 @@ const OptDef OPTS[NOPT] = {
 	[OPT_CLOCK]     = {"clock", "Hora en pantalla", "Clock on screen", "Hora na tela", 2, 0},
 	[OPT_AUTOSIT]   = {"autosit", "Sentarse tras 45 s quieto", "Sit down after 45 s idle", "Sentar apos 45 s parado", 2, 0},
 	[OPT_FIREFLY]   = {"firefly", "Luciernagas de noche", "Night fireflies", "Vaga-lumes a noite", 2, 1},
+	[OPT_JUMPASSIST] = {"jumpassist", "Ayuda al saltar", "Jump assist", "Ajuda para pular", 2, 1},
 	[OPT_SORT]      = {"sort", "Orden de los juegos", "Game order", "Ordem dos jogos", 3, 0, {"Populares", "Jugadores", "Nombre"}, {"Popular", "Players", "Name"}},
 };
 

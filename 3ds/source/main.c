@@ -14,6 +14,7 @@
 #include "update.h"
 #include "log.h"
 #include "parts.h"
+#include "phys.h"
 #include "avatar3d.h"
 #include "world.h"
 #include "config.h"
@@ -923,7 +924,8 @@ static bool play_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 			puff_t -= dt; if (moving && grounded && puff_t <= 0) { puff_t = run_now ? 0.18f : 0.28f; for (int i = 0; i < 10; i++) if (puff[i].life <= 0) { puff[i].x = px; puff[i].y = py + 0.05f; puff[i].z = pz; puff[i].life = 0.5f; break; } }
 		}
 		if (grounded) jumps_left = 1;
-		if ((down & KEY_A) && grounded) { vy = jump_v; grounded = false; sfx_play(SFX_JUMP); }
+		static JumpState jst;                                                                                // ayuda al saltar (source/phys.c): margen al salir de un borde y salto guardado
+		if (jump_step(&jst, dt, (down & KEY_A) != 0, grounded, vy, app_opt(OPT_JUMPASSIST), cur_game.double_jump)) { vy = jump_v; grounded = false; sfx_play(SFX_JUMP); }
 		else if ((down & KEY_A) && cur_game.double_jump && jumps_left > 0) { jumps_left--; vy = jump_v * 0.9f; sfx_play(SFX_JUMP); }       // salto doble (config.double_jump)
 		vy -= (cur_game.gravity > 1 ? cur_game.gravity : 24) * dt; float ny = py + vy * dt; grounded = false;
 		if (body_hits(px, ny, pz)) { if (vy < -9.0f) { fx_burst(px, py + 0.1f, pz, C2D_Color32(0xD8, 0xD8, 0xD0, 255), 6, 2.2f); sfx_play(SFX_LAND); } if (vy < 0) grounded = true; vy = 0; }
