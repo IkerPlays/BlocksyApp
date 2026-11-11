@@ -645,7 +645,7 @@ static void render_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 	// nombres sobre los jugadores
 	for (int i = 0; i < nr && app_opt(OPT_NAMETAGS); i++) if (project(rem[i].x, rem[i].y + 2.05f, rem[i].z, &sx, &sy, &d) && d < 26) {
 		float naf = d < 14 ? 255.0f : 255.0f * (26 - d) / 12 + 20; u8 na = (u8)(naf > 255 ? 255 : naf);                                       // el nombre se desvanece con la distancia
-		bool fr = app_is_friend(rem[i].name);                                                       // los amigos se ven en dorado
+		bool fr = app_opt(OPT_FRIENDHL) && app_is_friend(rem[i].name);                                                       // los amigos se ven en dorado
 		ui_text(sx + 1, sy - 11, 0.34f, C2D_Color32(0, 0, 0, na * 200 / 255), C2D_AlignCenter, rem[i].name);
 		ui_text(sx, sy - 12, 0.34f, fr ? C2D_Color32(0xFF, 0xD3, 0x4D, na) : C2D_Color32(255, 255, 255, na), C2D_AlignCenter, rem[i].name);
 	}
@@ -729,7 +729,7 @@ static void render_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 			float dx = rem[i].x - px, dz = rem[i].z - pz, fw = dx * fdx2 + dz * fdz2, rt = dx * -fdz2 + dz * fdx2, dist = hypotf(fw, rt);
 			if (dist > range) { fw *= range / dist; rt *= range / dist; }
 			float ex = cx + rt / range * (rr - 4), ey = cy - fw / range * (rr - 4);
-			C2D_DrawCircleSolid(ex, ey, 0, 3.4f, app_is_friend(rem[i].name) ? C2D_Color32(0xFF, 0xD3, 0x4D, 255) : rem[i].is3ds ? C2D_Color32(0xE6, 0x00, 0x12, 255) : C2D_Color32(0, 0, 0, 160)); C2D_DrawCircleSolid(ex, ey, 0, 2.4f, rem[i].color | 0xFF000000u);       // aro rojo = jugador de 3DS
+			C2D_DrawCircleSolid(ex, ey, 0, 3.4f, app_opt(OPT_FRIENDHL) && app_is_friend(rem[i].name) ? C2D_Color32(0xFF, 0xD3, 0x4D, 255) : rem[i].is3ds ? C2D_Color32(0xE6, 0x00, 0x12, 255) : C2D_Color32(0, 0, 0, 160)); C2D_DrawCircleSolid(ex, ey, 0, 2.4f, rem[i].color | 0xFF000000u);       // aro rojo = jugador de 3DS
 		}
 		ui_text(cx + sinf(cam_yaw) * (rr - 1) - 2.5f, cy - cosf(cam_yaw) * (rr - 1) - 5, 0.28f, C2D_Color32(0xFF, 0x6B, 0x6B, 255), 0, "N");                      // el norte gira con la camara
 		C2D_DrawTriangle(cx, cy - 4.5f, C2D_Color32(0xFF, 0xD3, 0x4D, 255), cx - 3.2f, cy + 3, C2D_Color32(0xFF, 0xD3, 0x4D, 255), cx + 3.2f, cy + 3, C2D_Color32(0xFF, 0xD3, 0x4D, 255), 0);
@@ -872,7 +872,7 @@ static bool play_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 		for (int i = 0; i < world.ncells && nl < MAX_LOCAL; i++) local[nl++] = world.cells[i];      // bloques fijos del mundo
 		memcpy(rem, remotes, sizeof(Remote) * nremotes); nr = nremotes;
 		if (prev_n >= 0) {                                                                                    // avisos: quien entra o sale de la partida
-			for (int i = 0; i < nr; i++) { bool had = false; for (int j = 0; j < prev_n; j++) if (!strcmp(prev_names[j], rem[i].name)) { had = true; break; } if (!had) { snprintf(toast_txt, sizeof toast_txt, "%.20s %s", rem[i].name, app_lang() == 1 ? "joined" : app_lang() == 2 ? "entrou" : "entro"); toast_until = now + 2200; } }
+			for (int i = 0; i < nr; i++) { bool had = false; for (int j = 0; j < prev_n; j++) if (!strcmp(prev_names[j], rem[i].name)) { had = true; break; } if (!had) { snprintf(toast_txt, sizeof toast_txt, "%s%.20s %s", app_is_friend(rem[i].name) ? ui_t("Amigo: ", "Friend: ", "Amigo: ") : "", rem[i].name, app_lang() == 1 ? "joined" : app_lang() == 2 ? "entrou" : "entro"); toast_until = now + 2200; } }
 			for (int j = 0; j < prev_n; j++) { bool still = false; for (int i = 0; i < nr; i++) if (!strcmp(prev_names[j], rem[i].name)) { still = true; break; } if (!still) { snprintf(toast_txt, sizeof toast_txt, "%.20s %s", prev_names[j], app_lang() == 1 ? "left" : app_lang() == 2 ? "saiu" : "salio"); toast_until = now + 2200; } }
 		}
 		prev_n = nr < MAX_PLAYERS ? nr : MAX_PLAYERS; for (int i = 0; i < prev_n; i++) snprintf(prev_names[i], sizeof prev_names[i], "%s", rem[i].name);

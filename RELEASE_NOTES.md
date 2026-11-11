@@ -1,4 +1,2 @@
-Devbuild: 3DS friends highlighted, anti-stuck
-- 3DS: if another player places a block on top of you, you are lifted out of it instead of getting stuck.
-- 3DS: your friends appear in gold over their head and on the radar while you play.
-- 3DS: jump assist (option), rain ripples, night fireflies (option).
+Devbuild: 3DS friends option
+- 3DS: new option "Friends in gold" (on by default) to turn off the gold highlight of friends; the join notice says when the player is a friend.
