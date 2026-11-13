@@ -1,2 +1,2 @@
-Devbuild: 3DS friends option
-- 3DS: new option "Friends in gold" (on by default) to turn off the gold highlight of friends; the join notice says when the player is a friend.
+Devbuild: new template Don't stop
+- Web: new Studio template "Don't stop": stand still for more than 3 seconds and you explode; keeps your best time. Translated into all 11 languages.

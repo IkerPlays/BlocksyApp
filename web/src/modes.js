@@ -910,6 +910,41 @@ task.spawn(function()
 end)
 game.title("Pasa por las puertas verdes en orden", 2500)`
 
+// No pares: si te quedas quieto más de 3 segundos explotas y empiezas de nuevo; aguanta el máximo tiempo en un circuito de losetas.
+export const KEEPMOVING = `local Players = game:GetService("Players")
+local me = Players.LocalPlayer
+local gui = Instance.new("ScreenGui"); gui.Parent = me.PlayerGui
+local label = Instance.new("TextLabel"); label.Size = UDim2.new(0, 460, 0, 44); label.Position = UDim2.new(0.5, 0, 0, 14); label.AnchorPoint = Vector2.new(0.5, 0)
+label.BackgroundColor3 = Color3.fromRGB(20, 20, 30); label.BackgroundTransparency = 0.25; label.TextColor3 = Color3.new(1, 1, 1); label.TextSize = 20; label.Parent = gui
+Instance.new("UICorner", label).CornerRadius = UDim.new(0, 12)
+local bar = Instance.new("Frame"); bar.Size = UDim2.new(0, 460, 0, 8); bar.Position = UDim2.new(0.5, 0, 0, 62); bar.AnchorPoint = Vector2.new(0.5, 0); bar.BackgroundColor3 = Color3.fromRGB(60, 220, 120); bar.Parent = gui
+local floor = Instance.new("Part"); floor.Size = Vector3.new(60, 1, 60); floor.Anchored = true; floor.Position = Vector3.new(0, -0.5, 0); floor.Color = Color3.fromRGB(70, 80, 110); floor.Parent = workspace
+local LIMIT = 3
+local lx, lz, still, t0, best = 0, 0, 0, os.clock(), 0
+local function restart() still = 0; t0 = os.clock(); game.teleport(0, 2, 0) end
+restart()
+task.spawn(function()
+  while true do
+    task.wait(0.1)
+    local c = me.Character; local r = c and c:FindFirstChild("HumanoidRootPart")
+    if r then
+      local moved = math.abs(r.Position.X - lx) + math.abs(r.Position.Z - lz)
+      lx, lz = r.Position.X, r.Position.Z
+      if moved > 0.25 then still = 0 else still = still + 0.1 end
+      local secs = math.floor((os.clock() - t0) * 10) / 10
+      if still >= LIMIT or r.Position.Y < -8 then
+        if secs > best then best = secs end
+        game.sound("hit"); game.title("Boom! " .. secs .. " s (mejor " .. best .. " s)", 2500); task.wait(2.5); restart()
+      else
+        bar.Size = UDim2.new(0, math.floor(460 * (1 - still / LIMIT)), 0, 8)
+        bar.BackgroundColor3 = still > 2 and Color3.fromRGB(230, 70, 70) or Color3.fromRGB(60, 220, 120)
+        label.Text = "No pares!  " .. secs .. " s  ·  mejor " .. best .. " s"
+      end
+    end
+  end
+end)
+game.title("No te quedes quieto más de 3 segundos", 2500)`
+
 // Piso que cae: cada loseta desaparece poco después de pisarla y vuelve a los pocos segundos. Cruza hasta la meta sin caer al vacío.
 export const CRUMBLE = `local Players = game:GetService("Players")
 local me = Players.LocalPlayer

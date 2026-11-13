@@ -13,7 +13,7 @@ Blocksy is a multiplayer block-building game for the web and the Nintendo 3DS (h
 - 3DS: smooth day-night sky for games with a time of day; friends are highlighted in gold in the game and on the radar; you are lifted out of blocks placed on top of you.
 - 3DS: 24 new game options in Settings, jump assist, hold X/Y to repeat, SELECT+X pick block, SELECT+Y undo, join/leave notices, colored FPS and ping.
 - 3DS: in-game texts, login screens and login errors follow the language chosen in Settings (es/en/pt).
-- New Studio templates: Rising lava, Coin rush and Time trial.
+- New Studio templates: Rising lava, Coin rush, Time trial and Don't stop.
 
 ## Installing
 - Install `Blocksy.cia` with FBI, or copy `Blocksy.3dsx` to the `3ds` folder of the SD card and run it from the Homebrew Launcher.
