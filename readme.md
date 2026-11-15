@@ -2,6 +2,8 @@
 
 Mini-Roblox propio: mundo de bloques multijugador para **web** y **Nintendo 3DS (homebrew)**, mismo servidor.
 
+> **Version 1.5.0: la ultima actualizacion.** Gracias por jugar, construir y crear con nosotros. Tus mundos, amigos y logros siguen contigo; el codigo queda aqui, abierto, para quien quiera seguir aprendiendo con el. En la 3DS hay una pantalla de despedida con tus estadisticas (Ajustes > Gracias / Estadisticas) y en la web el mensaje sale en Novedades y Creditos.
+
 ```
 web/       Cliente web (Vite + Three.js) → se despliega en Netlify
 3ds/       Cliente 3DS (C, libctru + citro2d) → blocksy.3dsx y blocksy.cia

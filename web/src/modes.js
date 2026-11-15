@@ -945,6 +945,50 @@ task.spawn(function()
 end)
 game.title("No te quedes quieto más de 3 segundos", 2500)`
 
+// Fuegos artificiales: cohetes que suben y estallan en chispas de colores. Un espectáculo para celebrar con tus amigos.
+export const FIREWORKS = `local Players = game:GetService("Players")
+local me = Players.LocalPlayer
+local gui = Instance.new("ScreenGui"); gui.Parent = me.PlayerGui
+local label = Instance.new("TextLabel"); label.Size = UDim2.new(0, 420, 0, 44); label.Position = UDim2.new(0.5, 0, 0, 14); label.AnchorPoint = Vector2.new(0.5, 0)
+label.BackgroundColor3 = Color3.fromRGB(20, 20, 30); label.BackgroundTransparency = 0.25; label.TextColor3 = Color3.new(1, 1, 1); label.TextSize = 20; label.Parent = gui
+Instance.new("UICorner", label).CornerRadius = UDim.new(0, 12)
+local shows = 0
+local function burst(x, y, z, hue)
+  local sparks = {}
+  for i = 1, 14 do
+    local p = Instance.new("Part"); p.Size = Vector3.new(0.5, 0.5, 0.5); p.Anchored = true; p.CanCollide = false; p.Material = Enum.Material.Neon
+    p.Color = Color3.fromHSV((hue + i * 0.02) % 1, 0.8, 1); p.Position = Vector3.new(x, y, z); p.Parent = workspace
+    local a, b = i / 14 * math.pi * 2, (i % 3 - 1) * 0.5
+    sparks[i] = { part = p, vx = math.cos(a) * 6, vy = b * 6 + 2, vz = math.sin(a) * 6 }
+  end
+  for step = 1, 14 do
+    task.wait(0.07)
+    for _, s in ipairs(sparks) do
+      s.vy = s.vy - 0.8
+      s.part.Position = Vector3.new(s.part.Position.X + s.vx * 0.07, s.part.Position.Y + s.vy * 0.07, s.part.Position.Z + s.vz * 0.07)
+      s.part.Transparency = step / 14
+    end
+  end
+  for _, s in ipairs(sparks) do s.part:Destroy() end
+end
+local function rocket()
+  local x, z, hue = (math.random() - 0.5) * 30, (math.random() - 0.5) * 30, math.random()
+  local r = Instance.new("Part"); r.Size = Vector3.new(0.6, 1.2, 0.6); r.Anchored = true; r.CanCollide = false; r.Material = Enum.Material.Neon
+  r.Color = Color3.fromRGB(255, 220, 120); r.Position = Vector3.new(x, 1, z); r.Parent = workspace
+  local top = 12 + math.random() * 10
+  for k = 1, 12 do task.wait(0.05); r.Position = Vector3.new(x, 1 + (top - 1) * k / 12, z) end
+  r:Destroy(); game.sound("coin"); burst(x, top, z, hue); shows += 1
+end
+task.spawn(function()
+  while true do
+    label.Text = "Fuegos artificiales  ·  " .. shows .. " estallidos"
+    task.spawn(rocket)
+    task.wait(0.6 + math.random() * 0.9)
+  end
+end)
+game.teleport(0, 2, 0)
+game.title("Gracias por jugar a Blocksy", 3500)`
+
 // Piso que cae: cada loseta desaparece poco después de pisarla y vuelve a los pocos segundos. Cruza hasta la meta sin caer al vacío.
 export const CRUMBLE = `local Players = game:GetService("Players")
 local me = Players.LocalPlayer

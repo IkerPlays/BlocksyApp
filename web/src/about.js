@@ -33,7 +33,7 @@ const NEWS = { es: [
   'La 3DS dibuja las piezas del Estudio, cielos y horas del día, y muestra tu clan, temporada y próxima quedada.',
   'Actualizador de la 3DS nuevo: descargas verificadas, reanudables y con vuelta atrás.',
   'Seis logros nuevos y clanes, quedadas, temporadas y moderación.',
-  'Plantillas nuevas: Lava ascendente, Fiebre de monedas, Contrarreloj y No pares.',
+  'Plantillas nuevas: Lava ascendente, Fiebre de monedas, Contrarreloj, No pares y Fuegos artificiales.',
   'La 3DS estrena partículas de bloques, radar de jugadores, cielo continuo y 24 opciones nuevas en Ajustes.',
 ], en: [
   'Final update: a farewell message, stats on the 3DS and many improvements. Thank you for playing!',
@@ -42,7 +42,7 @@ const NEWS = { es: [
   'The 3DS draws Studio parts, skies and times of day, and shows your clan, season and next meetup.',
   'New 3DS updater: verified, resumable downloads with rollback.',
   'Six new achievements, plus clans, meetups, seasons and moderation.',
-  'New templates: Rising lava, Coin rush, Time trial and Don\'t stop.',
+  'New templates: Rising lava, Coin rush, Time trial, Don\'t stop and Fireworks.',
   'The 3DS gets block particles, a player radar, a smooth sky and 24 new options in Settings.',
 ] }
 export function whatsNew() { return (NEWS[document.documentElement.lang] ?? NEWS.en).slice() }

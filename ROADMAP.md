@@ -85,3 +85,6 @@ Estado: tandas 55 a 66 hechas (devbuilds 55 a 66). Pendiente de lo pedido: dibuj
 - 3DS: ver y usar tienda de temporadas, clanes y quedadas (hoy solo web).
 - Mas plantillas de modos (tower defense) y balance de Arena/Equipos con partidas reales.
 - Revision de las traducciones de it, pl, ru, ja, zh y ko por personas nativas.
+
+# Despedida (1.5.0, ultima actualizacion)
+Mensaje de despedida en la web y en la 3DS (con estadisticas guardadas en la SD), plantillas No pares y Fuegos artificiales, ayuda al saltar, radar, amigos en dorado, 24 opciones de juego en la 3DS y todos los textos de la 3DS en el idioma elegido. Lo que quedaba de la hoja de ruta 1.5 (imagenes de juegos, notificaciones push, moderacion automatica, tower defense, revision nativa de traducciones) queda como ideas abiertas para quien quiera retomarlo.
