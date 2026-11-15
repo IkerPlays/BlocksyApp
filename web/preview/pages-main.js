@@ -1,5 +1,5 @@
 import '../src/style.css'
-import { pages } from '../src/pages.js'
+import { pages, showNews } from '../src/pages.js'
 import { headshot } from '../src/avatar.js'
 import { applyStatic, setLang } from '../src/i18n.js'
 import { applyIcons } from '../src/icons.js'
@@ -12,3 +12,4 @@ document.getElementById('chip-avatar').style.setProperty('--img', `url(${headsho
 document.body.dataset.ready = '0'
 applyStatic(); applyIcons()
 Promise.resolve(pages[name](document.getElementById('page'), ctx, q.get('arg') || undefined)).then(() => (document.body.dataset.ready = '1'))
+if (q.get('news')) setTimeout(showNews, 600)
