@@ -27,6 +27,7 @@ export function reportUrl(extra = '') {
 
 // ---- Novedades (se muestran una vez tras cada actualización) ----
 const NEWS = { es: [
+  'Última actualización: despedida, estadísticas en la 3DS y muchas mejoras. ¡Gracias por jugar!',
   'Plantillas nuevas: Memoria, Zonas, Cazatesoros, Torre, Laberinto, Reflejos, Piso que cae y Preguntas, con filtros y búsqueda.',
   'Estudio: castillo, cúpula, escalera de caracol y columna; aviso si pasas de 160 piezas (límite de la 3DS).',
   'La 3DS dibuja las piezas del Estudio, cielos y horas del día, y muestra tu clan, temporada y próxima quedada.',
@@ -35,12 +36,13 @@ const NEWS = { es: [
   'Plantillas nuevas: Lava ascendente, Fiebre de monedas, Contrarreloj y No pares.',
   'La 3DS estrena partículas de bloques, radar de jugadores, cielo continuo y 24 opciones nuevas en Ajustes.',
 ], en: [
+  'Final update: a farewell message, stats on the 3DS and many improvements. Thank you for playing!',
   'New templates: Memory, Zones, Treasure hunt, Tower, Maze, Reflexes, Crumbling floor and Quiz, with filters and search.',
   'Studio: castle, dome, spiral staircase and pillar; a warning above 160 parts (the 3DS limit).',
   'The 3DS draws Studio parts, skies and times of day, and shows your clan, season and next meetup.',
   'New 3DS updater: verified, resumable downloads with rollback.',
   'Six new achievements, plus clans, meetups, seasons and moderation.',
-  'New templates: Rising lava, Coin rush, Time trial and Don't stop.',
+  'New templates: Rising lava, Coin rush, Time trial and Don\'t stop.',
   'The 3DS gets block particles, a player radar, a smooth sky and 24 new options in Settings.',
 ] }
 export function whatsNew() { return (NEWS[document.documentElement.lang] ?? NEWS.en).slice() }

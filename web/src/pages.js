@@ -78,12 +78,14 @@ function showTranslations() {
     el('button', { class: 'btn wide', text: t('close'), onclick: closeModal })))
   $('modal').classList.remove('hidden')
 }
+// Despedida: el mensaje de la ultima actualizacion (novedades y creditos)
+const farewellBox = () => el('div', { class: 'farewell' }, el('h3', { text: t('bye_title') }), el('p', { text: t('bye_text') }))
 export function showNews() {
-  const m = $('modal'); setKids($('modal-card'), el('div', { class: 'detail-col' }, el('h2', { text: t('whats_new') + ' · ' + APP_VERSION }), el('ul', { class: 'news-list' }, whatsNew().map(x => el('li', { text: x }))), el('button', { class: 'btn wide primary', text: t('close'), onclick: closeModal })))
+  const m = $('modal'); setKids($('modal-card'), el('div', { class: 'detail-col' }, farewellBox(), el('h2', { text: t('whats_new') + ' · ' + APP_VERSION }), el('ul', { class: 'news-list' }, whatsNew().map(x => el('li', { text: x }))), el('button', { class: 'btn wide primary', text: t('close'), onclick: closeModal })))
   m.classList.remove('hidden'); markSeen()
 }
 function showCredits() {
-  setKids($('modal-card'), el('div', { class: 'detail-col' }, el('h2', { text: t('credits') }), el('ul', { class: 'news-list' }, CREDITS.map(([a, b]) => el('li', {}, el('b', { text: a + ' ' }), b))), el('button', { class: 'btn wide', text: t('close'), onclick: closeModal })))
+  setKids($('modal-card'), el('div', { class: 'detail-col' }, farewellBox(), el('h2', { text: t('credits') }), el('ul', { class: 'news-list' }, CREDITS.map(([a, b]) => el('li', {}, el('b', { text: a + ' ' }), b))), el('button', { class: 'btn wide', text: t('close'), onclick: closeModal })))
   $('modal').classList.remove('hidden')
 }
 function showErrors() {

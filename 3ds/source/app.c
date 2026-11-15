@@ -40,6 +40,19 @@ static const char *const PT_TR[][2] = {
 	{"%s wants to be your friend", "%s quer ser seu amigo"},
 	{"+ Add friend (username)", "+ Adicionar amigo (usuario)"},
 	{"Account", "Conta"},
+	{"Thank you for playing Blocksy!", "Obrigado por jogar Blocksy!"},
+	{"This is the last update of the app.", "Esta e a ultima atualizacao do app."},
+	{"Your worlds, friends and achievements stay with you.", "Seus mundos, amigos e conquistas continuam com voce."},
+	{"Keep building, exploring and creating with your friends.", "Continue construindo, explorando e criando com seus amigos."},
+	{"See you soon!", "Ate logo!"},
+	{"Your time in Blocksy", "Seu tempo no Blocksy"},
+	{"Time played", "Tempo jogado"},
+	{"Blocks placed", "Blocos colocados"},
+	{"Messages", "Mensagens"},
+	{"Games", "Jogos"},
+	{"Close (A)", "Fechar (A)"},
+	{"Thank you for everything", "Obrigado por tudo"},
+	{"Thanks / Stats", "Obrigado / Estatisticas"},
 	{"Add friends from Friends to see them here.", "Adicione amigos em Amigos para ve-los aqui."},
 	{"Log in with email and password to see your friends.", "Entre com email e senha para ver seus amigos."},
 	{"Loading games...", "Carregando jogos..."},
@@ -447,6 +460,9 @@ static void worker_thread(void *arg) {
 	net_thread_cleanup();
 }
 
+// ---------- estadisticas y despedida ----------
+static long s_st[4]; static int s_bye_seen;                 // 0 segundos jugados, 1 bloques puestos, 2 mensajes, 3 juegos visitados
+void app_stat_add(int kind, long n) { if (kind >= 0 && kind < 4 && n > 0) s_st[kind] += n; }
 // ---------- ajustes guardados ----------
 #define SETTINGS_FILE "sdmc:/3ds/blocksy/settings.txt"
 static char s_last_game[40]; static int s_dist = 1;
@@ -458,6 +474,8 @@ static void load_settings(void) {
 	while (fgets(line, sizeof line, f)) {
 		line[strcspn(line, "\r\n")] = 0;
 		if (opts_parse_line(s_opt, line)) continue;
+		if (!strncmp(line, "st.", 3) && line[3] >= '0' && line[3] <= '3' && line[4] == '=') { s_st[line[3] - '0'] = atol(line + 5); continue; }
+		if (!strncmp(line, "bye=", 4)) { s_bye_seen = atoi(line + 4) ? 1 : 0; continue; }
 		if (!strncmp(line, "last_game=", 10)) snprintf(s_last_game, sizeof s_last_game, "%s", line + 10);
 		else if (!strncmp(line, "dist=", 5)) s_dist = atoi(line + 5) % 3;
 		else if (!strncmp(line, "auto=", 5)) s_auto = atoi(line + 5) != 0;
@@ -479,11 +497,14 @@ static void load_settings(void) {
 	}
 	fclose(f);
 }
+static void save_settings(void);
+static void farewell_draw(C3D_RenderTarget *top, C3D_RenderTarget *bot, const char *version);
+void app_stats_save(void) { save_settings(); }                  // al salir de una partida se guardan las estadisticas
 void app_load_settings(void) { load_settings(); }             // para que el login ya salga en el idioma elegido
 static void save_settings(void) {
 	mkdir("sdmc:/3ds", 0777); mkdir("sdmc:/3ds/blocksy", 0777);
 	FILE *f = fopen(SETTINGS_FILE, "w"); if (!f) return;
-	fprintf(f, "last_game=%s\ndist=%d\nauto=%d\nlang=%d\nsync=%d\nnotif=%d\nforest=%d\nsteps=%d\nshowdev=%d\nach=%d\nmusic=%d\nmvol=%d\nsfx=%d\nautoinst=%d\nfps=%d\ncoords=%d\nradar=%d\nfxp=%d\n", s_last_game, s_dist, s_auto, s_lang, s_sync, s_notif_on, s_forest, s_steps, s_showdev, s_ach, app_music_on(), s_mvol, s_sfx, s_autoinst, s_fps, s_coords, s_radar, s_fxp); for (int i = 0; i < NOPT; i++) fprintf(f, "%s", opts_format(i, app_opt(i))); fclose(f);
+	fprintf(f, "last_game=%s\ndist=%d\nauto=%d\nlang=%d\nsync=%d\nnotif=%d\nforest=%d\nsteps=%d\nshowdev=%d\nach=%d\nmusic=%d\nmvol=%d\nsfx=%d\nautoinst=%d\nfps=%d\ncoords=%d\nradar=%d\nfxp=%d\n", s_last_game, s_dist, s_auto, s_lang, s_sync, s_notif_on, s_forest, s_steps, s_showdev, s_ach, app_music_on(), s_mvol, s_sfx, s_autoinst, s_fps, s_coords, s_radar, s_fxp); for (int i = 0; i < NOPT; i++) fprintf(f, "%s", opts_format(i, app_opt(i))); for (int i = 0; i < 4; i++) fprintf(f, "st.%d=%ld\n", i, s_st[i]); fprintf(f, "bye=%d\n", s_bye_seen); fclose(f);
 }
 
 // ---------- estado de la interfaz ----------
@@ -566,7 +587,7 @@ static int count_rows(const Ui *u, const Session *s) {
 	switch (u->page) {
 	case P_HOME: case P_DISCOVER: return build_view(u, s, view);
 	case P_FRIENDS: return build_people(s, pr);
-	case P_SETTINGS: return 19 + NOPT;
+	case P_SETTINGS: return 20 + NOPT;
 	case P_NOTIF: return nnotifs + 1;
 	case P_SHOP: return nshop + 1 + g_nmis + (g_season ? 1 : 0) + g_nwk;
 	case P_UPDATE: return update_can_rollback() ? 6 : 5;
@@ -1046,7 +1067,7 @@ static void pane(const Ui *u, const Session *s) {
 		break; }
 	case P_SETTINGS: {
 		const char *dn[3] = {tr2("Corta", "Short"), tr2("Media", "Medium"), tr2("Larga", "Long")};
-		char l[19 + NOPT][48]; const char *fn[3] = {tr2("Facil", "Easy"), "Normal", tr2("Dificil", "Hard")};
+		char l[20 + NOPT][48]; const char *fn[3] = {tr2("Facil", "Easy"), "Normal", tr2("Dificil", "Hard")};
 		snprintf(l[0], 48, "%s: %s", tr2("Distancia", "Distance"), dn[s_dist]);
 		snprintf(l[1], 48, "%s: %d ms", tr2("Sincronizacion", "Sync"), SYNC_MS[s_sync]);
 		snprintf(l[2], 48, "%s: %s", tr2("Updates al abrir", "Updates on start"), s_auto ? tr2("Si", "Yes") : "No");
@@ -1066,7 +1087,8 @@ static void pane(const Ui *u, const Session *s) {
 		snprintf(l[17], 48, "%s: %s", tr2("Particulas de bloques", "Block particles"), s_fxp ? tr2("Si", "Yes") : "No");
 		for (int o = 0; o < NOPT; o++) snprintf(l[18 + o], 48, "%s: %s", opt_name(o), opt_val(o));
 		snprintf(l[18 + NOPT], 48, "%s", tr2("Restaurar opciones de juego", "Reset game options"));
-		for (int i = 0; i < vis && u->scroll + i < 19 + NOPT; i++) {
+		snprintf(l[19 + NOPT], 48, "%s", tr2("Gracias / Estadisticas", "Thanks / Stats"));
+		for (int i = 0; i < vis && u->scroll + i < 20 + NOPT; i++) {
 			int r = u->scroll + i; float y = LIST_Y + 2 + i * rh;
 			if (r == 1) {                                       // barra deslizante: toca o arrastra para elegir (izquierda = rapido)
 				ui_button(PANE_X, y, PANE_W - 4, rh - 4, COL_PANEL2, u->cur == 1, l[1], 0.38f);
@@ -1105,6 +1127,7 @@ static void draw_all(C3D_RenderTarget *top, C3D_RenderTarget *bot, const Ui *u, 
 
 #ifdef BLOCKSY_PREVIEW
 void app_preview(C3D_RenderTarget *top, C3D_RenderTarget *bot, int page, int modal, int cursor, const char *version) {
+	if (page == 99) { s_st[0] = 8 * 3600 + 25 * 60; s_st[1] = 12840; s_st[2] = 96; s_st[3] = 41; farewell_draw(top, bot, version); return; }
 	{ const char *pl = getenv("BLOCKSY_PREVIEW_LANG"); if (pl) s_lang = atoi(pl); }
 	static Session s; snprintf(s.username, sizeof s.username, "Iker"); snprintf(s.user_id, sizeof s.user_id, "me"); s.color = parse_hex("#ff9f43");
 	static const char *nm[] = {"Spawn Plaza", "Parkour Tower", "Lava Escape", "Sky Islands", "Mundo de Iker", "Castillos"};
@@ -1165,9 +1188,38 @@ static bool acc_cycle(const char *kind, int dir) {         // false: no tienes n
 	return true;
 }
 
+// Pantalla de despedida / agradecimientos (se ve una vez al abrir esta version y desde Ajustes > Gracias)
+static void farewell_draw(C3D_RenderTarget *top, C3D_RenderTarget *bot, const char *version) {
+	ui_frame_begin(); C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
+	C2D_TargetClear(top, C2D_Color32(0, 0, 0, 255)); C2D_SceneBegin(top);
+	ui_top_background(version, tr2("Gracias por todo", "Thank you for everything"));
+	C2D_TargetClear(bot, COL_BG); C2D_SceneBegin(bot);
+	ui_text(160, 10, 0.55f, COL_ACCENT, C2D_AlignCenter, tr2("Gracias por jugar a Blocksy!", "Thank you for playing Blocksy!"));
+	ui_text(160, 38, 0.4f, COL_TEXT, C2D_AlignCenter, tr2("Esta es la ultima actualizacion de la app.", "This is the last update of the app."));
+	ui_text(160, 54, 0.4f, COL_MUTED, C2D_AlignCenter, tr2("Tus mundos, amigos y logros siguen contigo.", "Your worlds, friends and achievements stay with you."));
+	ui_text(160, 70, 0.4f, COL_MUTED, C2D_AlignCenter, tr2("Sigue construyendo, explorando y creando con tus amigos.", "Keep building, exploring and creating with your friends."));
+	ui_text(160, 90, 0.45f, COL_TEXT, C2D_AlignCenter, tr2("Hasta pronto!", "See you soon!"));
+	ui_rrect(24, 114, 272, 84, 10, COL_PANEL2);
+	char st[64]; long m = s_st[0] / 60;
+	ui_text(160, 118, 0.38f, COL_MUTED, C2D_AlignCenter, tr2("Tu paso por Blocksy", "Your time in Blocksy"));
+	snprintf(st, sizeof st, "%s: %ldh %02ldm", tr2("Tiempo jugado", "Time played"), m / 60, m % 60); ui_text(36, 136, 0.4f, COL_TEXT, 0, st);
+	snprintf(st, sizeof st, "%s: %ld", tr2("Bloques puestos", "Blocks placed"), s_st[1]); ui_text(36, 152, 0.4f, COL_TEXT, 0, st);
+	snprintf(st, sizeof st, "%s: %ld   %s: %ld", tr2("Mensajes", "Messages"), s_st[2], tr2("Juegos", "Games"), s_st[3]); ui_text(36, 168, 0.4f, COL_TEXT, 0, st);
+	ui_button(100, 206, 120, 28, COL_ACCENT, true, tr2("Cerrar (A)", "Close (A)"), 0.45f);
+	C3D_FrameEnd(0);
+}
+static void farewell(C3D_RenderTarget *top, C3D_RenderTarget *bot, const char *version) {
+	u64 t0 = osGetTime();
+	while (aptMainLoop()) {
+		hidScanInput(); u32 k = hidKeysDown();
+		if (osGetTime() - t0 > 600 && (k & (KEY_A | KEY_B | KEY_START | KEY_TOUCH))) return;
+		farewell_draw(top, bot, version);
+	}
+}
 AppResult app_lobby(C3D_RenderTarget *top, C3D_RenderTarget *bot, Session *s, GameInfo *chosen, const char *version) {
 	LightLock_Init(&lk);
 	load_settings(); games_cache_load();
+	if (!s_bye_seen) { s_bye_seen = 1; save_settings(); farewell(top, bot, version); }          // despedida: una vez al abrir esta version
 	memset(&W, 0, sizeof W); W.s = s;
 	Ui u = {.page = P_HOME, .modal = -1, .dm = -1, .rm_confirm = -1, .dm_sel = -1};
 	// color actual del avatar -> swatch
@@ -1386,6 +1438,7 @@ AppResult app_lobby(C3D_RenderTarget *top, C3D_RenderTarget *bot, Session *s, Ga
 				else if (act_row == 15) { s_coords = !s_coords; save_settings(); }
 				else if (act_row == 16) { s_radar = !s_radar; save_settings(); }
 				else if (act_row == 17) { s_fxp = !s_fxp; save_settings(); }
+				else if (act_row == 19 + NOPT) { farewell(top, bot, version); }
 				else if (act_row == 18 + NOPT) { opt_defaults(); opts_defaults(s_opt); save_settings(); toast(&u, tr2("Opciones restauradas", "Options reset")); }
 				else if (act_row >= 18 && act_row < 18 + NOPT) { int o = act_row - 18; opt_defaults(); s_opt[o] = (s_opt[o] + 1) % OPTS[o].n; save_settings(); }
 				break;

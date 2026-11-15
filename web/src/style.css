@@ -534,3 +534,5 @@ pre.notes { white-space: pre-wrap; font-family: inherit; font-size: 14px; color:
 .dm-form .btn.rec { background:var(--red,#e74c3c); color:#fff; }
 .meetup .chk { margin:6px 0; gap:8px; }
 .mod-card { display:flex; flex-direction:column; gap:8px; } .danger-txt { color:var(--red,#e74c3c); }
+
+.farewell { margin: 0 0 14px; padding: 14px 16px; border-radius: 14px; background: linear-gradient(135deg, rgba(77,124,255,.28), rgba(46,204,113,.22)); border: 1px solid rgba(255,255,255,.14); } .farewell h3 { margin: 0 0 6px; font-size: 18px; } .farewell p { margin: 0; line-height: 1.5; }

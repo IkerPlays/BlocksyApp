@@ -390,7 +390,7 @@ static void do_chat(void) {
 	Action a = {.type = CHAT}; SwkbdState kb; swkbdInit(&kb, SWKBD_TYPE_NORMAL, 2, 90); swkbdSetHintText(&kb, "Mensaje");
 	if (swkbdInputText(&kb, a.text, sizeof a.text) == SWKBD_BUTTON_CONFIRM) {
 		for (char *c = a.text; *c; c++) if (*c == '"' || *c == '\\') *c = ' ';
-		push_action(a);
+		push_action(a); app_stat_add(2, 1);
 	}
 }
 
@@ -999,6 +999,7 @@ static bool play_game(C3D_RenderTarget *top, C3D_RenderTarget *bot) {
 		now_ms = now; render_game(top, bot);
 	}
 
+	app_stat_add(0, (long)((osGetTime() - g_game_start) / 1000)); app_stat_add(1, g_placed_total); app_stat_add(3, 1); app_stats_save();      // estadisticas de la partida
 	audio_game(false, NULL);
 	want_offline = !back;
 	running = false;
